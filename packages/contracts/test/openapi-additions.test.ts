@@ -76,7 +76,7 @@ describe("observability operations (PLAN §50.3)", () => {
     // Hermes access read (DASH-07.03), 274 with the SKILL.md detail (DASH-10.02), 276 with the skill
     // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
     // diff reports. Bump deliberately with the release note instead of fitting the number to a failure.
-    expect(operations).toHaveLength(281);
+    expect(operations).toHaveLength(282);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

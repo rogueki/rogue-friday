@@ -368,7 +368,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -551,6 +551,54 @@ SKILL_MUTATION_TIMEOUT = 180
 # tap list resolves its GitHub taps over the network; measured well over the old 30 s, so it gets the same budget
 # as browse. The service uses 35/95/125 s on top of these, so a timeout is reported, never silently shortened.
 SKILL_COMMANDS = {"browse": 90, "check": 120, "tap-list": 90}
+
+
+GOVERNANCE_ACTIONS = {"trust", "untrust", "tap-add", "tap-remove", "reset"}
+GOVERNANCE_TIMEOUT = 90
+
+
+def governance_target(home, request):
+    """Every action touches global state, so the target is checked here: a real directory for trust, a plain
+    owner/repo for a tap. Nothing is passed through unvalidated."""
+    action = request["action"]
+    if action in {"trust", "untrust"}:
+        path = request["path"]
+        if not isinstance(path, str) or not path.startswith("/") or ".." in path.split("/"):
+            raise ValueError("invalid_request")
+        resolved = os.path.realpath(path)
+        if not os.path.isdir(resolved):
+            raise ValueError("invalid_target")
+        # The CLI only loads project skills from these two directories; trusting anything else would be a no-op
+        # that still claims success.
+        if not any(os.path.isdir(os.path.join(resolved, marker, "skills")) for marker in (".hermes", ".agents")):
+            raise ValueError("missing_project_skills")
+        return resolved
+    if action == "tap-add":
+        repo = request["repo"]
+        if not isinstance(repo, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}", repo) is None:
+            raise ValueError("invalid_request")
+        return repo
+    if action == "reset":
+        # `--restore` is deliberately not exposed: it replaces the local copy with the bundled one, which belongs to
+        # the snapshot flow of DASH-10.07, not to a governance toggle.
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        return name
+    repo = request["repo"]
+    if not isinstance(repo, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}", repo) is None:
+        raise ValueError("invalid_request")
+    return repo
+
+
+def governance_argv(cli, action, target):
+    if action in {"trust", "untrust"}:
+        return [str(cli), "skills", action, target]
+    if action == "reset":
+        return [str(cli), "skills", "reset", target]
+    if action == "tap-add":
+        return [str(cli), "skills", "tap", "add", target]
+    return [str(cli), "skills", "tap", "remove", target]
 
 
 def skill_command_argv(cli, command, name, page, size, source):
@@ -753,6 +801,54 @@ def locked_main(home, source, cli):
         print(json.dumps({"action": action, "name": name, "installed": present_after,
                           "enabled": (row["state"] == "enabled") if row else None,
                           "snapshot": snapshot.name if snapshot is not None else None,
+                          "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
+        return 0
+    if sys.argv[1] == "skill-governance":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"action", "path", "repo", "name"}:
+            raise ValueError("invalid_request")
+        if request["action"] not in GOVERNANCE_ACTIONS:
+            raise ValueError("invalid_request")
+        try:
+            target = governance_target(home, request)
+        except ValueError as error:
+            # Shape errors stay `invalid_request` (exit 5); a refused target is a real answer with its own code.
+            if str(error) in {"invalid_target", "missing_project_skills"}:
+                print(json.dumps({"error": str(error)}))
+                return 6
+            raise
+        try:
+            result = subprocess.run(governance_argv(cli, request["action"], target), capture_output=True, text=True,
+                                    timeout=GOVERNANCE_TIMEOUT, env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_governance_timeout"}))
+            return 7
+        text = (result.stdout + result.stderr).strip()
+        # `hermes skills tap remove <unknown>` prints "Error: Tap not found" and still exits 0, so the text decides.
+        if result.returncode or text.startswith("Error:") or "\nError:" in text:
+            print(json.dumps({"error": "skill_governance_failed", "detail": text[-600:]}))
+            return 6
+        confirmed = False
+        if request["action"] == "reset":
+            # `hermes skills reset` answers with a sentence about the manifest entry; the text has to name the skill.
+            confirmed = target in text
+        elif request["action"] in {"trust", "untrust"}:
+            confirmed = target in text
+        else:
+            try:
+                taps = skill_command_argv(cli, "tap-list", None, None, None, None)
+                listing = subprocess.run(taps, capture_output=True, text=True, timeout=GOVERNANCE_TIMEOUT,
+                                         env=dict(os.environ, COLUMNS="400"))
+                listed = listing.stdout.lower()
+                # The tap table shows the repository, so that is what a removal names and what an addition must show.
+                present = target.lower() in listed
+                confirmed = present if request["action"] == "tap-add" else not present
+            except subprocess.TimeoutExpired:
+                confirmed = False
+        if not confirmed:
+            print(json.dumps({"error": "skill_governance_unconfirmed", "detail": text[-600:]}))
+            return 8
+        print(json.dumps({"action": request["action"], "target": target,
                           "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
         return 0
     if sys.argv[1] == "skill-command":

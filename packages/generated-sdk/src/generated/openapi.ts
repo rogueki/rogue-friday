@@ -3333,6 +3333,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/governance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trust or untrust a project root, or add and remove a tap
+         * @description Both commands change global Hermes state, so the target is checked in the adapter: a trust target must be an
+         *     absolute directory that really carries `.hermes/skills` or `.agents/skills`, a tap is `owner/repo`, and a tap
+         *     removal names a configured tap. `hermes skills config` is deliberately not exposed - it refuses to run without
+         *     an interactive terminal.
+         */
+        post: operations["mutateSkillGovernance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills/hub/search": {
         parameters: {
             query?: never;
@@ -9832,6 +9855,16 @@ export interface components {
             text: string;
             truncated: boolean;
         };
+        /** SkillGovernance */
+        "skill-governance.schema": {
+            /** @enum {string} */
+            action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+            bytes: number;
+            /** Format: date-time */
+            changedAt: string | null;
+            target: string;
+            text: string;
+        };
         /** SkillMarkdown */
         "skill-markdown.schema": {
             bytes: number;
@@ -9933,6 +9966,20 @@ export interface components {
         SkillCommandReportResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["skill-command-report.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillGovernanceRequest */
+        SkillGovernanceRequest: {
+            /** @enum {string} */
+            action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+            name: string | null;
+            path: string | null;
+            repo: string | null;
+        };
+        /** SkillGovernanceResponse */
+        SkillGovernanceResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-governance.schema"];
             freshness: components["schemas"]["Freshness"];
         };
         /** SkillHubSearchResponse */
@@ -18741,6 +18788,35 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    mutateSkillGovernance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillGovernanceRequest"];
+            };
+        };
+        responses: {
+            /** @description The CLI confirmation, unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillGovernanceResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

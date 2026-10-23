@@ -1131,6 +1131,9 @@ export interface FridayModelMap {
   SkillCatalogResponse: SkillCatalogResponse;
   SkillCommandReport: SkillCommandReport;
   SkillCommandReportResponse: SkillCommandReportResponse;
+  SkillGovernance: SkillGovernance;
+  SkillGovernanceRequest: SkillGovernanceRequest;
+  SkillGovernanceResponse: SkillGovernanceResponse;
   SkillHubSearch: SkillHubSearch;
   SkillHubSearchResponse: SkillHubSearchResponse;
   SkillMarkdown: SkillMarkdown;
@@ -5900,6 +5903,24 @@ export interface SkillCommandReport {
 export interface SkillCommandReportResponse {
   contractVersion: ContractVersion;
   data: SkillCommandReport;
+  freshness: Freshness;
+}
+export interface SkillGovernance {
+  action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+  target: string;
+  text: string;
+  bytes: number;
+  changedAt: string | null;
+}
+export interface SkillGovernanceRequest {
+  action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+  path: string | null;
+  repo: string | null;
+  name: string | null;
+}
+export interface SkillGovernanceResponse {
+  contractVersion: ContractVersion;
+  data: SkillGovernance;
   freshness: Freshness;
 }
 export interface SkillHubSearch {

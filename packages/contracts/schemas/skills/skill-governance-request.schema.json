@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/skill-governance-request.schema.json",
+  "title": "SkillGovernanceRequest",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["trust", "untrust", "tap-add", "tap-remove", "reset"]
+    },
+    "path": {
+      "type": ["string", "null"],
+      "maxLength": 4096
+    },
+    "repo": {
+      "type": ["string", "null"],
+      "maxLength": 140
+    },
+    "name": {
+      "type": ["string", "null"],
+      "maxLength": 120
+    }
+  },
+  "required": ["action", "path", "repo", "name"],
+  "additionalProperties": false
+}

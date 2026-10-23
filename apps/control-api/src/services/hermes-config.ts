@@ -418,6 +418,51 @@ export class HermesConfigService {
       observedAt: new Date().toISOString() };
   }
 
+  /** Trust markers and taps change global Hermes state; the target checks live in the bridge, next to the CLI. */
+  async mutateSkillGovernance(action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset",
+    params: { path?: string | null; repo?: string | null; name?: string | null }) {
+    const path = params.path ?? null;
+    const repo = params.repo ?? null;
+    const name = params.name ?? null;
+    if (action === "reset") {
+      if (name === null || path !== null || repo !== null) throw validationFailed("reset braucht nur einen Skill-Namen.");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    } else if (action === "trust" || action === "untrust") {
+      if (path === null || repo !== null || name !== null)
+        throw validationFailed("trust und untrust brauchen nur einen Pfad.");
+      if (!path.startsWith("/")) throw validationFailed("Der Pfad muss absolut sein.");
+    } else {
+      // Both tap actions name the repository, exactly as `hermes skills tap list` shows it.
+      if (repo === null || path !== null || name !== null) throw validationFailed("tap-Aktionen brauchen nur ein Repository.");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,38}\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(repo))
+        throw validationFailed("Das Repository muss die Form owner/repo haben.");
+    }
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-governance"],
+        JSON.stringify({ action, path, repo, name }), 95000, 65536);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_governance_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Befehl hat nicht rechtzeitig geantwortet." });
+      if (message.includes("skill_governance_unconfirmed"))
+        throw new ApiError({ code: "CONFLICT", message: "Die CLI hat die Aenderung nicht bestaetigt." });
+      if (message.includes("skill_governance_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat den Befehl mit einem Fehler beendet." });
+      if (message.includes("missing_project_skills"))
+        throw validationFailed("Das Verzeichnis enthaelt keine Projektskills (.hermes/skills oder .agents/skills).");
+      if (message.includes("invalid_target")) throw validationFailed("Das Verzeichnis existiert nicht.");
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Parameter fuer diesen Befehl.");
+      throw unavailable();
+    }
+    const target = action === "reset" ? name : action === "trust" || action === "untrust" ? path : repo;
+    if (raw.action !== action || raw.target !== target || typeof raw.text !== "string" || raw.text.length > 4096 ||
+        !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0) throw unavailable();
+    return { action, target: raw.target as string, text: raw.text, bytes: raw.bytes as number,
+      changedAt: new Date().toISOString() };
+  }
+
   /** browse, check and tap list answer with text only; each takes its own, deliberately narrow parameter set. */
   async skillCommand(command: "browse" | "check" | "tap-list", params: { name?: string; page?: number; size?: number;
     source?: string }) {

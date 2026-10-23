@@ -6033,6 +6033,41 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.write
       x-required-role: owner
+  /api/v1/skills/governance:
+    post:
+      operationId: mutateSkillGovernance
+      tags: [skills]
+      summary: Trust or untrust a project root, or add and remove a tap
+      description: |
+        Both commands change global Hermes state, so the target is checked in the adapter: a trust target must be an
+        absolute directory that really carries `.hermes/skills` or `.agents/skills`, a tap is `owner/repo`, and a tap
+        removal names a configured tap. `hermes skills config` is deliberately not exposed - it refuses to run without
+        an interactive terminal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillGovernanceRequest"
+      responses:
+        "200":
+          description: The CLI confirmation, unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillGovernanceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.write
+      x-required-role: owner
   /api/v1/skills/reports:
     get:
       operationId: getSkillCommandReport
@@ -9646,6 +9681,10 @@ components:
       $ref: ../schemas/skills/skill-report-response.schema.json
     SkillCommandReportResponse:
       $ref: ../schemas/skills/skill-command-report-response.schema.json
+    SkillGovernanceRequest:
+      $ref: ../schemas/skills/skill-governance-request.schema.json
+    SkillGovernanceResponse:
+      $ref: ../schemas/skills/skill-governance-response.schema.json
     SkillMutationRequest:
       $ref: ../schemas/skills/skill-mutation-request.schema.json
     SkillMutationResponse:

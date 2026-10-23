@@ -39,6 +39,15 @@ async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "aud
     bytes: result.bytes, truncated: result.truncated, observedAt: result.observedAt }) };
 }
 
+async function mutateSkillGovernance(ctx: Parameters<Handler>[0]) {
+  const body = ctx.body as { action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset"; path: string | null;
+    repo: string | null; name: string | null };
+  const result = await ctx.runtime.hermesConfig.mutateSkillGovernance(body.action, body);
+  ctx.audit.action = `skills.governance_${body.action.replace("-", "_")}`;
+  ctx.audit.after = { action: result.action, target: result.target, bytes: result.bytes };
+  return { status: 200 as const, body: single(result) };
+}
+
 async function skillCommandReport(ctx: Parameters<Handler>[0]) {
   const query = ctx.query as { command?: string; name?: string; page?: string; size?: string; source?: string };
   const command = query.command;
@@ -74,6 +83,7 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   async getSkillAudit(ctx) { return skillReport(ctx, "audit", "skills.audited"); },
   async getSkillDiff(ctx) { return skillReport(ctx, "diff", "skills.diffed"); },
   getSkillCommandReport: skillCommandReport,
+  mutateSkillGovernance,
   async listModifiedSkills(ctx) {
     const result = await ctx.runtime.hermesConfig.modifiedSkills();
     ctx.audit.action = "skills.modified_listed";
