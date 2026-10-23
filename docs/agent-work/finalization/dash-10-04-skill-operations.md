@@ -158,3 +158,42 @@ einen fuer den Befehl falschen Parameter der Handler mit **422** (belegt in `ski
 `tap-list`-Lauf lief nach 30 s in `skill_command_timeout` (rc 7): der Befehl loest seine GitHub-Taps ueber
 das Netzwerk auf. Das Budget der Bridge betraegt seitdem 90 s, das des Dienstes 95 s — ein Timeout wird gemeldet, nie
 still verkuerzt.
+
+## 8.3 Vertrauen, Taps und Reset: `POST /api/v1/skills/governance` (2026-10-23)
+
+Eine Operation fuer die drei mutierenden Befehle, die kein Skill-Verzeichnis austauschen und deshalb nicht in den
+Schnappschusspfad von DASH-10.07 gehoeren. Der Rumpf nennt `action` (`trust`, `untrust`, `tap-add`, `tap-remove`,
+`reset`) und genau das Feld, das die Aktion braucht; alles andere wird mit **422** abgelehnt.
+
+| Aktion | Feld | Pruefung vor dem CLI-Aufruf | Nachweis |
+|---|---|---|---|
+| `trust` / `untrust` | `path` (absolut) | Verzeichnis existiert, kein `..`, enthaelt `.hermes/skills` oder `.agents/skills` | CLI-Text muss den Pfad nennen |
+| `tap-add` / `tap-remove` | `repo` (`owner/repo`) | Form `owner/repo` | Tap-Liste muss das Repository danach zeigen bzw. nicht mehr zeigen |
+| `reset` | `name` | Skill-Name wie im Inventar | CLI-Text muss den Namen nennen |
+
+**Zwei echte Fehler, die erst der Live-Lauf zeigte:**
+
+1. `hermes skills tap remove <unbekannt>` druckt `Error: Tap not found: …` und beendet sich mit **rc 0**. Wer nur den
+   Exit-Code prueft, meldet einen Erfolg, der keiner ist. Die Bridge wertet deshalb zusaetzlich den Text aus; belegt
+   durch einen Live-Lauf (rc 6, `skill_governance_failed`) und eine Pruefung mit gefaelschtem CLI. Ledger **N-060**.
+2. `hermes skills tap remove` erwartet das **Repository** (`anthropics/skills`), nicht den Besitzer oder einen
+   abgeleiteten Namen; `tap remove skills` endet mit „Tap not found". Die Operation nimmt deshalb fuer beide
+   Tap-Aktionen `repo` und liest die Tap-Liste als Bestaetigung. Ledger **N-061**.
+
+**Nicht exponiert: `hermes skills config`.** Der Befehl verlangt ausdruecklich ein interaktives Terminal
+(`Error: 'hermes skills config' requires an interactive terminal.`) und ist damit headless nicht ausfuehrbar; ihn ueber
+die API anzubieten waere eine Luege. Belegt und im Ledger als **N-059** festgehalten.
+
+**Live-Beleg (wegwerfbares Profil `friday-gov`, echte CLI v0.22.2, danach geloescht und `purge-identity`):**
+
+| Schritt | Ergebnis |
+|---|---|
+| trust | rc 0, `Trusted: /tmp/friday-gov-project-…` |
+| untrust | rc 0, `Untrusted: /tmp/friday-gov-project-…` |
+| tap add `anthropics/skills` | rc 0, `Added tap: anthropics/skills`, Tap-Liste zeigt das Repository |
+| tap remove `anthropics/skills` | rc 0, `Removed tap: anthropics/skills`, Liste danach leer |
+| tap remove `nobody/nothing` | rc 6, `skill_governance_failed`, Detail `Error: Tap not found: nobody/nothing` |
+| trust auf ein Verzeichnis ohne Projektskills | rc 6, `missing_project_skills` (CLI wurde nicht gestartet) |
+
+Damit sind zwoelf der vierzehn Befehle typisiert; `config` ist nachweislich nicht headless und `reset --restore`
+bleibt bewusst beim Schnappschusspfad aus DASH-10.07.
