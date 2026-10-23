@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skill-md", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -371,6 +371,38 @@ def main():
         print(json.dumps({"error": "hermes_not_installed"}))
         return 5
     return locked_main(home, source, cli)
+
+
+SKILL_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+SKILL_MD_LIMIT = 65536
+
+
+def read_skill_markdown(home, source, slug):
+    """Return the installed SKILL.md text for one slug. Text only; rendering is the UI's escaping job."""
+    if type(slug) is not str or SKILL_SLUG.fullmatch(slug) is None:
+        raise ValueError("invalid_skill_id")
+    roots = [home / "skills", source / "skills"]
+    for root in roots:
+        if not root.is_dir():
+            continue
+        candidates = [root / slug / "SKILL.md"]
+        candidates.extend(child / slug / "SKILL.md" for child in root.iterdir() if child.is_dir())
+        for candidate in candidates:
+            if candidate.name != "SKILL.md" or not candidate.is_file() or candidate.is_symlink():
+                continue
+            try:
+                resolved = candidate.resolve()
+                resolved.relative_to(root.resolve())
+            except (OSError, ValueError):
+                continue
+            size = resolved.stat().st_size
+            if size > SKILL_MD_LIMIT:
+                raise ValueError("skill_md_too_large")
+            text = resolved.read_text(encoding="utf-8", errors="strict")
+            if not text.strip():
+                continue
+            return {"id": slug, "content": text, "bytes": size}
+    raise ValueError("skill_md_missing")
 
 
 def parse_auth_list(text):
@@ -415,6 +447,12 @@ def locked_main(home, source, cli):
             raise ValueError("hermes_config_failed")
         return result.stdout.strip()
 
+    if sys.argv[1] == "skill-md":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"id"}:
+            raise ValueError("invalid_request")
+        print(json.dumps(read_skill_markdown(home, source, request["id"])))
+        return 0
     if sys.argv[1] == "auth-list":
         result = subprocess.run([str(cli), "auth", "list"], capture_output=True, text=True, timeout=15)
         if result.returncode:
