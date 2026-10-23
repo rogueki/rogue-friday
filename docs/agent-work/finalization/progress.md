@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 18:58 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-23 04:05 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -31,6 +31,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-02.05 Recovery | PASS (Sicherung vor Migration mit WAL-Checkpoint und drei Staenden, Restore nur nach `integrity_check`/`schema_migrations`, beschaedigte Kopie abgelehnt, keine Neuanlage; Vertragsversion: 409 bei fremder Hauptversion ohne Aenderung, 400 bei unlesbarer Version) | `dash-02-migration-recovery.md`, `db-migration-backup.test.ts` (4), `contract-version-compat.test.ts` (4) |
  PASS (UI und Sprachdialog ueber denselben Handler mit gemeinsamer Auditaktion und Revisionsschritt, 409 bei veralteter Revision, Bindung an gestagten Inhalt; contracts:check ok, 21 Dateien / 495 Tests, Migration zweimal ohne Doppelanwendung und mit erhaltenen Daten) | `dash-02-contracts.md`, `settings-shared-action.test.ts`, `db-migrate-repeatable.test.ts` |
 | INS-12 Starter und Abbruch | TEIL (Doppelklick startet die Oberflaeche, CLI-Modus dokumentiert, Parameter kommen durch cmd und cscript unveraendert an, Abbruch der Windows-Abfrage ohne Aenderung, Simulation nur im Testmodus; echter Dialog und Start aus dem ZIP -> INS-13) | `ins-12-launcher.md`, `launcher.Tests.ps1` (49) |
+| DASH-10.02 Skill-Inventar | TEIL (191 Skills live aus `hermes skills list`: 119 local / 72 builtin / 0 hub; Herkunft und Trust als eigene Vertragsfelder, Service-Merge mit CLI-Fallback, Detail laedt Markdown erst bei Auswahl als Text, Filter fuer Suche/Quelle/Herkunft/Kategorie/Status, 60er-Blocks mit Nachladen; echter Hub-Skill fehlt auf diesem Host) | `dash-10-02-skill-inventory.md`, `test_skills_list.py` (9), `skills-onboarding.test.ts` (20), `skills-inventory-route.test.ts` (1), `SkillsPage.test.tsx` (4) |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -490,6 +491,34 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `ins-12-launcher.md`; status: TEIL
 - remaining_work: echter Abbruch des UAC-Dialogs per Klick und Start aus dem entpackten ZIP auf sauberem Windows
   gehoeren zu INS-13
+
+### DASH-10.02 (2026-10-23)
+
+- requirement_ids: DASH-10.02; predecessor: DASH-07.01/.02 (Inventar), DASH-02/04 (Skillkonten)
+- base_revision: `2356c5e`; result_revision: working tree (Commit folgt)
+- implementation_paths: `installer/wsl/hermes_config_bridge.py` (`skills-list`, `parse_skills_list`),
+  `installer/wsl/tests/test_skills_list.py` (neu), `packages/contracts/schemas/skills/skill.schema.json`
+  (`origin`, `trust`), Beispiel `packages/contracts/examples/skills/catalog-response.json`,
+  `apps/control-api/src/services/{hermes-config,skills}.ts`, `apps/control-api/src/runtime/create-runtime.ts`,
+  `apps/web/src/features/skills/{SkillsPage.tsx,skillPresentation.ts,SkillMarkdown.tsx}`,
+  Tests `apps/control-api/test/{skills-onboarding,skills-inventory-route}.test.ts` und
+  `apps/web/src/features/skills/{skillPresentation,SkillsPage,SkillMarkdown}.test.tsx`
+- test_command: `python3 tests/test_skills_list.py` + `test_skill_markdown.py` (WSL Friday-Ubuntu),
+  `vitest --project node skills-onboarding skills-inventory-route`,
+  `vitest --project web skills`, volle Suite, `pnpm contracts:check`, `pnpm typecheck`, `pnpm lint`, `pnpm build`
+- expected: Inventar aus der echten CLI mit Quelle/Trust/Kategorie/Status, getrennt angezeigt; Detail laedt
+  Markdown erst bei Auswahl und rendert keinen HTML-Pfad; Suche + Quellen-/Herkunfts-/Kategorie-/Statusfilter;
+  begrenzte Zeilenzahl mit Nachladen
+- observed: `hermes skills list --source all` liefert 191 Skills (119 `local`, 72 `builtin`, 0 `hub`, alle
+  `enabled`); Bridge-Parser akzeptiert nur das dokumentierte Fuenf-Spalten-Layout (9 Pruefungen, 6 Fehlformen
+  abgelehnt, leere Kategorie bleibt leer); Vertrag erweitert (274 Operationen unveraendert) und Beispiel gueltig;
+  Service zieht Herkunft/Trust ausschliesslich aus der CLI, nutzt CLI-Status nur als Fallback und laesst den
+  Katalog bei unlesbarem Inventar intakt; UI zeigt Herkunft/Trust/Kategorie/Paket/Status/Quelle getrennt,
+  filtert nach Herkunft und blaettert in 60er-Bloecken; volle Suite 291 Dateien / 3681 passed / 60 skipped,
+  neue Routendatei einzeln gruen, contracts:check/typecheck/lint/build 0
+- evidence_paths: `dash-10-02-skill-inventory.md`, `dash-10-02-skill-inventory.md` Abschnitt 4; status: TEIL
+- remaining_work: echter Hub-Skill auf diesem Host (10.06), Version je Hermes-Skill fehlt in der CLI-Tabelle,
+  `external` als eigene Quelle existiert in der CLI nicht, Trust-Verwaltung = DASH-10.03/10.04
 
 ## Open risks / notes for the next session
 

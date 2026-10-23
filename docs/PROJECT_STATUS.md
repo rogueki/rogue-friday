@@ -873,3 +873,27 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   503-Erwartung im Secret-Hygiene-Test, fokussierte Vertragsprobe 80 statt 79 (Commit `4a64828`).
 - Keine Abschwaechung der Zaehlungen, keine erfundenen Antworten: der Endpunkt bleibt im Test ohne Hermes
   ehrlich bei ADAPTER_UNAVAILABLE.
+
+## 2026-10-23 DASH-10.02: Skill-Inventar mit Herkunft, Trust und SKILL.md-Detail
+
+- **Detailendpunkt** `GET /api/v1/skills/{id}/markdown` (owner) steht: Vertrag, generiertes SDK, Service
+  (`skillMarkdown`, Kennungspruefung vor dem Aufruf, 404/422 aus `skill_md_missing`/`skill_md_too_large`,
+  Byte-Grenze 64 KiB) und Handler (Audit `skills.markdown_read` ohne Inhalt). Die Oberflaeche laedt den Text
+  erst bei Auswahl und rendert ihn als `<pre>` - es existiert kein HTML-Pfad, also auch keine aktive Auszeichnung.
+- **Inventar aus der echten CLI**: neue Bridge-Aktion `skills-list` parst ausschliesslich das dokumentierte
+  Fuenf-Spalten-Layout von `hermes skills list --source all` (breite `COLUMNS`, sonst kuerzt die Tabelle Namen).
+  Live auf diesem Host: 191 Skills, 119 `local`, 72 `builtin`, 0 `hub`, alle `enabled`.
+- **Vertrag erweitert**: `SkillCatalogEntry` traegt jetzt `origin` (friday/builtin/local/hub/unknown) und
+  `trust` (builtin/local/project/unknown) als Pflichtfelder; die Operationenzahl bleibt 274. Der Service zieht
+  beides ausschliesslich aus der CLI, nutzt den CLI-Status nur, wenn das Dashboard keinen liefert, und laesst den
+  Katalog bei unlesbarem Inventar unveraendert (Herkunft/Trust dann `unknown`).
+- **Oberflaeche**: Detail trennt Herkunft, Trust, Kategorie, Paket, Hermes-Status, Beobachtet, Quelle und
+  Ausfuehrbar; Filter fuer Suche, Quelle, Herkunft, Kategorie und Status; die Liste rendert 60 Zeilen und laedt
+  auf Wunsch weiter.
+- **Nachweise**: Bridge 9 + 6 Python-Pruefungen (WSL), Service 20 Tests (3 neu), Routentest mit
+  `responseValidation: "throw"` (1), Web 4 + 7 + 2 Tests, Gesamtsuite 291 Dateien / 3681 passed / 60 skipped,
+  `contracts:check`/`typecheck`/`lint`/`build` 0.
+- **10.02 bleibt TEIL**: auf diesem Host existiert kein Hub-Skill (0 Zeilen mit Quelle `hub`), die CLI-Tabelle
+  fuehrt keine Version je Skill, `external` erscheint dort als `local`, und die Trust-Verwaltung gehoert zu
+  10.03/10.04. Details: `docs/agent-work/finalization/dash-10-02-skill-inventory.md`.
+- **Naechster Schritt**: DASH-10.03 (per-Skill-Schalter per CLI-/Quellanalyse und Readbackprobe), danach 10.04.
