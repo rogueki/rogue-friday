@@ -360,8 +360,9 @@ export class HermesConfigService {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {
+      // inspect and audit resolve the name against the registries first (measured 37 s), diff answers locally.
       raw = await this.invoke(script, distro, user, ["skill-report"], JSON.stringify({ action, name }),
-        65000, 262144);
+        action === "diff" ? 35000 : 95000, 262144);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes(`skill_${action}_timeout`))

@@ -72,10 +72,11 @@ function fixture(invoke: RunnerInvoker) {
 
 it("rejects an invalid name and an empty report before any CLI call", async () => {
   const calls: string[][] = [];
-  const { service, root } = fixture((async (_script, _distro, _user, action) => {
-    calls.push(action as string[]);
+  const invoke: RunnerInvoker = (async (...args: unknown[]) => {
+    calls.push(args[3] as string[]);
     throw new Error("skill_report_empty");
-  }) as never);
+  }) as RunnerInvoker;
+  const { service, root } = fixture(invoke);
   try {
     await expect(service.skillReport("inspect", "with space")).rejects.toThrow("Skill-Name");
     await expect(service.skillReport("diff", "")).rejects.toThrow("Skill-Name");

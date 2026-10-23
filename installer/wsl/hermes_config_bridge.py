@@ -510,6 +510,10 @@ def parse_hub_search(text, query, source):
 
 
 SKILL_REPORT_LIMIT = 65536
+# A measured run on v0.22.2: `diff` answers locally in well under a second, while `inspect` and `audit`
+# resolve the name against the registries first (37 s here, and a name that also exists upstream comes
+# back as an ambiguity table). The limits keep a hanging network from blocking the bridge forever.
+SKILL_REPORT_TIMEOUTS = {"inspect": 90, "audit": 90, "diff": 30}
 
 
 def parse_skill_report(text, action, name):
@@ -570,7 +574,8 @@ def locked_main(home, source, cli):
         if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
             raise ValueError("invalid_request")
         try:
-            result = subprocess.run([str(cli), "skills", action, name], capture_output=True, text=True, timeout=60)
+            result = subprocess.run([str(cli), "skills", action, name], capture_output=True, text=True,
+                                    timeout=SKILL_REPORT_TIMEOUTS[action])
         except subprocess.TimeoutExpired:
             print(json.dumps({"error": "skill_%s_timeout" % action}))
             return 7

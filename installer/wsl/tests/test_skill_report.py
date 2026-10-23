@@ -53,4 +53,8 @@ for bad in (None, 17, b"bytes"):
     else:
         raise AssertionError("non-text report accepted: %r" % (bad,))
 
-print("skill-report: 9 checks passed")
+# The limits come from a measured run: inspect and audit resolve names against the registries (37 s there),
+# diff answers from the local stock copy.
+assert bridge.SKILL_REPORT_TIMEOUTS == {"inspect": 90, "audit": 90, "diff": 30}, bridge.SKILL_REPORT_TIMEOUTS
+
+print("skill-report: 10 checks passed")
