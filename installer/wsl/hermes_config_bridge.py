@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -531,6 +531,78 @@ def parse_skill_report(text, action, name):
             "truncated": truncated}
 
 
+SKILL_MUTATIONS = ("install", "update", "uninstall")
+SNAPSHOT_DIR_NAME = "friday-snapshots"
+SKILL_MUTATION_TEXT_LIMIT = 4096
+SKILL_MUTATION_TIMEOUT = 180
+
+
+def skill_list_rows(cli):
+    """The inventory, read the same way as the `skills-list` action and parsed by the same strict parser."""
+    result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
+                            text=True, timeout=30, env=dict(os.environ, COLUMNS="400"))
+    if result.returncode:
+        raise ValueError("skills_list_failed")
+    return parse_skills_list(result.stdout)
+
+
+def skill_directories(home, name):
+    """Installed directories that carry this skill, found with the same pruned scan as the inventory."""
+    roots = [home / "skills"]
+    profiles = home / "profiles"
+    if profiles.is_dir():
+        roots.extend(sorted(profiles.glob("*/skills")))
+    found = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for current, dirs, files in os.walk(root, followlinks=False):
+            dirs[:] = [entry for entry in dirs if entry not in EXCLUDED_SKILL_DIRS]
+            if "SKILL.md" not in files:
+                continue
+            directory = Path(current)
+            try:
+                header = (directory / "SKILL.md").read_text(encoding="utf-8-sig")[:16384]
+            except OSError:
+                continue
+            metadata = yaml.safe_load(header.split("---", 2)[1]) if header.startswith("---") else {}
+            declared = metadata.get("name") if isinstance(metadata, dict) else None
+            if (declared or directory.name) == name:
+                found.append(directory)
+    return found
+
+
+def snapshot_skill(home, action, name):
+    """Copy the installed skill before a mutation so a failure can be undone without guesswork."""
+    directories = skill_directories(home, name)
+    if not directories:
+        return None
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    base = home / SNAPSHOT_DIR_NAME / ("%s-%s-%s" % (stamp, action, name))
+    target, attempt = base, 1
+    while target.exists():
+        attempt += 1
+        target = base.with_name("%s-%d" % (base.name, attempt))
+    payload = target / "skill"
+    payload.mkdir(parents=True, exist_ok=False)
+    for index, directory in enumerate(directories):
+        shutil.copytree(directory, payload / str(index), symlinks=False)
+    state = {"action": action, "name": name, "createdAt": stamp,
+             "directories": [str(directory) for directory in directories]}
+    (target / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    return target
+
+
+def restore_skill(snapshot):
+    state = json.loads((snapshot / "state.json").read_text(encoding="utf-8"))
+    for index, directory in enumerate(state["directories"]):
+        current = Path(directory)
+        if current.exists():
+            shutil.rmtree(current)
+        current.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(snapshot / "skill" / str(index), current)
+
+
 def parse_modified_skills(text):
     """Parse `hermes skills list-modified --json`: a flat array of skill names or nothing."""
     try:
@@ -583,6 +655,65 @@ def locked_main(home, source, cli):
             print(json.dumps({"error": "skill_%s_failed" % action}))
             return 6
         print(json.dumps(parse_skill_report(result.stdout, action, name)))
+        return 0
+    if sys.argv[1] == "skill-mutate":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"action", "name", "identifier", "force"}:
+            raise ValueError("invalid_request")
+        action = request["action"]
+        if action not in SKILL_MUTATIONS:
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        identifier = request["identifier"]
+        if action == "install":
+            if not isinstance(identifier, str) or not 3 <= len(identifier) <= 300 or re.search(r"\s", identifier):
+                raise ValueError("invalid_request")
+        elif identifier is not None:
+            raise ValueError("invalid_request")
+        force = request["force"]
+        if not isinstance(force, bool):
+            raise ValueError("invalid_request")
+        before = skill_list_rows(cli)
+        present_before = any(row["name"] == name for row in before["skills"])
+        snapshot = snapshot_skill(home, action, name)
+        argv = [str(cli), "skills", action]
+        argv.extend([identifier, "--yes"] if action == "install" else [name])
+        if force:
+            argv.append("--force")
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=SKILL_MUTATION_TIMEOUT,
+                                    env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            if snapshot is not None:
+                restore_skill(snapshot)
+            print(json.dumps({"error": "skill_mutation_timeout", "restored": snapshot is not None}))
+            return 7
+        text = (result.stdout + result.stderr).strip()
+        try:
+            after = skill_list_rows(cli)
+        except ValueError:
+            after = None
+        present_after = after is not None and any(row["name"] == name for row in after["skills"])
+        expected = action != "uninstall"
+        if result.returncode or after is None or present_after != expected:
+            restored = False
+            if snapshot is not None:
+                restore_skill(snapshot)
+                restored = True
+            elif present_after and not present_before:
+                for directory in skill_directories(home, name):
+                    shutil.rmtree(directory, ignore_errors=True)
+                restored = True
+            print(json.dumps({"error": "skill_mutation_failed", "restored": restored,
+                              "previousPresent": present_before, "detail": text[-600:]}))
+            return 6
+        row = next((entry for entry in after["skills"] if entry["name"] == name), None)
+        print(json.dumps({"action": action, "name": name, "installed": present_after,
+                          "enabled": (row["state"] == "enabled") if row else None,
+                          "snapshot": snapshot.name if snapshot is not None else None,
+                          "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
         return 0
     if sys.argv[1] == "hub-search":
         request = json.load(sys.stdin)
