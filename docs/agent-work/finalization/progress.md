@@ -721,3 +721,14 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   art=manuell; web content-studio 11/11, node content 61/61, contracts:check/typecheck/lint/build gruen.
 - evidence_paths: `dash-14-04-veroeffentlichung.md`, `scripts/finalization/live-studio-publication-proof.mjs`.
 - status: PASS
+
+### DASH-14.03 Studio standardmaessig ausliefern (2026-10-23)
+- goal: Studio ohne manuellen Checkout bauen und im Menue zeigen, bestehende Navigationspraeferenzen achten, ohne
+  Zugang ehrlich bleiben statt Mockproduktion.
+- changed: `navModel.test.tsx` (drei Tests fuer Reihenfolge-Anhang, versteckte Seiten, Feature-Schalter),
+  `scripts/finalization/live-studio-access-proof.mjs`.
+- observed: Build enthaelt `content-studio.html` (11 915 B); live `contentStudioEnabled: true`; ohne Schluessel
+  503 "kie ist nicht konfiguriert." und "elevenlabs ist nicht konfiguriert."; unbekannter Auftrag 404; Providerkette
+  inkl. Artefakt-Download und Idempotenz durch 7 Produktionstests belegt; kein bezahlter Testlauf.
+- evidence_paths: `dash-14-03-studio-standard.md`, `navModel.test.tsx`, `content-studio-production.test.ts`.
+- status: PASS
