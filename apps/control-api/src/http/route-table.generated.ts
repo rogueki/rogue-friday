@@ -10924,6 +10924,68 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "getSkillMarkdown",
+    "method": "GET",
+    "path": "/api/v1/skills/{id}/markdown",
+    "tag": "skills",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "SkillMarkdownResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "listPowerPointDecks",
     "method": "GET",
     "path": "/api/v1/skills/powerpoint/decks",

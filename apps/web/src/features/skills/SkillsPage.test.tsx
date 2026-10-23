@@ -11,6 +11,8 @@ vi.mock("@/lib/api/domains/skills", () => ({
     freshness: { state: mocks.freshness, asOf: new Date().toISOString() } }, isPending: false, isError: false, isStale: mocks.stale,
     refetch: mocks.refetch }),
   useSetSkillActivation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSkillMarkdown: (id: string | null) => ({ data: id ? { data: { id, content: "# Anleitung", bytes: 11 } } : undefined,
+    isPending: false, isError: false, error: null }),
 }));
 vi.mock("./CodingRunsArea", () => ({ CodingRunsArea: () => null }));
 

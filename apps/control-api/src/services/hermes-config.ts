@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
 import type { HermesCronMutationReceipt, HermesCronMutationRequest } from "@friday/sdk";
-import { ApiError, conflict, validationFailed } from "../util/errors";
+import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
 
 export const HERMES_CONFIG_FIELDS = {
@@ -275,6 +275,28 @@ export class HermesConfigService {
         (job.nextRunAt !== null && typeof job.nextRunAt !== "string") ||
         (job.lastRunAt !== null && typeof job.lastRunAt !== "string"))) throw unavailable();
     return raw;
+  }
+
+  async skillMarkdown(id: string) {
+    if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id))
+      throw validationFailed("Ungueltige Skill-Kennung.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-md"], JSON.stringify({ id }), 10000, 70000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_md_missing")) throw notFound("Skill-Datei", id);
+      if (message.includes("skill_md_too_large"))
+        throw validationFailed("Die SKILL.md ist groesser als 64 KiB und wird nicht angezeigt.");
+      if (message.includes("invalid_skill_id")) throw validationFailed("Ungueltige Skill-Kennung.");
+      throw unavailable();
+    }
+    if (raw.id !== id || typeof raw.content !== "string" || raw.content.length < 1 ||
+        raw.content.length > 65536 || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 1 ||
+        (raw.bytes as number) > 65536) throw unavailable();
+    // Raw text only: the UI must escape it, the bridge never renders HTML.
+    return { id, content: raw.content, bytes: raw.bytes as number };
   }
 
   async access() {

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/skill-markdown.schema.json",
+  "title": "SkillMarkdown",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65536
+    }
+  },
+  "required": [
+    "id",
+    "content",
+    "bytes"
+  ],
+  "additionalProperties": false
+}

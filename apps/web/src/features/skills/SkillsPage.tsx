@@ -3,6 +3,7 @@
 import type { SkillCatalogEntry } from "@friday/sdk";
 import { Button, EmptyState, ErrorState, Skeleton, StatusChip } from "@friday/ui";
 import { useMemo, useState } from "react";
+import { SkillMarkdown } from "./SkillMarkdown";
 import { useSession } from "@/lib/session";
 import { useSetSkillActivation, useSkillsCatalog } from "@/lib/api/domains/skills";
 import { CodingRunsArea } from "./CodingRunsArea";
@@ -12,11 +13,16 @@ import { IntegrationRequirements } from "./IntegrationRequirements";
 import { integrationSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
+function skillMarkdownId(skill: SkillCatalogEntry): string {
+  return skill.source === "hermes" && skill.id.startsWith("hermes:") ? skill.id.slice("hermes:".length) : skill.id;
+}
+
 function SkillDetails({ skill, canToggle, onToggle, busy, error, canCreate, showCreator }: { skill: SkillCatalogEntry; canToggle: boolean; onToggle: () => void; busy: boolean; error: string | null; canCreate: boolean; showCreator: boolean }) {
   const state = skillState(skill);
   return <section className="sk-detail" aria-labelledby="sk-detail-title">
     <div className="sk-detail__head"><div><p className="sk-eyebrow">{skill.source === "friday" ? "FRIDAY SKILLS" : "HERMES STANDARD"} · {skill.version ? `v${skill.version}` : "Version unbekannt"}</p><h2 id="sk-detail-title">{skill.name}</h2></div><StatusChip tone={state.tone}>{state.label}</StatusChip></div>
     <p>{skill.description}</p><p className="sk-note">{state.detail}</p>
+    <section aria-label="Anleitung"><h3>Anleitung</h3><SkillMarkdown id={skillMarkdownId(skill)} /></section>
     {skill.observationError && <p role="status" className="sk-warning">Laufzeitabfrage: {skill.observationError}</p>}
     <dl className="sk-facts"><div><dt>Paket</dt><dd>{skill.packaged ? "Enthalten" : "Nicht Teil des Friday-Pakets"}</dd></div><div><dt>Hermes</dt><dd>{skill.discovered === null ? "Unbekannt" : skill.discovered ? "Gefunden" : "Nicht gefunden"}</dd></div><div><dt>Beobachtet</dt><dd>{skill.observedAt ? new Date(skill.observedAt).toLocaleString("de-DE") : "Noch nie"}</dd></div><div><dt>Quelle</dt><dd>{skill.observationSource || "Unbekannt"}</dd></div><div><dt>Ausführbar</dt><dd>Nicht geprüft</dd></div></dl>
     {skill.requiredCapabilities.length > 0 && <section><h3>Benötigte Fähigkeiten</h3><p>{skill.requiredCapabilities.join(" · ")}</p></section>}

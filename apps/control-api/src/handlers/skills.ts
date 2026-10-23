@@ -15,6 +15,13 @@ async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
 }
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getSkillMarkdown(ctx) {
+    const id = ctx.pathParams.id ?? "";
+    const result = await ctx.runtime.hermesConfig.skillMarkdown(id);
+    ctx.audit.action = "skills.markdown_read";
+    ctx.audit.after = { id, bytes: result.bytes };
+    return { status: 200, body: single(result) };
+  },
   async createPowerPointDeck(ctx) {
     await requirePowerPoint(ctx);
     const deck = await ctx.runtime.powerpoint.create(ctx.body as PowerPointRequest);

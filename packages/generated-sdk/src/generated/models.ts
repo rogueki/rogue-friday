@@ -1127,6 +1127,8 @@ export interface FridayModelMap {
   SkillActivationRequest: SkillActivationRequest;
   SkillCatalogEntry: SkillCatalogEntry;
   SkillCatalogResponse: SkillCatalogResponse;
+  SkillMarkdown: SkillMarkdown;
+  SkillMarkdownResponse: SkillMarkdownResponse;
   SkillResponse: SkillResponse;
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
@@ -5863,6 +5865,16 @@ export interface SkillCatalogResponse {
   data: SkillCatalogEntry[];
   catalogError: string | null;
   hermesError: string | null;
+  freshness: Freshness;
+}
+export interface SkillMarkdown {
+  id: string;
+  content: string;
+  bytes: number;
+}
+export interface SkillMarkdownResponse {
+  contractVersion: ContractVersion;
+  data: SkillMarkdown;
   freshness: Freshness;
 }
 export interface SkillResponse {

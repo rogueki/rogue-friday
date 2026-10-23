@@ -1,4 +1,4 @@
-openapi: 3.1.1
+﻿openapi: 3.1.1
 info:
   title: FRIDAY Control API
   version: 2.0.0
@@ -57,7 +57,7 @@ tags:
   - name: dev
     description: Development/QA scenario console (mock mode only)
   - name: observability
-    description: Prometheus metrics and frontend telemetry (PLAN §50.3)
+    description: Prometheus metrics and frontend telemetry (PLAN Â§50.3)
 security:
   - cookieAuth: []
 paths:
@@ -5960,6 +5960,37 @@ paths:
           $ref: "#/components/responses/Forbidden"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills/{id}/markdown:
+    get:
+      operationId: getSkillMarkdown
+      tags: [skills]
+      summary: Read the installed SKILL.md text for one skill; never HTML
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9][a-z0-9._-]{0,63}$"
+      responses:
+        "200":
+          description: Raw Markdown text from the installed skill directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillMarkdownResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/skills/powerpoint/decks:
     get:
       operationId: listPowerPointDecks
@@ -8893,7 +8924,7 @@ components:
       name: X-Approval-Token
       in: header
       required: false
-      description: Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN §32.5).
+      description: Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN Â§32.5).
       schema:
         type: string
     CsrfToken:
@@ -9346,6 +9377,8 @@ components:
       $ref: ../schemas/skills/coding-cli-status-response.schema.json
     SkillActivationRequest:
       $ref: ../schemas/skills/activation-request.schema.json
+    SkillMarkdownResponse:
+      $ref: ../schemas/integrations/skill-markdown-response.schema.json
     SkillResponse:
       $ref: ../schemas/skills/skill-response.schema.json
     OnboardingUpdate:

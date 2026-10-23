@@ -1,6 +1,6 @@
 "use client";
 
-import type { OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
+import type { OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillMarkdownResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -21,6 +21,15 @@ export const skillsQueries = {
 };
 
 export const useSkillsCatalog = (enabled = true) => useQuery({ ...skillsQueries.catalog(), enabled });
+export const useSkillMarkdown = (id: string | null, enabled = true) => useQuery({
+  queryKey: ["skills", "markdown", id],
+  queryFn: (): Promise<SkillMarkdownResponse> => call(getApiClient().GET("/api/v1/skills/{id}/markdown",
+    { params: { path: { id: id ?? "" } } })),
+  enabled: enabled && id !== null,
+  staleTime: 60_000,
+});
+
+
 export const useOnboarding = (enabled = true) => useQuery({ ...skillsQueries.onboarding(), enabled });
 
 const powerpointDecksKey = ["powerpoint", "decks"] as const;
