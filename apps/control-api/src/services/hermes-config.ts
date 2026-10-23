@@ -213,6 +213,13 @@ const unavailable = (detail?: string) =>
     ...(detail ? { details: { detail: detail.slice(0, 400) } } : {}),
   });
 
+/**
+ * A local precondition that the operator can fix (no installation state, no WSL target). The reason belongs in the
+ * message, not behind a generic "the bridge does not answer".
+ */
+const unavailableBecause = (message: string) =>
+  new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
+
 export class HermesConfigService {
   constructor(
     private readonly dataDir: string,
@@ -426,7 +433,10 @@ export class HermesConfigService {
           { action, name, cliDetail: detail?.slice(0, 600) ?? null });
       }
       if (message.includes("invalid_request")) throw validationFailed("Ungueltiger Skill-Name.");
-      throw unavailable();
+      if (message.startsWith("runner_invalid:"))
+        throw unavailableBecause(`Die WSL-Distribution ${distro} antwortet nicht (${message}); Installation und `
+          + "Distributionsnamen in config/install-state.json pruefen.");
+      throw unavailable(message);
     }
     if (raw.action !== action || raw.name !== name || typeof raw.text !== "string" || raw.text.length > 65536 ||
         raw.text.trim() === "" || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0 ||
@@ -526,7 +536,11 @@ export class HermesConfigService {
       if (error instanceof Error && error.message.includes("skills_list_format"))
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Das Hermes-Skill-Inventar hat ein unbekanntes Format; Herkunft und Trust bleiben unbekannt." });
-      throw unavailable(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith("runner_invalid:"))
+        throw unavailableBecause(`Die WSL-Distribution ${distro} antwortet nicht (${message}); das Skill-Inventar `
+          + "bleibt deshalb unbekannt.");
+      throw unavailable(message);
     }
     if (!Number.isInteger(raw.count) || !Array.isArray(raw.skills) || raw.count !== raw.skills.length ||
         raw.skills.length > 2000) throw unavailable();
@@ -594,14 +608,16 @@ export class HermesConfigService {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1)
       root = resolve(root, "..");
-    if (!existsSync(join(root, "config", "install-state.json"))) throw unavailable();
+    if (!existsSync(join(root, "config", "install-state.json")))
+      throw unavailableBecause("Friday-Installationszustand fehlt: config/install-state.json wurde bis "
+        + root + " nicht gefunden.");
     let state: { distro_name?: string; linux_user?: string };
     try {
       state = JSON.parse(
         readFileSync(join(root, "config", "install-state.json"), "utf8").replace(/^\uFEFF/, ""),
       ) as typeof state;
     } catch {
-      throw unavailable();
+      throw unavailableBecause("Friday-Installationszustand ist unlesbar (config/install-state.json).");
     }
     if (
       !state.distro_name ||
@@ -609,7 +625,7 @@ export class HermesConfigService {
       !/^[a-zA-Z0-9_.-]+$/.test(state.distro_name) ||
       !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)
     )
-      throw unavailable();
+      throw unavailableBecause("WSL-Ziel ist nicht konfiguriert: distro_name und linux_user fehlen im Installationszustand.");
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match) throw unavailable();
     return {

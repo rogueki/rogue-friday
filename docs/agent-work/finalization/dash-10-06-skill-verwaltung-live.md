@@ -59,26 +59,49 @@ als Schemafehler abgewiesen statt still zu wirken.
    deshalb kam statt „Zeitlimit überschritten" wieder der generische Text. Jetzt Brücke 150 s (inspect/audit) bzw. 60 s
    (diff), API 180 s bzw. 90 s.
 
-## 4. Offene Punkte für die Abnahme (deshalb TEIL)
+## 4. Neustart-Gleichheit und fehlende Installation
+
+`scripts/finalization/live-skills-restart-proof.mjs` startet die gebaute API zweimal auf demselben Datenwurzelverzeichnis
+und vergleicht den Zustand, den die API meldet (Kennung, Aktivierung, Herkunft, Trust je Skill):
+
+| Phase | Ergebnis |
+| --- | --- |
+| Lauf 1 | 200 in 56,7 s · 159 Skills · `observationSource: hermes-cli` |
+| Lauf 2 nach Prozessneustart | 200 in 3,4 s · 159 Skills (warmer Katalog) |
+| Zustandsvergleich | **identisch** (159 Eintraege, gleiche Aktivierung/Herkunft/Trust, keine Abweichung) |
+
+Danach zeigt `config/install-state.json` auf eine nicht existierende Distribution (`Ghost-Distro`):
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| `GET /skills` | 200, `data: []`, `catalogError`/`hermesError` genannt — **keine erfundenen Skills** |
+| `GET /skills/arxiv/diff` | 503 `Die WSL-Distribution Ghost-Distro antwortet nicht (runner_invalid:4294967295); Installation und Distributionsnamen in config/install-state.json pruefen.` |
+
+Damit ist belegt: der Zustand überlebt einen neuen Prozess, und eine fehlende Installation führt zu einem benannten
+Fehler statt zu einem still leeren Katalog.
+
+## 5. Offene Punkte für die Abnahme (deshalb TEIL)
 
 - **Kein Hub-Skill installiert.** Das Inventar enthält ausschließlich `builtin` (53) und `external` (106); die
   Anforderung „ein kontrollierter Hub-Skill lässt sich ansehen und verwalten" ist damit auf diesem Profil nicht prüfbar.
-- **Neustart-Gleichheit** ist noch nicht erhoben: nach einem Neustart der API muss derselbe Zustand (159 Skills,
-  gleiche Aktivierung) gelesen werden.
+  Die Brücke arbeitet immer gegen `~/.hermes` des WSL-Nutzers; ein API-Lauf gegen ein Wegwerfprofil würde das reale
+  Profil des Operators verändern, deshalb bleibt dieser Punkt der CLI-Abnahme vorbehalten (dort belegt).
 - **Operator-System:** `C:\Friday\config\install-state.json` auf diesem Host enthält kein `distro_name`/`linux_user`,
   `C:\Friday\dashboard` existiert nicht, und `FRIDAY_SKILLS_CATALOG_PATH` ist nicht gesetzt. Ohne Katalogpfad meldet
   die API ehrlich `catalogError: Skills-Katalogpfad nicht konfiguriert` und `hermesError: Hermes-Dashboard nicht
   konfiguriert` — die gepackte Katalogseite (Freigaben, Integrationsmetadaten) ist hier also nicht belegt.
-- **Fehlendes Laufwerk / modifizierter Builtin:** die Brücke verweigert Schreibzugriffe ohne erreichbare Installation
-  (getestet in `test_skill_roots.py`), der Live-Nachweis für „wird nicht still überschrieben" am Operator-System fehlt.
+- **Fehlendes externes Laufwerk** (eigener Datenträger, nicht die WSL-Distribution) ist weiterhin nicht live erhoben.
+- **Modifizierter Builtin:** die CLI-Abnahme zeigt, dass `skills update` ohne `--force` nicht überschreibt; der
+  Live-Nachweis über die API am Operator-System fehlt.
 
-## 5. Reproduktion
+## 6. Reproduktion
 
 ```powershell
 # Datenwurzel mit install-state.json und Brückenkopie, danach:
 $env:FRIDAY_CONFIG_DIR = "$env:TEMP\friday-live-root\config"
 node apps/control-api/dist/main.js            # bindet 127.0.0.1:3111 laut dashboard.yaml
 node scripts/finalization/live-skills-proof.mjs
+node scripts/finalization/live-skills-restart-proof.mjs   # Neustart-Gleichheit und fehlende Installation
 ```
 
 Ein blosser Skill-Name löst gegen die Registries auf (hier 110 s); die Kennung `official/devops/<name>` antwortet in
