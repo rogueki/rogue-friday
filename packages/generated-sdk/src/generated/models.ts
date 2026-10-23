@@ -2781,6 +2781,14 @@ export interface ContentPlanDocument {
       | "YouTube-Short";
     titel: string;
     status: "geplant" | "gepostet" | "verpasst";
+    /**
+     * Nur bei status=gepostet: manuell markiert oder durch einen angebundenen Publisher bestaetigt.
+     */
+    veroeffentlichung?: null | {
+      art: "manuell" | "bestaetigt";
+      am: string;
+      quelle: string;
+    };
   }[];
 }
 export interface ContentPlanState {

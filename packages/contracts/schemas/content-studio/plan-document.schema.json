@@ -168,6 +168,41 @@
               "gepostet",
               "verpasst"
             ]
+          },
+          "veroeffentlichung": {
+            "description": "Nur bei status=gepostet: manuell markiert oder durch einen angebundenen Publisher bestaetigt.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "art": {
+                    "type": "string",
+                    "enum": [
+                      "manuell",
+                      "bestaetigt"
+                    ]
+                  },
+                  "am": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "quelle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "art",
+                  "am",
+                  "quelle"
+                ],
+                "additionalProperties": false
+              }
+            ]
           }
         },
         "required": [

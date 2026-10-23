@@ -25,4 +25,18 @@ describe("Content Studio plan import", () => {
     expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], datum: "2026-02-30" }] })).toThrow(/ungültig/);
     expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], ziele: ["Instagram", "Instagram"] }] })).toThrow(/ungültig/);
   });
+
+  // There is no publisher adapter: an unbacked "gepostet" would be exactly the claim DASH-14.04 forbids.
+  it("accepts a manual publication only with its origin and rejects confirmed claims without a publisher", () => {
+    const marked = { ...valid.postings[0], status: "gepostet",
+      veroeffentlichung: { art: "manuell", am: "2026-11-02T08:00:00.000Z", quelle: "manuell" } };
+    expect(parseStudioPlan({ ...valid, postings: [marked] }).postings[0]?.veroeffentlichung?.art).toBe("manuell");
+    expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], status: "gepostet" }] })).toThrow(/gepostet/);
+    expect(() => parseStudioPlan({ ...valid, postings: [{ ...marked, veroeffentlichung: { art: "bestaetigt", am: marked.veroeffentlichung.am, quelle: "manuell" } }] }))
+      .toThrow(/ungültig/);
+    expect(() => parseStudioPlan({ ...valid, postings: [{ ...marked, veroeffentlichung: { art: "manuell", am: "gestern", quelle: "manuell" } }] }))
+      .toThrow(/ungültig/);
+    expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], veroeffentlichung: marked.veroeffentlichung }] }))
+      .toThrow(/ungültig/);
+  });
 });

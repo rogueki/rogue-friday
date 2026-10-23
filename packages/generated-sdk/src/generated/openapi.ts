@@ -5942,6 +5942,14 @@ export interface components {
                 status: "geplant" | "gepostet" | "verpasst";
                 titel: string;
                 uhrzeit: string;
+                /** @description Nur bei status=gepostet: manuell markiert oder durch einen angebundenen Publisher bestaetigt. */
+                veroeffentlichung?: null | {
+                    /** Format: date-time */
+                    am: string;
+                    /** @enum {string} */
+                    art: "manuell" | "bestaetigt";
+                    quelle: string;
+                };
                 ziele?: ("LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube")[];
             }[];
             /** @constant */

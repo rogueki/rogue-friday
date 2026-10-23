@@ -520,7 +520,12 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
       const plan: ContentPlanDocument = parseStudioPlan({ version: 1 as const,
         exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(),
         content: current.plan?.content ?? [],
-        postings: postings.map((posting) => posting.id === saved.postingId ? { ...posting, status: saved.status } : posting) });
+        postings: postings.map((posting) => posting.id === saved.postingId ? { ...posting, status: saved.status,
+          // Commands mark a posting by hand as well; nothing here asks a network whether it was really published.
+          veroeffentlichung: saved.status === "gepostet"
+            ? posting.veroeffentlichung ?? { art: "manuell", am: new Date(ctx.runtime.nowMs()).toISOString(),
+              quelle: "manuell" }
+            : null } : posting) });
       const result = await contentStudioHandlers.putContentStudioPlan!({ ...ctx, body: plan,
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedRevision, idempotencyKey } });
       const nextRevision = (result.body as { data?: { revision?: number } }).data?.revision;

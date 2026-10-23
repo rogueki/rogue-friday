@@ -15,6 +15,15 @@ export interface ContentIdea {
   status: IdeaStatus;
 }
 
+export type PublicationOrigin = "manuell" | "bestaetigt";
+
+/** Why a posting counts as published. "manuell" is a note by the operator, not a confirmation by a network. */
+export interface Publication {
+  art: PublicationOrigin;
+  am: string;
+  quelle: string;
+}
+
 export interface Posting {
   id: string;
   datum: string;
@@ -24,6 +33,7 @@ export interface Posting {
   format: ContentFormat;
   titel: string;
   status: PostingStatus;
+  veroeffentlichung?: Publication | null;
 }
 
 export interface StudioPlan {
@@ -52,6 +62,22 @@ const targets = (value: unknown): value is Platform[] => Array.isArray(value) &&
 export const ideaTargets = (idea: ContentIdea): Platform[] => idea.ziele ?? (idea.plattform === "Beide" ? ["LinkedIn", "Instagram"] : [idea.plattform]);
 export const postingTargets = (posting: Posting): Platform[] => posting.ziele ?? [posting.plattform];
 
+const publicationProblem = (item: Record<string, unknown>): string | null => {
+  const value = item.veroeffentlichung;
+  if (value === undefined || value === null)
+    return item.status === "gepostet" ? "ein Posting mit status=gepostet braucht veroeffentlichung" : null;
+  if (!record(value) || (value.art !== "manuell" && value.art !== "bestaetigt"))
+    return "veroeffentlichung.art muss manuell oder bestaetigt sein";
+  if (typeof value.am !== "string" || Number.isNaN(new Date(value.am).getTime()))
+    return "veroeffentlichung.am muss ein Zeitpunkt sein";
+  if (typeof value.quelle !== "string" || !value.quelle.trim() || value.quelle.length > 60)
+    return "veroeffentlichung.quelle muss eine nichtleere Quelle sein";
+  // A confirmed publication needs a real publisher as its source; "manuell" would be the same claim as before.
+  if (value.art === "bestaetigt" && value.quelle.trim() === "manuell")
+    return "art=bestaetigt braucht eine Publisher-Quelle, nicht quelle=manuell";
+  return item.status === "gepostet" ? null : "veroeffentlichung ist nur bei status=gepostet erlaubt";
+};
+
 export function parseStudioPlan(value: unknown): StudioPlan {
   if (!record(value) || value.version !== 1 || !Array.isArray(value.content) || !Array.isArray(value.postings) || value.content.length > 1000 || value.postings.length > 1000) {
     throw new Error("Planformat Version 1 mit content und postings erwartet.");
@@ -66,6 +92,10 @@ export function parseStudioPlan(value: unknown): StudioPlan {
   for (const item of postings) {
     if (!record(item) || !text(item.id, 100) || !item.id || !text(item.titel, 200) || !item.titel.trim() || !date(item.datum) || !item.datum || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(item.uhrzeit)) || !platforms.includes(item.plattform as Platform) || (item.ziele !== undefined && (!targets(item.ziele) || !item.ziele.includes(item.plattform as Platform))) || !formats.has(item.format as ContentFormat) || !postingStatuses.has(item.status as PostingStatus)) {
       throw new Error("Ein Posting ist unvollständig oder ungültig.");
+    }
+    const problem = publicationProblem(item);
+    if (problem) {
+      throw new Error(`Ein Posting ist unvollständig oder ungültig: ${problem}.`);
     }
   }
   if (!unique(content as ContentIdea[]) || !unique(postings as Posting[])) throw new Error("IDs im Plan müssen eindeutig sein.");

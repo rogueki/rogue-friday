@@ -709,3 +709,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   ist nur die CLI-Katalogseite, nicht die gepackte Katalogseite belegt
 - evidence_paths: `dash-10-06-skill-verwaltung-live.md`, `scripts/finalization/live-skills-proof.mjs`,
   `docs/agent-work/finalization/issue-ledger.csv` (N-064..N-070); status: TEIL
+
+### DASH-14.04 Veroeffentlichung und Status trennen (2026-10-23)
+- goal: manuelle Planung darf keine bestaetigte externe Veroeffentlichung behaupten; fehlender Publisher bleibt offene
+  Implementierung statt erfolgreichem Knopf.
+- changed: `plan-document.schema.json` (+ generierte Typen), `packages/generated-sdk/src/content-plan.ts`
+  (Publication-Typ und Parserregel), `ContentStudioPage.tsx` (ein gemeinsamer Statuspfad schreibt die Herkunft),
+  `PostingCalendar.tsx` (Beschriftung "Manuell markiert"), `settings-content-actions.ts` (Textbefehl schreibt die
+  Herkunft), Tests in web und node.
+- observed: live 422 ohne Herkunft, 422 bei art=bestaetigt/quelle=manuell, 200 bei manueller Markierung, Readback mit
+  art=manuell; web content-studio 11/11, node content 61/61, contracts:check/typecheck/lint/build gruen.
+- evidence_paths: `dash-14-04-veroeffentlichung.md`, `scripts/finalization/live-studio-publication-proof.mjs`.
+- status: PASS
