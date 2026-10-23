@@ -624,6 +624,26 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   externes Laufwerk nicht geprueft
 - evidence_paths: `dash-10-06-acceptance.md`; status: TEIL
 
+### DASH-10.07 (2026-10-23): wiederherstellbarer Schnappschuss statt Transaktion
+
+- base_revision: `f63eac1`; result_revision: `67d5661`
+- implementation_paths: `installer/wsl/hermes_config_bridge.py` (`skill-mutate`, `snapshot_skill`, `restore_skill`,
+  `skill_directories`), `installer/wsl/tests/test_skill_mutate.py` (neu),
+  `packages/contracts/schemas/skills/skill-mutation{,-request,-response}.schema.json` (neu),
+  `packages/contracts/openapi/friday-api.yaml`, `apps/control-api/src/services/hermes-config.ts` (`mutateSkill`),
+  `apps/control-api/src/handlers/skills.ts`, `apps/control-api/test/skills-mutation-route.test.ts` (neu)
+- test_command: `python3 tests/test_skill_mutate.py` (WSL), `vitest --project node skills-mutation-route`,
+  Vertragswaechter, volle node-Suite, Gates
+- expected: keine Mutation ohne Pruefung, Schnappschuss vor dem CLI-Lauf, alter Zustand bei jedem Fehler
+- observed: 280 Operationen; Erfolg meldet `installed`/`enabled`/`snapshot` aus einem erneuten Lesevorgang; Fehler
+  spielt den Schnappschuss zurueck und meldet `restored`/`previousPresent`; 15 + 4 neue Tests gruen, Suite
+  200/2829 gruen, Gates 0
+- evidence_paths: `dash-10-07-skill-mutation.md`; status: TEIL (echter CLI-Lauf und der Nachweis „keine geteilten
+  Accounts angetastet" fehlen)
+- nebenfund: vitest-Default von 5 s reichte fuer die Routen-Sweeps unter zwei Workern nicht (Ledger **N-056**,
+  behoben durch `testTimeout`/`hookTimeout` 20 s)
+
+| DASH-10.07 Recovery | TEIL (Bridge kopiert das Skill-Verzeichnis vor jeder Mutation in `~/.hermes/friday-snapshots`, liest den Zustand nach dem CLI-Lauf erneut und spielt den Schnappschuss bei jedem Fehler zurueck; `POST /api/v1/skills/{name}/mutations` mit Audit, 280 Operationen; echter CLI-Lauf und Account-Nachweis offen) | `dash-10-07-skill-mutation.md`, `test_skill_mutate.py` (15), `skills-mutation-route.test.ts` (4) |
 ## Open risks / notes for the next session
 
 - The running installation must not be rebuilt or restarted from this branch without a rollback plan

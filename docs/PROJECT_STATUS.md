@@ -994,3 +994,18 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   N-054 (`diff` nur fuer getrackte Skills, unser 503 verschweigt den CLI-Text), N-055 (`list-modified` fuehrt
   keine Hub-Aenderungen).
 - **Offen**: fehlendes externes Laufwerk, Nachweis am laufenden Operator-System (dort wurde nichts veraendert).
+
+## 2026-10-23 DASH-10.07: Skill-Mutationen mit wiederherstellbarem Schnappschuss
+
+- **Neue Operation** `POST /api/v1/skills/{name}/mutations` (**280**): `install`, `update`, `uninstall`. Vor jedem
+  CLI-Aufruf wird das installierte Skill-Verzeichnis nach `~/.hermes/friday-snapshots/<UTC>-<aktion>-<name>` kopiert;
+  nach dem Lauf wird der Zustand neu gelesen. Weicht er ab oder endet die CLI mit Fehler, wird der Schnappschuss
+  zurueckgespielt, ein halb angelegtes Verzeichnis entfernt, und die Antwort nennt `restored`/`previousPresent`.
+- **Fehlercodes**: `invalid_request` (Dienst: `VALIDATION_FAILED`, ohne CLI-Aufruf), `skill_mutation_failed` und
+  `skill_mutation_timeout` (Dienst: `ADAPTER_UNAVAILABLE` mit dem Hinweis auf den wiederhergestellten Stand).
+- **Belege**: 15 Bridge-Pruefungen mit echtem Unterprozess, 4 Routentests, Vertragswaechter auf 280, volle
+  node-Suite 200 Dateien / 2829 Tests gruen, Gates 0.
+- **Nebenbefund N-056 (behoben)**: die Routen-Sweeps brauchten unter zwei Workern mehr als die 5-s-Vorgabe von
+  vitest; beide geteilten Projekte setzen jetzt `testTimeout`/`hookTimeout` 20 s.
+- **Offen**: echter Lauf der Hermes-CLI gegen ein wegwerfbares Profil und der Nachweis, dass ein Entfernen keine
+  geteilten Zugaenge anfasst.
