@@ -369,7 +369,10 @@ def run_runtime_child(command, request, timeout):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
-        return 2
+        # An empty stdout with exit 2 looked like a broken adapter; the caller could not tell a typo from a crash.
+        print(json.dumps({"error": "invalid_request",
+                          "detail": "unknown action " + (sys.argv[1] if len(sys.argv) > 1 else "<missing>")}))
+        return 5
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
     cli = home.parent / ".local" / "bin" / "hermes"
@@ -443,6 +446,17 @@ def parse_auth_list(text):
     return {"providers": providers}
 
 
+def read_request():
+    """Decode the JSON request from stdin. A UTF-8 BOM must not turn a valid request into a failure (N-068)."""
+    raw = sys.stdin.buffer.read()
+    if not raw:
+        raise ValueError("invalid_request")
+    try:
+        return json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError("invalid_request")
+
+
 SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
 # inspect/audit resolve identities against the registries; a name alone is ambiguous there (N-053).
 SKILL_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$")
@@ -451,6 +465,19 @@ SKILL_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-
 # so a bounded token is checked instead of a fixed set; the row layout itself stays strictly parsed.
 SKILL_SOURCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 SKILL_STATES = {"enabled", "disabled"}
+
+# A cold profile refreshes the skill catalog: 159 skills took 44 s on the operator system, so the old 30 s
+# turned a working inventory into "hermes_unavailable" (N-067). One budget for every list call.
+SKILL_LIST_TIMEOUT = 90
+
+
+def skill_list_timeout():
+    """Operators with a slow profile can raise the budget; nonsense falls back to the default."""
+    try:
+        value = int(os.environ.get("FRIDAY_SKILLS_LIST_TIMEOUT", ""))
+    except ValueError:
+        return SKILL_LIST_TIMEOUT
+    return value if 1 <= value <= 600 else SKILL_LIST_TIMEOUT
 
 
 def parse_skills_list(text):
@@ -526,7 +553,9 @@ SKILL_REPORT_LIMIT = 65536
 # A measured run on v0.22.2: `diff` answers locally in well under a second, while `inspect` and `audit`
 # resolve the name against the registries first (37 s here, and a name that also exists upstream comes
 # back as an ambiguity table). The limits keep a hanging network from blocking the bridge forever.
-SKILL_REPORT_TIMEOUTS = {"inspect": 90, "audit": 90, "diff": 30}
+# A bare name is resolved against the registries first: 90 s was not enough on the operator system (the identifier
+# form answers in 2 s). One budget that a real resolution fits into.
+SKILL_REPORT_TIMEOUTS = {"inspect": 150, "audit": 150, "diff": 60}
 
 
 def parse_skill_report(text, action, name):
@@ -627,7 +656,7 @@ def skill_list_rows(cli, timeout=120):
     inventory allows; a mutation reads the list twice and must not fail on that cold start.
     """
     result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
-                            text=True, timeout=timeout, env=dict(os.environ, COLUMNS="400"))
+                            text=True, timeout=max(timeout, skill_list_timeout()), env=dict(os.environ, COLUMNS="400"))
     if result.returncode:
         raise ValueError("skills_list_failed")
     return parse_skills_list(result.stdout)
@@ -717,13 +746,13 @@ def locked_main(home, source, cli):
         return result.stdout.strip()
 
     if sys.argv[1] == "skill-md":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"id"}:
             raise ValueError("invalid_request")
         print(json.dumps(read_skill_markdown(home, source, request["id"])))
         return 0
     if sys.argv[1] == "skill-report":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"action", "name"}:
             raise ValueError("invalid_request")
         action = request["action"]
@@ -746,7 +775,7 @@ def locked_main(home, source, cli):
         print(json.dumps(parse_skill_report(result.stdout, action, name)))
         return 0
     if sys.argv[1] == "skill-mutate":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"action", "name", "identifier", "force"}:
             raise ValueError("invalid_request")
         action = request["action"]
@@ -808,7 +837,7 @@ def locked_main(home, source, cli):
                           "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
         return 0
     if sys.argv[1] == "skill-governance":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"action", "path", "repo", "name"}:
             raise ValueError("invalid_request")
         if request["action"] not in GOVERNANCE_ACTIONS:
@@ -856,7 +885,7 @@ def locked_main(home, source, cli):
                           "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
         return 0
     if sys.argv[1] == "skill-command":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"command", "name", "page", "size", "source"}:
             raise ValueError("invalid_request")
         command = request["command"]
@@ -900,7 +929,7 @@ def locked_main(home, source, cli):
                           "bytes": len(result.stdout.encode("utf-8")), "truncated": truncated}))
         return 0
     if sys.argv[1] == "hub-search":
-        request = json.load(sys.stdin)
+        request = read_request()
         if not isinstance(request, dict) or set(request) != {"query", "source", "limit"}:
             raise ValueError("invalid_request")
         query = request["query"]
@@ -927,7 +956,7 @@ def locked_main(home, source, cli):
         return 0
     if sys.argv[1] == "modified-list":
         result = subprocess.run([str(cli), "skills", "list-modified", "--json"], capture_output=True,
-                                text=True, timeout=30)
+                                text=True, timeout=skill_list_timeout())
         if result.returncode:
             print(json.dumps({"error": "modified_list_failed"}))
             return 6
@@ -936,7 +965,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "skills-list":
         # A wide COLUMNS keeps the table from eliding names; the parser rejects every other layout.
         result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
-                                text=True, timeout=30, env=dict(os.environ, COLUMNS="400"))
+                                text=True, timeout=skill_list_timeout(), env=dict(os.environ, COLUMNS="400"))
         if result.returncode:
             print(json.dumps({"error": "skills_list_failed"}))
             return 6
@@ -955,7 +984,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "approval-test":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         if (not isinstance(request, dict) or set(request) != {"command", "revision"} or
                 type(request["command"]) is not str or not 1 <= len(request["command"]) <= 512 or
                 not request["command"].strip() or
@@ -1005,7 +1034,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         action = sys.argv[1]
         if not isinstance(request, dict):
             raise ValueError("invalid_request")
@@ -1135,7 +1164,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "mcp-probe":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         if (not isinstance(request, dict) or set(request) != {"name", "revision"} or
                 not valid_mcp_name(request["name"]) or type(request["revision"]) is not int):
             raise ValueError("invalid_request")
@@ -1180,7 +1209,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "model-catalog":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         provider_id = request.get("providerId") if isinstance(request, dict) and set(request) == {"providerId"} else False
         if provider_id is False or not (provider_id is None or
                                         isinstance(provider_id, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", provider_id)):
@@ -1201,7 +1230,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "provider-auth":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         if (not isinstance(request, dict) or set(request) != {"names"} or
                 not isinstance(request["names"], list) or not 1 <= len(request["names"]) <= 8 or
                 any(not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name) is None
@@ -1221,7 +1250,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         plugin_update = sys.argv[1] == "plugin-activation"
         mcp_activation = sys.argv[1] == "mcp-activation"
         mcp_update = sys.argv[1] in ("mcp-http", "mcp-activation")
@@ -1583,10 +1612,17 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
+        message = str(error)
+        canonical = message in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
             "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision",
             "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
             "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
             "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
-            "profile_pin_required"} else "hermes_unavailable"}))
+            "profile_pin_required"}
+        # "hermes_unavailable" used to swallow the real reason (missing binary, broken profile, parse error) and the
+        # operator only saw an unreachable distro. Keep the canonical code, add what actually happened.
+        payload = {"error": message if canonical else "hermes_unavailable"}
+        if not canonical and message and message != "hermes_unavailable":
+            payload["detail"] = message[-400:]
+        print(json.dumps(payload))
         raise SystemExit(5)

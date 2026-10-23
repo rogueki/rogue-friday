@@ -80,13 +80,16 @@ export function codingRunnerCommand(script: string, distro: string, user: string
 
 /** One short runner operation. Jobs themselves live outside this request. */
 export async function invokeCodingRunner(script: string, distro: string, user: string, args: string[], input?: string, timeoutMs = 20000, maxOutputBytes = 20000): Promise<Record<string, unknown>> {
-  if (Buffer.byteLength(input ?? "", "utf8") > 64_000 || timeoutMs < 1 || timeoutMs > 35_000 || maxOutputBytes < 1 || maxOutputBytes > 5_500_000) throw new Error("runner_limits");
+  // 35 s was a guess that silently killed every long CLI call at the guard instead of at the CLI: skill reports,
+  // catalogue commands and mutations pass 95-195 s and could never run (N-065). The cap only stops nonsense values.
+  if (Buffer.byteLength(input ?? "", "utf8") > 64_000 || timeoutMs < 1 || timeoutMs > 300_000 || maxOutputBytes < 1 || maxOutputBytes > 5_500_000) throw new Error("runner_limits");
   return new Promise((resolveResult, reject) => {
     const command = codingRunnerCommand(script, distro, user, args);
     const child = spawn(command.file, command.args, { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], shell: false });
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => child.kill(), timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => { stdout += chunk; if (Buffer.byteLength(stdout, "utf8") > maxOutputBytes) child.kill(); });
@@ -94,6 +97,8 @@ export async function invokeCodingRunner(script: string, distro: string, user: s
     child.on("error", (error) => { clearTimeout(timer); reject(error); });
     child.on("close", (code) => {
       clearTimeout(timer);
+      // A killed child produces no JSON, which used to surface as "invalid payload" and hid the real cause.
+      if (timedOut) return reject(new Error("runner_timeout"));
       let parsed: unknown;
       try { parsed = JSON.parse(stdout.trim()); } catch { parsed = null; }
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return reject(new Error(`runner_invalid:${code ?? "unknown"}`));

@@ -169,9 +169,12 @@ function hermesPrerequisites(name: string) {
     requiredCapabilities: [setup.capability], conditionalCapabilities: [] };
 }
 
-/** Origin and trust as the installed Hermes CLI reports them; Friday never derives them from a path guess. */
-export type HermesInventoryEntry = Readonly<{ name: string; category: string; origin: "builtin" | "local" | "hub";
-  trust: "builtin" | "local" | "project"; state: "enabled" | "disabled" }>;
+/**
+ * Origin and trust exactly as the installed CLI reports them. The set is a bounded token, not a fixed list: v0.20.5
+ * said `local`, v0.22.2 says `external` for the same skills, and a closed list turned that into "inventory broken".
+ */
+export type HermesInventoryEntry = Readonly<{ name: string; category: string; origin: string;
+  trust: string; state: "enabled" | "disabled" }>;
 type Inventory = { entries: Map<string, HermesInventoryEntry>; at: string | null };
 
 /** The registry is package metadata only. A fresh dashboard request owns discovery and activation. */

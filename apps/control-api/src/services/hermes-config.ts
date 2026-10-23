@@ -202,10 +202,15 @@ interface BridgeStatus {
   write: { key: string; persisted: boolean } | null;
 }
 
-const unavailable = () =>
+/**
+ * The distro name was never part of this message's truth: it blamed "Friday-Ubuntu" even when the bridge had crashed
+ * on a missing import or the inventory rejected an unknown origin token. State what is known, keep the reason.
+ */
+const unavailable = (detail?: string) =>
   new ApiError({
     code: "ADAPTER_UNAVAILABLE",
-    message: "Hermes-Konfiguration in Friday-Ubuntu ist nicht erreichbar.",
+    message: "Die Hermes-Bruecke in WSL antwortet nicht oder lieferte ein unerwartetes Format.",
+    ...(detail ? { details: { detail: detail.slice(0, 400) } } : {}),
   });
 
 export class HermesConfigService {
@@ -340,7 +345,7 @@ export class HermesConfigService {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {
-      raw = await this.invoke(script, distro, user, ["modified-list"], undefined, 30000, 131072);
+      raw = await this.invoke(script, distro, user, ["modified-list"], undefined, 120000, 131072);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("modified_skills_format"))
@@ -399,13 +404,17 @@ export class HermesConfigService {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {
-      // inspect and audit resolve the name against the registries first (measured 37 s), diff answers locally.
+      // inspect and audit resolve the name against the registries first (measured 2 s for an identifier, over 90 s for
+      // a bare name), diff answers locally. The API budget stays above the bridge budget so the bridge's own message
+      // arrives instead of a generic runner timeout.
       raw = await this.invoke(script, distro, user, ["skill-report"], JSON.stringify({ action, name }),
-        action === "diff" ? 35000 : 95000, 262144);
+        action === "diff" ? 90000 : 180000, 262144);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes(`skill_${action}_timeout`))
-        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Bericht hat nicht rechtzeitig geantwortet." });
+      // A runner-level kill looks like "unexpected format" unless it is named; keep both budget levels honest.
+      if (message.includes("runner_timeout") || message.includes(`skill_${action}_timeout`))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Der Skill-Bericht hat das Zeitlimit ueberschritten.", details: { action, name } });
       if (message.includes("skill_report_empty"))
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
       if (message.includes("skill_report_format"))
@@ -512,12 +521,12 @@ export class HermesConfigService {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {
-      raw = await this.invoke(script, distro, user, ["skills-list"], undefined, 30000, 512000);
+      raw = await this.invoke(script, distro, user, ["skills-list"], undefined, 120000, 512000);
     } catch (error) {
       if (error instanceof Error && error.message.includes("skills_list_format"))
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Das Hermes-Skill-Inventar hat ein unbekanntes Format; Herkunft und Trust bleiben unbekannt." });
-      throw unavailable();
+      throw unavailable(error instanceof Error ? error.message : String(error));
     }
     if (!Number.isInteger(raw.count) || !Array.isArray(raw.skills) || raw.count !== raw.skills.length ||
         raw.skills.length > 2000) throw unavailable();
@@ -527,8 +536,10 @@ export class HermesConfigService {
       const entry = value as Record<string, unknown>;
       if (typeof entry.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(entry.name) ||
           typeof entry.category !== "string" || entry.category.length > 64 ||
-          !["builtin", "local", "hub"].includes(entry.origin as string) ||
-          !["builtin", "local", "project"].includes(entry.trust as string) ||
+          // Bounded tokens, not fixed lists: the CLI renamed `local` to `external` in v0.22.2 and a closed list would
+          // have thrown away the whole inventory on one unknown value (N-064).
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(entry.origin as string) ||
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(entry.trust as string) ||
           !["enabled", "disabled"].includes(entry.state as string) || names.has(entry.name)) throw unavailable();
       names.add(entry.name);
       return { name: entry.name, category: entry.category, origin: entry.origin as HermesInventoryEntry["origin"],

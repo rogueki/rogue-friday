@@ -91,7 +91,7 @@ it("never fills a report with text the CLI did not print", async () => {
   const { service, root } = fixture((async () => ({ action: "inspect", name: "arxiv", text: "  ",
     bytes: 0, truncated: false })) as never);
   try {
-    await expect(service.skillReport("inspect", "arxiv")).rejects.toThrow("Hermes-Konfiguration");
+    await expect(service.skillReport("inspect", "arxiv")).rejects.toThrow("Hermes-Bruecke in WSL");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,4 +1,6 @@
 import { expect, it } from "vitest";
+import { HermesConfigService } from "../src/services/hermes-config";
+import type { RunnerInvoker } from "../src/services/coding-runs";
 import { SkillsService } from "../src/services/skills";
 import { startTestApi } from "./helpers";
 
@@ -38,4 +40,30 @@ it("serves CLI origin and trust as separate fields next to the dashboard state",
   } finally {
     await api.close();
   }
+});
+
+it("keeps the inventory when the CLI reports an origin token this code has never seen", async () => {
+  // v0.22.2 calls the very same skills `external` where v0.20.5 said `local`. A closed list threw the whole
+  // inventory away and the catalog silently lost origin and trust for every skill (N-064).
+  const service = new HermesConfigService({} as never, {} as RunnerInvoker);
+  const wired = service as unknown as { target: () => { script: string; distro: string; user: string };
+    invoke: () => Promise<unknown> };
+  wired.target = () => ({ script: "/mnt/d/Friday/installer/wsl/hermes_config_bridge.py", distro: "Friday-2",
+    user: "friday" });
+  wired.invoke = async () => ({ count: 2, skills: [
+    { name: "friday-weather", category: "weather", origin: "external", trust: "local", state: "enabled" },
+    { name: "arxiv", category: "research", origin: "builtin", trust: "builtin", state: "disabled" },
+  ] });
+
+  const inventory = await service.skillInventory();
+  expect(inventory.entries.map((entry) => [entry.name, entry.origin, entry.trust, entry.state])).toEqual([
+    ["friday-weather", "external", "local", "enabled"],
+    ["arxiv", "builtin", "builtin", "disabled"],
+  ]);
+
+  // Nonsense tokens are still refused, and the refusal says what happened instead of blaming the distro.
+  wired.invoke = async () => ({ count: 1, skills: [
+    { name: "broken", category: "x", origin: "has space", trust: "local", state: "enabled" }] });
+  await expect(service.skillInventory()).rejects.toMatchObject({
+    code: "ADAPTER_UNAVAILABLE", message: expect.stringContaining("Hermes-Bruecke in WSL") });
 });

@@ -27,6 +27,9 @@ assert parsed["skills"][0]["category"] == "", parsed["skills"][0]
 assert parsed["skills"][1] == {"name": "claude-code", "category": "autonomous-ai-agents",
                                "origin": "builtin", "trust": "builtin", "state": "disabled"}
 assert parsed["skills"][2]["origin"] == "hub" and parsed["skills"][2]["trust"] == "project"
+# The source vocabulary is a bounded token, not a fixed list: v0.22.2 prints "external" for local skills (N-064).
+EXTERNAL = SAMPLE.replace("hub     ", "external").replace("project ", "local   ")
+assert bridge.parse_skills_list(EXTERNAL)["skills"][2]["origin"] == "external"
 
 EMPTY = """\
    Installed Skills
@@ -38,7 +41,7 @@ assert bridge.parse_skills_list(EMPTY) == {"count": 0, "skills": []}
 
 BAD = [
     # unknown origin value
-    SAMPLE.replace("│ hub     │ project", "│ market  │ project"),
+    SAMPLE.replace("hub     ", "sk ills "),
     # unknown status value
     SAMPLE.replace("│ enabled  │", "│ pending  │", 1),
     # duplicated name

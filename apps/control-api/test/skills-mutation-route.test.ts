@@ -121,7 +121,7 @@ it("never reports a mutation the CLI did not confirm", async () => {
     snapshot: null, text: "", bytes: 0 })) as never);
   try {
     await expect(lying.service.mutateSkill("update", "arxiv", undefined, false))
-      .rejects.toThrow("Hermes-Konfiguration");
+      .rejects.toThrow("Hermes-Bruecke in WSL");
   } finally {
     rmSync(lying.root, { recursive: true, force: true });
   }
