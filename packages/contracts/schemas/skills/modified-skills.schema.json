@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/modified-skills.schema.json",
+  "title": "ModifiedSkills",
+  "type": "object",
+  "properties": {
+    "names": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      }
+    },
+    "observedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "names",
+    "observedAt"
+  ],
+  "additionalProperties": false
+}

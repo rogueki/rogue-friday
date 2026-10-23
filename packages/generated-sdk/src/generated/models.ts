@@ -1044,6 +1044,8 @@ export interface FridayModelMap {
   ModelProvider: ModelProvider;
   ModelProviderListResponse: ModelProviderListResponse;
   ModelsRoutingSettings: ModelsRoutingSettings;
+  ModifiedSkills: ModifiedSkills;
+  ModifiedSkillsResponse: ModifiedSkillsResponse;
   NavigationSettings: NavigationSettings;
   Notification: Notification;
   NotificationActionRequest: NotificationActionRequest;
@@ -1127,6 +1129,8 @@ export interface FridayModelMap {
   SkillActivationRequest: SkillActivationRequest;
   SkillCatalogEntry: SkillCatalogEntry;
   SkillCatalogResponse: SkillCatalogResponse;
+  SkillHubSearch: SkillHubSearch;
+  SkillHubSearchResponse: SkillHubSearchResponse;
   SkillMarkdown: SkillMarkdown;
   SkillMarkdownResponse: SkillMarkdownResponse;
   SkillResponse: SkillResponse;
@@ -4839,6 +4843,15 @@ export interface ModelsRoutingSettings {
   }[];
   monthlyBudgetEur: number | null;
 }
+export interface ModifiedSkills {
+  names: string[];
+  observedAt: string | null;
+}
+export interface ModifiedSkillsResponse {
+  contractVersion: ContractVersion;
+  data: ModifiedSkills;
+  freshness: Freshness;
+}
 export interface NavigationSettings {
   order: string[];
   hidden: string[];
@@ -5867,6 +5880,23 @@ export interface SkillCatalogResponse {
   data: SkillCatalogEntry[];
   catalogError: string | null;
   hermesError: string | null;
+  freshness: Freshness;
+}
+export interface SkillHubSearch {
+  query: string;
+  source: string;
+  results: {
+    identifier: string;
+    name: string;
+    source: string;
+    trustLevel: string;
+    description: string;
+  }[];
+  observedAt: string | null;
+}
+export interface SkillHubSearchResponse {
+  contractVersion: ContractVersion;
+  data: SkillHubSearch;
   freshness: Freshness;
 }
 export interface SkillMarkdown {

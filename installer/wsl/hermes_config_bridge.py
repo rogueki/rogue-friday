@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -477,6 +477,54 @@ def parse_skills_list(text):
     return {"count": len(skills), "skills": skills}
 
 
+def parse_hub_search(text, query, source):
+    """Parse `hermes skills search --json`. Only the documented fields are read; extra keys are ignored."""
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        raise ValueError("hub_search_format")
+    if not isinstance(payload, list) or len(payload) > 50:
+        raise ValueError("hub_search_format")
+    results = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("hub_search_format")
+        name = item.get("name")
+        identifier = item.get("identifier")
+        origin = item.get("source")
+        trust = item.get("trust_level")
+        description = item.get("description")
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("hub_search_format")
+        if not isinstance(identifier, str) or not 1 <= len(identifier) <= 300:
+            raise ValueError("hub_search_format")
+        if not isinstance(origin, str) or not 1 <= len(origin) <= 40:
+            raise ValueError("hub_search_format")
+        if not isinstance(trust, str) or not 1 <= len(trust) <= 40:
+            raise ValueError("hub_search_format")
+        if not isinstance(description, str) or len(description) > 2000:
+            raise ValueError("hub_search_format")
+        results.append({"identifier": identifier, "name": name, "source": origin,
+                        "trustLevel": trust, "description": description})
+    return {"query": query, "source": source, "results": results}
+
+
+def parse_modified_skills(text):
+    """Parse `hermes skills list-modified --json`: a flat array of skill names or nothing."""
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        raise ValueError("modified_skills_format")
+    if not isinstance(payload, list) or len(payload) > 500:
+        raise ValueError("modified_skills_format")
+    names = []
+    for item in payload:
+        if not isinstance(item, str) or SKILL_NAME.fullmatch(item) is None or item in names:
+            raise ValueError("modified_skills_format")
+        names.append(item)
+    return {"names": names}
+
+
 def locked_main(home, source, cli):
     def call(*args):
         result = subprocess.run([str(cli), "config", *args], capture_output=True, text=True, timeout=15)
@@ -492,6 +540,40 @@ def locked_main(home, source, cli):
         if not isinstance(request, dict) or set(request) != {"id"}:
             raise ValueError("invalid_request")
         print(json.dumps(read_skill_markdown(home, source, request["id"])))
+        return 0
+    if sys.argv[1] == "hub-search":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"query", "source", "limit"}:
+            raise ValueError("invalid_request")
+        query = request["query"]
+        if not isinstance(query, str) or not 1 <= len(query) <= 120:
+            raise ValueError("invalid_request")
+        source = request["source"]
+        if source is not None and (not isinstance(source, str) or not 1 <= len(source) <= 40):
+            raise ValueError("invalid_request")
+        limit = request["limit"]
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 50:
+            raise ValueError("invalid_request")
+        argv = [str(cli), "skills", "search", query, "--json", "--limit", str(limit)]
+        if source is not None:
+            argv.extend(["--source", source])
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "hub_search_timeout"}))
+            return 7
+        if result.returncode:
+            print(json.dumps({"error": "hub_search_failed"}))
+            return 6
+        print(json.dumps(parse_hub_search(result.stdout, query, source)))
+        return 0
+    if sys.argv[1] == "modified-list":
+        result = subprocess.run([str(cli), "skills", "list-modified", "--json"], capture_output=True,
+                                text=True, timeout=30)
+        if result.returncode:
+            print(json.dumps({"error": "modified_list_failed"}))
+            return 6
+        print(json.dumps(parse_modified_skills(result.stdout)))
         return 0
     if sys.argv[1] == "skills-list":
         # A wide COLUMNS keeps the table from eliding names; the parser rejects every other layout.

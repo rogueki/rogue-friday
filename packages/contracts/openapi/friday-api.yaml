@@ -1,4 +1,4 @@
-﻿openapi: 3.1.1
+openapi: 3.1.1
 info:
   title: FRIDAY Control API
   version: 2.0.0
@@ -5991,6 +5991,70 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills/hub/search:
+    get:
+      operationId: searchSkillHub
+      tags: [skills]
+      summary: Search the configured skill registries via the CLI JSON output
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 40
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Registry hits exactly as the CLI reported them
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillHubSearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/modified:
+    get:
+      operationId: listModifiedSkills
+      tags: [skills]
+      summary: List bundled skills edited locally, which updates skip
+      responses:
+        "200":
+          description: Names reported by the CLI, never parsed out of a table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModifiedSkillsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/skills/powerpoint/decks:
     get:
       operationId: listPowerPointDecks
@@ -9379,6 +9443,10 @@ components:
       $ref: ../schemas/skills/activation-request.schema.json
     SkillMarkdownResponse:
       $ref: ../schemas/integrations/skill-markdown-response.schema.json
+    SkillHubSearchResponse:
+      $ref: ../schemas/skills/hub-search-response.schema.json
+    ModifiedSkillsResponse:
+      $ref: ../schemas/skills/modified-skills-response.schema.json
     SkillResponse:
       $ref: ../schemas/skills/skill-response.schema.json
     OnboardingUpdate:

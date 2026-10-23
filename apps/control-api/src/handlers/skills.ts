@@ -15,6 +15,21 @@ async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
 }
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async searchSkillHub(ctx) {
+    const query = typeof ctx.query.query === "string" ? ctx.query.query : "";
+    const source = typeof ctx.query.source === "string" ? ctx.query.source : undefined;
+    const limit = typeof ctx.query.limit === "number" ? ctx.query.limit : 10;
+    const result = await ctx.runtime.hermesConfig.hubSearch(query, source, limit);
+    ctx.audit.action = "skills.hub_searched";
+    ctx.audit.after = { query: result.query, source: result.source, hits: result.results.length };
+    return { status: 200, body: single(result) };
+  },
+  async listModifiedSkills(ctx) {
+    const result = await ctx.runtime.hermesConfig.modifiedSkills();
+    ctx.audit.action = "skills.modified_listed";
+    ctx.audit.after = { count: result.names.length };
+    return { status: 200, body: single({ names: result.names, observedAt: result.at }) };
+  },
   async getSkillMarkdown(ctx) {
     const id = ctx.pathParams.id ?? "";
     const result = await ctx.runtime.hermesConfig.skillMarkdown(id);

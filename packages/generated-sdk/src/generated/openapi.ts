@@ -3250,6 +3250,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/hub/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the configured skill registries via the CLI JSON output */
+        get: operations["searchSkillHub"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/modified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bundled skills edited locally, which updates skip */
+        get: operations["listModifiedSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills/powerpoint/decks": {
         parameters: {
             query?: never;
@@ -7331,6 +7365,20 @@ export interface components {
             };
             freshness: components["schemas"]["Freshness"];
         };
+        /** SkillHubSearch */
+        "hub-search.schema": {
+            /** Format: date-time */
+            observedAt: string | null;
+            query: string;
+            results: {
+                description: string;
+                identifier: string;
+                name: string;
+                source: string;
+                trustLevel: string;
+            }[];
+            source: string;
+        };
         /**
          * IntegrationEvent
          * @description Capture candidate. A durable writer must enforce captureEligibility and redact sensitive text before storage.
@@ -8640,6 +8688,18 @@ export interface components {
                 taskKind: string;
             }[];
         };
+        /** ModifiedSkills */
+        "modified-skills.schema": {
+            names: string[];
+            /** Format: date-time */
+            observedAt: string | null;
+        };
+        /** ModifiedSkillsResponse */
+        ModifiedSkillsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["modified-skills.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** NavigationSettings */
         NavigationSettings: {
             defaultPage: string;
@@ -9730,6 +9790,12 @@ export interface components {
             data: components["schemas"]["SkillCatalogEntry"][];
             freshness: components["schemas"]["Freshness"];
             hermesError: string | null;
+        };
+        /** SkillHubSearchResponse */
+        SkillHubSearchResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["hub-search.schema"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** SkillMarkdownResponse */
         SkillMarkdownResponse: {
@@ -18400,6 +18466,57 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    searchSkillHub: {
+        parameters: {
+            query: {
+                limit?: number;
+                query: string;
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registry hits exactly as the CLI reported them */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillHubSearchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listModifiedSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Names reported by the CLI, never parsed out of a table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModifiedSkillsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

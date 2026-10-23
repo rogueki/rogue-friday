@@ -300,6 +300,61 @@ export class HermesConfigService {
     return { id, content: raw.content, bytes: raw.bytes as number };
   }
 
+  async hubSearch(query: string, source: string | undefined, limit: number) {
+    const trimmed = query.trim();
+    if (trimmed.length < 1 || trimmed.length > 120) throw validationFailed("Der Suchbegriff braucht 1 bis 120 Zeichen.");
+    if (source !== undefined && !/^[a-z0-9][a-z0-9.-]{0,39}$/.test(source))
+      throw validationFailed("Unbekannte Skill-Quelle.");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw validationFailed("Limit muss zwischen 1 und 50 liegen.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["hub-search"],
+        JSON.stringify({ query: trimmed, source: source ?? null, limit }), 65000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("hub_search_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Skill-Registry hat nicht rechtzeitig geantwortet." });
+      if (message.includes("hub_search_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Skill-Suche hat ein unbekanntes Format geliefert." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Suchanfrage.");
+      throw unavailable();
+    }
+    if (raw.query !== trimmed || raw.source !== (source ?? null) || !Array.isArray(raw.results) ||
+        raw.results.length > 50) throw unavailable();
+    const results = raw.results.map((value) => {
+      if (!value || typeof value !== "object") throw unavailable();
+      const hit = value as Record<string, unknown>;
+      if (typeof hit.identifier !== "string" || hit.identifier.length < 1 || hit.identifier.length > 300 ||
+          typeof hit.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(hit.name) ||
+          typeof hit.source !== "string" || hit.source.length < 1 || hit.source.length > 40 ||
+          typeof hit.trustLevel !== "string" || hit.trustLevel.length < 1 || hit.trustLevel.length > 40 ||
+          typeof hit.description !== "string" || hit.description.length > 2000) throw unavailable();
+      return { identifier: hit.identifier, name: hit.name, source: hit.source,
+        trustLevel: hit.trustLevel, description: hit.description };
+    });
+    return { query: trimmed, source: source ?? "all", results, observedAt: new Date().toISOString() };
+  }
+
+  async modifiedSkills(): Promise<{ names: string[]; at: string }> {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["modified-list"], undefined, 30000, 131072);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("modified_skills_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Liste lokal geaenderter Skills hat ein unbekanntes Format." });
+      throw unavailable();
+    }
+    if (!Array.isArray(raw.names) || raw.names.length > 500) throw unavailable();
+    const names = raw.names.map((value) => {
+      if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(value)) throw unavailable();
+      return value;
+    });
+    return { names, at: new Date().toISOString() };
+  }
+
   async skillInventory(): Promise<{ entries: HermesInventoryEntry[]; at: string }> {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
