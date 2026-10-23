@@ -82,3 +82,32 @@ mit CLI-Begruendung, Registry-Treffer ohne Installationsknopf), `skills-report-r
 
 **Weiterhin offen fuer DASH-10.05:** Voraussetzungen und Auditbefund *je Registry-Treffer* (die CLI liefert dafuer
 kein JSON, siehe Abschnitt 5) und der gefuehrte Wiederverwendungsschritt fuer bereits eingerichtete Referenzen.
+
+## 8. Voraussetzungen und Auditbefund je Treffer (2026-10-23)
+
+Jeder Registry-Treffer hat jetzt zwei Schalter: **Quelle ansehen** (`inspect`) und **Prüfung ansehen** (`audit`). Beide
+zeigen den CLI-Text unveraendert in einem fokussierbaren `<pre>`; ein Abbruch der CLI erscheint im Warnhinweis mit
+ihrem eigenen Grund. Eine aus Tabellen geratene Struktur gibt es bewusst nicht — die CLI liefert fuer beide Befehle
+kein JSON (Abschnitt 5), und geratene Felder waeren schlimmer als ehrlicher Text.
+
+**Der Blocker aus Abschnitt 5 ist damit geloest, aber anders als zunaechst angenommen.** Die API nahm fuer
+`inspect`/`audit` nur einen Namen entgegen, waehrend ein Treffer eine Kennung wie
+`official/devops/hermes-s6-container-supervision` nennt (**N-053**). Der Parameter der drei Berichtsoperationen
+akzeptiert jetzt beides — Name **oder** Kennung mit bis zu drei Segmenten — und die Oberflaeche schickt die Kennung
+des Treffers, weil sie eindeutig ist.
+
+**Live am echten CLI geprueft (FRIDAY-2, Hermes v0.22.2), und dabei fiel eine falsche Annahme auf:**
+
+| Aufruf | Antwort |
+|---|---|
+| `inspect official/devops/hermes-s6-container-supervision` | rc 0, Bericht mit `Source: official`, `Trust: official` |
+| `inspect hermes-s6-container-supervision` | rc 0, zusaetzlich `Resolved to: official/devops/hermes-s6-container-supervision` |
+
+Der blosse Name funktioniert also, solange er eindeutig ist — die CLI loest ihn auf und **sagt, worauf**. Die
+Mehrdeutigkeit tritt erst bei Namenskollision auf. Die Kennung bleibt trotzdem die richtige Wahl in der Oberflaeche,
+weil sie die Aufloesung ueberhaupt nicht braucht; der frueher behauptete harte Blockierer war keiner.
+
+**Belegt durch:** `SkillRegistryPanel.test.tsx` (7 Tests, davon 2 fuer Quellen-/Pruefbefund mit Kennung und fuer den
+Fehlerfall), `skills-report-reason.test.ts` (3 Tests, u. a. Kennung akzeptiert, `a/b/c/d`, `/leading`, `with space/name`
+und `../etc` abgelehnt), `test_skill_report.py` (13 Pruefungen, davon 9 fuer die Kennungsform). Offen bleibt allein der
+gefuehrte Wiederverwendungsschritt fuer bereits eingerichtete Referenzen.
