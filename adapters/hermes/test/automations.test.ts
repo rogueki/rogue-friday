@@ -34,6 +34,16 @@ async function rejection(promise: Promise<unknown>): Promise<AdapterError> {
   throw new Error("expected a rejection");
 }
 
+let mutationCounter = 0;
+function mutationOf(_adapter: HermesAutomationsAdapter) {
+  mutationCounter += 1;
+  return {
+    correlationId: `corr_test_${mutationCounter}`,
+    idempotencyKey: `idem-${mutationCounter}`,
+    signal: AbortSignal.timeout(5_000),
+  } as never;
+}
+
 beforeEach(async () => {
   fake = await createHermesFake();
 });
@@ -183,6 +193,83 @@ describe("automations on Hermes cron", () => {
       mutation({ idempotencyKey: "upd-2", ifMatchVersion: enabled.data.version }),
     );
     expect(updated.data.name).toBe("Umbenannt");
+  });
+
+  it("skips an unreadable job and keeps the other automations usable", async () => {
+    const { adapter, call } = await open();
+    const healthy = fake.state.createCronJob({ name: "Gesund", enabled: true, state: "scheduled" });
+    // A null entry in the stored job list would crash a naive mapper; Hermes itself never sends one, a corrupted
+    // store or a broken upgrade can.
+    fake.state.cronJobs.set("broken", null as unknown as never);
+
+    const page = await adapter.listAutomations({}, call());
+    validatePortResult(PORT_SPEC.automations.listAutomations, page, { what: "listAutomations" });
+    expect(page.items.map((automation) => automation.name)).toEqual(["Gesund"]);
+
+    const single = await adapter.getAutomation({ id: page.items[0]!.id }, call());
+    expect(single.data.name).toBe("Gesund");
+    expect(fake.state.cronJobs.has(healthy.id)).toBe(true);
+  });
+
+  it("reports the defect instead of an empty list when no automation is readable", async () => {
+    const { adapter, call } = await open();
+    fake.state.cronJobs.set("broken", null as unknown as never);
+
+    const error = await rejection(adapter.listAutomations({}, call()));
+    // Kein stiller leerer Erfolg: der Defekt wird gemeldet, damit nicht "keine Automationen" angezeigt wird.
+    expect(error.code).toBe("INTERNAL");
+    expect(JSON.stringify(error.details)).toContain("broken");
+  });
+
+  it("reports an unknown trigger outcome once and never repeats the external action", async () => {
+    const { adapter, call, mutation } = await open({ timeoutMs: 250 });
+    fake.state.createCronJob({ name: "Langsam", script: "check.sh", no_agent: true, enabled: true, state: "scheduled" });
+    const id = (await adapter.listAutomations({}, call())).items[0]!.id;
+    fake.state.cronTriggerAttempts = 0;
+    fake.state.cronTriggerDelayMs = 1_200;
+
+    const error = await rejection(adapter.testAutomation({ id, body: { dryRun: false } }, mutation({ idempotencyKey: "t1" })));
+    expect(["ADAPTER_TIMEOUT", "ADAPTER_UNAVAILABLE"]).toContain(error.code);
+
+    // Genau ein Versuch: der Ausgang ist unbekannt, ein zweiter Aufruf koennte die Automation doppelt starten.
+    expect(fake.state.cronTriggerAttempts).toBe(1);
+    fake.state.cronTriggerDelayMs = 0;
+  });
+
+  it("restores the previous configuration by reapplying it", async () => {
+    const { adapter, call } = await open();
+    fake.state.createCronJob({ name: "Wiederherstellbar", prompt: "alt", enabled: true, state: "scheduled" });
+    const original = (await adapter.listAutomations({}, call())).items[0]!;
+
+    const changed = await adapter.updateAutomation(
+      {
+        id: original.id,
+        body: {
+          name: "Kurzzeitig anders",
+          trigger: { type: "schedule", schedule: "5 6 * * *", description: "Testaenderung" },
+        },
+      },
+      mutationOf(adapter),
+    );
+    expect(changed.data.version).not.toBe(original.version);
+
+    const restored = await adapter.updateAutomation(
+      {
+        id: original.id,
+        body: {
+          name: original.name,
+          trigger: {
+            type: "schedule",
+            schedule: original.trigger.schedule,
+            description: original.trigger.description,
+          },
+        },
+      },
+      mutationOf(adapter),
+    );
+    // Die Version ist ein Fingerabdruck der Konfiguration: gleiche Werte ergeben wieder dieselbe Version.
+    expect(restored.data.version).toBe(original.version);
+    expect(restored.data.trigger.schedule).toBe(original.trigger.schedule);
   });
 
   it("maps a rate-limited upstream to RATE_LIMITED and stays non-destructive", async () => {

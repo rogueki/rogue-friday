@@ -253,8 +253,30 @@ export class HermesAutomationsAdapter extends HermesAdapterBase implements Autom
     const limit = Math.min(MAX_LIMIT, Math.max(1, params.limit ?? DEFAULT_LIMIT));
     const offset = this.offsetOf(params.cursor);
     const nextCursor = offset + limit < jobs.length ? `o${offset + limit}` : null;
+    // A single corrupt job must not take the other automations with it: map per job, keep what is readable and say
+    // which ids were dropped. Only when nothing is readable does the adapter report the upstream defect.
+    const items: Automation[] = [];
+    const broken: Array<{ id: string; reason: string }> = [];
+    for (const job of jobs.slice(offset, offset + limit)) {
+      try {
+        items.push(this.toAutomation(job, nowIso));
+      } catch (error) {
+        broken.push({ id: String(job?.id ?? "unbekannt"), reason: error instanceof Error ? error.message : "unbekannt" });
+      }
+    }
+    if (broken.length > 0) {
+      context.logger.warn("Hermes-Automation uebersprungen", { broken });
+      if (items.length === 0) {
+        throw new AdapterError({
+          code: "INTERNAL",
+          message: `Keine Hermes-Automation lesbar (${broken.map((entry) => entry.id).join(", ")}).`,
+          retryable: false,
+          details: { broken },
+        });
+      }
+    }
     return {
-      items: jobs.slice(offset, offset + limit).map((job) => this.toAutomation(job, nowIso)),
+      items,
       pageInfo: { nextCursor, hasNextPage: nextCursor !== null },
       freshness: { state: "fresh", asOf: nowIso },
     };

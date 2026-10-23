@@ -220,6 +220,12 @@ export class HermesState {
   readonly sessions: FakeSession[] = [];
   readonly cronJobs = new Map<string, FakeCronJob>();
 
+  /** Counts trigger calls so a retried trigger would be visible. */
+  cronTriggerAttempts = 0;
+
+  /** Answers trigger calls only after this delay, so the client's timeout hits an unknown outcome. */
+  cronTriggerDelayMs = 0;
+
   /** Injects a status for the cron list so error mapping can be tested. */
   cronStatus: number | undefined;
   readonly cronRuns = new Map<string, FakeCronRun[]>();

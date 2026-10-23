@@ -590,7 +590,14 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
     {
       method: "POST",
       pattern: "/api/cron/jobs/:id/trigger",
-      handler: authed((request) => json(state.triggerCronJob(request.params.id ?? ""))),
+      handler: authed((request) => {
+        state.cronTriggerAttempts += 1;
+        if (state.cronTriggerDelayMs > 0) {
+          // Synchronous sleep: the fake answers late so the client aborts and the outcome stays unknown.
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, state.cronTriggerDelayMs);
+        }
+        return json(state.triggerCronJob(request.params.id ?? ""));
+      }),
     },
     {
       method: "DELETE",

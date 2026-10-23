@@ -142,6 +142,46 @@ describe.skipIf(!reachable)("automations against a running Hermes", () => {
     expect(afterRestart.json().data.paused).toBe(true);
   }, 120_000);
 
+  it("restores an earlier configuration over the real API", async () => {
+    await disableTier2(owner);
+    const created = await confirmed(owner, "POST", "/api/v1/automations", {
+      name: "F.R.I.D.A.Y. Wiederherstellung",
+      enabled: true,
+      trigger: { type: "schedule", schedule: "10 5 * * *", description: "Vorher" },
+      conditions: [],
+      actions: [
+        {
+          id: "act_restore",
+          type: "run_agent",
+          requiresApproval: false,
+          description: "Skriptlauf",
+          params: { script: "friday-acceptance.sh", mode: "script" },
+        },
+      ],
+    });
+    expect(created.statusCode, JSON.stringify(created.body)).toBeLessThan(300);
+    const before = created.json().data;
+
+    const changed = await confirmed(owner, "PATCH", `/api/v1/automations/${before.id}`, {
+      name: "F.R.I.D.A.Y. Zwischenstand",
+      trigger: { type: "schedule", schedule: "20 6 * * *", description: "Zwischenstand" },
+    });
+    expect(changed.statusCode, JSON.stringify(changed.body)).toBeLessThan(300);
+    expect(changed.json().data.version).not.toBe(before.version);
+
+    const restored = await confirmed(owner, "PATCH", `/api/v1/automations/${before.id}`, {
+      name: before.name,
+      trigger: { type: "schedule", schedule: before.trigger.schedule, description: before.trigger.description },
+    });
+    expect(restored.statusCode, JSON.stringify(restored.body)).toBeLessThan(300);
+    // Die Version ist ein Fingerabdruck der Konfiguration: die frueheren Werte ergeben wieder dieselbe Version,
+    // ohne dass F.R.I.D.A.Y. eine eigene Versionshistorie erfinden muss.
+    expect(restored.json().data.version).toBe(before.version);
+    expect(restored.json().data.trigger.schedule).toBe("10 5 * * *");
+
+    await confirmed(owner, "POST", `/api/v1/automations/${before.id}/disable`, {});
+  }, 120_000);
+
   it("keeps the schedule expression byte-identical and reports a failing action as a failed run", async () => {
     await disableTier2(owner);
     const created = await confirmed(owner, "POST", "/api/v1/automations", {

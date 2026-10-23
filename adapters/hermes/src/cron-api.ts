@@ -93,7 +93,12 @@ export class CronApi {
   private async send<T>(
     method: "GET" | "POST" | "PUT" | "DELETE",
     route: string,
-    options: { query?: Record<string, string | number | undefined>; body?: unknown; signal?: AbortSignal } = {},
+    options: {
+      query?: Record<string, string | number | undefined>;
+      body?: unknown;
+      signal?: AbortSignal;
+      retry?: false;
+    } = {},
   ): Promise<T> {
     const query = Object.entries(options.query ?? {})
       .filter(([, value]) => value !== undefined)
@@ -104,6 +109,7 @@ export class CronApi {
       path: query ? `${route}?${query}` : route,
       body: options.body,
       signal: options.signal,
+      ...(options.retry === false ? { retry: false as const } : {}),
     });
     if (response.status >= 400) {
       throw new AdapterError({
@@ -144,8 +150,16 @@ export class CronApi {
     return this.send<CronJob>("POST", path("/api/cron/jobs/:id/resume", { id }), { body: {}, signal });
   }
 
+  /**
+   * Triggers one run. Deliberately single-attempt: a timeout leaves the outcome unknown, and repeating the call could
+   * start the same automation twice. The caller reports the unknown state instead of guessing.
+   */
   trigger(id: string, signal?: AbortSignal): Promise<CronJob> {
-    return this.send<CronJob>("POST", path("/api/cron/jobs/:id/trigger", { id }), { body: {}, signal });
+    return this.send<CronJob>("POST", path("/api/cron/jobs/:id/trigger", { id }), {
+      body: {},
+      signal,
+      retry: false,
+    });
   }
 
   remove(id: string, signal?: AbortSignal): Promise<{ ok?: boolean }> {

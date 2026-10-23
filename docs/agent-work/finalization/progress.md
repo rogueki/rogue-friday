@@ -887,3 +887,16 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Hermes fuehrt Trigger synchron aus, Agentenjobs brauchen einen hoeheren Timeout als 10 s.
 - evidence_paths: `dash-17-04-acceptance.md`, `dash-17-02-automations-adapter.md`.
 - status: PASS
+
+### DASH-17.05 abgeschlossen (2026-10-23) - PASS
+- changed: `listAutomations` bildet pro Job ab und ueberspringt unlesbare Eintraege (Log mit ID/Grund); sind alle
+  defekt, meldet der Adapter INTERNAL mit den IDs statt einer leeren Liste. `CronApi.trigger` laeuft mit `retry: false`
+  (genau ein Versuch). Fake: `cronTriggerAttempts`, `cronTriggerDelayMs` (synchroner Sleep), `cronStatus` bereits aus
+  17.04.
+- tests: adapters/hermes/test/automations.test.ts 12 (neu: "skips an unreadable job...", "reports the defect instead of
+  an empty list...", "reports an unknown trigger outcome once...", "restores the previous configuration by reapplying
+  it"); live 3 (neu: "restores an earlier configuration over the real API" - Version nach Rueckschreiben identisch).
+- runtime: live gegen Hermes 0.22.2; PATCH 10 5 * * * -> 20 6 * * * -> 10 5 * * * ergibt wieder die Ausgangsversion.
+- gates: typecheck + lint 0 Fehler, adapters/hermes 205 bestanden / 4 uebersprungen.
+- evidence_paths: `dash-17-05-recovery.md`.
+- status: PASS
