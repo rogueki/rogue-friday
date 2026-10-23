@@ -32,6 +32,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
  PASS (UI und Sprachdialog ueber denselben Handler mit gemeinsamer Auditaktion und Revisionsschritt, 409 bei veralteter Revision, Bindung an gestagten Inhalt; contracts:check ok, 21 Dateien / 495 Tests, Migration zweimal ohne Doppelanwendung und mit erhaltenen Daten) | `dash-02-contracts.md`, `settings-shared-action.test.ts`, `db-migrate-repeatable.test.ts` |
 | INS-12 Starter und Abbruch | TEIL (Doppelklick startet die Oberflaeche, CLI-Modus dokumentiert, Parameter kommen durch cmd und cscript unveraendert an, Abbruch der Windows-Abfrage ohne Aenderung, Simulation nur im Testmodus; echter Dialog und Start aus dem ZIP -> INS-13) | `ins-12-launcher.md`, `launcher.Tests.ps1` (49) |
 | DASH-10.02 Skill-Inventar | TEIL (191 Skills live aus `hermes skills list`: 119 local / 72 builtin / 0 hub; Herkunft und Trust als eigene Vertragsfelder, Service-Merge mit CLI-Fallback, Detail laedt Markdown erst bei Auswahl als Text, Filter fuer Suche/Quelle/Herkunft/Kategorie/Status, 60er-Blocks mit Nachladen; echter Hub-Skill fehlt auf diesem Host) | `dash-10-02-skill-inventory.md`, `test_skills_list.py` (9), `skills-onboarding.test.ts` (20), `skills-inventory-route.test.ts` (1), `SkillsPage.test.tsx` (4) |
+| DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -519,6 +520,29 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `dash-10-02-skill-inventory.md`, `dash-10-02-skill-inventory.md` Abschnitt 4; status: TEIL
 - remaining_work: echter Hub-Skill auf diesem Host (10.06), Version je Hermes-Skill fehlt in der CLI-Tabelle,
   `external` als eigene Quelle existiert in der CLI nicht, Trust-Verwaltung = DASH-10.03/10.04
+
+### DASH-10.03 (2026-10-23)
+
+- requirement_ids: DASH-10.03; predecessor: DASH-10.02
+- base_revision: `4ddc977`; result_revision: working tree (Commit folgt)
+- implementation_paths: keine Produktpfad-Aenderung noetig; Bestand
+  `apps/control-api/src/services/skills.ts` (`toggle`), Nachweis ergaenzt in
+  `apps/control-api/test/skills-onboarding.test.ts`, Analyse in
+  `docs/agent-work/finalization/dash-10-03-skill-enable.md`
+- test_command: `python3` entfaellt; Quellanalyse `sed`/`grep` im Hermes-Checkout, `hermes profile create/delete`,
+  `hermes config get/set`, `hermes skills list [--enabled-only]`, `vitest --project node skills-onboarding`
+- expected: der echte per-Skill-Schalter ist belegt, `opt-in/opt-out` nicht dafuer gehalten, keine Datei-/DB-Tricks,
+  und Friday meldet keinen Erfolg ohne Readback
+- observed: Schalter = `skills.disabled` (Menge der deaktivierten Namen), geschrieben von
+  `save_disabled_skills` ueber `PUT /api/skills/toggle`; `GET /api/skills` berechnet `enabled` daraus und liefert
+  `provenance` (hub > bundled > external > agent); `hermes skills config` ist TUI-only. Readbackprobe im
+  wegwerfbaren Profil `friday-probe`: 72 aktivierte Skills -> `skills.disabled=["arxiv"]` -> 71 und Zeile
+  `arxiv … builtin builtin disabled` -> Ruecknahme auf `[]` -> 72; Profil und Wrapper geloescht, Default-Profil
+  unveraendert (`skills.disabled` nicht gesetzt, 191/191). Neuer Test: Toggle ohne Zustandsaenderung wird als
+  "nicht bestaetigt" abgelehnt (21 Tests gruen)
+- evidence_paths: `dash-10-03-skill-enable.md`; status: PASS
+- remaining_work: Bedienung im Gesamtablauf = DASH-10.06; `origin` aus `provenance` speisen (external/hub) als
+  naechste Verbesserung
 
 ## Open risks / notes for the next session
 

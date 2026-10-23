@@ -897,3 +897,24 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   fuehrt keine Version je Skill, `external` erscheint dort als `local`, und die Trust-Verwaltung gehoert zu
   10.03/10.04. Details: `docs/agent-work/finalization/dash-10-02-skill-inventory.md`.
 - **Naechster Schritt**: DASH-10.03 (per-Skill-Schalter per CLI-/Quellanalyse und Readbackprobe), danach 10.04.
+
+## 2026-10-23 DASH-10.03: Per-Skill-Schalter belegt
+
+- **Mechanismus** (Quellanalyse am Hermes-Checkout v0.22.2 in `FRIDAY-2`): der per-Skill-Schalter ist die Menge
+  `skills.disabled`. `hermes_cli/skills_config.py` liest/schreibt sie (`get_disabled_skills`/`save_disabled_skills`,
+  `None` = leer, Skalar = ein Element), `hermes_cli/web_routers/skills.py` berechnet daraus `enabled` und bietet
+  `PUT /api/skills/toggle {name, enabled}`, und `agent/skill_utils.py:446` ordnet den Namen auch ueber `load_name`
+  zu. `hermes skills config` ist eine interaktive TUI ohne scriptbare Einzelumschaltung; `opt-in`/`opt-out` steuern
+  nur das Seeding der Bundled-Skills und sind **kein** per-Skill-Schalter.
+- **Kontrollierte Readbackprobe** in einem wegwerfbaren Profil (`friday-probe`, danach geloescht): 72 aktivierte
+  Skills, `skills.disabled=["arxiv"]` -> 71 und Zeile `arxiv … builtin builtin disabled`, Ruecknahme `[]` -> 72.
+  Default-Profil unveraendert (`skills.disabled` nicht gesetzt, 191/191). Der Wrapper `friday-probe.bat` wurde
+  entfernt.
+- **Friday-Verhalten** unveraendert korrekt: `SkillsService.toggle` prueft die Kennung, verweigert unbekannten
+  Zustand, sendet genau `{name, enabled}` an `/api/skills/toggle` und vergleicht anschliessend erneut. Neuer Test
+  „rejects an activation the dashboard does not read back" belegt, dass eine akzeptierte, aber nicht wirksame
+  Umschaltung als Fehler gilt (21/21 in `skills-onboarding.test.ts`).
+- **Nebenfund**: `GET /api/skills` liefert `provenance` (hub > bundled > external > agent) — praeziser als die
+  CLI-Spalte `Source`, die `external` als `local` fuehrt. Naechste Verbesserung: `origin` daraus speisen und um
+  `external` erweitern.
+- **Naechster Schritt**: DASH-10.04 (typisierte Skill-CLI-Operationen je Version).
