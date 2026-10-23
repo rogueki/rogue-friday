@@ -145,6 +145,18 @@ describe("skills and resumable onboarding", () => {
     await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
+  it("rejects an activation the dashboard does not read back", async () => {
+    // The toggle endpoint accepts the request but the observed state never changes.
+    const fetcher: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/skills")) return Response.json({ skills: [{ name: "powerpoint", enabled: false }] });
+      if (url.endsWith("/api/skills/toggle")) return Response.json({ ok: true });
+      return new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    };
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher });
+    await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
+  });
+
   it("reports origin and trust from the installed CLI without inventing them", async () => {
     const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
       ? Response.json({ skills: [{ name: "powerpoint", enabled: true }, { name: "claude-code", enabled: true }] })
