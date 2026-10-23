@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { AdapterConfigSettings, SkillCatalogEntry } from "@friday/sdk";
 import type { CodingCliStatus } from "./coding-runs";
-import { ApiError, notFound, validationFailed } from "../util/errors";
+import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 
 type Json = Record<string, unknown>;
 type Integration = SkillCatalogEntry["integrationDetails"][number];
@@ -465,7 +465,13 @@ export class SkillsService {
     await this.request("/api/skills/toggle", "PUT", { name: skill.name, enabled });
     const after = await this.list();
     const confirmed = after.skills.find((item) => item.id === id);
-    if (!confirmed || confirmed.enabled !== enabled || confirmed.discovered !== true) throw unavailable("Hermes hat den neuen Skillzustand nicht bestätigt");
+    if (!confirmed || confirmed.enabled !== enabled || confirmed.discovered !== true) {
+      // The request was accepted or lost, but the read-back is the truth: name the state that actually holds.
+      const observed = confirmed?.enabled ?? null;
+      throw conflict(`Hermes hat den neuen Skillzustand nicht bestätigt; beobachtet: ${
+        observed === true ? "aktiviert" : observed === false ? "deaktiviert" : "unbekannt"}.`,
+      { skillId: id, requested: enabled, observed });
+    }
     return confirmed;
   }
 }

@@ -157,6 +157,22 @@ describe("skills and resumable onboarding", () => {
     await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
+  it("names the state that still holds when the toggle is not confirmed", async () => {
+    const fetcher: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/skills")) return Response.json({ skills: [{ name: "powerpoint", enabled: false }] });
+      if (url.endsWith("/api/skills/toggle")) return Response.json({ ok: true });
+      return new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    };
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher });
+    const failure = await service.toggle("hermes:powerpoint", true).then(() => null, (error: unknown) => error as {
+      code: string; details: Record<string, unknown>; message: string });
+    expect(failure).not.toBeNull();
+    expect(failure!.code).toBe("CONFLICT");
+    expect(failure!.details).toEqual({ skillId: "hermes:powerpoint", requested: true, observed: false });
+    expect(failure!.message).toContain("beobachtet: deaktiviert");
+  });
+
   it("reports origin and trust from the installed CLI without inventing them", async () => {
     const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
       ? Response.json({ skills: [{ name: "powerpoint", enabled: true }, { name: "claude-code", enabled: true }] })
