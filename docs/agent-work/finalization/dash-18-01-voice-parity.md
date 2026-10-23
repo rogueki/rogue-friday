@@ -8,9 +8,9 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 - Intent-Dienste: 11 (`agent-action-intent.ts`, `automation-action-intent.ts`, `calendar-action-intent.ts`, `knowledge-action-intent.ts`, `mail-action-intent.ts`, `messenger-action-intent.ts`, `read-query-intent.ts`, `research-action-intent.ts`, `settings-content-mutation-intent.ts`, `task-action-intent.ts`, `task-create-intent.ts`)
 - Im Dispatcher erreichbar: 11 von 11
-- Lese-Intents: 14 · eingebaute Sprachintents: voice_start, focus_toggle
-- Bereiche mit Lese- und Schreibweg: 4 von 20
-- Nur lesbar: 4 · nur schreibbar: 7 · ohne Sprachweg: 5
+- Lese-Intents: 16 · eingebaute Sprachintents: voice_start, focus_toggle
+- Bereiche mit Lese- und Schreibweg: 5 von 20
+- Nur lesbar: 4 · nur schreibbar: 6 · ohne Sprachweg: 5
 
 ## 2. Matrix
 
@@ -21,7 +21,7 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 | Kalender | ja | `calendar.list` | `calendar.create`, `calendar.delete`, `calendar.update` | lesen + schreiben |
 | Memory | ja | — | `memory.confirm`, `memory.create`, `memory.delete`, `memory.update` | nur schreiben |
 | Aufgaben | ja | `tasks.get`, `tasks.list` | `task.cancel`, `task.create`, `task.retry`, `task.update` | lesen + schreiben |
-| Agenten | ja | — | `agent.assign`, `agent.pause`, `agent.resume`, `agent.stop` | nur schreiben |
+| Agenten | ja | `agents.get`, `agents.list` | `agent.assign`, `agent.pause`, `agent.resume`, `agent.stop` | lesen + schreiben |
 | Skills | ja | — | — | kein Sprachweg |
 | Automationen | ja | — | `automation.disable`, `automation.enable`, `automation.pause`, `automation.pauseAll`, `automation.resume`, `automation.test` | nur schreiben |
 | Recherche | ja | — | `research.create` | nur schreiben |

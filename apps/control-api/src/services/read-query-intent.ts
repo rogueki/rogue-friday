@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -17,6 +17,8 @@ export type ReadQueryIntent =
   | { kind: "tasks.get"; id: string }
   | { kind: "calendar.list"; dayOffset: 0 | 1 }
   | { kind: "communication.list"; status?: Array<"open" | "waiting" | "replied" | "archived">; needsReply?: boolean }
+  | { kind: "agents.list"; status?: AgentStatus[] }
+  | { kind: "agents.get"; id: string }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -153,8 +155,12 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     if (dayOffset === null) return { kind: "clarify", message: "Für welchen Tag? Bitte 'heute' oder 'morgen' nennen." };
     return { kind: "calendar.list", dayOffset };
   }
+  // Eine zweite Lesefamilie im selben Satz wird nicht stillschweigend verworfen, sondern nachgefragt.
+  const otherFamilies = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text));
   const communicationArea = /\b(unterhaltungen?|threads?|kommunikation|conversations?|nachrichten|mails?|postfach|inbox)\b/.test(text);
   if (communicationArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Unterhaltungsabfrage formulieren." };
     if (/\b(erstelle|erstellen|schreibe|schreiben|sende|senden|antworte|antworten|entwerfe|entwerfen|loesche|loeschen|archiviere|archivieren|markiere|markieren)\b/.test(text))
       return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Unterhaltungsabfrage formulieren." };
     if (/\b(ungelesen|ungelesene|unread|neu|neue|neuen)\b/.test(text))
@@ -172,6 +178,26 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
       ...(statuses[0] ? { status: [statuses[0]] } : {}),
       ...(needsReply ? { needsReply: true } : {}),
     };
+  }
+  const agentArea = /\b(agenten?|agents?|assistenten?)\b/.test(text);
+  if (agentArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Agentenabfrage formulieren." };
+    if (/\b(starte|starten|stoppe|stoppen|pausiere|pausieren|fortsetzen|weise|zuweisen|beende|beenden|loesche|loeschen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Agentenabfrage formulieren." };
+    const agentIds = [...input.matchAll(/\bagent_[0-9A-Za-z]{26}\b/g)].map((match) => match[0]);
+    if (agentIds.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine Agenten-Kennung." };
+    const explicit = (["idle", "starting", "working", "waiting", "paused", "error", "offline"] as const).filter((status) =>
+      new RegExp(`\\b(?:${AGENT_STATUS_WORDS[status]})\\b`).test(text));
+    // "aktiv" heisst hier: nicht pausiert, nicht offline, nicht fehlerhaft - dieselbe Logik wie bei offenen Aufgaben.
+    const activeOnly = /\b(aktiv|aktive|aktiven|aktivitaet|betrieb)\b/.test(text) && explicit.length === 0;
+    if (agentIds[0]) {
+      if (explicit.length > 0 || activeOnly) return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Statusfilter kombiniert werden." };
+      return { kind: "agents.get", id: agentIds[0] };
+    }
+    if (explicit.length > 1) return { kind: "clarify", message: "Bitte genau einen Agentenstatus nennen." };
+    const status = activeOnly ? ACTIVE_AGENT_STATUSES : explicit.length === 1 ? [explicit[0]!] : [];
+    return { kind: "agents.list", ...(status.length > 0 ? { status } : {}) };
   }
   const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
   if (families.length === 0) return null;
@@ -229,6 +255,20 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (family === "approvals") return { kind: "approvals.list", ...(statuses[0] ? { status: [statuses[0] as "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"] } : {}) };
   return { kind: "audit.list", ...(statuses[0] ? { result: [statuses[0] as "success" | "failure" | "denied" | "pending"] } : {}), ...(hours ? { lookbackHours: hours } : {}), ...(/\b(security|sicherheit)\b/.test(text) ? { securityOnly: true } : {}) };
 }
+
+/** German surface forms per agent status; only these reach the route as a filter. */
+const AGENT_STATUS_WORDS: Record<"idle" | "starting" | "working" | "waiting" | "paused" | "error" | "offline", string> = {
+  idle: "idle|untätig|untaetig|bereit|bereite",
+  starting: "starting|startet|startende|startenden",
+  working: "working|laeuft|laufend|laufende|laufenden|arbeitet|arbeitende",
+  waiting: "waiting|wartet|wartend|wartende|wartenden",
+  paused: "paused|pausiert|pausierte|pausierten|angehalten",
+  error: "error|fehler|fehlerhaft|fehlerhafte|fehlern|gestoert|gestoerte",
+  offline: "offline|getrennt|getrennte",
+};
+
+/** "aktive Agenten" means every state except paused, error and offline. */
+const ACTIVE_AGENT_STATUSES: AgentStatus[] = ["idle", "starting", "working", "waiting"];
 
 /** "offene Aufgaben" means everything that is not closed; an explicit status stays one-to-one. */
 const OPEN_TASK_STATUSES: TaskStatus[] = ["todo", "ready", "running", "waiting", "review"];
@@ -356,6 +396,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind.startsWith("tasks.")) requireReadRole(ctx, "tasks", "viewer");
   if (intent.kind === "calendar.list") requireReadRole(ctx, "calendar", "viewer");
   if (intent.kind === "communication.list") requireReadRole(ctx, "communication", "viewer");
+  if (intent.kind.startsWith("agents.")) requireReadRole(ctx, "agents", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -389,6 +430,15 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "agents.list": {
+      const page = await ctx.runtime.registry.getPort("agents").listAgents({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}) }, ctx.call);
+      return baseResponse(ctx, listMessage("Agenten", page.items, page.pageInfo.hasNextPage,
+        (agent: Agent) => idStatus(agent.id, `${agent.status}/${agent.name}${agent.model ? ` (${agent.model})` : ""}`, agent.lastActivityAt ?? agent.updatedAt)));
+    }
+    case "agents.get": {
+      const agent = (await ctx.runtime.registry.getPort("agents").getAgent({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Agent ${agent.id}: ${agent.name}, ${agent.status}${agent.model ? `, ${agent.model}` : ""}${agent.lastError ? `, letzter Fehler: ${agent.lastError}` : ""}.`);
     }
     case "communication.list": {
       const page = await ctx.runtime.registry.getPort("communication").listThreads({

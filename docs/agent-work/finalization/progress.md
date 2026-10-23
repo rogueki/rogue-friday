@@ -970,3 +970,13 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   16,5 s, im Serienlauf der Gesamtsuite lief er in die Vorgabe. Kein Retry, sondern ein realistisches Limit fuer einen
   echten End-to-End-Scan.
 - status: TEIL (18.03 bleibt offen)
+
+### DASH-18.03 TEIL 4 (2026-10-23) - Agentenabfrage
+- `agents.list`/`agents.get` ueber `listAgents`/`getAgent`, Rolle viewer; Wortformen je Status in `AGENT_STATUS_WORDS`.
+- "aktive Agenten" = idle/starting/working/waiting (nicht pausiert/offline/fehlerhaft) - dokumentierte Mengensemantik.
+- Rueckfragen: zwei Status, Kennung plus Statusfilter, Lesen+Aendern gemischt, zwei Bereiche in einem Satz.
+- Nachweis: `agent-read-intent.test.ts` (4), `read-agents.test.ts` (4, Mengengleichheit mit der Route fuer "aktiv").
+  Paritaetsmatrix: Agenten = lesen + schreiben.
+- Regression unterwegs: der Agenten-Zweig fing "Zeige Activity fuer meinen Agenten Alpha" ab. Behoben mit einer
+  Vorpruefung auf weitere Lesefamilien; Kommunikation hat dieselbe Vorpruefung bekommen.
+- status: TEIL (18.03 bleibt offen)
