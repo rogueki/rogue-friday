@@ -17,6 +17,8 @@ const detail = (id: string, options: { required?: boolean; configured?: boolean 
 
 const skill = (overrides: Partial<SkillCatalogEntry> & { id: string; name: string }): SkillCatalogEntry => ({
   source: "friday",
+  origin: "friday",
+  trust: "unknown",
   category: "office",
   description: "Beschreibung",
   version: null,

@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import type { HermesCronMutationReceipt, HermesCronMutationRequest } from "@friday/sdk";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
+import type { HermesInventoryEntry } from "./skills";
 
 export const HERMES_CONFIG_FIELDS = {
   "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
@@ -297,6 +298,35 @@ export class HermesConfigService {
         (raw.bytes as number) > 65536) throw unavailable();
     // Raw text only: the UI must escape it, the bridge never renders HTML.
     return { id, content: raw.content, bytes: raw.bytes as number };
+  }
+
+  async skillInventory(): Promise<{ entries: HermesInventoryEntry[]; at: string }> {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skills-list"], undefined, 30000, 512000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("skills_list_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Das Hermes-Skill-Inventar hat ein unbekanntes Format; Herkunft und Trust bleiben unbekannt." });
+      throw unavailable();
+    }
+    if (!Number.isInteger(raw.count) || !Array.isArray(raw.skills) || raw.count !== raw.skills.length ||
+        raw.skills.length > 2000) throw unavailable();
+    const names = new Set<string>();
+    const entries = raw.skills.map((value): HermesInventoryEntry => {
+      if (!value || typeof value !== "object") throw unavailable();
+      const entry = value as Record<string, unknown>;
+      if (typeof entry.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(entry.name) ||
+          typeof entry.category !== "string" || entry.category.length > 64 ||
+          !["builtin", "local", "hub"].includes(entry.origin as string) ||
+          !["builtin", "local", "project"].includes(entry.trust as string) ||
+          !["enabled", "disabled"].includes(entry.state as string) || names.has(entry.name)) throw unavailable();
+      names.add(entry.name);
+      return { name: entry.name, category: entry.category, origin: entry.origin as HermesInventoryEntry["origin"],
+        trust: entry.trust as HermesInventoryEntry["trust"], state: entry.state as HermesInventoryEntry["state"] };
+    });
+    return { entries, at: new Date().toISOString() };
   }
 
   async access() {

@@ -5,6 +5,8 @@
     {
       "id": "friday:friday-research",
       "source": "friday",
+      "origin": "friday",
+      "trust": "unknown",
       "name": "friday-research",
       "category": "research",
       "description": "Research a topic using available sources.",

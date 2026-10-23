@@ -19,7 +19,7 @@ vi.mock("@/lib/api/domains/skills", () => ({
 beforeEach(() => {
   mocks.stale = false; mocks.freshness = "fresh"; mocks.refetch.mockReset(); mocks.save.mockReset();
   mocks.save.mockResolvedValue({});
-  mocks.skill = { id: "hermes:test", source: "hermes", name: "Test Skill", category: "Test", description: "Test",
+  mocks.skill = { id: "hermes:test", source: "hermes", origin: "local", trust: "local", name: "Test Skill", category: "Test", description: "Test",
     version: null, packaged: false, discovered: true, enabled: true, observedAt: null, observationSource: "test",
     observationError: null, accounts: [], setupRefs: [], integrationRefs: [], integrationDetails: [],
     requiredCapabilities: [], conditionalCapabilities: [] };

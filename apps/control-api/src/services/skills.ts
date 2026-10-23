@@ -169,6 +169,11 @@ function hermesPrerequisites(name: string) {
     requiredCapabilities: [setup.capability], conditionalCapabilities: [] };
 }
 
+/** Origin and trust as the installed Hermes CLI reports them; Friday never derives them from a path guess. */
+export type HermesInventoryEntry = Readonly<{ name: string; category: string; origin: "builtin" | "local" | "hub";
+  trust: "builtin" | "local" | "project"; state: "enabled" | "disabled" }>;
+type Inventory = { entries: Map<string, HermesInventoryEntry>; at: string | null };
+
 /** The registry is package metadata only. A fresh dashboard request owns discovery and activation. */
 export class SkillsService {
   private readonly fetcher: typeof fetch;
@@ -187,6 +192,7 @@ export class SkillsService {
   private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
   private readonly localCalendarStatus: (() => boolean) | undefined;
   private readonly calendarAdapterStatus: (() => AdapterConfigSettings[]) | undefined;
+  private readonly hermesInventory: (() => Promise<{ entries: HermesInventoryEntry[]; at: string }>) | undefined;
   private token: string | undefined;
 
   constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
@@ -202,7 +208,8 @@ export class SkillsService {
     cloudTalkStatus?: () => Promise<CloudTalkFlags> | CloudTalkFlags;
     codingCliStatus?: () => Promise<CodingCliStatus[]>;
     localCalendarStatus?: () => boolean;
-    calendarAdapterStatus?: () => AdapterConfigSettings[] }) {
+    calendarAdapterStatus?: () => AdapterConfigSettings[];
+    hermesInventory?: () => Promise<{ entries: HermesInventoryEntry[]; at: string }> }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
     this.configuredIntegrations = options.configuredIntegrations;
@@ -218,6 +225,7 @@ export class SkillsService {
     this.codingCliStatus = options.codingCliStatus;
     this.localCalendarStatus = options.localCalendarStatus;
     this.calendarAdapterStatus = options.calendarAdapterStatus;
+    this.hermesInventory = options.hermesInventory;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -263,7 +271,7 @@ export class SkillsService {
             connectionChecked: null };
         });
         return {
-          id: `friday:${id}`, source: "friday", name,
+          id: `friday:${id}`, source: "friday", origin: "friday", trust: "unknown", name,
           category: field(meta, "category") || "Allgemein",
           description: field(meta, "description", "summary", "trigger"),
           version: field(meta, "version") || null,
@@ -326,21 +334,50 @@ export class SkillsService {
     }
   }
 
+  private async inventory(): Promise<Inventory> {
+    if (!this.hermesInventory) return { entries: new Map(), at: null };
+    try {
+      const observed = await this.hermesInventory();
+      return { entries: new Map(observed.entries.map((entry) => [slug(entry.name), entry])), at: observed.at };
+    } catch {
+      // Origin and trust are detail; an unreadable CLI inventory must not hide the catalog.
+      return { entries: new Map(), at: null };
+    }
+  }
+
   async list(): Promise<{ skills: SkillCatalogEntry[]; fresh: boolean; catalogError: string | null; hermesError: string | null }> {
     const catalog = this.catalog();
-    const observation = await this.observe();
+    const [observation, inventory] = await Promise.all([this.observe(), this.inventory()]);
     const skills = catalog.skills.map((skill): SkillCatalogEntry => {
       const observed = observation.skills.get(slug(skill.name));
-      return { ...skill, discovered: observation.error ? null : Boolean(observed), enabled: typeof observed?.enabled === "boolean" ? observed.enabled : null,
-        observedAt: observation.at, observationSource: observation.error ? "unavailable" : "hermes-dashboard", observationError: observation.error };
+      const inventoryEntry = inventory.entries.get(slug(skill.name));
+      const enabled = typeof observed?.enabled === "boolean" ? observed.enabled
+        : inventoryEntry ? inventoryEntry.state === "enabled" : null;
+      return { ...skill, discovered: observed || inventoryEntry ? true : observation.error ? null : false, enabled,
+        observedAt: observed ? observation.at : inventoryEntry ? inventory.at : observation.at,
+        observationSource: observed ? "hermes-dashboard" : inventoryEntry ? "hermes-cli"
+          : observation.error ? "unavailable" : "hermes-dashboard",
+        observationError: observation.error };
     });
     const known = new Set(skills.map((skill) => slug(skill.name)));
     for (const [name, entry] of observation.skills) {
       if (known.has(name)) continue;
-      skills.push({ id: `hermes:${name}`, source: "hermes", name: field(entry, "name"), category: field(entry, "category") || "Hermes",
+      const inventoryEntry = inventory.entries.get(name);
+      skills.push({ id: `hermes:${name}`, source: "hermes", origin: inventoryEntry?.origin ?? "unknown",
+        trust: inventoryEntry?.trust ?? "unknown", name: field(entry, "name"), category: field(entry, "category") || "Hermes",
         description: field(entry, "description"), version: field(entry, "version") || null, packaged: false, discovered: true,
-        enabled: typeof entry.enabled === "boolean" ? entry.enabled : null, observedAt: observation.at, observationSource: "hermes-dashboard", observationError: null,
+        enabled: typeof entry.enabled === "boolean" ? entry.enabled
+          : inventoryEntry ? inventoryEntry.state === "enabled" : null,
+        observedAt: observation.at, observationSource: "hermes-dashboard", observationError: null,
         ...hermesPrerequisites(field(entry, "name")) });
+    }
+    // Skills the CLI reports but the dashboard does not: shown with CLI origin and state, never as dashboard data.
+    for (const [name, entry] of inventory.entries) {
+      if (known.has(name) || observation.skills.has(name)) continue;
+      skills.push({ id: `hermes:${name}`, source: "hermes", origin: entry.origin, trust: entry.trust, name,
+        category: entry.category || "Hermes", description: "", version: null, packaged: false, discovered: true,
+        enabled: entry.state === "enabled", observedAt: inventory.at, observationSource: "hermes-cli",
+        observationError: null, ...hermesPrerequisites(name) });
     }
     // One local status read per source per request; a broken installer/WSL never hides the catalog.
     const integrationIds = new Set(skills.flatMap((skill) => skill.integrationDetails.map((detail) => detail.id)));

@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skill-md", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -437,6 +437,46 @@ def parse_auth_list(text):
     return {"providers": providers}
 
 
+SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+SKILL_ORIGINS = {"builtin", "local", "hub"}
+SKILL_TRUST = {"builtin", "local", "project"}
+SKILL_STATES = {"enabled", "disabled"}
+
+
+def parse_skills_list(text):
+    """Parse `hermes skills list` output. Only the documented five-column layout is accepted."""
+    header = ["Name", "Category", "Source", "Trust", "Status"]
+    seen_header = False
+    skills = []
+    names = set()
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line.startswith("\u2502"):
+            continue
+        cells = [cell.strip() for cell in line.split("\u2502")]
+        if len(cells) != 7 or cells[0] or cells[6]:
+            raise ValueError("skills_list_format")
+        values = cells[1:6]
+        if values == header:
+            if seen_header or skills:
+                raise ValueError("skills_list_format")
+            seen_header = True
+            continue
+        if not seen_header:
+            raise ValueError("skills_list_format")
+        name, category, origin, trust, state = values
+        if SKILL_NAME.fullmatch(name) is None or len(category) > 64 or name in names:
+            raise ValueError("skills_list_format")
+        if origin not in SKILL_ORIGINS or trust not in SKILL_TRUST or state not in SKILL_STATES:
+            raise ValueError("skills_list_format")
+        names.add(name)
+        skills.append({"name": name, "category": category, "origin": origin,
+                       "trust": trust, "state": state})
+    if not seen_header:
+        raise ValueError("skills_list_format")
+    return {"count": len(skills), "skills": skills}
+
+
 def locked_main(home, source, cli):
     def call(*args):
         result = subprocess.run([str(cli), "config", *args], capture_output=True, text=True, timeout=15)
@@ -452,6 +492,15 @@ def locked_main(home, source, cli):
         if not isinstance(request, dict) or set(request) != {"id"}:
             raise ValueError("invalid_request")
         print(json.dumps(read_skill_markdown(home, source, request["id"])))
+        return 0
+    if sys.argv[1] == "skills-list":
+        # A wide COLUMNS keeps the table from eliding names; the parser rejects every other layout.
+        result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
+                                text=True, timeout=30, env=dict(os.environ, COLUMNS="400"))
+        if result.returncode:
+            print(json.dumps({"error": "skills_list_failed"}))
+            return 6
+        print(json.dumps(parse_skills_list(result.stdout)))
         return 0
     if sys.argv[1] == "auth-list":
         result = subprocess.run([str(cli), "auth", "list"], capture_output=True, text=True, timeout=15)

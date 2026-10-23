@@ -1,5 +1,18 @@
 import type { SkillCatalogEntry } from "@friday/sdk";
 
+const ORIGIN_LABELS: Record<SkillCatalogEntry["origin"], string> = {
+  friday: "Friday-Paket", builtin: "Hermes mitgeliefert", local: "Lokal installiert",
+  hub: "Hub-Installation", unknown: "Unbekannt",
+};
+
+const TRUST_LABELS: Record<SkillCatalogEntry["trust"], string> = {
+  builtin: "Mitgeliefert", local: "Lokal", project: "Projektfreigabe", unknown: "Unbekannt",
+};
+
+/** Origin is where the skill lives; trust is what lets Hermes load it. Both stay separate from activation. */
+export const originLabel = (origin: SkillCatalogEntry["origin"]): string => ORIGIN_LABELS[origin];
+export const trustLabel = (trust: SkillCatalogEntry["trust"]): string => TRUST_LABELS[trust];
+
 export function skillState(skill: SkillCatalogEntry): { label: string; tone: "green" | "amber" | "red"; detail: string } {
   if (skill.discovered === false) return { label: "Nicht gefunden", tone: "red", detail: "Im Paket enthalten, aber in der laufenden Hermes-Instanz nicht gefunden." };
   if (skill.discovered === null) return { label: "Laufzeit unbekannt", tone: "amber", detail: "Hermes hat keinen verlässlichen Laufzeitstatus geliefert." };
@@ -39,11 +52,12 @@ export function officialReference(value: string): string | null {
 }
 
 export function visibleSkills(catalog: readonly SkillCatalogEntry[], search: string, source = "all",
-  stateFilter = "all", category = "all"): SkillCatalogEntry[] {
+  stateFilter = "all", category = "all", origin = "all"): SkillCatalogEntry[] {
   const needle = search.trim().toLocaleLowerCase();
   return catalog.filter((skill) =>
     (!needle || `${skill.name} ${skill.description} ${skill.category}`.toLocaleLowerCase().includes(needle)) &&
     (source === "all" || skill.source === source) &&
+    (origin === "all" || skill.origin === origin) &&
     (category === "all" || skill.category === category) &&
     (stateFilter === "all" || (stateFilter === "enabled" ? skill.enabled === true : stateFilter === "missing" ? skill.discovered === false : skill.discovered === null)),
   );

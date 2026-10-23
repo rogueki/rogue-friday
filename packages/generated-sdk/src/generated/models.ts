@@ -5819,6 +5819,8 @@ export interface SkillActivationRequest {
 export interface SkillCatalogEntry {
   id: string;
   source: "friday" | "hermes";
+  origin: "friday" | "builtin" | "local" | "hub" | "unknown";
+  trust: "builtin" | "local" | "project" | "unknown";
   name: string;
   category: string;
   description: string;

@@ -12,7 +12,7 @@ vi.mock("@/lib/api/domains/skills", () => ({
 }));
 
 const skill: SkillCatalogEntry = {
-  id: "hermes:test", source: "hermes", name: "Test Skill", category: "Test", description: "Test",
+  id: "hermes:test", source: "hermes", origin: "local", trust: "local", name: "Test Skill", category: "Test", description: "Test",
   version: null, packaged: false, discovered: true, enabled: false, observedAt: null, observationSource: "test",
   observationError: null, accounts: [], setupRefs: [], integrationRefs: [], integrationDetails: [],
   requiredCapabilities: [], conditionalCapabilities: [],

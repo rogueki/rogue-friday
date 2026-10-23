@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SkillCatalogEntry } from "@friday/sdk";
 import { expect, it, vi } from "vitest";
@@ -17,7 +17,8 @@ vi.mock("@/lib/api/domains/skills", () => ({
 vi.mock("./CodingRunsArea", () => ({ CodingRunsArea: () => null }));
 
 const skill = (source: SkillCatalogEntry["source"], version: string | null): SkillCatalogEntry => ({
-  id: `${source}:beispiel`, source, name: `${source} Beispiel`, category: "Test", description: "Beispiel-Skill",
+  id: `${source}:beispiel`, source, origin: source === "friday" ? "friday" : "local",
+  trust: source === "friday" ? "unknown" : "local", name: `${source} Beispiel`, category: "Test", description: "Beispiel-Skill",
   version, packaged: source === "friday", discovered: true, enabled: true, observedAt: null,
   observationSource: "test", observationError: null, accounts: [], setupRefs: [], integrationRefs: [],
   integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [],
@@ -49,4 +50,24 @@ it.each(["cached", "backend"])("does not present %s stale activation as live and
   expect(mocks.refetch).toHaveBeenCalledOnce();
   mocks.stale = false;
   mocks.freshness = "fresh";
+});
+
+it("shows origin and trust separately and reveals further rows on demand", async () => {
+  mocks.stale = false;
+  mocks.freshness = "fresh";
+  mocks.skills = Array.from({ length: 65 }, (_, index) => ({ ...skill("hermes", null),
+    id: `hermes:skill-${index}`, name: `Skill ${index}` }));
+  render(<SkillsPage />);
+
+  const list = () => within(screen.getByRole("list", { name: "Skills" })).getAllByRole("listitem");
+  expect(list()).toHaveLength(60);
+  expect(screen.getByText("60 von 65 Skills sichtbar.")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Weitere 5 Skills anzeigen" }));
+  expect(list()).toHaveLength(65);
+  expect(screen.queryByRole("button", { name: /Weitere .* Skills anzeigen/ })).toBeNull();
+  expect(screen.getByText("Trust")).toBeTruthy();
+  // The filter label and the detail fact both exist; origin and trust stay two separate statements.
+  expect(screen.getAllByText("Herkunft").length).toBeGreaterThanOrEqual(2);
+  expect(screen.getAllByText("Lokal installiert").length).toBeGreaterThanOrEqual(2);
+  expect(screen.getByLabelText("Herkunft")).toBeTruthy();
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SkillCatalogEntry } from "@friday/sdk";
-import { integrationSetupLink, internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, internalSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, trustLabel, visibleSkills } from "./skillPresentation";
 import { clearOnboardingSnooze, isOnboardingSnoozed, snoozeOnboarding } from "./onboardingSnooze";
 
 const base = { discovered: true, enabled: true } as SkillCatalogEntry;
@@ -63,4 +63,21 @@ it("narrows the catalog to one category without dropping the other filters", () 
   expect(visibleSkills(catalog, "", "all", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b", "c"]);
   expect(visibleSkills(catalog, "", "friday", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b"]);
   expect(visibleSkills(catalog, "", "all", "all", "all")).toHaveLength(3);
+});
+
+it("labels origin and trust separately and filters by origin", () => {
+  expect(originLabel("friday")).toBe("Friday-Paket");
+  expect(originLabel("builtin")).toBe("Hermes mitgeliefert");
+  expect(originLabel("local")).toBe("Lokal installiert");
+  expect(originLabel("hub")).toBe("Hub-Installation");
+  expect(trustLabel("project")).toBe("Projektfreigabe");
+  expect(trustLabel("unknown")).toBe("Unbekannt");
+  const catalog = [
+    { id: "friday:a", name: "A", description: "", category: "Test", source: "friday", origin: "friday", trust: "unknown", enabled: true, discovered: true },
+    { id: "hermes:b", name: "B", description: "", category: "Test", source: "hermes", origin: "builtin", trust: "builtin", enabled: true, discovered: true },
+    { id: "hermes:c", name: "C", description: "", category: "Test", source: "hermes", origin: "hub", trust: "project", enabled: false, discovered: true },
+  ] as never;
+  expect(visibleSkills(catalog, "", "all", "all", "all", "hub").map((skill) => skill.id)).toEqual(["hermes:c"]);
+  expect(visibleSkills(catalog, "", "hermes", "all", "all", "local")).toEqual([]);
+  expect(visibleSkills(catalog, "", "all", "all", "all", "all")).toHaveLength(3);
 });

@@ -336,6 +336,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     codingCliStatus: () => codingRuns.cliStatus(),
     localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
     calendarAdapterStatus: () => adapterSettings.list(),
+    hermesInventory: () => hermesConfig.skillInventory(),
   });
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const powerpoint = new PowerPointService(config.paths.dataDir);

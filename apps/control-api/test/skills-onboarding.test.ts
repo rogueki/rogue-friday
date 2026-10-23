@@ -145,6 +145,47 @@ describe("skills and resumable onboarding", () => {
     await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
+  it("reports origin and trust from the installed CLI without inventing them", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [{ name: "powerpoint", enabled: true }, { name: "claude-code", enabled: true }] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher,
+      hermesInventory: async () => ({ at: "2026-10-23T01:00:00.000Z", entries: [
+        { name: "powerpoint", category: "", origin: "local", trust: "local", state: "enabled" },
+        { name: "claude-code", category: "autonomous-ai-agents", origin: "builtin", trust: "builtin", state: "disabled" },
+        { name: "hub-skill", category: "communication", origin: "hub", trust: "project", state: "enabled" },
+      ] }) });
+    const listed = await service.list();
+    const byName = new Map(listed.skills.map((skill) => [skill.name, skill]));
+    expect(byName.get("powerpoint")).toMatchObject({ origin: "local", trust: "local", observationSource: "hermes-dashboard" });
+    // Dashboard activation wins over the CLI snapshot; trust and origin still come from the CLI.
+    expect(byName.get("claude-code")).toMatchObject({ origin: "builtin", trust: "builtin", enabled: true });
+    // A CLI-only skill is listed with its CLI origin and state, never as a dashboard observation.
+    expect(byName.get("hub-skill")).toMatchObject({ id: "hermes:hub-skill", origin: "hub", trust: "project", enabled: true,
+      category: "communication", observationSource: "hermes-cli", discovered: true, observedAt: "2026-10-23T01:00:00.000Z" });
+  });
+
+  it("uses the CLI state only when the dashboard has none", async () => {
+    const fetcher: typeof fetch = async () => new Response("unavailable", { status: 503 });
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher,
+      hermesInventory: async () => ({ at: "2026-10-23T01:00:00.000Z", entries: [
+        { name: "powerpoint", category: "", origin: "local", trust: "local", state: "disabled" }] }) });
+    const listed = await service.list();
+    expect(listed.skills).toMatchObject([{ id: "hermes:powerpoint", enabled: false, discovered: true,
+      observationSource: "hermes-cli", origin: "local", trust: "local" }]);
+    expect(listed.hermesError).toBe("Hermes-Skills-Status nicht verfügbar");
+  });
+
+  it("keeps the catalog when the CLI inventory is unreadable", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [{ name: "powerpoint", enabled: true }] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher,
+      hermesInventory: async () => { throw new Error("skills_list_format"); } });
+    const listed = await service.list();
+    expect(listed.skills).toMatchObject([{ id: "hermes:powerpoint", origin: "unknown", trust: "unknown", enabled: true }]);
+  });
+
   it("shows account setup metadata for Hermes built-ins with connector or optional credential prerequisites", async () => {
     const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
       ? Response.json({ skills: [

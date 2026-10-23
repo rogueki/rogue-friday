@@ -9704,11 +9704,15 @@ export interface components {
             observationSource: string;
             /** Format: date-time */
             observedAt: string | null;
+            /** @enum {unknown} */
+            origin: "friday" | "builtin" | "local" | "hub" | "unknown";
             packaged: boolean;
             requiredCapabilities: string[];
             setupRefs: string[];
             /** @enum {unknown} */
             source: "friday" | "hermes";
+            /** @enum {unknown} */
+            trust: "builtin" | "local" | "project" | "unknown";
             version: string | null;
             $defs: {
                 prerequisite: {

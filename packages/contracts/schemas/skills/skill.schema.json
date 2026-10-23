@@ -6,6 +6,8 @@
   "properties": {
     "id": { "type": "string", "pattern": "^(friday|hermes):[a-z0-9][a-z0-9_-]*$" },
     "source": { "enum": ["friday", "hermes"] },
+    "origin": { "enum": ["friday", "builtin", "local", "hub", "unknown"] },
+    "trust": { "enum": ["builtin", "local", "project", "unknown"] },
     "name": { "type": "string", "minLength": 1 },
     "category": { "type": "string" },
     "description": { "type": "string" },
@@ -57,7 +59,7 @@
       "additionalProperties": false
     } }
   },
-  "required": ["id", "source", "name", "category", "description", "version", "packaged", "discovered", "enabled", "observedAt", "observationSource", "observationError", "accounts", "setupRefs", "integrationRefs", "integrationDetails", "requiredCapabilities", "conditionalCapabilities"],
+  "required": ["id", "source", "origin", "trust", "name", "category", "description", "version", "packaged", "discovered", "enabled", "observedAt", "observationSource", "observationError", "accounts", "setupRefs", "integrationRefs", "integrationDetails", "requiredCapabilities", "conditionalCapabilities"],
   "additionalProperties": false,
   "$defs": {
     "prerequisite": {
