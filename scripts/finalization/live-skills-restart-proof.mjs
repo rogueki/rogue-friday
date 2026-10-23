@@ -6,7 +6,7 @@
  * returning an empty catalogue. Not part of the test suite: it needs a real WSL distro and the built server.
  */
 import { spawn } from "node:child_process";
-import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const REPO = process.cwd();
