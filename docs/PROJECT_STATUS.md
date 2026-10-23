@@ -1009,3 +1009,29 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   vitest; beide geteilten Projekte setzen jetzt `testTimeout`/`hookTimeout` 20 s.
 - **Offen**: echter Lauf der Hermes-CLI gegen ein wegwerfbares Profil und der Nachweis, dass ein Entfernen keine
   geteilten Zugaenge anfasst.
+
+## 2026-10-23 Sitzungsabschluss: Stand gegen Abschnitt 8.1
+
+**Erledigt in dieser Sitzung** (jeweils mit Laufzeit- oder Testbeleg, Details in `docs/agent-work/finalization/`):
+
+| Aufgabe | Stand | Beleg |
+|---|---|---|
+| DASH-10.03 Skill-Schalter | **PASS** | Schalter ueber `skills.disabled`, Readback 72 -> 71 -> 72 im wegwerfbaren Profil |
+| DASH-10.04 Skill-Operationen | TEIL | Hub-Suche und lokal geaenderte Liste typisiert; `inspect`/`audit`/`diff` als unveraenderter Text (gemessen: diff < 1 s, inspect 37 s); fehlende Wurzel wird gemeldet |
+| DASH-10.05 Registry-Flaeche | TEIL | Panel mit Treffern, Quelle/Trust, lokal geaenderten Skills; kein Installationsknopf, Grund genannt |
+| DASH-10.06 Abnahme | TEIL | Hub-Skill real installiert (Quarantaene + Scan), Readback in neuem Prozess, lokale Aenderung nicht still ueberschrieben |
+| DASH-10.07 Recovery | TEIL | `POST /api/v1/skills/{name}/mutations` mit Schnappschuss, erneutem Lesen und Wiederherstellung; echter CLI-Lauf offen |
+
+**Vertrag**: 280 Operationen. **Suite**: 200 Dateien / 2829 Tests gruen (60 uebersprungen). **Gates**: 0.
+
+**Offen nach Abschnitt 8.1** (36 von 141 Aufgaben erledigt, 105 offen):
+- DASH-05.05, DASH-06.04, DASH-07.03–07.06
+- DASH-08.01–08.05 und DASH-09.01–09.06 (brauchen echte Mail-, Kalender- und Messenger-Zugaenge)
+- DASH-10.01, 10.02, 10.04–10.07 (jeweils der in den Detailberichten genannte Rest)
+- DASH-11.01–11.05, 12.01–12.05, 13.01–13.05, 14.01–14.06, 15.01–15.05, 16.01–16.06, 17.01–17.05,
+  18.01–18.06, 19.01–19.06, 20.01–20.04
+- KEEP-01..06, REL-01.01..REL-06.04, INS-13
+
+**Offene Befunde im Ledger**: N-052 (Router prueft Pfadparameter nur auf Laenge), N-053 (`inspect` loest gegen die
+Registrierungen auf), N-054 (`diff` nur fuer getrackte Skills, unser 503 verschweigt den CLI-Text), N-055
+(`list-modified` fuehrt keine Hub-Aenderungen). N-056 (vitest-Zeitlimits) ist behoben.
