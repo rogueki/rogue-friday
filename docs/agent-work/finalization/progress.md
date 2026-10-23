@@ -814,3 +814,12 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Die Datei benennt ausdruecklich, was sie NICHT belegt (Runtime, Rolle, Fehlerpfad, Sprachaktion pro Funktion = 18.03).
 - evidence_paths: `dash-18-02-matrix.md`, `scripts/finalization/build-area-matrix.mjs`.
 - status: PASS (18.02)
+
+### KEEP-05 Studio-Paritaet geprueft (2026-10-23) - TEIL
+- observed: 11 von 12 Anforderungen belegt (Werkzeuguebersichten, Formate, Workflow, Ordnerhinweise, Kanban,
+  Wochenplan, Postingformular, Plan mit Revision via If-Match, Migration nur bei echten Browserdaten, Produktionsjob
+  Vorschau/Start/Status/Cancel, kie/ElevenLabs/FFmpeg, Socialziele). Ausgefuehrt: 11 Web- + 19 Node-Tests.
+- gap: Skill-Bridge fehlt nachweislich - weder `handlers/skills.ts` noch `handlers/commands.ts` enthalten einen
+  Studio-Bezug, es gibt keinen Studio-Skill-Bridge-Service. Nur der Voice-Teil (ElevenLabs-Sprachroute) existiert.
+- evidence_paths: `keep-05-studio-paritaet.md`.
+- status: TEIL (kein Haekchen)
