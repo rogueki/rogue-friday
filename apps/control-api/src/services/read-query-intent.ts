@@ -1,10 +1,11 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
 import { auditTrailEvent, auditTrailPage } from "./audit-trail";
+import { localDayRange } from "./calendar-day-range";
 
 const MAX_RESULTS = 5;
 const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
@@ -14,6 +15,7 @@ export type ReadQueryIntent =
   | { kind: "contentStudio.plan" }
   | { kind: "tasks.list"; status?: TaskStatus[] }
   | { kind: "tasks.get"; id: string }
+  | { kind: "calendar.list"; dayOffset: 0 | 1 }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -137,6 +139,18 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
       && !SETTINGS_AREA_PATTERNS.some(({ pattern }) => pattern.test(word)));
     if (residual.length > 0) return { kind: "clarify", message: `Die Einstellung „${residual[0]}“ wird in dieser Abfrage nicht unterstützt. Bitte einen benannten Einstellungsbereich angeben.` };
     return { kind: "settings.get", ...(matchedSettingsAreas[0] ? { area: matchedSettingsAreas[0] } : {}) };
+  }
+  const calendarArea = /\b(termine?|kalender|calendar)\b/.test(text);
+  if (calendarArea) {
+    if (/\b(erstelle|erstellen|anlegen|anlege|trage|eintragen|plane|planen|verschiebe|verschieben|aendere|aendern|loesche|loeschen|absagen|einladen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Terminabfrage formulieren." };
+    if (/\b\d{1,2}(?::\d{2})?\s*uhr\b/.test(text) || /\b\d{1,2}:\d{2}\b/.test(text))
+      return { kind: "clarify", message: "Eine Uhrzeit grenzt den Zeitraum ein. Bitte nur 'heute' oder 'morgen' fragen." };
+    if (/\b(uebermorgen|woche|wochen|monat|monate|naechste|naechsten|naechster)\b/.test(text))
+      return { kind: "clarify", message: "Diesen Zeitraum unterstützt die Terminabfrage noch nicht. Bitte 'heute' oder 'morgen' fragen." };
+    const dayOffset = /\bheute\b/.test(text) ? 0 : /\bmorgen\b/.test(text) ? 1 : null;
+    if (dayOffset === null) return { kind: "clarify", message: "Für welchen Tag? Bitte 'heute' oder 'morgen' nennen." };
+    return { kind: "calendar.list", dayOffset };
   }
   const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
   if (families.length === 0) return null;
@@ -319,6 +333,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
   if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
   if (intent.kind.startsWith("tasks.")) requireReadRole(ctx, "tasks", "viewer");
+  if (intent.kind === "calendar.list") requireReadRole(ctx, "calendar", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -352,6 +367,16 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "calendar.list": {
+      const timeZone = ctx.runtime.settings.area("profile").timeZone;
+      const range = localDayRange(ctx.runtime.nowMs(), timeZone, intent.dayOffset);
+      if (!range) {
+        return baseResponse(ctx, "Ohne gültige Zeitzone im Profil kann ich Tagesgrenzen nicht berechnen. Bitte die Zeitzone in den Einstellungen setzen.");
+      }
+      const page = await ctx.runtime.registry.getPort("calendar").listCalendarEvents({ from: range.from, to: range.to, limit: MAX_RESULTS }, ctx.call);
+      return baseResponse(ctx, listMessage(intent.dayOffset === 0 ? "Termine heute" : "Termine morgen", page.items, page.pageInfo.hasNextPage,
+        (event: CalendarEvent) => idStatus(event.id, `${event.start} ${event.title}`, event.start)));
     }
     case "tasks.list": {
       const page = await ctx.runtime.registry.getPort("tasks").listTasks({ limit: MAX_RESULTS, sort: "priority", ...(intent.status ? { status: intent.status } : {}) }, ctx.call);

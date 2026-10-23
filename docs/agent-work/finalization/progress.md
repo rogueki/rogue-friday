@@ -948,3 +948,13 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - Vollsuite parallel: 2 Fehlschlaege (messenger-inbound-routes, secrets) - beide unter Last; seriell 4 Dateien/22 Tests
   gruen. Serienlauf der Gesamtsuite laeuft.
 - status: TEIL (18.03 bleibt offen: Kalender-Lesepfad, weitere Lese-Intents, Persistenz-/Fehlerfallspalten je Funktion)
+
+### DASH-18.03 TEIL 2 (2026-10-23) - Terminabfrage
+- `calendar.list` (heute/morgen) ueber `calendar-day-range.localDayRange`: Wanduhr-Mitternacht in der Profilzeitzone,
+  DST-korrigiert, beide Enden getrennt berechnet. Ohne Zone -> Hinweis statt geratenem Zeitraum.
+- Rueckfragen statt Naeherung: kein Tageswort, "diese Woche", "uebermorgen", Uhrzeit im Satz, Lesen+Aendern gemischt.
+- Nachweis: `calendar-day-range.test.ts` (3), `calendar-read-intent.test.ts` (4), `read-calendar.test.ts` (3, vergleicht
+  mit `GET /api/v1/calendar/events`), Kalender-/Befehlsumfeld 21 Tests. Paritaetsmatrix: Kalender = lesen + schreiben.
+- Zwischenbefund: Mock-Welt laeuft auf festem Startzeitpunkt (`2026-10-14T08:15Z`, realTimeWorld false) - der erste
+  Testentwurf mit injizierter Uhr hat die Tagesgrenze gegen die Seeds verschoben; Test nutzt jetzt `runtime.nowMs()`.
+- status: TEIL (18.03 bleibt offen)
