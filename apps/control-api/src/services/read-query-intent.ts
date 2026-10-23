@@ -4,6 +4,7 @@ import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, t
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
+import { auditTrailEvent, auditTrailPage } from "./audit-trail";
 
 const MAX_RESULTS = 5;
 const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
@@ -362,12 +363,20 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Freigabe ${approval.id}: ${approval.status}, Tier ${approval.riskTier}, aktualisiert ${approval.updatedAt}.`);
     }
     case "audit.list": {
-      const page = await ctx.runtime.registry.getPort("audit").listAuditEvents({ limit: MAX_RESULTS, ...boundedPeriod(ctx, intent.lookbackHours), ...(intent.result ? { result: intent.result } : {}), ...(intent.securityOnly ? { category: ["security"] } : {}) }, ctx.call);
+      const period = boundedPeriod(ctx, intent.lookbackHours) as { from?: string; to?: string };
+      const page = auditTrailPage(ctx.runtime.db, {
+        limit: MAX_RESULTS,
+        ...(period.from ? { from: period.from } : {}),
+        ...(period.to ? { to: period.to } : {}),
+        ...(intent.result?.length ? { result: [intent.result[0]!] } : {}),
+        ...(intent.securityOnly ? { category: ["security"] } : {}),
+      });
       return baseResponse(ctx, listMessage("Audit-Ereignisse", page.items, page.pageInfo.hasNextPage,
         (event: AuditEvent) => idStatus(event.id, `${event.category}/${event.result}/${event.severity}`, event.occurredAt)));
     }
     case "audit.get": {
-      const event = (await ctx.runtime.registry.getPort("audit").getAuditEvent({ id: intent.id }, ctx.call)).data;
+      const event = auditTrailEvent(ctx.runtime.db, intent.id);
+      if (!event) throw new ApiError({ code: "NOT_FOUND", message: "Audit-Ereignis nicht gefunden." });
       return baseResponse(ctx, `Audit ${event.id}: ${event.category}, ${event.result}, ${event.severity}, ${event.occurredAt}.`);
     }
     case "audit.exportUnsupported":

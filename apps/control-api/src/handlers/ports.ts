@@ -3,6 +3,7 @@ import { PORT_SPEC, collectSources, type FileDownload, type MethodSpec, type Por
 import { CONTRACT_VERSION, type AuditEvent } from "@friday/sdk";
 import type { Handler, HandlerResult, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
+import { redactAuditEvents } from "../services/audit-redaction";
 
 type PortFunction = (params: unknown, call: unknown) => Promise<unknown>;
 
@@ -51,18 +52,30 @@ export function renderAuditExport(events: readonly AuditEvent[], format: string)
   };
 }
 
-function shape(ctx: RequestContext, spec: MethodSpec, result: unknown): HandlerResult {
+export function shape(ctx: RequestContext, spec: MethodSpec, result: unknown): HandlerResult {
   const status = successStatus(ctx);
   const value = result as Record<string, unknown>;
   switch (spec.result.kind) {
     case "page": {
       if (ctx.spec.operationId === "exportAudit") {
         const format = String(ctx.query.format ?? "ndjson");
-        const events = value.items as AuditEvent[];
+        // The export is the one place where the whole trail leaves the system: credentials and media embeddings are
+        // stripped first. Stored rows and their hashes stay untouched, so the chain stays verifiable.
+        const events = redactAuditEvents(value.items as AuditEvent[]);
         if (format !== "json") {
           const rendered = renderAuditExport(events, format);
           return { status, raw: { contentType: rendered.contentType, data: rendered.text, disposition: `attachment; filename="${rendered.fileName}"` } };
         }
+        return {
+          status,
+          body: {
+            contractVersion: CONTRACT_VERSION,
+            items: events,
+            pageInfo: value.pageInfo,
+            freshness: value.freshness,
+            sources: value.sources ?? collectSources(events),
+          },
+        };
       }
       return {
         status,

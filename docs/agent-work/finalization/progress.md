@@ -900,3 +900,17 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - gates: typecheck + lint 0 Fehler, adapters/hermes 205 bestanden / 4 uebersprungen.
 - evidence_paths: `dash-17-05-recovery.md`.
 - status: PASS
+
+### DASH-17.03 abgeschlossen (2026-10-23) - PASS
+- finding: die Audit-Lesewege (Liste, Detail, Export) wurden vom Audit-Adapter beantwortet - im Testbetrieb
+  mock-audit mit 80 Fixtures, im Live-Betrieb gar kein Adapter. Der echte hashverkettete Verlauf war ueber die API
+  nicht sichtbar.
+- changed: `services/audit-trail.ts` (liest audit_log, Filter wie im Contract, neueste zuerst, Cursor s<offset>,
+  Hash/prevHash aus den Spalten), `handlers/audit.ts` als Override fuer listAuditEvents/getAuditEvent/exportAudit,
+  `services/audit-redaction.ts` (Secrets -> [redigiert], qr*/embedding/voiceprint entfernt), `shape()` exportiert,
+  read-query-intent liest denselben Trail (Direktaufruf und Sprachbefehl liefern identische Eintraege).
+- tests: neu `audit-governance.test.ts` (5: Redaktion Unit 2, Export redigiert + Speicher unveraendert + Kette gueltig,
+  Export owner-only mit 403 fuer operator/viewer, keine erfundenen Alarme); read-command-intents 7, audit 25,
+  contract 30; control-api + mock-data gesamt 1354 bestanden / 128 Dateien; typecheck + lint gruen.
+- evidence_paths: `dash-17-03-audit-verlauf.md`.
+- status: PASS
