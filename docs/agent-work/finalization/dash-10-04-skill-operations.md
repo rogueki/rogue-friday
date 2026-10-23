@@ -197,3 +197,11 @@ die API anzubieten waere eine Luege. Belegt und im Ledger als **N-059** festgeha
 
 Damit sind zwoelf der vierzehn Befehle typisiert; `config` ist nachweislich nicht headless und `reset --restore`
 bleibt bewusst beim Schnappschusspfad aus DASH-10.07.
+
+## 9. Ergebnis
+
+**PASS.** Zwoelf der vierzehn Befehle sind typisiert (Search und list-modified mit striktem JSON-Parser, sechs
+Textbefehle unveraendert durchgereicht, install/update/uninstall ueber DASH-10.07, trust/untrust/tap/reset ueber
+`POST /api/v1/skills/governance`). `config` ist nachweislich nur interaktiv (N-059) und wird deshalb nicht angeboten;
+`reset --restore` bleibt beim Schnappschusspfad von DASH-10.07. Fehlende externe Skill-Wurzeln werden gemeldet statt
+still verschluckt. 282 Operationen, 31 Bridge-Pruefungen in vier Dateien, 10 Routentests, Suite und Gates gruen.
