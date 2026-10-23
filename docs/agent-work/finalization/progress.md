@@ -958,3 +958,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - Zwischenbefund: Mock-Welt laeuft auf festem Startzeitpunkt (`2026-10-14T08:15Z`, realTimeWorld false) - der erste
   Testentwurf mit injizierter Uhr hat die Tagesgrenze gegen die Seeds verschoben; Test nutzt jetzt `runtime.nowMs()`.
 - status: TEIL (18.03 bleibt offen)
+
+### DASH-18.03 TEIL 3 (2026-10-23) - Unterhaltungsabfrage
+- `communication.list` mit Status (open/waiting/replied/archived) und `needsReply` ueber `listThreads`, Rolle viewer.
+- Kein Text in der Antwort (nur Kennung/Kanal/Status/Betreff); Test prueft gegen echte Seed-Texte und Zusammenfassungen.
+- Rueckfragen statt Naeherung: "ungelesen" (kein Routenfilter), Zeitraum, zwei Status, Status+needsReply kombiniert,
+  Schreibverben im Satz.
+- Nachweis: `communication-read-intent.test.ts` (4), `read-communication.test.ts` (4, vergleicht mit der Route inkl.
+  needsReply=false-Ausschluss). Paritaetsmatrix: Kommunikation = lesen + schreiben.
+- Testinfrastruktur: `secrets.test.ts` (Lese-Endpunkt-Scan) brauchte ein explizites Timeout 120 s - er lief einzeln in
+  16,5 s, im Serienlauf der Gesamtsuite lief er in die Vorgabe. Kein Retry, sondern ein realistisches Limit fuer einen
+  echten End-to-End-Scan.
+- status: TEIL (18.03 bleibt offen)

@@ -47,7 +47,7 @@ const dispatched = intentFiles.filter((file) => {
 
 const areas = [
   { id: "overview", label: "Übersicht/Orb", prefixes: ["overview", "core", "focus"] },
-  { id: "communication", label: "Kommunikation", prefixes: ["mail", "messenger"] },
+  { id: "communication", label: "Kommunikation", prefixes: ["mail", "messenger", "communication", "thread"] },
   { id: "calendar", label: "Kalender", prefixes: ["calendar"] },
   { id: "memory", label: "Memory", prefixes: ["memory", "knowledge"] },
   { id: "tasks", label: "Aufgaben", prefixes: ["task"] },

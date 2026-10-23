@@ -228,5 +228,5 @@ describe("secret hygiene", () => {
     ]) {
       expect(response.body).not.toMatch(/\bat \S+ \(|node_modules|\/home\/|\.ts:\d+/);
     }
-  });
+  }, 120_000);
 });

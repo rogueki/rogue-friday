@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -16,6 +16,7 @@ export type ReadQueryIntent =
   | { kind: "tasks.list"; status?: TaskStatus[] }
   | { kind: "tasks.get"; id: string }
   | { kind: "calendar.list"; dayOffset: 0 | 1 }
+  | { kind: "communication.list"; status?: Array<"open" | "waiting" | "replied" | "archived">; needsReply?: boolean }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -151,6 +152,26 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     const dayOffset = /\bheute\b/.test(text) ? 0 : /\bmorgen\b/.test(text) ? 1 : null;
     if (dayOffset === null) return { kind: "clarify", message: "Für welchen Tag? Bitte 'heute' oder 'morgen' nennen." };
     return { kind: "calendar.list", dayOffset };
+  }
+  const communicationArea = /\b(unterhaltungen?|threads?|kommunikation|conversations?|nachrichten|mails?|postfach|inbox)\b/.test(text);
+  if (communicationArea) {
+    if (/\b(erstelle|erstellen|schreibe|schreiben|sende|senden|antworte|antworten|entwerfe|entwerfen|loesche|loeschen|archiviere|archivieren|markiere|markieren)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Unterhaltungsabfrage formulieren." };
+    if (/\b(ungelesen|ungelesene|unread|neu|neue|neuen)\b/.test(text))
+      return { kind: "clarify", message: "Ungelesene Unterhaltungen kann die Abfrage noch nicht filtern. Bitte nach Status fragen: offen, wartend, beantwortet oder archiviert." };
+    if (/\b\d{1,2}(?::\d{2})?\s*uhr\b/.test(text) || /\b(letzte[rn]?\s+\d+|letzten?\s+tag|woche|monat)\b/.test(text))
+      return { kind: "clarify", message: "Diesen Zeitraum unterstützt die Unterhaltungsabfrage noch nicht. Bitte nach Status oder 'braucht Antwort' fragen." };
+    const needsReply = /\b(unbeantwortet\w*|ohne antwort|antwort (?:offen|ausstehend)|(?:eine )?antwort (?:brauchen|braucht)|auf (?:eine )?antwort warten|needs reply)\b/.test(text);
+    const statuses = (["open", "waiting", "replied", "archived"] as const).filter((status) =>
+      new RegExp(`\\b(?:${status}|${status === "open" ? "offen|offene" : status === "waiting" ? "wartend|wartende" : status === "replied" ? "beantwortet|beantwortete" : "archiviert|archivierte"})\\b`).test(text));
+    if (statuses.length > 1) return { kind: "clarify", message: "Bitte genau einen Status nennen: offen, wartend, beantwortet oder archiviert." };
+    if (needsReply && statuses.length > 0)
+      return { kind: "clarify", message: "Bitte entweder einen Status oder 'braucht Antwort' nennen, nicht beides." };
+    return {
+      kind: "communication.list",
+      ...(statuses[0] ? { status: [statuses[0]] } : {}),
+      ...(needsReply ? { needsReply: true } : {}),
+    };
   }
   const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
   if (families.length === 0) return null;
@@ -334,6 +355,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
   if (intent.kind.startsWith("tasks.")) requireReadRole(ctx, "tasks", "viewer");
   if (intent.kind === "calendar.list") requireReadRole(ctx, "calendar", "viewer");
+  if (intent.kind === "communication.list") requireReadRole(ctx, "communication", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -367,6 +389,15 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "communication.list": {
+      const page = await ctx.runtime.registry.getPort("communication").listThreads({
+        limit: MAX_RESULTS,
+        ...(intent.status ? { status: intent.status } : {}),
+        ...(intent.needsReply ? { needsReply: true } : {}),
+      }, ctx.call);
+      return baseResponse(ctx, listMessage("Unterhaltungen", page.items, page.pageInfo.hasNextPage,
+        (thread: Thread) => idStatus(thread.id, `${thread.channelKind}/${thread.status}${thread.needsReply ? "/Antwort offen" : ""} ${thread.subject}`, thread.lastMessageAt)));
     }
     case "calendar.list": {
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
