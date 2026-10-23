@@ -104,3 +104,18 @@ Nachweise:
 
 Bewusste Grenze: der Router prueft Pfadparameter nur auf Laenge, nicht auf das Vertragsmuster — ein Name wie
 `-..` wird deshalb erst im Dienst abgelehnt (Ledger **N-052**).
+
+### 8.1 Gemessenes Laufzeitverhalten (FRIDAY-2, Hermes v0.22.2, 2026-10-23)
+
+| Befehl | Verhalten | Dauer | Konsequenz |
+|---|---|---|---|
+| `skills diff arxiv` | antwortet lokal: `'arxiv' matches the stock version.` | < 1 s | Zeitlimit 30 s |
+| `skills inspect arxiv` | loest den Namen erst gegen die Registries auf; bei Namenskollision kommt eine Mehrdeutigkeitstabelle (6 Treffer, `Use the full identifier to install a specific one.`) | 37 s | Zeitlimit 90 s, Text wird unveraendert ausgeliefert |
+| `skills audit arxiv` | lief nach 25 s noch nicht zurueck (Abbruch durch das Messzeitlimit) | > 25 s | Zeitlimit 90 s |
+
+Live-Beleg fuer `diff` ueber die Bridge: `{"action":"diff","name":"arxiv","text":"'arxiv' matches the stock
+version.","bytes":36,"truncated":false}`.
+
+Daraus folgt eine **Grenze**, die im Vertrag noch fehlt: die API nimmt nur einen Namen entgegen, waehrend die CLI
+bei Namenskollision eine vollstaendige Kennung verlangt. Der Text macht das ehrlich sichtbar (statt eines
+erfundenen Berichts), die Bedienung bleibt aber offen — Ledger **N-053**.
