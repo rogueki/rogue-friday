@@ -92,6 +92,18 @@ Remaining (cannot be done in the cloud):
    audio-level reactivity), local Qwen — adapters are verified against fakes that reproduce the documented behaviour.
 3. Owner decisions below.
 
+## Skills against the installed CLI (2026-10-23, live)
+
+A real Control API in `dataMode: live` (own data root with `config/install-state.json`, distro `FRIDAY-2`) reads the
+CLI inventory over HTTP: `GET /api/v1/skills` returned **159 skills** (53 builtin, 106 external) with origin and trust
+as the CLI prints them; `diff`, `inspect` (identifier 2.3 s, bare name 110.6 s), `tap-list` and the refusal texts work,
+an unoffered report command is a 400. Seven defects were only visible in that run and are fixed: the origin vocabulary
+(`external`), the runner's 35 s limit, two time budgets below the real CLI runtime, the bridge's own 30 s list timeout,
+a UTF-8 BOM on stdin, error texts that blamed the distro, and two budgets ordered without slack. Details:
+`docs/agent-work/finalization/dash-10-06-skill-verwaltung-live.md`, ledger N-064..N-070.
+Still open for DASH-10.06: no hub skill installed on that profile, restart equality, a missing external drive, and the
+operator system itself (`FRIDAY_SKILLS_CATALOG_PATH`/dashboard URL unset there, so `catalogError` is reported honestly).
+
 ## Known contract gaps / decisions to revisit
 
 From the mock-platform report:

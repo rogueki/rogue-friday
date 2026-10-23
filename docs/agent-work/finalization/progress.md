@@ -35,7 +35,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
 | DASH-10.04 Skill-Operationen | **PASS** (13 der 14 Befehle typisiert: `search`/`list-modified` mit striktem JSON-Parser, `inspect`/`audit`/`diff`/`browse`/`check`/`tap-list` als unveraenderter Text, `install`/`update`/`uninstall` ueber DASH-10.07, `trust`/`untrust`/`tap add|remove`/`reset` ueber `POST /api/v1/skills/governance`; `config` ist nachweislich nur interaktiv und wird bewusst nicht exponiert (N-059); fehlende Skill-Wurzel wird gemeldet; 282 Operationen; live belegt in wegwerfbaren Profilen) | `dash-10-04-skill-operations.md`, `test_hub_search.py`, `test_skill_report.py`, `test_skill_command.py` (12), `test_skill_governance.py` (16), `skills-command-route.test.ts` (3), `skills-governance-route.test.ts` (3) |
 | DASH-10.05 Registry-Flaeche | **PASS** (Treffer mit Quelle/Trust/Kennung/Beschreibung; Quellen- und Pruefbefund je Treffer ueber `inspect`/`audit` mit Name **oder** Kennung; lokal geaenderte Skills mit Diff-Ansicht und CLI-Begruendung im Fehlerfall; kein Installationsknopf ohne Bestaetigungspfad; offen bleibt nur der gefuehrte Wiederverwendungsschritt fuer vorhandene Referenzen, der zu DASH-07/08 gehoert) | `dash-10-05-skill-registry-ui.md` (Abschnitt 7 und 8), `SkillRegistryPanel.test.tsx` (7), `skills-report-reason.test.ts` (3), `test_skill_report.py` (13), Live: `inspect` mit Kennung rc 0 und mit Name rc 0 plus Resolved-to-Zeile |
-| DASH-10.06 Abnahme Skill-Lebenszyklus | TEIL (Builtin, Friday- und Hub-Skill angesehen und verwaltet, Zustand ueberlebt neuen Prozess; Hub-Installation real in wegwerfbarem Profil mit Quarantaene und Scan, lokale Aenderung wird ohne `--force` nicht ueberschrieben, mit `--force` bewusst schon; fehlendes Laufwerk und Fehlertexte offen) | `dash-10-06-acceptance.md`, Befunde N-053/N-054/N-055 |
+| DASH-10.06 Abnahme Skill-Lebenszyklus | TEIL (CLI-Abnahme im wegwerfbaren Profil: Builtin, Friday- und Hub-Skill angesehen und verwaltet, Readback in neuem Prozess, modifizierter Builtin nur mit `--force` ueberschrieben; zusaetzlich API-Laufzeitnachweis: 159 Skills mit `origin`/`trust` (53 builtin, 106 external), `diff`/`inspect`/`tap-list` live, Ablehnungen mit CLI-Grund, Zeitlimits und Fehlertexte korrigiert [N-064..N-070]. Offen: fehlendes externes Laufwerk, Hub-Skill ueber die API, Katalogseite am Operator-System) *(TEIL 2026-10-23: `dash-10-06-skill-verwaltung-live.md`)* |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -691,3 +691,21 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - live: `inspect` mit Kennung (rc 0, `Source: official`) und mit blossem Namen (rc 0, `Resolved to: ...`)
 - verifiziert: node 203 Dateien / 2839 Tests, web 88 / 689, Gates 0
 
+### DASH-10.06 (2026-10-23): API-Laufzeitnachweis der Skill-Verwaltung
+
+- requirement_ids: DASH-10.06; predecessor: DASH-10.05
+- umgebung: echte Control API (`apps/control-api/dist/main.js`), `dataMode: live`, eigenes Datenwurzelverzeichnis mit
+  `config/install-state.json` (`FRIDAY-2`/`ubuntu`) und Brueckenkopie; Sitzung als `owner` ueber die Ersteinrichtung
+- ablauf: `GET /skills` (67,3 s, 159 Skills, 53 builtin / 106 external, `observationSource: hermes-cli`) ->
+  `GET /skills/modified` -> `GET /skills/arxiv/diff` -> `GET /skills/<kennung>/inspect` (2,3 s) ->
+  `GET /skills/arxiv/inspect` (110,6 s, Namensauflösung gegen die Registries) ->
+  `GET /skills/reports?command=tap-list` -> `command=config` (400) -> ohne Sitzung (401)
+- observed: Inventar, Berichte und Ablehnungstexte kommen unveraendert aus der CLI; eine nicht angebotene Operation
+  wird als Schemafehler abgewiesen statt still zu wirken
+- fixed nebenbei: Origin-Vokabular `external` (N-064), Runner-Limit 35 s (N-065), Inventar-Budget (N-066),
+  CLI-Budget der Bruecke (N-067), BOM auf stdin (N-068), Fehlertexte ohne Grund (N-069), zwei Budgets ohne Ordnung (N-070)
+- grenzen: kein Hub-Skill auf diesem Profil installiert; Neustart-Gleichheit und fehlendes Laufwerk noch nicht live
+  erhoben; `FRIDAY_SKILLS_CATALOG_PATH`/Dashboard-URL sind am Operator-System nicht gesetzt (`catalogError`), deshalb
+  ist nur die CLI-Katalogseite, nicht die gepackte Katalogseite belegt
+- evidence_paths: `dash-10-06-skill-verwaltung-live.md`, `scripts/finalization/live-skills-proof.mjs`,
+  `docs/agent-work/finalization/issue-ledger.csv` (N-064..N-070); status: TEIL
