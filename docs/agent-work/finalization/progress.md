@@ -792,3 +792,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   eine belastbare Datenquelle statt Textparsing.
 - evidence_paths: `dash-17-status.md`.
 - status: offen (17.01-17.05), Audit-Seite von 17.03 durch 23 Audit-Tests belegt
+
+### DASH-18.06 Intentaufloesung fragt nach (2026-10-23)
+- goal: fehlerhafte Intentaufloesung darf nachfragen, aber keine Kontakte/Konten/Termine raten und keine versteckte
+  zweite Sprachaktion ausloesen.
+- observed: zwoelf Negativsaetze im Kalender-Intent ergeben `null` (auch "Loesche den Termin das" und "Verschieb den
+  Termin auf irgendwann"); `validRef()` lehnt Pronomen/Artikel ab; Sprachbestaetigung ist zweistufig mit Token an
+  Anfrage + `targetId` + `version` gebunden und antwortet bei geaendertem Ziel mit 409 "Bitte erneut vorlesen lassen";
+  Voice-Mail verlangt ein praezises vorhandenes Ziel, sendet einmal und blockt Tampering.
+- tests: voice-calendar 2, voice-mail 2, calendar-action-intent 28, mail-action-intent 19 (51), messenger-action-intent
+  + read-command-intents 26.
+- evidence_paths: `dash-18-06-intent-recovery.md`.
+- status: PASS
