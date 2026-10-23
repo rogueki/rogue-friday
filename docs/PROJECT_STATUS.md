@@ -1036,7 +1036,7 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 
 **Vertrag**: 280 Operationen. **Suite**: 200 Dateien / 2829 Tests gruen (60 uebersprungen). **Gates**: 0.
 
-**Offen nach Abschnitt 8.1** (48 von 141 Aufgaben erledigt, 93 offen):
+**Offen nach Abschnitt 8.1** (49 von 141 Aufgaben erledigt, 92 offen):
 - DASH-05.05, DASH-06.04, DASH-07.03–07.06
 - DASH-08.01–08.05 und DASH-09.01–09.06 (brauchen echte Mail-, Kalender- und Messenger-Zugaenge)
 - DASH-10.01, 10.02, 10.04–10.07 (jeweils der in den Detailberichten genannte Rest)

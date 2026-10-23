@@ -776,3 +776,11 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   `cwd: /home/ubuntu/.hermes/profiles/tasks/workspace`. Keine Kopien, eine Quelle.
 - evidence_paths: `dash-15-domain-agenten.md`.
 - status: PASS (15.02)
+
+### DASH-15.01 Integrationsflaeche (2026-10-23)
+- goal: Agenten-Integrationsflaeche (Adapter, Mapping, Clients, UI, Job-/Taskservices) belegen statt behaupten.
+- observed: alle genannten Dateien vorhanden; `adapters/hermes/test/agents.test.ts` 12 Tests, `features/agents` 15
+  Tests bestanden (Statusableitung, Offline bei gestopptem Gateway, Betrieb ohne API-Key, Paging/Versionen,
+  run-scoped Stop, Status-/Heartbeat-Events).
+- evidence_paths: `dash-15-01-agenten-integrationsflaeche.md`.
+- status: PASS
