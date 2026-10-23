@@ -914,3 +914,14 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   contract 30; control-api + mock-data gesamt 1354 bestanden / 128 Dateien; typecheck + lint gruen.
 - evidence_paths: `dash-17-03-audit-verlauf.md`.
 - status: PASS
+
+### DASH-17.01 abgeschlossen (2026-10-23) - PASS
+- gemacht: Verdrahtungsnachweis statt Umbau. `automations-ui-wiring.test.ts` vergleicht UI-Pfade mit der generierten
+  Route-Tabelle (12/12 vorhanden), prueft sieben Capability-Gates und dass das Hermes-Manifest nur die fuenf
+  implementierten Faehigkeiten deklariert (kein versions, kein pauseAll).
+- live: `POST /automations/pause-all` und `GET /automations/{id}/versions` antworten 403 CAPABILITY_MISSING statt 500;
+  die bestehende Live-Suite belegt Anlegen/Test/runs/disable/Neustart/Restore/Fehlerlauf auf denselben Routen.
+- tests: Verdrahtung 4, live 4, web automations 32, typecheck/lint gruen.
+- grenze: kein Browser in dieser Umgebung -> keine visuelle Abnahme, nur Quell- und Fetch-Ebene.
+- evidence_paths: `dash-17-01-verdrahtung.md`.
+- status: PASS

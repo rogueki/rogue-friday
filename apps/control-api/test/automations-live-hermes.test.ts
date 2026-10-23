@@ -218,4 +218,16 @@ describe.skipIf(!reachable)("automations against a running Hermes", () => {
     expect(stillThere.statusCode).toBe(200);
   }, 120_000);
 
+  it("answers the two actions Hermes cannot serve with a clear capability error, not a 500", async () => {
+    // Die Oberflaeche blendet beide Aktionen ueber die fehlende Capability aus; wer sie trotzdem aufruft, bekommt eine
+    // erklaerte Absage statt eines Serverfehlers.
+    const pauseAll = await owner.request("POST", "/api/v1/automations/pause-all", { body: {} });
+    expect(pauseAll.statusCode).toBe(403);
+    expect(pauseAll.json().error.code).toBe("CAPABILITY_MISSING");
+
+    expect(automationId).toBeTruthy();
+    const versions = await owner.get(`/api/v1/automations/${automationId}/versions?limit=10`);
+    expect(versions.statusCode).toBe(403);
+    expect(versions.json().error.code).toBe("CAPABILITY_MISSING");
+  });
 });
