@@ -804,3 +804,13 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   + read-command-intents 26.
 - evidence_paths: `dash-18-06-intent-recovery.md`.
 - status: PASS
+
+### DASH-18.02 Pflichtmatrix erzeugt (2026-10-23)
+- goal: Pflichtmatrix fuer alle Bereiche aus §9 aus dem Repository belegen statt aus Erinnerung.
+- changed: `scripts/finalization/build-area-matrix.mjs` erzeugt `dash-18-02-matrix.md` aus NAV_PAGES,
+  `route-table.generated.ts`, `database.ts`, `port-spec.ts` und den Testdateien.
+- observed: 18 Seiten, 20 Bereiche, 244 API-Pfade, 282 Operationen, 33 Tabellen, 15 Ports, 67 Scopes,
+  83 Web-/117 Node-/8 Adapter-Tests; Onboarding ist eine App-Route, Standort/Wetter liegt in den Einstellungen.
+  Die Datei benennt ausdruecklich, was sie NICHT belegt (Runtime, Rolle, Fehlerpfad, Sprachaktion pro Funktion = 18.03).
+- evidence_paths: `dash-18-02-matrix.md`, `scripts/finalization/build-area-matrix.mjs`.
+- status: PASS (18.02)
