@@ -1129,6 +1129,8 @@ export interface FridayModelMap {
   SkillActivationRequest: SkillActivationRequest;
   SkillCatalogEntry: SkillCatalogEntry;
   SkillCatalogResponse: SkillCatalogResponse;
+  SkillCommandReport: SkillCommandReport;
+  SkillCommandReportResponse: SkillCommandReportResponse;
   SkillHubSearch: SkillHubSearch;
   SkillHubSearchResponse: SkillHubSearchResponse;
   SkillMarkdown: SkillMarkdown;
@@ -5885,6 +5887,19 @@ export interface SkillCatalogResponse {
   data: SkillCatalogEntry[];
   catalogError: string | null;
   hermesError: string | null;
+  freshness: Freshness;
+}
+export interface SkillCommandReport {
+  command: "browse" | "check" | "tap-list";
+  name: string | null;
+  text: string;
+  bytes: number;
+  truncated: boolean;
+  observedAt: string | null;
+}
+export interface SkillCommandReportResponse {
+  contractVersion: ContractVersion;
+  data: SkillCommandReport;
   freshness: Freshness;
 }
 export interface SkillHubSearch {

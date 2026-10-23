@@ -6033,6 +6033,69 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.write
       x-required-role: owner
+  /api/v1/skills/reports:
+    get:
+      operationId: getSkillCommandReport
+      tags: [skills]
+      summary: Show the text report of a read-only skill command
+      description: |
+        The CLI offers no JSON for `browse`, `check` and `tap list`, so their text is passed through unchanged and
+        capped; nothing is parsed into fields. `browse` accepts page, size and source, `check` accepts one skill name,
+        `tap list` accepts nothing - a parameter outside that set is rejected with 422 before the CLI runs.
+      parameters:
+        - name: command
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [browse, check, tap-list]
+        - name: name
+          in: query
+          required: false
+          description: Only for `check`; omit to check every installed skill.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+        - name: page
+          in: query
+          required: false
+          description: Only for `browse`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - name: size
+          in: query
+          required: false
+          description: Only for `browse`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - name: source
+          in: query
+          required: false
+          description: Only for `browse`; a registry name such as `skills-sh`.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillCommandReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/skills/{name}/inspect:
     get:
       operationId: getSkillInspection
@@ -9581,6 +9644,8 @@ components:
       $ref: ../schemas/skills/modified-skills-response.schema.json
     SkillReportResponse:
       $ref: ../schemas/skills/skill-report-response.schema.json
+    SkillCommandReportResponse:
+      $ref: ../schemas/skills/skill-command-report-response.schema.json
     SkillMutationRequest:
       $ref: ../schemas/skills/skill-mutation-request.schema.json
     SkillMutationResponse:

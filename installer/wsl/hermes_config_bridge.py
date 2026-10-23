@@ -368,7 +368,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -546,6 +546,28 @@ SKILL_MUTATIONS = ("install", "update", "uninstall")
 SNAPSHOT_DIR_NAME = "friday-snapshots"
 SKILL_MUTATION_TEXT_LIMIT = 4096
 SKILL_MUTATION_TIMEOUT = 180
+
+
+# tap list resolves its GitHub taps over the network; measured well over the old 30 s, so it gets the same budget
+# as browse. The service uses 35/95/125 s on top of these, so a timeout is reported, never silently shortened.
+SKILL_COMMANDS = {"browse": 90, "check": 120, "tap-list": 90}
+
+
+def skill_command_argv(cli, command, name, page, size, source):
+    """The three remaining read-only skill commands are text-only and take different arguments."""
+    argv = [str(cli), "skills"]
+    if command == "tap-list":
+        argv.extend(["tap", "list"])
+    elif command == "browse":
+        argv.append("browse")
+        if source is not None:
+            argv.extend(["--source", source])
+        argv.extend(["--page", str(page), "--size", str(size)])
+    else:
+        argv.append("check")
+        if name is not None:
+            argv.append(name)
+    return argv
 
 
 def skill_list_rows(cli, timeout=120):
@@ -732,6 +754,50 @@ def locked_main(home, source, cli):
                           "enabled": (row["state"] == "enabled") if row else None,
                           "snapshot": snapshot.name if snapshot is not None else None,
                           "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
+        return 0
+    if sys.argv[1] == "skill-command":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"command", "name", "page", "size", "source"}:
+            raise ValueError("invalid_request")
+        command = request["command"]
+        if command not in SKILL_COMMANDS:
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if command == "check":
+            if name is not None and (not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None):
+                raise ValueError("invalid_request")
+        elif name is not None:
+            raise ValueError("invalid_request")
+        page, size, source = request["page"], request["size"], request["source"]
+        if command == "browse":
+            if type(page) is not int or not 1 <= page <= 50 or type(size) is not int or not 1 <= size <= 50:
+                raise ValueError("invalid_request")
+            if source is not None and (not isinstance(source, str) or SKILL_SOURCE_TOKEN.fullmatch(source) is None):
+                raise ValueError("invalid_request")
+        elif page is not None or size is not None or source is not None:
+            raise ValueError("invalid_request")
+        try:
+            result = subprocess.run(skill_command_argv(cli, command, name, page, size, source),
+                                    capture_output=True, text=True, timeout=SKILL_COMMANDS[command],
+                                    env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_command_timeout"}))
+            return 7
+        if result.returncode:
+            print(json.dumps({"error": "skill_command_failed",
+                              "detail": (result.stdout + result.stderr).strip()[-600:]}))
+            return 6
+        text = result.stdout
+        if len(text) > SKILL_REPORT_LIMIT:
+            text = text[:SKILL_REPORT_LIMIT]
+            truncated = True
+        else:
+            truncated = False
+        if text.strip() == "":
+            print(json.dumps({"error": "skill_report_empty"}))
+            return 6
+        print(json.dumps({"command": command, "name": name, "text": text.rstrip("\n"),
+                          "bytes": len(result.stdout.encode("utf-8")), "truncated": truncated}))
         return 0
     if sys.argv[1] == "hub-search":
         request = json.load(sys.stdin)

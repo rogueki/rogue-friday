@@ -39,6 +39,25 @@ async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "aud
     bytes: result.bytes, truncated: result.truncated, observedAt: result.observedAt }) };
 }
 
+async function skillCommandReport(ctx: Parameters<Handler>[0]) {
+  const query = ctx.query as { command?: string; name?: string; page?: string; size?: string; source?: string };
+  const command = query.command;
+  if (command !== "browse" && command !== "check" && command !== "tap-list")
+    throw validationFailed("Unbekannter Skill-Befehl.");
+  const number = (value: string | undefined, field: string): number | undefined => {
+    if (value === undefined) return undefined;
+    if (!/^[0-9]{1,2}$/.test(value) || Number(value) < 1 || Number(value) > 50)
+      throw validationFailed(`Feld ${field} muss zwischen 1 und 50 liegen.`);
+    return Number(value);
+  };
+  const result = await ctx.runtime.hermesConfig.skillCommand(command, {
+    name: query.name, page: number(query.page, "page"), size: number(query.size, "size"), source: query.source,
+  });
+  ctx.audit.action = `skills.command_${command.replace("-", "_")}`;
+  ctx.audit.after = { command, name: result.name, bytes: result.bytes, truncated: result.truncated };
+  return { status: 200 as const, body: single(result) };
+}
+
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   mutateSkill,
 
@@ -54,6 +73,7 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   async getSkillInspection(ctx) { return skillReport(ctx, "inspect", "skills.inspected"); },
   async getSkillAudit(ctx) { return skillReport(ctx, "audit", "skills.audited"); },
   async getSkillDiff(ctx) { return skillReport(ctx, "diff", "skills.diffed"); },
+  getSkillCommandReport: skillCommandReport,
   async listModifiedSkills(ctx) {
     const result = await ctx.runtime.hermesConfig.modifiedSkills();
     ctx.audit.action = "skills.modified_listed";

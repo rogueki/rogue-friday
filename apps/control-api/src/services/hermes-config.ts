@@ -418,6 +418,43 @@ export class HermesConfigService {
       observedAt: new Date().toISOString() };
   }
 
+  /** browse, check and tap list answer with text only; each takes its own, deliberately narrow parameter set. */
+  async skillCommand(command: "browse" | "check" | "tap-list", params: { name?: string; page?: number; size?: number;
+    source?: string }) {
+    const { name = null, page = null, size = null, source = null } = params;
+    if (command === "browse") {
+      if (name !== null) throw validationFailed("browse kennt keinen Skill-Namen.");
+      if (page === null || size === null) throw validationFailed("browse braucht page und size.");
+    } else if (command === "check") {
+      if (page !== null || size !== null || source !== null)
+        throw validationFailed("check kennt nur einen optionalen Skill-Namen.");
+      if (name !== null && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    } else if (name !== null || page !== null || size !== null || source !== null)
+      throw validationFailed("tap list nimmt keine Parameter.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      const timeout = command === "browse" ? 95000 : command === "check" ? 125000 : 95000;
+      raw = await this.invoke(script, distro, user, ["skill-command"],
+        JSON.stringify({ command, name, page, size, source }), timeout, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_command_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Befehl hat nicht rechtzeitig geantwortet." });
+      if (message.includes("skill_report_empty"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
+      if (message.includes("skill_command_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat den Befehl mit einem Fehler beendet." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Parameter fuer diesen Befehl.");
+      throw unavailable();
+    }
+    if (raw.command !== command || raw.name !== name || typeof raw.text !== "string" || raw.text.length > 65536 ||
+        raw.text.trim() === "" || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0 ||
+        typeof raw.truncated !== "boolean") throw unavailable();
+    return { command, name, text: raw.text, bytes: raw.bytes as number, truncated: raw.truncated,
+      observedAt: new Date().toISOString() };
+  }
+
   async skillInventory(): Promise<{ entries: HermesInventoryEntry[]; at: string }> {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;

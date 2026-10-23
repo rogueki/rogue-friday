@@ -135,8 +135,9 @@ describe("secret hygiene", () => {
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
           spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
           spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } :
-          spec.operationId === "searchSkillHub" ? { query: { query: "hermes" } } : {}));
-        if (["getHermesModelCatalog", "getHermesAccess", "getSkillMarkdown", "searchSkillHub", "listModifiedSkills", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
+          spec.operationId === "searchSkillHub" ? { query: { query: "hermes" } } :
+          spec.operationId === "getSkillCommandReport" ? { query: { command: "tap-list" } } : {}));
+        if (["getHermesModelCatalog", "getHermesAccess", "getSkillMarkdown", "searchSkillHub", "listModifiedSkills", "getSkillCommandReport", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
           expect(response.statusCode, spec.operationId).toBe(503);
           expect((JSON.parse(response.body) as { error: { code: string } }).error.code).toBe("ADAPTER_UNAVAILABLE");
         } else expect(response.statusCode, spec.operationId).toBe(200);

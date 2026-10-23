@@ -3419,6 +3419,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the text report of a read-only skill command
+         * @description The CLI offers no JSON for `browse`, `check` and `tap list`, so their text is passed through unchanged and
+         *     capped; nothing is parsed into fields. `browse` accepts page, size and source, `check` accepts one skill name,
+         *     `tap list` accepts nothing - a parameter outside that set is rejected with 422 before the CLI runs.
+         */
+        get: operations["getSkillCommandReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/status": {
         parameters: {
             query?: never;
@@ -9799,6 +9821,17 @@ export interface components {
             data: unknown;
             freshness: components["schemas"]["Freshness"];
         };
+        /** SkillCommandReport */
+        "skill-command-report.schema": {
+            bytes: number;
+            /** @enum {string} */
+            command: "browse" | "check" | "tap-list";
+            name: string | null;
+            /** Format: date-time */
+            observedAt: string | null;
+            text: string;
+            truncated: boolean;
+        };
         /** SkillMarkdown */
         "skill-markdown.schema": {
             bytes: number;
@@ -9895,6 +9928,12 @@ export interface components {
             data: components["schemas"]["SkillCatalogEntry"][];
             freshness: components["schemas"]["Freshness"];
             hermesError: string | null;
+        };
+        /** SkillCommandReportResponse */
+        SkillCommandReportResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-command-report.schema"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** SkillHubSearchResponse */
         SkillHubSearchResponse: {
@@ -18876,6 +18915,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillCommandReport: {
+        parameters: {
+            query: {
+                command: "browse" | "check" | "tap-list";
+                /** @description Only for `check`; omit to check every installed skill. */
+                name?: string;
+                /** @description Only for `browse`. */
+                page?: number;
+                /** @description Only for `browse`. */
+                size?: number;
+                /** @description Only for `browse`; a registry name such as `skills-sh`. */
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillCommandReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
