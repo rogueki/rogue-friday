@@ -925,3 +925,14 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - grenze: kein Browser in dieser Umgebung -> keine visuelle Abnahme, nur Quell- und Fetch-Ebene.
 - evidence_paths: `dash-17-01-verdrahtung.md`.
 - status: PASS
+
+### DASH-18.01 abgeschlossen (2026-10-23) - PASS (Inventar)
+- neu: `scripts/finalization/build-voice-parity.mjs` erzeugt die Paritaetsmatrix aus Intent-Kinds, Dispatcher und
+  eingebauten Intents; `--check` meldet Drift. `apps/control-api/test/voice-parity.test.ts` (3 Tests) haelt Matrix und
+  Quellen synchron und prueft die 20 Bereiche.
+- befund: 11 Intent-Dienste, alle verdrahtet. Lesbar nur Aktivitaet/Benachrichtigungen/Freigaben/Audit/Einstellungen/
+  Studio-Plan; schreibbar 11 Bereiche; ohne Sprachweg: Skills, Studio, System, Onboarding, Standort/Wetter. Fuer
+  Aufgaben/Kalender/Kommunikation/Memory/Dateien/Agenten/Automationen/Recherche fehlt ein deterministischer Lese-Intent
+  -> Freitext-/Modellpfad. Nicht hier behoben, sondern an 18.03 uebergeben.
+- evidence_paths: `dash-18-01-voice-parity.md`, `dash-18-01-befunde.md`.
+- status: PASS
