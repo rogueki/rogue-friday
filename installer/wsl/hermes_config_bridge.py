@@ -444,6 +444,8 @@ def parse_auth_list(text):
 
 
 SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+# inspect/audit resolve identities against the registries; a name alone is ambiguous there (N-053).
+SKILL_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$")
 # The table names the registry a skill came from ("builtin", "local", "skills.sh", "clawhub", ...) and the trust
 # the checker assigned ("builtin", "local", "trusted", "community", ...). Both vocabularies grow with every registry,
 # so a bounded token is checked instead of a fixed set; the row layout itself stays strictly parsed.
@@ -728,7 +730,7 @@ def locked_main(home, source, cli):
         if action not in ("inspect", "audit", "diff"):
             raise ValueError("invalid_request")
         name = request["name"]
-        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+        if not isinstance(name, str) or SKILL_REFERENCE.fullmatch(name) is None:
             raise ValueError("invalid_request")
         try:
             result = subprocess.run([str(cli), "skills", action, name], capture_output=True, text=True,

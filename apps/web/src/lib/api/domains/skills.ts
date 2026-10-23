@@ -48,6 +48,17 @@ export const useSkillMarkdown = (id: string | null, enabled = true) => useQuery(
 });
 
 
+/** The CLI's inspect or audit report for one skill or full identifier; a refusal arrives as 409 with the reason. */
+export const useSkillReport = (action: "inspect" | "audit", name: string | null) => useQuery({
+  queryKey: ["skills", action, name],
+  queryFn: (): Promise<SkillReportResponse> => call(getApiClient().GET(
+    action === "inspect" ? "/api/v1/skills/{name}/inspect" : "/api/v1/skills/{name}/audit",
+    { params: { path: { name: name ?? "" } } })),
+  enabled: name !== null,
+  staleTime: 60_000,
+  retry: false,
+});
+
 /** The CLI diff of one skill; 409 means the CLI refused and carries its reason in the error message. */
 export const useSkillDiff = (name: string | null) => useQuery({
   queryKey: ["skills", "diff", name],

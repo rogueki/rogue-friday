@@ -393,7 +393,9 @@ export class HermesConfigService {
   }
 
   async skillReport(action: "inspect" | "audit" | "diff", name: string) {
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    // A full identifier (`source/category/name`) is unambiguous where a bare name can collide (N-053).
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(\/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$/.test(name))
+      throw validationFailed("Ungueltiger Skill-Name oder ungueltige Kennung.");
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {

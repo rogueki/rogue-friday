@@ -83,3 +83,10 @@ assert "not tracked" in payload["detail"], payload
 
 print("skill-report-reason: 3 checks passed")
 
+# 9. inspect/audit accept a full identifier; a bare name may collide (N-053). Malformed references never pass.
+for good in ("arxiv", "official/devops/hermes-s6-container-supervision", "skills-sh/owner/repo"):
+    assert bridge.SKILL_REFERENCE.fullmatch(good), good
+for bad in ("a/b/c/d", "/leading", "trailing/", "with space/name", "../etc", ""):
+    assert bridge.SKILL_REFERENCE.fullmatch(bad) is None, bad
+print("skill-report-reference: 9 checks passed")
+

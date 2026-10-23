@@ -3259,7 +3259,7 @@ export interface paths {
         };
         /**
          * Show the CLI audit report for one skill as text
-         * @description The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing.
+         * @description The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
          */
         get: operations["getSkillAudit"];
         put?: never;
@@ -3279,7 +3279,7 @@ export interface paths {
         };
         /**
          * Show the CLI diff between the local skill and its packaged version as text
-         * @description The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied. A refusal by the CLI (for example an untracked skill) answers 409 with the CLI's own reason.
+         * @description The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied. A refusal by the CLI (for example an untracked skill) answers 409 with the CLI's own reason. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
          */
         get: operations["getSkillDiff"];
         put?: never;
@@ -3299,7 +3299,7 @@ export interface paths {
         };
         /**
          * Show the CLI inspection report for one skill as text
-         * @description The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing.
+         * @description The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
          */
         get: operations["getSkillInspection"];
         put?: never;

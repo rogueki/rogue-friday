@@ -2,7 +2,7 @@
 
 import { Button } from "@friday/ui";
 import { useState } from "react";
-import { useModifiedSkills, useSkillDiff, useSkillHubSearch } from "@/lib/api/domains/skills";
+import { useModifiedSkills, useSkillDiff, useSkillHubSearch, useSkillReport } from "@/lib/api/domains/skills";
 
 /**
  * Registry search and the locally modified bundled skills. Both are read-only: installing a
@@ -19,6 +19,7 @@ export function SkillRegistryPanel() {
   const modified = useModifiedSkills();
   const names = modified.data?.data.names ?? [];
   const [diffName, setDiffName] = useState<string | null>(null);
+  const [report, setReport] = useState<{ action: "inspect" | "audit"; identifier: string } | null>(null);
   return <section className="sk-registry" aria-labelledby="sk-registry-title">
     <div className="sk-registry__head">
       <h2 id="sk-registry-title">Registry durchsuchen</h2>
@@ -41,6 +42,18 @@ export function SkillRegistryPanel() {
         <div><strong>{hit.name}</strong> <span className="sk-muted">{hit.source} · Trust {hit.trustLevel}</span></div>
         <p>{hit.description || "Keine Beschreibung hinterlegt."}</p>
         <code>{hit.identifier}</code>
+        <div className="sk-registry__actions">
+          {(["inspect", "audit"] as const).map((action) => <Button key={action} type="button" variant="ghost"
+            aria-expanded={report?.action === action && report.identifier === hit.identifier}
+            onClick={() => setReport(report?.action === action && report.identifier === hit.identifier
+              ? null : { action, identifier: hit.identifier })}>
+            {action === "inspect" ? (report?.action === "inspect" && report.identifier === hit.identifier
+              ? "Befund schließen" : "Quelle ansehen") : (report?.action === "audit" && report.identifier === hit.identifier
+              ? "Prüfung schließen" : "Prüfung ansehen")}
+          </Button>)}
+        </div>
+        {report && report.identifier === hit.identifier
+          ? <SkillReportView action={report.action} target={hit.identifier} /> : null}
       </li>)}</ul>}
     <p className="sk-muted">Installieren oder Aktualisieren ist hier bewusst nicht angeboten: beide Schritte brauchen
       den Bestätigungs- und Wiederherstellungsweg aus DASH-10.07.</p>
@@ -74,5 +87,23 @@ function SkillDiff({ name }: { name: string }) {
   return <div className="sk-diff">
     <div className="sk-diff__meta">{bytes.toLocaleString("de-DE")} Byte{truncated ? ", gekürzt" : ""}</div>
     <pre className="sk-diff__text" tabIndex={0} aria-label={`Diff für ${name}`}>{text}</pre>
+  </div>;
+}
+
+/**
+ * Raw `inspect` or `audit` text for one hit. The CLI resolves full identifiers unambiguously (a bare name can
+ * collide, N-053) and prints no JSON, so the text is shown as it is - a table rendered from guesses would lie.
+ */
+function SkillReportView({ action, target }: { action: "inspect" | "audit"; target: string }) {
+  const report = useSkillReport(action, target);
+  const title = action === "inspect" ? "Quellenbefund" : "Prüfbefund";
+  if (report.isPending) return <p className="sk-muted" role="status">{title} wird gelesen …</p>;
+  if (report.isError)
+    return <p role="alert" className="sk-warning">{report.error instanceof Error && report.error.message.trim() !== ""
+      ? report.error.message : `${title} ist nicht verfügbar.`}</p>;
+  const { text, truncated } = report.data.data;
+  return <div className="sk-diff">
+    <div className="sk-diff__meta">{title} für <code>{target}</code>{truncated ? ", gekürzt" : ""}</div>
+    <pre className="sk-diff__text" tabIndex={0} aria-label={`${title} für ${target}`}>{text}</pre>
   </div>;
 }
