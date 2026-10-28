@@ -18,6 +18,11 @@ bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
 
+def stdin_with(text):
+    # read_request reads bytes from sys.stdin.buffer, like the real pipe from the control API.
+    return io.TextIOWrapper(io.BytesIO(text.encode("utf-8")), encoding="utf-8")
+
+
 class BridgeTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -32,7 +37,7 @@ class BridgeTest(unittest.TestCase):
         (self.home / ".local" / "bin" / "hermes").write_text("synthetic")
         self.config = self.home / ".hermes" / "config.yaml"
         self.config.write_text("model:\n  api_key: CANARY-PRIVATE\nagent:\n  max_turns: 500\n")
-        self.values = {"model.provider": "openrouter", "model.default": "example/model", "agent.reasoning_effort": "medium",
+        self.values = {"model.provider": "openrouter", "model.default": "example/model", "model.base_url": None, "agent.reasoning_effort": "medium",
                        "fallback.min_switch_reset_seconds": 0, "fallback_model": [],
                        "agent.auto_recovery_cycles": 5, "agent.agent_cache.max_size": 128,
                        "agent.run_budget_seconds": None, "agent.budget_warning_ratio": None,
@@ -198,7 +203,7 @@ class BridgeTest(unittest.TestCase):
                                      "mcp-activation" if request and "name" in request and "url" not in request else
                                      "mcp-http" if request and "name" in request else
                                      "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status")]), \
-             patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
+             patch.object(sys, "stdin", stdin_with(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
         return code, json.loads(out.getvalue())
 
@@ -269,7 +274,7 @@ class BridgeTest(unittest.TestCase):
              patch.dict(sys.modules, {"hermes_cli": types.ModuleType("hermes_cli"),
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "argv", ["bridge", "model-catalog"]), \
-             patch.object(sys, "stdin", io.StringIO('{"providerId":"openai-api"}')), \
+             patch.object(sys, "stdin", stdin_with('{"providerId":"openai-api"}')), \
              contextlib.redirect_stdout(out):
             self.assertEqual(bridge.main(), 0)
         result = json.loads(out.getvalue())
@@ -556,6 +561,49 @@ class BridgeTest(unittest.TestCase):
         self.assertFalse(bridge.valid_field_value("model.provider", "openai; rm -rf /",
                                                    bridge.FIELDS["model.provider"]))
 
+    def test_model_base_url_requires_custom_and_binds_env(self):
+        import yaml
+        raw = yaml.safe_load(self.config.read_text())
+        raw["model"]["provider"] = "openrouter"
+        self.config.write_text(yaml.safe_dump(raw))
+        self.values["model.provider"] = "openrouter"
+        update = {"key": "model.base_url", "value": "https://llm.example.test/v1",
+                  "revision": bridge.revision(self.config)}
+        with self.assertRaisesRegex(ValueError, "custom_provider_required"):
+            self.invoke(update)
+        self.assertFalse(any(command[2:4] == ["set", "model.base_url"] for command in self.calls))
+        raw["model"]["provider"] = "custom"
+        self.config.write_text(yaml.safe_dump(raw))
+        self.values["model.provider"] = "custom"
+        self.calls.clear()
+        code, result = self.invoke({"key": "model.base_url", "value": "https://llm.example.test/v1",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["model.base_url"], "https://llm.example.test/v1")
+        self.assertTrue(result["write"]["persisted"])
+        self.assertTrue(any(command[2:4] == ["set", "model.base_url"] for command in self.calls))
+        self.assertTrue(any(command[0] == "credential-worker" for command in self.calls))
+        self.assertEqual((self.home / ".hermes" / ".env").read_text(),
+                         "OPENAI_BASE_URL=https://llm.example.test/v1\n")
+
+    def test_model_base_url_requires_https_or_loopback(self):
+        for value in ("https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+                      "http://127.0.0.1:11434/v1", "http://localhost:8080/v1", "http://[::1]:8000/v1"):
+            with self.subTest(value=value):
+                self.assertTrue(bridge.valid_field_value("model.base_url", value,
+                                                         bridge.FIELDS["model.base_url"]))
+        for value in ("http://llm.example.com/v1", "http://10.0.0.5/v1",
+                      "https://u:p@llm.example.com/v1", "https://llm.example.com/v1?x=1",
+                      "https://llm.example.com/#a", "ftp://llm.example.com",
+                      "https://llm example.com", "", "https://" + "a" * 600, None):
+            with self.subTest(value=value):
+                self.assertFalse(bridge.valid_field_value("model.base_url", value,
+                                                          bridge.FIELDS["model.base_url"]))
+
+    def test_custom_provider_requirement_is_canonical(self):
+        source = Path(bridge.__file__).read_text()
+        self.assertGreaterEqual(source.count("custom_provider_required"), 2)
+
     def test_compression_ratio_write_is_bounded(self):
         code, result = self.invoke({"key": "compression.threshold", "value": 0.7,
                                     "revision": bridge.revision(self.config)})
@@ -800,7 +848,7 @@ p = pathlib.Path.home() / '.hermes' / 'config.yaml'
 a = sys.argv[1:]
 if a == ['config', 'path']: print(p)
 elif a[:2] == ['config', 'get']:
-    d = {'model.provider': 'openrouter', 'model.default': 'example/model',
+    d = {'model.provider': 'openrouter', 'model.default': 'example/model', 'model.base_url': None,
          'agent.reasoning_effort': 'medium', 'fallback.min_switch_reset_seconds': 0, 'fallback_model': [],
          'agent.auto_recovery_cycles': 5, 'agent.agent_cache.max_size': 128,
          'agent.run_budget_seconds': None, 'agent.budget_warning_ratio': None,

@@ -3,6 +3,7 @@
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import fcntl
 import os
@@ -23,6 +24,7 @@ from hermes_mcp_http_apply import valid_url
 FIELDS = {
     "model.provider": ("provider", None, None),
     "model.default": ("model", None, None),
+    "model.base_url": ("base_url", None, None),
     "agent.reasoning_effort": ("reasoning", None, None),
     "fallback.min_switch_reset_seconds": ("integer", 0, 3600),
     "fallback_model": ("fallback", None, None),
@@ -108,6 +110,31 @@ MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPI
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
 
 
+# The API key is sent to this host, so plaintext is only acceptable for loopback endpoints.
+def valid_base_url(value):
+    if (not isinstance(value, str) or not 1 <= len(value) <= 512 or "?" in value or "#" in value or
+            any(ord(ch) <= 32 or ord(ch) >= 127 for ch in value)):
+        return False
+    try:
+        parsed = urlsplit(value)
+        parsed.port
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host or parsed.username is not None or parsed.password is not None:
+        return False
+    if parsed.scheme == "https":
+        return True
+    if parsed.scheme != "http":
+        return False
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def valid_field_value(key, value, spec):
     kind = spec[0]
     if kind == "integer":
@@ -173,6 +200,8 @@ def valid_field_value(key, value, spec):
     if kind == "skill_names":
         return (type(value) is list and len(value) <= 512 and len(set(value)) == len(value) and
                 all(type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) for name in value))
+    if kind == "base_url":
+        return valid_base_url(value)
     return False
 PINNED_SOURCE = "d923a5eb"
 
@@ -365,6 +394,26 @@ def run_runtime_child(command, request, timeout):
             process.wait(timeout=1)
         raise
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def apply_env_value(home, source, key, value):
+    # Hermes' CLI takes values only in argv; its Python closure reads them from stdin so secrets stay out of ps.
+    env_lock = lock_config(home, ".obsidian-vault.lock")
+    try:
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        probe = Path(__file__).with_name("hermes_model_credential_apply.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
+        try:
+            saved = json.loads(result.stdout).get("saved") is True
+        except (ValueError, TypeError):
+            saved = False
+        if result.returncode or not saved:
+            raise ValueError("credential_readback_failed")
+    finally:
+        fcntl.flock(env_lock, fcntl.LOCK_UN)
+        env_lock.close()
 
 
 def main():
@@ -795,7 +844,7 @@ def locked_main(home, source, cli):
             raise ValueError("invalid_request")
         before = skill_list_rows(cli)
         present_before = any(row["name"] == name for row in before["skills"])
-        snapshot = snapshot_skill(home, action, name)
+        skill_snapshot = snapshot_skill(home, action, name)
         argv = [str(cli), "skills", action]
         # install and uninstall ask for confirmation; without a TTY the prompt would block a headless invocation.
         # update has no prompt and rejects the flag, so it gets the plain name.
@@ -807,9 +856,9 @@ def locked_main(home, source, cli):
             result = subprocess.run(argv, capture_output=True, text=True, timeout=SKILL_MUTATION_TIMEOUT,
                                     env=dict(os.environ, COLUMNS="400"))
         except subprocess.TimeoutExpired:
-            if snapshot is not None:
-                restore_skill(snapshot)
-            print(json.dumps({"error": "skill_mutation_timeout", "restored": snapshot is not None}))
+            if skill_snapshot is not None:
+                restore_skill(skill_snapshot)
+            print(json.dumps({"error": "skill_mutation_timeout", "restored": skill_snapshot is not None}))
             return 7
         text = (result.stdout + result.stderr).strip()
         try:
@@ -820,8 +869,8 @@ def locked_main(home, source, cli):
         expected = action != "uninstall"
         if result.returncode or after is None or present_after != expected:
             restored = False
-            if snapshot is not None:
-                restore_skill(snapshot)
+            if skill_snapshot is not None:
+                restore_skill(skill_snapshot)
                 restored = True
             elif present_after and not present_before:
                 for directory in skill_directories(home, name):
@@ -833,7 +882,7 @@ def locked_main(home, source, cli):
         row = next((entry for entry in after["skills"] if entry["name"] == name), None)
         print(json.dumps({"action": action, "name": name, "installed": present_after,
                           "enabled": (row["state"] == "enabled") if row else None,
-                          "snapshot": snapshot.name if snapshot is not None else None,
+                          "snapshot": skill_snapshot.name if skill_snapshot is not None else None,
                           "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
         return 0
     if sys.argv[1] == "skill-governance":
@@ -1293,6 +1342,8 @@ def locked_main(home, source, cli):
             if key in ("terminal.docker_mount_cwd_to_workspace", "terminal.docker_volumes") and \
                     nested(_raw_before, "terminal.backend") not in ("docker",):
                 raise ValueError("execution_backend_required")
+            if key == "model.base_url" and str(nested(_raw_before, "model.provider") or "").strip().lower() != "custom":
+                raise ValueError("custom_provider_required")
             if key == "terminal.cwd" and value != ".":
                 workspace = Path(value)
                 if (workspace.is_symlink() or not workspace.is_dir() or
@@ -1423,27 +1474,14 @@ def locked_main(home, source, cli):
                 if root_errors or scan_errors or "hermes-agent" in value or not set(value) <= set(names):
                     raise ValueError("invalid_value")
             if credential_update:
-                # The CLI accepts secrets only in argv. Use its Python closure with stdin instead.
-                env_lock = lock_config(home, ".obsidian-vault.lock")
-                try:
-                    sys.path.insert(0, str(source))
-                    from hermes_cli._launchers import runtime_command
-                    probe = Path(__file__).with_name("hermes_model_credential_apply.py")
-                    command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
-                    result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
-                    try:
-                        saved = json.loads(result.stdout).get("saved") is True
-                    except (ValueError, TypeError):
-                        saved = False
-                    if result.returncode or not saved:
-                        raise ValueError("credential_readback_failed")
-                finally:
-                    fcntl.flock(env_lock, fcntl.LOCK_UN)
-                    env_lock.close()
+                apply_env_value(home, source, key, value)
             elif not plugin_update and not mcp_update and not mcp_bearer:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
+                if key == "model.base_url":
+                    # Hermes binds OPENAI_API_KEY only to the OPENAI_BASE_URL host, so both must name the same endpoint.
+                    apply_env_value(home, source, "OPENAI_BASE_URL", value)
                 if key == "browser.use_real_profile" and value is False:
                     # Revocation must remove credential snapshots now, rather
                     # than waiting for the next browser tool invocation.
@@ -1618,7 +1656,7 @@ if __name__ == "__main__":
             "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
             "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
             "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
-            "profile_pin_required"}
+            "profile_pin_required", "custom_provider_required"}
         # "hermes_unavailable" used to swallow the real reason (missing binary, broken profile, parse error) and the
         # operator only saw an unreachable distro. Keep the canonical code, add what actually happened.
         payload = {"error": message if canonical else "hermes_unavailable"}
