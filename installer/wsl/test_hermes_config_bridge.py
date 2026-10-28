@@ -76,6 +76,9 @@ class BridgeTest(unittest.TestCase):
                        "cron.output_retention": 50, "cron.script_timeout_seconds": 3600,
                        "cron.session_db_timeout_seconds": 10, "cron.failure_repeat_alert_hours": 6,
                        "cron.require_restart_safe_scope": False,
+                       "kanban.max_in_progress": None, "kanban.max_in_progress_per_profile": None,
+                       "kanban.max_spawn": None, "kanban.failure_limit": 2,
+                       "kanban.dispatch_stale_timeout_seconds": 0,
                        "gateway.loop_watchdog": True, "gateway.startup_watchdog": True,
                        "gateway.startup_watchdog_timeout_seconds": 300,
                        "gateway.restart_loop_guard.max_restarts": 3,
@@ -312,6 +315,21 @@ class BridgeTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported_field"):
                 self.invoke({"key": "cron.max_parallel_jobs", "value": value,
                              "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
+    def test_kanban_per_profile_limit_persists_with_readback_and_rejects_invalid_values(self):
+        revision = bridge.revision(self.config)
+        code, result = self.invoke({"key": "kanban.max_in_progress_per_profile", "value": 2,
+                                    "revision": revision})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "kanban.max_in_progress_per_profile", "persisted": True})
+        self.assertEqual(result["values"]["kanban.max_in_progress_per_profile"], 2)
+        self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+        self.calls.clear()
+        for value in (0, 17, True, "2"):
+            with self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": "kanban.max_in_progress_per_profile", "value": value,
+                             "revision": bridge.revision(self.config)})
         self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
 
     def test_log_level_is_bounded_to_native_levels(self):
@@ -912,6 +930,9 @@ elif a[:2] == ['config', 'get']:
          'cron.output_retention': 50, 'cron.script_timeout_seconds': 3600,
          'cron.session_db_timeout_seconds': 10, 'cron.failure_repeat_alert_hours': 6,
          'cron.require_restart_safe_scope': False,
+         'kanban.max_in_progress': None, 'kanban.max_in_progress_per_profile': None,
+         'kanban.max_spawn': None, 'kanban.failure_limit': 2,
+         'kanban.dispatch_stale_timeout_seconds': 0,
          'gateway.loop_watchdog': True, 'gateway.startup_watchdog': True,
          'gateway.startup_watchdog_timeout_seconds': 300,
          'gateway.restart_loop_guard.max_restarts': 3,

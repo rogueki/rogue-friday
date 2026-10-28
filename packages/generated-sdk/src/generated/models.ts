@@ -380,6 +380,26 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "kanban.max_in_progress";
+      value: number | null;
+    }
+  | {
+      key: "kanban.max_in_progress_per_profile";
+      value: number | null;
+    }
+  | {
+      key: "kanban.max_spawn";
+      value: number | null;
+    }
+  | {
+      key: "kanban.failure_limit";
+      value: number;
+    }
+  | {
+      key: "kanban.dispatch_stale_timeout_seconds";
+      value: number;
+    }
+  | {
       key: "gateway.startup_watchdog_timeout_seconds";
       value: number;
     }
@@ -3546,6 +3566,11 @@ export interface HermesConfigStatus {
       | "cron.session_db_timeout_seconds"
       | "cron.failure_repeat_alert_hours"
       | "cron.require_restart_safe_scope"
+      | "kanban.max_in_progress"
+      | "kanban.max_in_progress_per_profile"
+      | "kanban.max_spawn"
+      | "kanban.failure_limit"
+      | "kanban.dispatch_stale_timeout_seconds"
       | "gateway.loop_watchdog"
       | "gateway.startup_watchdog"
       | "gateway.startup_watchdog_timeout_seconds"
