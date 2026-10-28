@@ -547,6 +547,56 @@ describe("tasks: lifecycle", () => {
     expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/).filter((call) => call.method === "POST")).toHaveLength(1);
   });
 
+  it("cancels open subtasks before the parent and keeps finished ones", async () => {
+    const parent = fake.state.addTask("default", { title: "Elternaufgabe", assignee: "kira" });
+    fake.state.startWorker("default", parent);
+    const childA = fake.state.addTask("default", { title: "Kind A", status: "todo" });
+    const childB = fake.state.addTask("default", { title: "Kind B", status: "done" });
+    const grandchild = fake.state.addTask("default", { title: "Enkel A1", status: "todo" });
+    parent.children = [childA.id, childB.id];
+    childA.parents = [parent.id];
+    childB.parents = [parent.id];
+    childA.children = [grandchild.id];
+    grandchild.parents = [childA.id];
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items.find((item) => item.title === "Elternaufgabe");
+    if (!task) throw new Error("no task");
+
+    const result = await h.adapter.cancelTask({ id: task.id }, h.mutation());
+
+    expect(result.data.status).toBe("cancelled");
+    expect(parent.status).toBe("archived");
+    expect(childA.status).toBe("archived");
+    expect(grandchild.status).toBe("archived");
+    expect(childB.status).toBe("done");
+    const cancelled = fake
+      .callsTo("dashboard", /\/friday\/tasks\/t_[0-9a-f]+\/cancel$/)
+      .filter((call) => call.method === "POST")
+      .map((call) => call.path.replace(/^.*\/friday\/tasks\//, "").replace(/\/cancel$/, ""));
+    expect(cancelled).toEqual([grandchild.id, childA.id, parent.id]);
+  });
+
+  it("leaves the parent open when a subtask cannot be cancelled", async () => {
+    const parent = fake.state.addTask("default", { title: "Elternaufgabe", assignee: "kira" });
+    fake.state.startWorker("default", parent);
+    const child = fake.state.addTask("default", { title: "Kind", status: "todo" });
+    parent.children = [child.id];
+    child.parents = [parent.id];
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items.find((item) => item.title === "Elternaufgabe");
+    if (!task) throw new Error("no task");
+    fake.state.beforeLifecycleMutation = () => fake.state.startWorker("default", child);
+
+    const error = await rejection(h.adapter.cancelTask({ id: task.id }, h.mutation()));
+
+    expect(error.code).toBe("CONFLICT");
+    expect(parent.status).toBe("running");
+    expect(fake.state.board("default").tasks.get(child.id)?.status).toBe("running");
+    expect(
+      fake.callsTo("dashboard", /\/friday\/tasks\/t_[0-9a-f]+\/cancel$/).filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
+  });
+
   it("rolls back cancel when the worker survives", async () => {
     const raw = fake.state.addTask("default", { title: "Unbeendbar", assignee: "kira" });
     fake.state.startWorker("default", raw);

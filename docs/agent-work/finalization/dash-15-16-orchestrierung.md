@@ -109,4 +109,8 @@ Gateway-Neustart um 22:31:55, danach sechs Aufgaben in einem Durchgang:
 - **DASH-16.02/16.05:** Sprache und Chat routen noch nicht in Domain-Aufgaben. `installer/voice/friday_voice.py`
   `_ask_hermes` ruft synchron `/v1/chat/completions` auf (Timeout 900 s). Ein Rechercheauftrag per Sprache blockiert damit
   das Gespräch.
-- **Abbruch an Kinder weitergeben (DASH-16.04):** `POST /tasks/{id}/cancel` archiviert nur die eine Aufgabe.
+- **Abbruch an Kinder weitergeben (DASH-16.04):** Im Hermes-Adapter umgesetzt. Erst wird der ganze Baum gelesen
+  (höchstens 64 Nachkommen, Tiefe 8), dann werden offene Nachkommen von unten nach oben archiviert, zuletzt die
+  Elternaufgabe. Abgeschlossene Kinder bleiben `done`. Scheitert ein Kind, bleibt die Elternaufgabe offen und der Abbruch
+  lässt sich wiederholen. Die Reihenfolge ist Pflicht: Hermes setzt Kinder eines archivierten Elternteils auf `ready`
+  (`hermes_cli/kanban_db.py` archive_task). Offen N-095: Vorschautext und Mock-Parität.

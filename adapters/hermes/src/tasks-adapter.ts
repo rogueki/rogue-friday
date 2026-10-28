@@ -35,6 +35,8 @@ const PROFILE_TTL_MS = 60_000;
 const PROFILE_FAILURE_TTL_MS = 15_000;
 const FAILURE_KINDS: ReadonlySet<string> = new Set(["crashed", "timed_out", "gave_up", "spawn_failed"]);
 const EVENT_FETCH_CONCURRENCY = 4;
+const CANCEL_MAX_DESCENDANTS = 64;
+const CANCEL_MAX_DEPTH = 8;
 
 function offsetOf(cursor: string | null | undefined): number {
   if (cursor === undefined || cursor === null || cursor === "") return 0;
@@ -257,6 +259,19 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
     if (before.task.status === "archived" || before.task.status === "done") {
       throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe ist bereits beendet.", retryable: false });
     }
+    // Hermes promotes children of an archived parent to ready, so they must be closed first.
+    for (const child of await this.collectDescendants(ref, before, call)) {
+      if (child.detail.task.status === "done" || child.detail.task.status === "archived") continue;
+      await kanban.lifecycleTask(child.ref, "cancel", child.detail, call);
+      const cancelled = await kanban.taskDetail(child.ref, "cancelTask", call);
+      if (cancelled.task.status !== "archived") {
+        throw new AdapterError({
+          code: "CONFLICT",
+          message: `Unteraufgabe ${child.ref.taskId} konnte nicht abgebrochen werden; die Aufgabe bleibt offen.`,
+          retryable: true,
+        });
+      }
+    }
     // Pinned Friday route checks event revision, status and current run/claim under SQLite's write lock.
     // Upstream archive commits before killing, so a lost response is never replayed blindly.
     await kanban.lifecycleTask(ref, "cancel", before, call);
@@ -295,6 +310,40 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
       throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe wurde in Hermes zwischenzeitlich geaendert.",
         retryable: false, details: { expectedVersion: call.ifMatchVersion, currentVersion: taskVersion(raw) } });
     }
+  }
+
+  /**
+   * Descendants of a task in cancel order (children before their parent). The whole tree is read before anything is
+   * archived so that an oversized tree is refused without a partial cancellation.
+   */
+  private async collectDescendants(
+    root: TaskRef,
+    detail: WireTaskDetail,
+    call: CallContext,
+  ): Promise<Array<{ ref: TaskRef; detail: WireTaskDetail }>> {
+    const { kanban } = this.ready();
+    const visited = new Set<string>([root.taskId]);
+    const collected: Array<{ ref: TaskRef; detail: WireTaskDetail }> = [];
+    const visit = async (ref: TaskRef, current: WireTaskDetail, depth: number): Promise<void> => {
+      for (const childId of current.children) {
+        if (visited.has(childId)) continue;
+        visited.add(childId);
+        if (visited.size - 1 > CANCEL_MAX_DESCENDANTS || depth + 1 > CANCEL_MAX_DEPTH) {
+          throw new AdapterError({
+            code: "VALIDATION_FAILED",
+            message: "Zu viele Unteraufgaben fuer einen gemeinsamen Abbruch (max. 64, Tiefe 8).",
+            retryable: false,
+          });
+        }
+        const childRef: TaskRef = { board: ref.board, taskId: childId };
+        const childDetail = await kanban.taskDetail(childRef, "cancelTask", call);
+        await visit(childRef, childDetail, depth + 1);
+        // Post-order: a child may only be cancelled once its own children are closed.
+        collected.push({ ref: childRef, detail: childDetail });
+      }
+    };
+    await visit(root, detail, 0);
+    return collected;
   }
 
   // ---- events (tasks.stream) ---------------------------------------------------------------------------------------------
