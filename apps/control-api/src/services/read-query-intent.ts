@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Memory, type MemoryType, type ResearchProject, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -21,6 +21,10 @@ export type ReadQueryIntent =
   | { kind: "agents.get"; id: string }
   | { kind: "automations.list"; enabled?: boolean }
   | { kind: "automations.get"; id: string }
+  | { kind: "memory.list"; pinned?: boolean; type?: MemoryType[] }
+  | { kind: "memory.get"; id: string }
+  | { kind: "research.list" }
+  | { kind: "research.get"; id: string }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -199,6 +203,35 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     }
     return { kind: "automations.list", ...(enabled !== undefined ? { enabled } : {}) };
   }
+  const memoryArea = /\b(memory|memories|gedaechtnis|gedaechtnisses|gedaechtniseintrag|gedaechtniseintraege|wissenseintrag|wissenseintraege)\b/.test(text);
+  const researchArea = /\b(recherche|recherchen|rechercheprojekt|rechercheprojekte|research|forschungsprojekt|forschungsprojekte)\b/.test(text);
+  if (memoryArea) {
+    if (otherFamilies.length > 0 || researchArea)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Gedächtnisabfrage formulieren." };
+    if (/\b(merke|merken|speichere|speichern|vergiss|vergessen|loesche|loeschen|aendere|aendern|bestaetige|bestaetigen|anheften|anpinnen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Gedächtnisabfrage formulieren." };
+    const memoryIds = [...input.matchAll(/\bmem_[0-9A-Za-z]{26}\b/g)].map((match) => match[0]);
+    if (memoryIds.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine Gedächtnis-Kennung." };
+    const pinned = /\b(angeheftet|angeheftete|angehefteten|angepinnt|angepinnte|angepinnten|gepinnt|gepinnte|gepinnten|pinned)\b/.test(text);
+    const memoryTypes = MEMORY_TYPES.filter((type) => new RegExp(`\\b(?:${MEMORY_TYPE_WORDS[type]})\\b`).test(text));
+    if (memoryIds[0]) {
+      if (pinned || memoryTypes.length > 0) return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Filter kombiniert werden." };
+      return { kind: "memory.get", id: memoryIds[0] };
+    }
+    return { kind: "memory.list", ...(pinned ? { pinned: true } : {}), ...(memoryTypes.length > 0 ? { type: memoryTypes } : {}) };
+  }
+  if (researchArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Rechercheabfrage formulieren." };
+    if (/\b(starte|starten|erstelle|erstellen|recherchiere|recherchieren|breche|abbrechen|loesche|loeschen|wiederhole|wiederholen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Rechercheabfrage formulieren." };
+    if (/\b(laufend|laufende|laufenden|fertig|fertige|abgeschlossen|abgeschlossene|fehlgeschlagen|fehlgeschlagene|abgebrochen|abgebrochene|geplant|geplante)\b/.test(text))
+      return { kind: "clarify", message: "Die Rechercheabfrage kann noch nicht nach Status filtern. Bitte ohne Status fragen." };
+    const researchIds = [...input.matchAll(/\brsp_[0-9A-Za-z]{26}\b/g)].map((match) => match[0]);
+    if (researchIds.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine Recherche-Kennung." };
+    if (researchIds[0]) return { kind: "research.get", id: researchIds[0] };
+    return { kind: "research.list" };
+  }
   const agentArea = /\b(agenten?|agents?|assistenten?)\b/.test(text);
   if (agentArea) {
     if (otherFamilies.length > 0)
@@ -275,6 +308,18 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (family === "approvals") return { kind: "approvals.list", ...(statuses[0] ? { status: [statuses[0] as "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"] } : {}) };
   return { kind: "audit.list", ...(statuses[0] ? { result: [statuses[0] as "success" | "failure" | "denied" | "pending"] } : {}), ...(hours ? { lookbackHours: hours } : {}), ...(/\b(security|sicherheit)\b/.test(text) ? { securityOnly: true } : {}) };
 }
+
+/** German surface forms per memory type; only these reach the route as a filter. */
+const MEMORY_TYPE_WORDS: Record<"fact" | "preference" | "person" | "company" | "project" | "instruction", string> = {
+  fact: "fakten|fakt",
+  preference: "vorlieben|praeferenzen|praeferenz",
+  person: "personen|person",
+  company: "firmen|firma|unternehmen",
+  project: "projekte|projekt",
+  instruction: "anweisungen|anweisung",
+};
+
+const MEMORY_TYPES = ["fact", "preference", "person", "company", "project", "instruction"] as const;
 
 /** German surface forms per agent status; only these reach the route as a filter. */
 const AGENT_STATUS_WORDS: Record<"idle" | "starting" | "working" | "waiting" | "paused" | "error" | "offline", string> = {
@@ -392,6 +437,9 @@ async function voiceRuntimeReadback(ctx: RequestContext, settings: Settings): Pr
 }
 
 const idStatus = (id: string, status: string, date: string): string => `${id} · ${status} · ${date}`;
+// Sensitive and restricted titles and contents are never spoken back.
+const memoryTitle = (memory: Memory): string => memory.sensitivity === "normal" ? memory.title ?? "" : "vertraulich";
+const truncate = (text: string, max: number): string => text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
 async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed">): Promise<{ items: Approval[]; hasNextPage: boolean }> {
   const ownerId = ctx.principal!.userId;
@@ -418,6 +466,8 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind === "communication.list") requireReadRole(ctx, "communication", "viewer");
   if (intent.kind.startsWith("agents.")) requireReadRole(ctx, "agents", "viewer");
   if (intent.kind.startsWith("automations.")) requireReadRole(ctx, "automations", "viewer");
+  if (intent.kind.startsWith("memory.")) requireReadRole(ctx, "memory", "viewer");
+  if (intent.kind.startsWith("research.")) requireReadRole(ctx, "research", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -463,6 +513,41 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
     case "automations.get": {
       const automation = (await ctx.runtime.registry.getPort("automations").getAutomation({ id: intent.id }, ctx.call)).data;
       return baseResponse(ctx, `Automation ${automation.id}: ${automation.name}, ${automation.enabled ? "aktiv" : "deaktiviert"}${automation.nextRunAt ? `, nächster Lauf ${automation.nextRunAt}` : ""}${automation.lastError ? `, letzter Fehler: ${automation.lastError}` : ""}.`);
+    }
+    case "memory.list": {
+      const page = await ctx.runtime.registry.getPort("memory").listMemory({
+        limit: MAX_RESULTS,
+        ...(intent.pinned ? { pinned: true } : {}),
+        ...(intent.type ? { type: intent.type } : {}),
+      }, ctx.call);
+      return baseResponse(ctx, listMessage("Gedächtniseinträge", page.items, page.pageInfo.hasNextPage,
+        (memory: Memory) => idStatus(memory.id, `${memory.type} · ${memoryTitle(memory)}`, memory.updatedAt)));
+    }
+    case "memory.get": {
+      const memory = (await ctx.runtime.registry.getPort("memory").getMemory({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Gedächtniseintrag ${memory.id}: ${memory.type}, ${memoryTitle(memory)}${memory.sensitivity === "normal" ? `: ${truncate(memory.content ?? "", 300)}` : ""}${memory.pinned ? ", angeheftet" : ""}.`);
+    }
+    case "research.list": {
+      // Mirrors the GET handler, which only falls back to the adapter in mock mode.
+      let items: ResearchProject[];
+      let hasNextPage: boolean;
+      if (ctx.runtime.config.dataMode === "mock") {
+        const page = await ctx.runtime.registry.getPort("research").listResearchProjects({ limit: MAX_RESULTS }, ctx.call);
+        items = page.items;
+        hasNextPage = page.pageInfo.hasNextPage;
+      } else {
+        const ownerId = ctx.principal!.userId;
+        items = ctx.runtime.research.list(ownerId, undefined, MAX_RESULTS, 0);
+        hasNextPage = ctx.runtime.research.count(ownerId) > items.length;
+      }
+      return baseResponse(ctx, listMessage("Recherchen", items, hasNextPage,
+        (project: ResearchProject) => idStatus(project.id, `${project.status} · ${project.topic}`, project.updatedAt)));
+    }
+    case "research.get": {
+      const project = ctx.runtime.config.dataMode === "mock"
+        ? (await ctx.runtime.registry.getPort("research").getResearchProject({ id: intent.id }, ctx.call)).data
+        : ctx.runtime.research.get(ctx.principal!.userId, intent.id);
+      return baseResponse(ctx, `Recherche ${project.id}: ${project.topic}, Status ${project.status}, ${project.sourceCount ?? 0} Quellen, ${project.findingCount ?? 0} Erkenntnisse.`);
     }
     case "agents.list": {
       const page = await ctx.runtime.registry.getPort("agents").listAgents({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}) }, ctx.call);

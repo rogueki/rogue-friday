@@ -8,9 +8,9 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 - Intent-Dienste: 11 (`agent-action-intent.ts`, `automation-action-intent.ts`, `calendar-action-intent.ts`, `knowledge-action-intent.ts`, `mail-action-intent.ts`, `messenger-action-intent.ts`, `read-query-intent.ts`, `research-action-intent.ts`, `settings-content-mutation-intent.ts`, `task-action-intent.ts`, `task-create-intent.ts`)
 - Im Dispatcher erreichbar: 11 von 11
-- Lese-Intents: 18 · eingebaute Sprachintents: voice_start, focus_toggle
-- Bereiche mit Lese- und Schreibweg: 6 von 20
-- Nur lesbar: 4 · nur schreibbar: 5 · ohne Sprachweg: 5
+- Lese-Intents: 22 · eingebaute Sprachintents: voice_start, focus_toggle
+- Bereiche mit Lese- und Schreibweg: 8 von 20
+- Nur lesbar: 4 · nur schreibbar: 3 · ohne Sprachweg: 5
 
 ## 2. Matrix
 
@@ -19,12 +19,12 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 | Übersicht/Orb | ja | — | `focus_toggle` | nur schreiben |
 | Kommunikation | ja | `communication.list` | `mail.compose`, `mail.reply`, `messenger.reply`, `messenger.send` | lesen + schreiben |
 | Kalender | ja | `calendar.list` | `calendar.create`, `calendar.delete`, `calendar.update` | lesen + schreiben |
-| Memory | ja | — | `memory.confirm`, `memory.create`, `memory.delete`, `memory.update` | nur schreiben |
+| Memory | ja | `memory.get`, `memory.list` | `memory.confirm`, `memory.create`, `memory.delete`, `memory.update` | lesen + schreiben |
 | Aufgaben | ja | `tasks.get`, `tasks.list` | `task.cancel`, `task.create`, `task.retry`, `task.update` | lesen + schreiben |
 | Agenten | ja | `agents.get`, `agents.list` | `agent.assign`, `agent.pause`, `agent.resume`, `agent.stop` | lesen + schreiben |
 | Skills | ja | — | — | kein Sprachweg |
 | Automationen | ja | `automations.get`, `automations.list` | `automation.disable`, `automation.enable`, `automation.pause`, `automation.pauseAll`, `automation.resume`, `automation.test` | lesen + schreiben |
-| Recherche | ja | — | `research.create` | nur schreiben |
+| Recherche | ja | `research.get`, `research.list` | `research.create` | lesen + schreiben |
 | Dateien | ja | — | `file.delete`, `file.rename` | nur schreiben |
 | Studio | ja | — | — | kein Sprachweg |
 | Sprache | ja | — | `voice_start` | nur schreiben |
