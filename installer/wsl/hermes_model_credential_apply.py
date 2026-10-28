@@ -3,7 +3,7 @@
 import json
 import sys
 
-from hermes_cli.config import load_env, require_env_writable, save_env_value
+from hermes_cli.config import load_env
 from hermes_cli.credential_lifecycle import save_provider_env_credential, remove_provider_env_credential
 
 
@@ -16,6 +16,7 @@ def main():
         if (not isinstance(value, str) or not 1 <= len(value) <= 512 or
                 any(not 33 <= ord(char) <= 126 for char in value)):
             return 2
+        from hermes_cli.config import require_env_writable, save_env_value
         require_env_writable(key, "set")
         save_env_value(key, value)
         saved = load_env().get(key) == value

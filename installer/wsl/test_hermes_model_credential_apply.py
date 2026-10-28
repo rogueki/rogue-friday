@@ -19,6 +19,8 @@ class ModelCredentialApplyTest(unittest.TestCase):
         config = types.ModuleType("hermes_cli.config")
         lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
         config.load_env = lambda: self.store.copy()
+        config.save_env_value = lambda key, value: self.store.__setitem__(key, value)
+        config.require_env_writable = lambda key, action: None
         def save(key, value):
             self.calls.append(("save", key, value))
             self.store[key] = value
@@ -50,6 +52,16 @@ class ModelCredentialApplyTest(unittest.TestCase):
         code, result = self.invoke("OPENROUTER_API_KEY", None)
         self.assertEqual((code, result), (0, {"saved": True, "configured": False}))
         self.assertEqual(self.calls[-1], ("remove", "OPENROUTER_API_KEY"))
+
+    def test_base_url_is_written_without_credential_lifecycle(self):
+        url = "https://llm.example.test/v1"
+        code, result = self.invoke("OPENAI_BASE_URL", url)
+        self.assertEqual((code, result), (0, {"saved": True, "configured": True}))
+        self.assertEqual(self.store["OPENAI_BASE_URL"], url)
+        self.assertEqual(self.calls, [])
+        code, result = self.invoke("OPENAI_BASE_URL", "https://a b")
+        self.assertEqual(code, 2)
+        self.assertEqual(self.store["OPENAI_BASE_URL"], url)
 
     def test_rejects_unknown_or_multiline_secret_without_mutation(self):
         self.assertEqual(self.invoke("EXA_API_KEY", "CANARY")[0], 2)
