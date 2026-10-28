@@ -147,6 +147,11 @@ const bridge = {
     "cron.session_db_timeout_seconds": 10,
     "cron.failure_repeat_alert_hours": 6,
     "cron.require_restart_safe_scope": false,
+    "kanban.max_in_progress": null,
+    "kanban.max_in_progress_per_profile": null,
+    "kanban.max_spawn": null,
+    "kanban.failure_limit": 2,
+    "kanban.dispatch_stale_timeout_seconds": 0,
     "gateway.loop_watchdog": true,
     "gateway.startup_watchdog": true,
     "gateway.startup_watchdog_timeout_seconds": 300,
@@ -232,6 +237,11 @@ const bridge = {
     "cron.session_db_timeout_seconds": false,
     "cron.failure_repeat_alert_hours": false,
     "cron.require_restart_safe_scope": false,
+    "kanban.max_in_progress": false,
+    "kanban.max_in_progress_per_profile": false,
+    "kanban.max_spawn": false,
+    "kanban.failure_limit": false,
+    "kanban.dispatch_stale_timeout_seconds": false,
     "gateway.loop_watchdog": false,
     "gateway.startup_watchdog": false,
     "gateway.startup_watchdog_timeout_seconds": false,
@@ -267,7 +277,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(83);
+  expect(status.fields).toHaveLength(88);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
@@ -538,6 +548,25 @@ it("clears optional run budget without claiming a live-turn change", async () =>
   expect(JSON.parse((vi.mocked(invoke).mock.calls[0]?.[4] ?? "") as string)).toMatchObject({
     key: "agent.run_budget_seconds", value: null, revision: 123,
   });
+});
+
+it("accepts the Kanban dispatcher limits and rejects values outside the Hermes bounds", async () => {
+  const invoke = vi.fn(async (_script, _distro, _user, _args, request) => {
+    const patch = JSON.parse(String(request)) as { key: string; value: number };
+    return { ...bridge, revision: 124, values: { ...bridge.values, [patch.key]: patch.value },
+      write: { key: patch.key, persisted: true } };
+  }) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const perProfile = await service.update({ key: "kanban.max_in_progress_per_profile", value: 2 }, 123);
+  expect(perProfile.fields.find((field) => field.key === "kanban.max_in_progress_per_profile"))
+    .toMatchObject({ value: 2, family: "operations" });
+  await service.update({ key: "kanban.failure_limit", value: 3 }, 123);
+  await expect(service.update({ key: "kanban.max_in_progress_per_profile", value: 17 }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "kanban.failure_limit", value: 0 }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "kanban.dispatch_stale_timeout_seconds", value: -1 }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
 it("maps external revision changes to conflict and disables writes for an unknown Hermes source", async () => {

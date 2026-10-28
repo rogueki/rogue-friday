@@ -9,6 +9,7 @@ import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../s
 import { parseTaskCreateIntent } from "../services/task-create-intent";
 import { routeAgentTask, taskModelPreview } from "../services/task-model-routing";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
+import { taskCancelPreviewText } from "../services/task-cancel-preview";
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
 import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
 import { parseMessengerActionIntent, type MessengerActionIntent } from "../services/messenger-action-intent";
@@ -144,7 +145,7 @@ async function executeTaskAction(ctx: Parameters<Handler>[0], request: CommandRe
     : intent.kind === "task.retry" ? `Aufgabe erneut starten: ${task.title}` : `Aufgabe abbrechen: ${task.title}`;
   const previewText = intent.kind === "task.update"
     ? `Aufgabe „${task.title}“ als ${STATUS_LABEL[intent.status]} markieren?`
-    : intent.kind === "task.retry" ? `Aufgabe „${task.title}“ erneut starten?` : `Aufgabe „${task.title}“ abbrechen?`;
+    : intent.kind === "task.retry" ? `Aufgabe „${task.title}“ erneut starten?` : taskCancelPreviewText(task);
   if (!request.confirm && request.previewId) {
     ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),

@@ -4,6 +4,7 @@ import type { OperationId } from "../http/route-types";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 import { routeAgentTask, taskModelPreview } from "../services/task-model-routing";
+import { taskCancelPreviewText } from "../services/task-cancel-preview";
 
 const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
 const CANCEL_FINAL = ["done", "cancelled"];
@@ -170,7 +171,7 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
           { status: current.data.status });
       }
       write.actionText = `Aufgabe abbrechen: ${current.data.title}`;
-      write.previewText = `Aufgabe „${current.data.title}“ abbrechen?`;
+      write.previewText = taskCancelPreviewText(current.data);
     }
     const previewId = enforceTaskWrite(ctx, ownerId, write);
     return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 200);
