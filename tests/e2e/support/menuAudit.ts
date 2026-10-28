@@ -1,5 +1,5 @@
 // Audits every menu, select and menu-like control of a page and writes findings plus an inventory to test-results/menu-audit.
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { open } from "./fixtures";
@@ -350,8 +350,12 @@ async function auditTablist(
     names.push(name);
     try {
       await tab.click({ timeout: 5000 });
-      await page.waitForTimeout(200);
-      if ((await tab.getAttribute("aria-selected")) !== "true") {
+      // A loaded CI runner can take longer than a frame to commit the selection; a user still sees it at once.
+      const selected = await expect
+        .poll(() => tab.getAttribute("aria-selected"), { timeout: 2000 })
+        .toBe("true")
+        .then(() => true, () => false);
+      if (!selected) {
         findings.push({ page: label, context, control: name || "tab", rule: "tab-not-selectable", detail: "" });
       }
     } catch (error) {
