@@ -1092,6 +1092,16 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Friday-Paket", "Kategorie: Produktivitaet", "Status: Unbekannt" - der E2E-Katalog enthaelt genau zwei Friday-Skills dieser
   Werte, die Filter treffen alle Zeilen ("Hermes"/"Aktiviert" filtern nachweislich).
 
+**PR #31 / Linux-CI (2026-10-28)**: Branch gepusht, PR https://github.com/rogueki/rogue-friday/pull/31.
+- N-084..N-087: Gedaechtnissuche per Befehl (Regression aus a4252a4), `memory.deleted` ohne `before`, Navigations-/axe-Listen
+  ohne Content Studio, Mail-Fehlerzuordnungstest nur unter Windows gruen (687ae06); mcp 2.2.0 in den CI-Testabhaengigkeiten
+  (Dependabot #2, 0c5d6fa); 12 E2E-Shards statt 8 (52dd31a, N-091).
+- N-088: Navigation passt mit 18 Eintraegen wieder ohne Scrollen in 1080 px (PLAN §24.12), neuer E2E-Test.
+- N-089: Skills-Anleitung fuer Friday-Skills aus dem Friday-Register statt Fehlermeldung; Quelle auf Deutsch.
+- N-090: `/audit` im Screenshot maskiert (Echtzeit-Kette), Content Studio und Skills mit Screenshot. Linux-Baselines
+  werden per `workflow_dispatch capture_baselines` erzeugt und vor dem Commit Bild fuer Bild geprueft. Die geaenderte
+  Kommunikationsseite (Rohformulare 'Mail Postfach'/'Messenger-Nachricht' und Anbietername ersetzt) ist beabsichtigt.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
