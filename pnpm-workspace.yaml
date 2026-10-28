@@ -6,3 +6,7 @@ onlyBuiltDependencies:
   - msw
 overrides:
   esbuild: 0.28.2
+  # Security floors for transitive pins (pnpm audit 2026-10-28): jsdom->undici, @nestjs/platform-fastify->fastify, ajv->fast-uri.
+  "undici@>=8.0.0 <8.12.2": 8.12.3
+  "fastify@>=5.12.2 <5.12.6": 5.12.7
+  "fast-uri@>=3.0.0 <3.1.9": 3.1.9
