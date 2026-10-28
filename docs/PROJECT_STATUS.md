@@ -1074,13 +1074,24 @@ Branch `feat/friday-finalization-20261021`, alles lokal (kein Push; Push nur als
 `test_messaging_pairing::test_qr_refresh_cancel_and_expiry_without_real_connector` ist ein Timing-Flake (einzeln je 3/3 im
 alten und neuen Stand).
 
-**Menue-Audit (DASH-18.05, `tests/e2e/menu-audit.spec.ts`, `MENU_AUDIT_REPORT=1` = nur Bericht)**: 18 Seiten,
-Selects/Comboboxen/Tablists/Menues/Dialoge inventarisiert und jede Option ausgewaehlt. Ergebnis bisher:
-- Keine Option, die sich nicht auswaehlen laesst (`option-not-selectable` = 0).
-- 18 deaktivierte Buttons ohne genannten Grund (Formular-Aktionen bei leerer Eingabe/ohne Aenderung) -> Behebung laeuft.
-- "Option ohne Wirkung" ueberwiegend Fehlalarme der Heuristik (Formularfelder in Dialogen) -> Heuristik wird korrigiert.
-- Klickfehler auf Aufgaben/Automationen/Mail: isoliert funktionieren Drawer-Escape, Bestaetigungsdialog-Escape und
-  "Adapter konfigurieren"; Ursache im Ablauf wird mit erweiterten Diagnosen eingegrenzt.
+**Menue-Audit (DASH-18.05, `tests/e2e/menu-audit.spec.ts`)**: 18 Seiten, streng (`expect(findings).toEqual([])`;
+`MENU_AUDIT_REPORT=1` = nur Bericht unter `test-results/menu-audit/<seite>.menu-audit.md`). Jede Auswahlliste,
+Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt und ihre Wirkung festgehalten.
+- N-080: 18 deaktivierte Aktionen ohne Grund -> Grund als Tooltip aus derselben Bedingung (d0f2b9d).
+- N-081: Fokus nach Bestaetigungsdialogen auf `<body>` -> explizites Rueckkehrziel im Focus-Trap (d0f2b9d, c1e24b0).
+- N-082: Gestapelte Dialoge (Bestaetigung ueber Aufgaben-Drawer) schlossen mit einem Escape gemeinsam, Tab sprang in den
+  Drawer -> Trap-Stapel, nur die oberste Ebene reagiert (c1e24b0).
+- N-083: E2E-Stack nutzte veraltete Builds; Neubau unter Windows scheiterte (c1e24b0).
+- Kalender-"Woche"-Timeout war kein Dashboard-Fehler: CPU-Profil zeigt ~30 s SwiftShader-Software-WebGL (Orb) im
+  Headless-Chromium. Der Audit laeuft daher mit 2D-Orb-Fallback (Orb hat eigene Visual-Tests); Kalender ohne Befund.
+- Oeffner werden ueber ihren zugaenglichen Namen aufgeloest und vor jedem Oeffner auf den Ausgangszustand gesetzt;
+  vorher blieben die Aufgaben-Drawer ungeprueft. Letzter Volllauf: 18/18 Seiten gruen, 216 Elemente, 8 Oeffner im Bericht
+  als uebersprungen (Eintraege, die erst in aufgeklappten Menues erscheinen oder sich durch vorige Aktionen aendern:
+  Export -> Markdown/JSON, Meldungsdetails, einzelne Kalender-/Timeline-Eintraege).
+- Gepruefte Ausnahmen (Option ohne sichtbare Wirkung, by design): Skills-Filter "Quelle: Friday", "Herkunft:
+  Friday-Paket", "Kategorie: Produktivitaet", "Status: Unbekannt" - der E2E-Katalog enthaelt genau zwei Friday-Skills dieser
+  Werte, die Filter treffen alle Zeilen ("Hermes"/"Aktiviert" filtern nachweislich).
 
-**Offen (Ledger)**: Beim Wechsel des Anbieters weg von `custom` bleibt `OPENAI_BASE_URL` in Hermes' `.env` stehen
-(kann `openai-api` umleiten) -> neue Zeile im Ledger. Danach DASH-08 (Telegram ueber Produkt-Setup), DASH-07/15/16.
+**Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
+Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
+Mikrofontests, saubere Windows-VM, Windows-Kalender.
