@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -19,6 +19,8 @@ export type ReadQueryIntent =
   | { kind: "communication.list"; status?: Array<"open" | "waiting" | "replied" | "archived">; needsReply?: boolean }
   | { kind: "agents.list"; status?: AgentStatus[] }
   | { kind: "agents.get"; id: string }
+  | { kind: "automations.list"; enabled?: boolean }
+  | { kind: "automations.get"; id: string }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -178,6 +180,24 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
       ...(statuses[0] ? { status: [statuses[0]] } : {}),
       ...(needsReply ? { needsReply: true } : {}),
     };
+  }
+  const automationArea = /\b(automationen?|automations?|zeitplaene?|zeitplan|schedules?)\b/.test(text);
+  if (automationArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Automationabfrage formulieren." };
+    if (/\b(erstelle|erstellen|aktiviere|aktivieren|deaktiviere|deaktivieren|loesche|loeschen|pausiere|pausieren|starte|starten|aendere|aendern)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Automationabfrage formulieren." };
+    const automationIds = [...input.matchAll(/\bautomation_[0-9A-Za-z]{26}\b/g)].map((match) => match[0]);
+    if (automationIds.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine Automation-Kennung." };
+    const wantsEnabled = /\b(aktiv|aktive|aktiven|aktiviert|aktivierte|aktivierten|eingeschaltet|eingeschaltete|eingeschalteten)\b/.test(text);
+    const wantsDisabled = /\b(inaktiv|inaktive|inaktiven|deaktiviert|deaktivierte|deaktivierten|ausgeschaltet|ausgeschaltete|ausgeschalteten|pausiert|pausierte|pausierten)\b/.test(text);
+    if (wantsEnabled && wantsDisabled) return { kind: "clarify", message: "Bitte entweder aktive oder deaktivierte Automationen abfragen." };
+    const enabled = wantsEnabled ? true : wantsDisabled ? false : undefined;
+    if (automationIds[0]) {
+      if (enabled !== undefined) return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Statusfilter kombiniert werden." };
+      return { kind: "automations.get", id: automationIds[0] };
+    }
+    return { kind: "automations.list", ...(enabled !== undefined ? { enabled } : {}) };
   }
   const agentArea = /\b(agenten?|agents?|assistenten?)\b/.test(text);
   if (agentArea) {
@@ -397,6 +417,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind === "calendar.list") requireReadRole(ctx, "calendar", "viewer");
   if (intent.kind === "communication.list") requireReadRole(ctx, "communication", "viewer");
   if (intent.kind.startsWith("agents.")) requireReadRole(ctx, "agents", "viewer");
+  if (intent.kind.startsWith("automations.")) requireReadRole(ctx, "automations", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -430,6 +451,18 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "automations.list": {
+      const page = await ctx.runtime.registry.getPort("automations").listAutomations({
+        limit: MAX_RESULTS,
+        ...(intent.enabled !== undefined ? { enabled: intent.enabled } : {}),
+      }, ctx.call);
+      return baseResponse(ctx, listMessage("Automationen", page.items, page.pageInfo.hasNextPage,
+        (automation: Automation) => idStatus(automation.id, `${automation.name} (${automation.enabled ? "aktiv" : "deaktiviert"})`, automation.nextRunAt ?? automation.updatedAt)));
+    }
+    case "automations.get": {
+      const automation = (await ctx.runtime.registry.getPort("automations").getAutomation({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Automation ${automation.id}: ${automation.name}, ${automation.enabled ? "aktiv" : "deaktiviert"}${automation.nextRunAt ? `, nächster Lauf ${automation.nextRunAt}` : ""}${automation.lastError ? `, letzter Fehler: ${automation.lastError}` : ""}.`);
     }
     case "agents.list": {
       const page = await ctx.runtime.registry.getPort("agents").listAgents({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}) }, ctx.call);
