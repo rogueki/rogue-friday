@@ -305,7 +305,7 @@ export class HermesConfigService {
 
   async skillMarkdown(id: string) {
     if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id))
-      throw validationFailed("Ungueltige Skill-Kennung.");
+      throw validationFailed("Ungültige Skill-Kennung.");
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
     try {
@@ -314,8 +314,8 @@ export class HermesConfigService {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("skill_md_missing")) throw notFound("Skill-Datei", id);
       if (message.includes("skill_md_too_large"))
-        throw validationFailed("Die SKILL.md ist groesser als 64 KiB und wird nicht angezeigt.");
-      if (message.includes("invalid_skill_id")) throw validationFailed("Ungueltige Skill-Kennung.");
+        throw validationFailed("Die SKILL.md ist größer als 64 KiB und wird nicht angezeigt.");
+      if (message.includes("invalid_skill_id")) throw validationFailed("Ungültige Skill-Kennung.");
       throw unavailable();
     }
     if (raw.id !== id || typeof raw.content !== "string" || raw.content.length < 1 ||

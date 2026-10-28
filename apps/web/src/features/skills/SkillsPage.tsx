@@ -11,14 +11,15 @@ import { isCurrentCatalog, unverifiedSkill } from "./catalogFreshness";
 import { PowerPointCreator } from "./PowerPointCreator";
 import { IntegrationRequirements } from "./IntegrationRequirements";
 import { SkillRegistryPanel } from "./SkillRegistryPanel";
-import { integrationSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, trustLabel, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, sourceLabel, trustLabel, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
 /** Bounds the rendered rows; the catalog can hold hundreds of skills, the detail pane still opens any of them. */
 const PAGE_SIZE = 60;
 
 function skillMarkdownId(skill: SkillCatalogEntry): string {
-  return skill.source === "hermes" && skill.id.startsWith("hermes:") ? skill.id.slice("hermes:".length) : skill.id;
+  // The markdown route takes the bare slug; the API resolves Friday package skills before asking Hermes.
+  return skill.id.replace(/^(hermes|friday):/, "");
 }
 
 function SkillDetails({ skill, canToggle, onToggle, busy, error, canCreate, showCreator }: { skill: SkillCatalogEntry; canToggle: boolean; onToggle: () => void; busy: boolean; error: string | null; canCreate: boolean; showCreator: boolean }) {
@@ -28,7 +29,7 @@ function SkillDetails({ skill, canToggle, onToggle, busy, error, canCreate, show
     <p>{skill.description}</p><p className="sk-note">{state.detail}</p>
     <section aria-label="Anleitung"><h3>Anleitung</h3><SkillMarkdown id={skillMarkdownId(skill)} /></section>
     {skill.observationError && <p role="status" className="sk-warning">Laufzeitabfrage: {skill.observationError}</p>}
-    <dl className="sk-facts"><div><dt>Herkunft</dt><dd>{originLabel(skill.origin)}</dd></div><div><dt>Trust</dt><dd>{trustLabel(skill.trust)}</dd></div><div><dt>Kategorie</dt><dd>{skill.category}</dd></div><div><dt>Paket</dt><dd>{skill.packaged ? "Enthalten" : "Nicht Teil des Friday-Pakets"}</dd></div><div><dt>Hermes</dt><dd>{skill.discovered === null ? "Unbekannt" : skill.discovered ? "Gefunden" : "Nicht gefunden"}</dd></div><div><dt>Beobachtet</dt><dd>{skill.observedAt ? new Date(skill.observedAt).toLocaleString("de-DE") : "Noch nie"}</dd></div><div><dt>Quelle</dt><dd>{skill.observationSource || "Unbekannt"}</dd></div><div><dt>Ausführbar</dt><dd>Nicht geprüft</dd></div></dl>
+    <dl className="sk-facts"><div><dt>Herkunft</dt><dd>{originLabel(skill.origin)}</dd></div><div><dt>Trust</dt><dd>{trustLabel(skill.trust)}</dd></div><div><dt>Kategorie</dt><dd>{skill.category}</dd></div><div><dt>Paket</dt><dd>{skill.packaged ? "Enthalten" : "Nicht Teil des Friday-Pakets"}</dd></div><div><dt>Hermes</dt><dd>{skill.discovered === null ? "Unbekannt" : skill.discovered ? "Gefunden" : "Nicht gefunden"}</dd></div><div><dt>Beobachtet</dt><dd>{skill.observedAt ? new Date(skill.observedAt).toLocaleString("de-DE") : "Noch nie"}</dd></div><div><dt>Quelle</dt><dd>{sourceLabel(skill.observationSource)}</dd></div><div><dt>Ausführbar</dt><dd>Nicht geprüft</dd></div></dl>
     {skill.requiredCapabilities.length > 0 && <section><h3>Benötigte Fähigkeiten</h3><p>{skill.requiredCapabilities.join(" · ")}</p></section>}
     {skill.conditionalCapabilities.length > 0 && <section><h3>Je nach Nutzung</h3><p>{skill.conditionalCapabilities.join(" · ")}</p></section>}
     {skill.integrationDetails.length > 0 && <section><h3>Konten und Einrichtung</h3><ul className="sk-integrations">{skill.integrationDetails.map((item) => {

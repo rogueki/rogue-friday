@@ -92,9 +92,10 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   },
   async getSkillMarkdown(ctx) {
     const id = ctx.pathParams.id ?? "";
-    const result = await ctx.runtime.hermesConfig.skillMarkdown(id);
+    const friday = ctx.runtime.skills.fridayMarkdown(id);
+    const result = friday ?? await ctx.runtime.hermesConfig.skillMarkdown(id);
     ctx.audit.action = "skills.markdown_read";
-    ctx.audit.after = { id, bytes: result.bytes };
+    ctx.audit.after = { id, bytes: result.bytes, source: friday ? "friday" : "hermes" };
     return { status: 200, body: single(result) };
   },
   async createPowerPointDeck(ctx) {

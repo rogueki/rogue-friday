@@ -24,6 +24,24 @@ it("serves SKILL.md text to the owner only and never renders HTML", async () => 
   }
 });
 
+it("serves a Friday SKILL.md from the package checkout instead of the Hermes folders", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    vi.spyOn(api.runtime.skills, "fridayMarkdown").mockReturnValue({
+      id: "demo", content: "# Friday\n", bytes: 9,
+    });
+    const hermes = vi.spyOn(api.runtime.hermesConfig, "skillMarkdown");
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const result = await owner.get(path);
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data.content).toBe("# Friday\n");
+    expect(hermes).not.toHaveBeenCalled();
+  } finally {
+    await api.close();
+  }
+});
+
 it("explains a missing SKILL.md as 404 instead of an empty document", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

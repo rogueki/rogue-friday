@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SkillCatalogEntry } from "@friday/sdk";
-import { integrationSetupLink, internalSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, trustLabel, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, internalSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, sourceLabel, trustLabel, visibleSkills } from "./skillPresentation";
 import { clearOnboardingSnooze, isOnboardingSnoozed, snoozeOnboarding } from "./onboardingSnooze";
 
 const base = { discovered: true, enabled: true } as SkillCatalogEntry;
@@ -11,6 +11,13 @@ describe("skill status presentation", () => {
     expect(skillState(base).detail).toContain("nicht geprüft");
     expect(skillState({ ...base, discovered: null, enabled: null }).label).toBe("Laufzeit unbekannt");
     expect(skillState({ ...base, discovered: false, enabled: null }).label).toBe("Nicht gefunden");
+  });
+
+  it("names the observation source in German and keeps unknown tokens", () => {
+    expect(sourceLabel("unavailable")).toBe("Nicht erreichbar");
+    expect(sourceLabel("registry")).toBe("Friday-Register");
+    expect(sourceLabel("skills.sh")).toBe("skills.sh");
+    expect(sourceLabel("")).toBe("Unbekannt");
   });
 
   it("only turns known settings targets and HTTPS references into links", () => {

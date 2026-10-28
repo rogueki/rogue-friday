@@ -13,9 +13,17 @@ const TRUST_LABELS: Record<string, string> = {
   community: "Community", unknown: "Unbekannt",
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  registry: "Friday-Register", "hermes-dashboard": "Hermes-Dashboard", "hermes-cli": "Hermes-CLI",
+  unavailable: "Nicht erreichbar",
+};
+
 /** Origin is where the skill lives; trust is what lets Hermes load it. Both stay separate from activation. */
 export const originLabel = (origin: SkillCatalogEntry["origin"]): string => ORIGIN_LABELS[origin] ?? origin;
 export const trustLabel = (trust: SkillCatalogEntry["trust"]): string => TRUST_LABELS[trust] ?? trust;
+
+/** Where the observed state came from; unknown tokens stay verbatim like origin and trust. */
+export const sourceLabel = (source: string | null | undefined): string => (source ? SOURCE_LABELS[source] ?? source : "Unbekannt");
 
 export function skillState(skill: SkillCatalogEntry): { label: string; tone: "green" | "amber" | "red"; detail: string } {
   if (skill.discovered === false) return { label: "Nicht gefunden", tone: "red", detail: "Im Paket enthalten, aber in der laufenden Hermes-Instanz nicht gefunden." };

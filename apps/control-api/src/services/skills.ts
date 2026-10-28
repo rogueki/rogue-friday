@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { AdapterConfigSettings, SkillCatalogEntry } from "@friday/sdk";
 import type { CodingCliStatus } from "./coding-runs";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
@@ -456,6 +456,49 @@ export class SkillsService {
     skills.sort((a, b) => a.id.localeCompare(b.id));
     if (catalog.error) for (const skill of skills) skill.observationError = [skill.observationError, catalog.error].filter(Boolean).join("; ");
     return { skills, fresh: observation.error === null && catalog.error === null, catalogError: catalog.error, hermesError: observation.error };
+  }
+
+  /** SKILL.md of a Friday package skill, read from the package checkout; null when the id is not a Friday skill. */
+  fridayMarkdown(id: string): { id: string; content: string; bytes: number } | null {
+    if (!this.catalogPath) return null;
+    const path = resolve(this.catalogPath);
+    const setupPath = path.endsWith(".json") ? path : join(path, "integration_setup.json");
+    const registryPath = join(dirname(setupPath), "skills.json");
+    let registry: Json;
+    try {
+      registry = JSON.parse(readFileSync(registryPath, "utf8")) as Json;
+    } catch {
+      // catalog() already reports an unreadable register; a markdown lookup only needs to find nothing here.
+      return null;
+    }
+    const rawSkills = (registry.skills ?? registry) as Json;
+    if (!rawSkills || typeof rawSkills !== "object") return null;
+    const entries = Array.isArray(rawSkills) ? rawSkills.map((value, index) => [String(index), value] as const) : Object.entries(rawSkills);
+    let meta: Json | null = null;
+    for (const [key, raw] of entries) {
+      const entry = (raw ?? {}) as Json;
+      if (slug(field(entry, "id", "name", "slug") || key) === id) { meta = entry; break; }
+    }
+    if (!meta) return null;
+    const rel = field(meta, "path");
+    // The register lives in <root>/registry and names each SKILL.md relative to <root>.
+    const root = dirname(dirname(registryPath));
+    const file = resolve(root, rel);
+    const fromRoot = relative(root, file);
+    if (!rel || fromRoot.startsWith("..") || isAbsolute(fromRoot) || basename(file) !== "SKILL.md")
+      throw notFound("Anleitung zum Skill", id);
+    let size = 0;
+    let regular = false;
+    try {
+      const stats = lstatSync(file);
+      const real = relative(realpathSync(root), realpathSync(file));
+      regular = stats.isFile() && !stats.isSymbolicLink() && !real.startsWith("..") && !isAbsolute(real);
+      size = stats.size;
+    } catch { /* A missing file is a missing Anleitung, not an adapter failure. */ }
+    if (!regular) throw notFound("Anleitung zum Skill", id);
+    if (size > 65536) throw validationFailed("Die SKILL.md ist größer als 64 KiB und wird nicht angezeigt.");
+    const content = readFileSync(file, "utf8");
+    return { id, content, bytes: Buffer.byteLength(content, "utf8") };
   }
 
   async toggle(id: string, enabled: boolean): Promise<SkillCatalogEntry> {
