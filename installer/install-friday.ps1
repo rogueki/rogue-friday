@@ -85,6 +85,8 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\download-integrity.ps1')
 # Auswertung der wslpath-Antwort: Warnzeilen filtern, erst danach den Exitcode bewerten.
 . (Join-Path $PSScriptRoot 'lib\wsl-path.ps1')
+# Globale .wslconfig: vorhandene Einstellungen erhalten, fremde Distributionen nicht herunterfahren.
+. (Join-Path $PSScriptRoot 'lib\wsl-config.ps1')
 # Dashboard-Quellen: Inhaltshash und Kopie ins Ziel (kanonischer Stand, keine Build-Ausgaben).
 . (Join-Path $PSScriptRoot 'lib\dashboard-sync.ps1')
 # Dashboard-Sicherung: Manifest mit Pruefsummen, pruefbare Wiederherstellung inklusive Datenbank.
@@ -1644,17 +1646,21 @@ if (-not (IsDone 'persona')) {
 if (-not (IsDone 'wslconfig')) {
     Enter-Step 'wslconfig'
     Title 'Schritt 6/15 – WSL-Ressourcen festlegen'
-    $mem = [math]::Max(4, [math]::Min(16, [math]::Floor($State.ram_gb / 2)))
-    $cpu = [math]::Max(2, [math]::Min(10, $State.cores - 2))
     $cfgFile = "$env:USERPROFILE\.wslconfig"
-    if (Test-Path $cfgFile) { Copy-Item $cfgFile "$Root\backups\.wslconfig.bak-$(Get-Date -Format yyyyMMdd-HHmmss)" }
-    $lines = @('[wsl2]', "memory=$($mem)GB", "processors=$cpu", 'swap=8GB', 'localhostForwarding=true')
-    if ($State.build -ge 22621) { $lines += @('networkingMode=mirrored', 'dnsTunneling=true', 'firewall=true') }
-    else { Warn 'Windows-Build < 22621: "mirrored networking" nicht verfügbar – Windows erreicht WSL-Dienste evtl. nur eingeschränkt.' }
-    $lines += @('', '[experimental]', 'autoMemoryReclaim=gradual')
-    Set-Content -Path $cfgFile -Value $lines -Encoding Ascii
-    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--shutdown') -TimeoutSeconds 120 | Out-Null
-    Ok "WSL: $mem GB RAM, $cpu Threads, 8 GB Swap."
+    $plan = Get-WslConfigPlan -ConfigPath $cfgFile -RunningDistros (Get-RunningWslDistros) -Distro $Distro
+    if (-not $plan.Write) {
+        Ok 'Vorhandene .wslconfig bleibt unveraendert (gilt fuer alle WSL-Distributionen).'
+    } else {
+        $lines = Get-FridayWslConfigLines -RamGb $State.ram_gb -Cores $State.cores -Build $State.build
+        if ($State.build -lt 22621) { Warn 'Windows-Build < 22621: "mirrored networking" nicht verfügbar – Windows erreicht WSL-Dienste evtl. nur eingeschränkt.' }
+        Set-Content -Path $cfgFile -Value $lines -Encoding Ascii
+        if ($plan.Shutdown) {
+            Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--shutdown') -TimeoutSeconds 120 | Out-Null
+            Ok "WSL-Ressourcen gesetzt: $($lines[1]), $($lines[2]), 8 GB Swap."
+        } else {
+            Warn 'Andere WSL-Distributionen laufen: die neue .wslconfig gilt erst nach dem naechsten WSL-Neustart; WSL wird nicht heruntergefahren.'
+        }
+    }
     MarkDone 'wslconfig'
 }
 
