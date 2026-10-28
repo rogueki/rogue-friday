@@ -1482,6 +1482,10 @@ def locked_main(home, source, cli):
                 if key == "model.base_url":
                     # Hermes binds OPENAI_API_KEY only to the OPENAI_BASE_URL host, so both must name the same endpoint.
                     apply_env_value(home, source, "OPENAI_BASE_URL", value)
+                if key == "model.provider" and str(value).strip().lower() != "custom" and \
+                        str(nested(_raw_before, "model.provider") or "").strip().lower() == "custom":
+                    # The OPENAI_BASE_URL binding belongs to the custom endpoint; left behind it would send a later OpenAI key there.
+                    apply_env_value(home, source, "OPENAI_BASE_URL", None)
                 if key == "browser.use_real_profile" and value is False:
                     # Revocation must remove credential snapshots now, rather
                     # than waiting for the next browser tool invocation.

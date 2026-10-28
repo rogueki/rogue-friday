@@ -586,6 +586,31 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual((self.home / ".hermes" / ".env").read_text(),
                          "OPENAI_BASE_URL=https://llm.example.test/v1\n")
 
+    def test_leaving_custom_provider_removes_base_url_binding(self):
+        import yaml
+        raw = yaml.safe_load(self.config.read_text())
+        raw["model"]["provider"] = "custom"
+        self.config.write_text(yaml.safe_dump(raw))
+        self.values["model.provider"] = "custom"
+        env_path = self.home / ".hermes" / ".env"
+        env_path.write_text("OPENAI_BASE_URL=https://llm.example.test/v1\n")
+        code, result = self.invoke({"key": "model.provider", "value": "openrouter",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(len([command for command in self.calls if command[0] == "credential-worker"]), 1)
+        self.assertEqual(env_path.read_text(), "")
+        raw = yaml.safe_load(self.config.read_text())
+        raw["model"]["provider"] = "openrouter"
+        self.config.write_text(yaml.safe_dump(raw))
+        self.values["model.provider"] = "openrouter"
+        env_path.write_text("OPENAI_BASE_URL=https://llm.example.test/v1\n")
+        self.calls.clear()
+        code, result = self.invoke({"key": "model.provider", "value": "anthropic",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertFalse(any(command[0] == "credential-worker" for command in self.calls))
+        self.assertEqual(env_path.read_text(), "OPENAI_BASE_URL=https://llm.example.test/v1\n")
+
     def test_model_base_url_requires_https_or_loopback(self):
         for value in ("https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
                       "http://127.0.0.1:11434/v1", "http://localhost:8080/v1", "http://[::1]:8000/v1"):

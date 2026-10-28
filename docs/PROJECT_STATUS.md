@@ -1054,3 +1054,33 @@ Registrierungen auf), N-054 (`diff` nur fuer getrackte Skills, unser 503 verschw
 - Sieben nur im Betrieb sichtbare Defekte gefunden und behoben: origin external (N-064), Runner-Limit 35 s (N-065), zwei Budgets unter der realen CLI-Laufzeit (N-066/N-067), UTF-8-BOM auf stdin (N-068), Fehlertexte ohne Grund (N-069), Budgets ohne Abstand (N-070). Commits e809244 (Code) und 2de834f (Doku).
 - DASH-10.06 bleibt TEIL: kein Hub-Skill auf dem Profil, Neustart-Gleichheit und fehlendes Laufwerk nicht live, Operator-System ohne FRIDAY_SKILLS_CATALOG_PATH.
 - Naechster Schritt: Neustart-Readback und Fehlerfall "Laufwerk fehlt" am selben Aufbau; danach restliche Abschnitte 8.1.
+
+## 2026-10-28 Finalisierung fortgesetzt: Vorstand geprueft, Installer-Regressionen, Basis-URL, Menue-Audit
+
+Branch `feat/friday-finalization-20261021`, alles lokal (kein Push; Push nur als `rogueki` nach Ankuendigung).
+
+| Einheit | Stand | Beleg |
+|---|---|---|
+| Testisolation Node (ffc2a4f, bbb495f) | PASS | Host-Installationsvariablen beeinflussen keine Tests mehr; 120-s-Limit am Scan |
+| Next 16.4.3 + transitive Sicherheitsuntergrenzen (97bd4bb) | PASS | Build/Gates gruen |
+| DASH-18.03 TEIL 5/6 Sprache: Automationen, Gedaechtnis/Recherche (45e9143, a4252a4) | PASS | Unit-Tests |
+| I-004 globale `.wslconfig` erhalten, kein Shutdown neben fremden Distros (c0d8879) | CLOSED_VERIFIED | `wsl-config.Tests.ps1` 23 Checks; Live-Probe FRIDAY-2 -> Plan `existing` |
+| INS-10-Regressionen I-007/009/011/023/027/046, N-006 (e66dd8a) | CLOSED_VERIFIED | `ins10-regressions.Tests.ps1` 22 Checks (Mutationsprobe), `test_persona_soul.py` |
+| N-077 Installer setzt `model.base_url` fuer `custom` (e31d660) | CLOSED_VERIFIED | `test_setup_hermes_base_url.py` 3 OK in WSL, Gegenprobe rot |
+| N-078 Bridge-Regression (`snapshot` verdeckt, stdin ohne `.buffer`) (51fafd8) | CLOSED_VERIFIED | Bridge-Tests 47 gruen (vorher 51 rot) |
+| N-076 Basis-URL im Dashboard (51fafd8, d4dc177, a7fc0d6) | FIXED_PROVEN_CODE | Contract + API `validBaseUrl` + UI-Feld mit Sperrgrund; hermes-config 39, HermesConfigArea 2 (Gegenprobe), Bridge/Credential 49 |
+
+**CI-Python-Liste unter CI-Bedingungen (WSL, frisches HOME)**: 281 passed, 7 skipped; einziger verbleibender Ausreisser
+`test_messaging_pairing::test_qr_refresh_cancel_and_expiry_without_real_connector` ist ein Timing-Flake (einzeln je 3/3 im
+alten und neuen Stand).
+
+**Menue-Audit (DASH-18.05, `tests/e2e/menu-audit.spec.ts`, `MENU_AUDIT_REPORT=1` = nur Bericht)**: 18 Seiten,
+Selects/Comboboxen/Tablists/Menues/Dialoge inventarisiert und jede Option ausgewaehlt. Ergebnis bisher:
+- Keine Option, die sich nicht auswaehlen laesst (`option-not-selectable` = 0).
+- 18 deaktivierte Buttons ohne genannten Grund (Formular-Aktionen bei leerer Eingabe/ohne Aenderung) -> Behebung laeuft.
+- "Option ohne Wirkung" ueberwiegend Fehlalarme der Heuristik (Formularfelder in Dialogen) -> Heuristik wird korrigiert.
+- Klickfehler auf Aufgaben/Automationen/Mail: isoliert funktionieren Drawer-Escape, Bestaetigungsdialog-Escape und
+  "Adapter konfigurieren"; Ursache im Ablauf wird mit erweiterten Diagnosen eingegrenzt.
+
+**Offen (Ledger)**: Beim Wechsel des Anbieters weg von `custom` bleibt `OPENAI_BASE_URL` in Hermes' `.env` stehen
+(kann `openai-api` umleiten) -> neue Zeile im Ledger. Danach DASH-08 (Telegram ueber Produkt-Setup), DASH-07/15/16.
