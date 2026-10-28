@@ -4,7 +4,7 @@ import { isFridayApiError } from "@friday/sdk";
 import { ConfirmDialog, useToast } from "@friday/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { queryKeys } from "@/lib/api/queryKeys";
@@ -43,15 +43,19 @@ interface PendingStagedWrite {
 interface StagedWriteStore {
   pending: PendingStagedWrite | null;
   busy: boolean;
+  returnFocus: HTMLElement | null;
   setPending: (pending: PendingStagedWrite | null) => void;
   setBusy: (busy: boolean) => void;
+  setReturnFocus: (returnFocus: HTMLElement | null) => void;
 }
 
 const useStagedWriteStore = create<StagedWriteStore>((set) => ({
   pending: null,
   busy: false,
+  returnFocus: null,
   setPending: (pending) => set({ pending }),
   setBusy: (busy) => set({ busy }),
+  setReturnFocus: (returnFocus) => set({ returnFocus }),
 }));
 
 /** True while a staged write is in flight (staging or confirming). */
@@ -89,9 +93,17 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
   const queryClient = useQueryClient();
   const setPending = useStagedWriteStore((s) => s.setPending);
   const setBusy = useStagedWriteStore((s) => s.setBusy);
+  const setReturnFocus = useStagedWriteStore((s) => s.setReturnFocus);
 
   return useCallback(
     async (write) => {
+      if (useStagedWriteStore.getState().pending === null) {
+        setReturnFocus(
+          document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+            ? document.activeElement
+            : null,
+        );
+      }
       setBusy(true);
       try {
         const response = await write.send();
@@ -148,7 +160,7 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
         setBusy(false);
       }
     },
-    [queryClient, router, setBusy, setPending, t, toast],
+    [queryClient, router, setBusy, setPending, setReturnFocus, t, toast],
   );
 }
 
@@ -162,6 +174,18 @@ export function StagedWriteConfirmHost() {
   const busy = useStagedWriteStore((s) => s.busy);
   const setPending = useStagedWriteStore((s) => s.setPending);
   const setBusy = useStagedWriteStore((s) => s.setBusy);
+  const setReturnFocus = useStagedWriteStore((s) => s.setReturnFocus);
+  const previousPending = useRef(pending);
+
+  useEffect(() => {
+    const previous = previousPending.current;
+    previousPending.current = pending;
+    if (previous === null || pending !== null) return;
+    // The trigger was disabled while the write was staged, so the dialog's focus trap could only remember <body>.
+    const target = useStagedWriteStore.getState().returnFocus;
+    setReturnFocus(null);
+    if (target) window.setTimeout(() => { if (target.isConnected && !target.matches(":disabled")) target.focus({ preventScroll: true }); }, 300);
+  }, [pending, setReturnFocus]);
 
   const confirm = async (): Promise<void> => {
     if (!pending) return;

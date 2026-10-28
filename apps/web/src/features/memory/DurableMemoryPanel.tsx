@@ -52,6 +52,8 @@ export function DurableMemoryPanel() {
   const changeSettings = (change: Partial<DurableMemorySettings>) => {
     if (settings) setSettingsDraft({ ...settings, ...change });
   };
+  const saveSettingsBlocked = !settingsDraft ? "Keine geänderten Einstellungen." : undefined;
+  const searchBlocked = !term.trim() ? "Zuerst einen Suchbegriff eingeben." : undefined;
   return <HudPanel title="Obsidian-Gedächtnis" subtitle="Dauerhaftes Gesprächsarchiv" className="mem-durable">
     {status.isPending && <p role="status">Gedächtnisstatus wird geladen …</p>}
     {status.isError && <p role="alert">Gedächtnisstatus nicht erreichbar.</p>}
@@ -84,14 +86,14 @@ export function DurableMemoryPanel() {
             changeSettings({ channels: { ...settings.channels, [channel]: enabled } })} />)}
       </div>
       <p className="mem-durable__note">Aufbewahrung: unbegrenzt. Ausgeschlossen: private Eingaben, „nicht speichern“, erkannte Zugangsdaten-Muster und Roh-Audio. Bereits gesicherte Einträge bleiben bei Deaktivierung erhalten.</p>
-      <div className="mem-durable__actions"><Button type="submit" size="sm" disabled={!settingsDraft} loading={saveSettings.isPending}>Einstellungen speichern</Button></div>
+      <div className="mem-durable__actions"><Button type="submit" size="sm" disabled={saveSettingsBlocked !== undefined} title={saveSettingsBlocked} loading={saveSettings.isPending}>Einstellungen speichern</Button></div>
       {saveSettings.isError && <p role="alert">Gedächtniseinstellungen konnten nicht gespeichert werden.</p>}
     </form>}
     <form className="mem-durable__section" onSubmit={(event) => { event.preventDefault(); setSearchTerm(term.trim()); }}>
       <h3>Gesprächsarchiv</h3>
       <div className="mem-durable__search">
         <TextField id="durable-memory-search" label="Gesprächsarchiv durchsuchen" value={term} onChange={(event) => setTerm(event.target.value)} />
-        <Button type="submit" size="sm" disabled={!term.trim()}>Suchen</Button>
+        <Button type="submit" size="sm" disabled={searchBlocked !== undefined} title={searchBlocked}>Suchen</Button>
       </div>
     </form>
     {search.isPending && searchTerm && <p role="status">Suche läuft …</p>}

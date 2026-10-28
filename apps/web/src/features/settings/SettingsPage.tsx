@@ -129,6 +129,14 @@ function SaveBar() {
   const { settings, readOnly, dirtyAreas, externalDirty, discard, save, saving, saveError, conflicts, resolveConflicts } = useSettingsDrafts();
   const label = (area: string): string => t(`settings.area.${area}` as MessageKey);
   const dirty = dirtyAreas.length > 0;
+  const discardBlocked = saving ? t("settings.blocked.saving") : !dirty ? t("settings.blocked.clean") : undefined;
+  const saveBlocked = readOnly
+    ? t("settings.blocked.readOnly")
+    : conflicts.length > 0
+      ? t("settings.blocked.conflicts")
+      : !dirty
+        ? t("settings.blocked.clean")
+        : undefined;
   return (
     <section className="st-savebar" aria-label={t("settings.save.region")} data-dirty={dirty || undefined}>
       <div className="st-savebar__status" role="status" aria-live="polite">
@@ -164,10 +172,10 @@ function SaveBar() {
         </p>
       ) : null}
       <div className="st-savebar__actions">
-        <Button type="button" variant="ghost" icon={<Undo2 size={15} />} disabled={!dirty || saving} onClick={() => discard()}>
+        <Button type="button" variant="ghost" icon={<Undo2 size={15} />} disabled={discardBlocked !== undefined} title={discardBlocked} onClick={() => discard()}>
           {t("settings.discardAll")}
         </Button>
-        <Button type="button" icon={<Save size={15} />} loading={saving} disabled={readOnly || !dirty || conflicts.length > 0} onClick={() => void save()}>
+        <Button type="button" icon={<Save size={15} />} loading={saving} disabled={saveBlocked !== undefined} title={saveBlocked} onClick={() => void save()}>
           {t("settings.save")}
         </Button>
       </div>

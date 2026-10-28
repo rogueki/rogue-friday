@@ -20,6 +20,7 @@ export function SkillRegistryPanel() {
   const names = modified.data?.data.names ?? [];
   const [diffName, setDiffName] = useState<string | null>(null);
   const [report, setReport] = useState<{ action: "inspect" | "audit"; identifier: string } | null>(null);
+  const searchBlocked = search.isFetching ? "Suche läuft gerade …" : draft.trim().length === 0 ? "Zuerst einen Suchbegriff eingeben." : undefined;
   return <section className="sk-registry" aria-labelledby="sk-registry-title">
     <div className="sk-registry__head">
       <h2 id="sk-registry-title">Registry durchsuchen</h2>
@@ -30,7 +31,7 @@ export function SkillRegistryPanel() {
       <label htmlFor="sk-registry-query">Suchbegriff</label>
       <input id="sk-registry-query" type="search" value={draft} maxLength={120}
         placeholder="z. B. calendar" onChange={(event) => setDraft(event.target.value)} />
-      <Button type="submit" disabled={draft.trim().length === 0 || search.isFetching}>
+      <Button type="submit" disabled={searchBlocked !== undefined} title={searchBlocked}>
         {search.isFetching ? "Suche läuft" : "Suchen"}
       </Button>
     </form>

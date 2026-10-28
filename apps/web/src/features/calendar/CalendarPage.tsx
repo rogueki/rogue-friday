@@ -119,6 +119,7 @@ function CalendarPageInner() {
   const zoneName = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const offset = offsetLabel(tzOffsetMinutes(now, timeZone));
   const label = t("calendar.viewLabel", { view: t(viewKey(view)), range: rangeLabel });
+  const todayBlocked = civilKey(focus) === civilKey(today) ? t("calendar.todayActive") : undefined;
 
   const propose = (type: CalendarProposalType, event: CalendarEvent): void => setProposal({ type, eventId: event.id });
 
@@ -151,7 +152,7 @@ function CalendarPageInner() {
             </div>
             <div className="cal-nav" role="group" aria-label={t("calendar.navigate")}>
               <IconButton label={t("calendar.previous")} icon={<ChevronLeft size={16} strokeWidth={1.5} />} size="sm" onClick={() => step(-1)} />
-              <Button size="sm" variant="ghost" onClick={() => setDateParam(null)} disabled={civilKey(focus) === civilKey(today)}>
+              <Button size="sm" variant="ghost" onClick={() => setDateParam(null)} disabled={todayBlocked !== undefined} title={todayBlocked}>
                 {t("calendar.today")}
               </Button>
               <IconButton label={t("calendar.next")} icon={<ChevronRight size={16} strokeWidth={1.5} />} size="sm" onClick={() => step(1)} />

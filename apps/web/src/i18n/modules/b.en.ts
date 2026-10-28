@@ -433,6 +433,7 @@ export const enB: Record<keyof typeof deB, string> = {
   "calendar.previous": "Previous",
   "calendar.next": "Next",
   "calendar.today": "Today",
+  "calendar.todayActive": "The view already shows today.",
   "calendar.weekShort": "Week {week}",
   "calendar.agenda.range": "From {from}, {days} days",
   "calendar.viewLabel": "{view}: {range}",

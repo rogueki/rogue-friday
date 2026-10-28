@@ -253,6 +253,7 @@ export const en: Record<keyof typeof de, string> = {
   "task.create.priority": "Priority",
   "task.create.submit": "Create task",
   "task.create.unavailable": "Creating tasks is not available in the current setup.",
+  "task.create.titleRequired": "Enter a title first.",
   "task.created": "Task created",
   "priority.P0": "Critical",
   "priority.P1": "Urgent",

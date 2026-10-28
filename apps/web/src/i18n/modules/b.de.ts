@@ -431,6 +431,7 @@ export const deB = {
   "calendar.previous": "Zurück",
   "calendar.next": "Weiter",
   "calendar.today": "Heute",
+  "calendar.todayActive": "Die Ansicht zeigt bereits heute.",
   "calendar.weekShort": "KW {week}",
   "calendar.agenda.range": "Ab {from}, {days} Tage",
   "calendar.viewLabel": "{view}: {range}",

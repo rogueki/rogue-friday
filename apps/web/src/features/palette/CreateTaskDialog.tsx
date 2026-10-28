@@ -47,6 +47,12 @@ export function CreateTaskDialog() {
     } finally { setBusy(false); }
   };
 
+  const createBlocked = !canCreate
+    ? t("task.create.unavailable")
+    : title.trim().length === 0
+      ? t("task.create.titleRequired")
+      : undefined;
+
   return (
     <Dialog
       open={open}
@@ -61,7 +67,7 @@ export function CreateTaskDialog() {
           <Button variant="ghost" onClick={() => setOpen(false)}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" onClick={() => void submit()} loading={busy} disabled={!canCreate || title.trim().length === 0}>
+          <Button variant="primary" onClick={() => void submit()} loading={busy} disabled={createBlocked !== undefined} title={createBlocked}>
             {t("task.create.submit")}
           </Button>
         </>

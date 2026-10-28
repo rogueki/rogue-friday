@@ -310,6 +310,7 @@ function FilterForm({ form, onChange, onReset, dirty }: { form: FormState; onCha
   const text = (key: TextFilterKey, labelKey: MessageKey, placeholderKey?: MessageKey) => (
     <TextField label={t(labelKey)} value={form[key]} placeholder={placeholderKey ? t(placeholderKey) : undefined} onChange={(event) => onChange({ [key]: event.target.value })} />
   );
+  const resetBlocked = dirty ? undefined : t("audit.filter.resetIdle");
   return (
     <form className="au-filters" role="search" aria-label={t("audit.filter.title")} onSubmit={(event) => event.preventDefault()}>
       {text("action", "audit.filter.action", "audit.filter.actionPlaceholder")}
@@ -354,7 +355,7 @@ function FilterForm({ form, onChange, onReset, dirty }: { form: FormState; onCha
       <TextField type="datetime-local" label={t("audit.filter.from")} value={form.from} onChange={(event) => onChange({ from: event.target.value })} />
       <TextField type="datetime-local" label={t("audit.filter.to")} value={form.to} onChange={(event) => onChange({ to: event.target.value })} />
       <div className="au-filters__reset">
-        <Button size="sm" variant="ghost" icon={<RotateCcw size={13} strokeWidth={1.5} />} disabled={!dirty} onClick={onReset}>
+        <Button size="sm" variant="ghost" icon={<RotateCcw size={13} strokeWidth={1.5} />} disabled={resetBlocked !== undefined} title={resetBlocked} onClick={onReset}>
           {t("audit.filter.reset")}
         </Button>
       </div>
