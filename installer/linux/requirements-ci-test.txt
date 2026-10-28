@@ -5,5 +5,5 @@ scikit-learn==1.9.1
 websockets==16.0
 pytest==9.1.1
 PyYAML==6.0.3
-mcp==2.0.0
+mcp==2.2.0
 httpx2==2.12.0
