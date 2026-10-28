@@ -66,7 +66,7 @@ touch "$H/.env" && chmod 600 "$H/.env"
 # ist z. B. kein Katalogeintrag, sondern ein Alias, den der Runtime-Resolver auf einen
 # Aggregator abbildet. OAuth-Anbieter sind im Installer nicht anmeldbar und werden deshalb
 # sichtbar abgelehnt statt halb eingerichtet.
-CAPS="$(printf '{"names": ["%s"]}' "$PROVIDER" | python3 "$FRIDAY_INSTALLER/wsl/hermes_config_bridge.py" provider-auth 2>/dev/null)" || CAPS=""
+CAPS="$(printf '{"names": ["%s"]}' "$PROVIDER" | python3 "$INST/wsl/hermes_config_bridge.py" provider-auth 2>/dev/null)" || CAPS=""
 RESOLVED="$(printf '%s' "$CAPS" | python3 -c 'import json, sys
 try:
     entry = json.load(sys.stdin)["providers"][0]
@@ -129,6 +129,11 @@ fi
 unset KEY
 hermes config set model.provider "$PROVIDER"
 hermes config set model.default "$MODEL"
+if [ "$PROVIDER" = "custom" ]; then
+    # Hermes waehlt den Endpunkt eines eigenen Anbieters nur ueber model.base_url; die Env-Basis-URL bindet
+    # lediglich den API-Key an diesen Host. Beide muessen deshalb auf dieselbe URL zeigen.
+    hermes config set model.base_url "$BASE_URL"
+fi
 printf 'ANBIETER=%s MODELL=%s\n' "$PROVIDER" "$MODEL"
 case "$PROVIDER" in
     anthropic|kimi-coding)
