@@ -1102,6 +1102,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   werden per `workflow_dispatch capture_baselines` erzeugt und vor dem Commit Bild fuer Bild geprueft. Die geaenderte
   Kommunikationsseite (Rohformulare 'Mail Postfach'/'Messenger-Nachricht' und Anbietername ersetzt) ist beabsichtigt.
 
+- PR-CI auf c2544d2 vollstaendig gruen (Gates, Python, 12/12 E2E inkl. neuer Linux-Baselines). Offen N-092
+  (Quell-Badge auf Aufgabenkarten bricht um) und N-093 (CI-Wiederholungen durch haengende Chromium-GPU-Prozesse;
+  Vorschlag 2D-Orb-Fallback ausserhalb der Orb-Spezifikationen). Menue-Audit wartet bis 2 s auf Reiterauswahl (3b28762).
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
