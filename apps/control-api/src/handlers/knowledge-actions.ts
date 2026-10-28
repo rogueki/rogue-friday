@@ -280,6 +280,8 @@ export const knowledgeActionHandlers: Partial<Record<OperationId, Handler>> = {
       });
     ctx.audit.action = "memory.deleted";
     ctx.audit.severity = "warning";
+    // The trail must show what was forgotten without keeping the forgotten text itself.
+    if (write.action.kind === "memory.delete") ctx.audit.before = { id: write.action.id, title: write.action.title };
     if (forgotten.outcome) return { status: 200, body: forgotten.outcome };
     // A replayed confirmation after completion finds the entry gone; the stored draft still proves the exact action.
     const stored = ctx.runtime.nativeApprovals.readAction(ownerId, previewId);

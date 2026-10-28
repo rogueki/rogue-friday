@@ -206,6 +206,9 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   const memoryArea = /\b(memory|memories|gedaechtnis|gedaechtnisses|gedaechtniseintrag|gedaechtniseintraege|wissenseintrag|wissenseintraege)\b/.test(text);
   const researchArea = /\b(recherche|recherchen|rechercheprojekt|rechercheprojekte|research|forschungsprojekt|forschungsprojekte)\b/.test(text);
   if (memoryArea) {
+    // A content search ("suche im gedaechtnis nach lieferzeit") is the dedicated memory search with its own result
+    // view; this parser only lists or reads entries.
+    if (/\b(suche|such|finde|durchsuche|search|find)\b/.test(text)) return null;
     if (otherFamilies.length > 0 || researchArea)
       return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Gedächtnisabfrage formulieren." };
     if (/\b(merke|merken|speichere|speichern|vergiss|vergessen|loesche|loeschen|aendere|aendern|bestaetige|bestaetigen|anheften|anpinnen)\b/.test(text))

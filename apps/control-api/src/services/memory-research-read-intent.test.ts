@@ -12,6 +12,12 @@ describe("spoken memory reads", () => {
     expect(parseReadQueryIntent("zeige meine fakten und personen im gedaechtnis")).toEqual({ kind: "memory.list", type: ["fact", "person"] });
   });
 
+  it("leaves content searches to the memory search command", () => {
+    expect(parseReadQueryIntent("Suche im Gedächtnis nach Lieferzeit")).toBeNull();
+    expect(parseReadQueryIntent("finde im gedaechtnis lieferzeiten")).toBeNull();
+    expect(parseReadQueryIntent("zeige mein gedaechtnis")).toEqual({ kind: "memory.list" });
+  });
+
   it("reads one memory entry by identifier", () => {
     const id = `mem_${"m".repeat(26)}`;
     expect(parseReadQueryIntent(`zeige gedaechtniseintrag ${id}`)).toEqual({ kind: "memory.get", id });

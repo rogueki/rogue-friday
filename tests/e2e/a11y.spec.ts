@@ -32,9 +32,9 @@ async function scan(page: Page, surface: string): Promise<void> {
 }
 
 const PAGES = [
-  ["Übersicht", "/"], ["Aufgaben", "/tasks"], ["Live-Aktivität", "/activity"], ["Gedächtnis", "/memory"], ["Agenten", "/agents"],
+  ["Übersicht", "/"], ["Aufgaben", "/tasks"], ["Live-Aktivität", "/activity"], ["Gedächtnis", "/memory"], ["Agenten", "/agents"], ["Skills", "/skills"],
   ["Freigaben", "/approvals"], ["Mail & Kommunikation", "/communication"], ["Kalender", "/calendar"], ["Automationen", "/automations"],
-  ["Recherche", "/research"], ["Dateien & Dokumente", "/files"], ["Sprache", "/voice"], ["Meldungen & Alarme", "/alerts"],
+  ["Recherche", "/research"], ["Content Studio", "/content-studio"], ["Dateien & Dokumente", "/files"], ["Sprache", "/voice"], ["Meldungen & Alarme", "/alerts"],
   ["System", "/system"], ["Audit & Verlauf", "/audit"], ["Einstellungen", "/settings"], ["Szenario-Konsole", "/dev/scenarios"],
 ] as const;
 

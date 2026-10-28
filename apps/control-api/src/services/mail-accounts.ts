@@ -51,7 +51,8 @@ const invokeMailRunner: RunnerInvoker = (script, distro, user, args, input, time
 export class MailAccountsService {
   constructor(private readonly dataDir: string, private readonly invoke: RunnerInvoker = invokeMailRunner) {}
 
-  private target(): { script: string; distro: string; user: string } {
+  // Protected so tests can pin the WSL target: the real resolution needs a Windows install path.
+  protected target(): { script: string; distro: string; user: string } {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
     if (!existsSync(join(root, "config", "install-state.json"))) throw unavailable();

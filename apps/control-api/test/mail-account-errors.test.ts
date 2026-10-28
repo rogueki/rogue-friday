@@ -1,26 +1,16 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MailAccountsService } from "../src/services/mail-accounts";
 import { ApiError } from "../src/util/errors";
 
-const roots: string[] = [];
-afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
-
-/** Install layout the service expects: `<root>/config/install-state.json` plus a Windows-absolute data dir. */
-function installRoot(): string {
-  const parent = mkdtempSync(join(tmpdir(), "friday-mail-"));
-  roots.push(parent);
-  const root = join(parent, "Friday");
-  mkdirSync(join(root, "config"), { recursive: true });
-  writeFileSync(join(root, "config", "install-state.json"),
-    JSON.stringify({ distro_name: "Friday", linux_user: "friday" }));
-  return join(root, "data");
+/** Pins the WSL target so the mapping under test runs on any host; resolving it needs a Windows install path. */
+class PinnedTargetService extends MailAccountsService {
+  protected override target() {
+    return { script: "/mnt/c/Friday/installer/wsl/mail_accounts.py", distro: "Friday", user: "friday" };
+  }
 }
 
 const service = (failure: () => Promise<Record<string, unknown>>) =>
-  new MailAccountsService(installRoot(), async () => failure());
+  new PinnedTargetService("unused", async () => failure());
 
 async function codeOf(promise: Promise<unknown>): Promise<{ code: string; message: string; details: unknown }> {
   try {

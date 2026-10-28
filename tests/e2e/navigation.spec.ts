@@ -13,6 +13,7 @@ const PAGES = [
   ["Kalender", "/calendar"],
   ["Automationen", "/automations"],
   ["Recherche", "/research"],
+  ["Content Studio", "/content-studio"],
   ["Dateien & Dokumente", "/files"],
   ["Sprache", "/voice"],
   ["Meldungen & Alarme", "/alerts"],
@@ -34,7 +35,7 @@ test("all menu entries are reachable by click and mark the current page", async 
 });
 
 test("every route also loads directly (static export + SPA fallback)", async ({ page }) => {
-  test.setTimeout(180_000); // 17 full document loads on the CI software renderer.
+  test.setTimeout(180_000); // 18 full document loads on the CI software renderer.
   for (const [label, route] of PAGES) {
     await page.goto(route);
     await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
