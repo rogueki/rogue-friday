@@ -1106,6 +1106,11 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (Quell-Badge auf Aufgabenkarten bricht um) und N-093 (CI-Wiederholungen durch haengende Chromium-GPU-Prozesse;
   Vorschlag 2D-Orb-Fallback ausserhalb der Orb-Spezifikationen). Menue-Audit wartet bis 2 s auf Reiterauswahl (3b28762).
 
+- DASH-15/16 (2026-10-28, PR #32): Domain-Agenten laufen als Hermes-Kanban-Worker; Kanban-Dispatcher-Grenzen
+  im Dashboard einstellbar (wirken nach Gateway-Neustart). Live: 7 Profile parallel mit korrelierten Ergebnissen,
+  Grenzen belegt (Spitze 4, gleiches Profil seriell). Offen: N-094 harte Bereichstrennung, Sprache->Domain-Jobs (16.02),
+  Abbruch an Kinder (16.04). Beleg docs/agent-work/finalization/dash-15-16-orchestrierung.md.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
