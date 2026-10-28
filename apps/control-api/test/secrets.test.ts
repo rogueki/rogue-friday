@@ -87,6 +87,7 @@ describe("secret hygiene", () => {
     expect(hasCanary(settings.body)).toBeUndefined();
   });
 
+  // End-to-end scan over every read route: ~17 s alone, longer under full-suite load; 120 s is a real limit, not a retry.
   it("does not leak any secret, password, password hash or server key through any read endpoint", async () => {
     const hash = api.env.FRIDAY_OWNER_PASSWORD_HASH as string;
     expect(hash).toBeTruthy();
@@ -158,7 +159,7 @@ describe("secret hygiene", () => {
       whatsappPairing.mockRestore();
       messengerCatalog.mockRestore();
     }
-  });
+  }, 120_000);
 
   it("keeps secrets and credentials out of responses and headers of every call made in this suite", () => {
     expect(wire.length).toBeGreaterThan(30);
@@ -228,5 +229,5 @@ describe("secret hygiene", () => {
     ]) {
       expect(response.body).not.toMatch(/\bat \S+ \(|node_modules|\/home\/|\.ts:\d+/);
     }
-  }, 120_000);
+  });
 });
