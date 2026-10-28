@@ -112,6 +112,40 @@ describe('Dialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('lets only the top-most of stacked dialogs react to Escape and Tab', async () => {
+    const user = userEvent.setup();
+    const outer = vi.fn();
+    const inner = vi.fn();
+    render(
+      <>
+        <Dialog open onOpenChange={outer} title="Aufgabe">
+          <input aria-label="Notiz" />
+        </Dialog>
+        <Dialog
+          open
+          onOpenChange={inner}
+          title="Bestätigen"
+          footer={
+            <>
+              <button type="button">Ja</button>
+              <button type="button">Nein</button>
+            </>
+          }
+        >
+          <p>Bestätigung</p>
+        </Dialog>
+      </>,
+    );
+    const top = screen.getByRole('dialog', { name: 'Bestätigen' });
+    for (let i = 0; i < 4; i += 1) {
+      await user.tab();
+      expect(top.contains(document.activeElement)).toBe(true);
+    }
+    await user.keyboard('{Escape}');
+    expect(inner).toHaveBeenCalledWith(false);
+    expect(outer).not.toHaveBeenCalled();
+  });
+
   it('restores focus to the trigger when closed', async () => {
     const user = userEvent.setup();
     function Host() {

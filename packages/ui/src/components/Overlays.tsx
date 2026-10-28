@@ -35,14 +35,15 @@ interface OverlayProps {
   describedBy?: string;
   closeOnScrim?: boolean;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   className?: string;
   children: ReactNode;
 }
 
-function OverlayLayer({ onClose, onEscape, placement = 'center', role = 'dialog', label, labelledBy, describedBy, closeOnScrim = true, initialFocusRef, className, children }: Omit<OverlayProps, 'open'>) {
+function OverlayLayer({ onClose, onEscape, placement = 'center', role = 'dialog', label, labelledBy, describedBy, closeOnScrim = true, initialFocusRef, returnFocusRef, className, children }: Omit<OverlayProps, 'open'>) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { animate } = useMotionMode();
-  useFocusTrap(panelRef, true, { onEscape: onEscape ?? onClose, initialFocus: initialFocusRef });
+  useFocusTrap(panelRef, true, { onEscape: onEscape ?? onClose, initialFocus: initialFocusRef, returnFocus: returnFocusRef });
   useScrollLock(true);
 
   const dur = animate ? 0.26 : 0;
@@ -99,6 +100,7 @@ export interface DialogProps {
   /** Set false for flows that must be answered (no scrim click / Esc / close button). */
   dismissible?: boolean;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   closeLabel?: string;
   role?: 'dialog' | 'alertdialog';
   className?: string;
@@ -116,6 +118,7 @@ export function Dialog({
   footer,
   dismissible = true,
   initialFocusRef,
+  returnFocusRef,
   closeLabel = 'Schließen',
   role = 'dialog',
   className,
@@ -132,6 +135,7 @@ export function Dialog({
       labelledBy={`${id}-title`}
       describedBy={description ? `${id}-desc` : undefined}
       initialFocusRef={initialFocusRef}
+      returnFocusRef={returnFocusRef}
       closeOnScrim={dismissible}
       className={cx('jv-dialog', `jv-dialog--${size}`, className)}
     >
@@ -179,6 +183,7 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   tone?: 'default' | 'danger';
   loading?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onConfirm: () => void;
 }
 
@@ -192,6 +197,7 @@ export function ConfirmDialog({
   cancelLabel = 'Abbrechen',
   tone = 'default',
   loading = false,
+  returnFocusRef,
   onConfirm,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -206,6 +212,7 @@ export function ConfirmDialog({
       icon={tone === 'danger' ? <ShieldAlert size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
       description={description}
       initialFocusRef={cancelRef}
+      returnFocusRef={returnFocusRef}
       footer={
         <>
           <Button ref={cancelRef} variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>

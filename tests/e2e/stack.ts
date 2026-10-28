@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { API_PORT } from "./support/constants";
@@ -12,10 +12,46 @@ import { API_PORT } from "./support/constants";
 const root = resolve(import.meta.dirname, "..", "..");
 const main = join(root, "apps", "control-api", "dist", "main.js");
 const builtWebRoot = join(root, "apps", "web", "out");
-// Build once when the artefacts are missing (or FRIDAY_E2E_BUILD=1); a present build is reused.
-if (process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(main) || !existsSync(join(builtWebRoot, "index.html"))) {
+
+/**
+ * Newest mtime (ms) below `dir`, or 0 when the directory is missing. Build outputs, dependencies and tests are
+ * skipped so that only real sources decide whether a build is stale.
+ */
+const SKIP_DIRS = new Set(["node_modules", ".next", "out", "dist", "coverage"]);
+function newestMtime(dir: string): number {
+  if (!existsSync(dir)) return 0;
+  let newest = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name)) newest = Math.max(newest, newestMtime(join(dir, entry.name)));
+      continue;
+    }
+    if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx")) continue;
+    newest = Math.max(newest, statSync(join(dir, entry.name)).mtimeMs);
+  }
+  return newest;
+}
+
+const sources = [join(root, "apps", "web", "src"), join(root, "apps", "control-api", "src"), join(root, "packages", "contracts", "schemas")];
+for (const group of ["packages", "adapters"]) {
+  const groupDir = join(root, group);
+  if (!existsSync(groupDir)) continue;
+  for (const entry of readdirSync(groupDir, { withFileTypes: true })) {
+    const src = join(groupDir, entry.name, "src");
+    if (entry.isDirectory() && existsSync(src)) sources.push(src);
+  }
+}
+
+const webIndex = join(builtWebRoot, "index.html");
+const stale = existsSync(main) && existsSync(webIndex) && Math.min(statSync(main).mtimeMs, statSync(webIndex).mtimeMs) < Math.max(...sources.map(newestMtime));
+// Build when artefacts are missing or older than the sources; FRIDAY_E2E_BUILD=1 forces a build and
+// FRIDAY_E2E_REUSE_BUILD=1 skips the freshness check for a deliberately frozen build.
+const rebuildStale = stale && process.env.FRIDAY_E2E_REUSE_BUILD !== "1";
+if (rebuildStale) console.log("[stack] build older than sources, rebuilding ...");
+if (process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(main) || !existsSync(webIndex) || rebuildStale) {
   console.log("[stack] pnpm build:app ...");
-  execFileSync("pnpm", ["build:app"], { cwd: root, stdio: "inherit" });
+  // pnpm is a .cmd shim on Windows, which execFileSync only finds through a shell.
+  execFileSync("pnpm", ["build:app"], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
 }
 
 const dir = resolve(process.env.FRIDAY_E2E_DIR ?? join(tmpdir(), "friday-e2e"));
