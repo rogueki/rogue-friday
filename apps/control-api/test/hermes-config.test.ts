@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HermesConfigService } from "../src/services/hermes-config";
+import { HermesConfigService, validBaseUrl } from "../src/services/hermes-config";
 import { nativeRunnerScript } from "../src/services/coding-runs";
 import type { RunnerInvoker } from "../src/services/coding-runs";
 
@@ -75,6 +75,7 @@ const bridge = {
   values: {
     "model.provider": "openrouter",
     "model.default": "example/model",
+    "model.base_url": null,
     "agent.reasoning_effort": "medium",
     "fallback.min_switch_reset_seconds": 0,
     fallback_model: [],
@@ -159,6 +160,7 @@ const bridge = {
   explicit: {
     "model.provider": true,
     "model.default": true,
+    "model.base_url": false,
     "agent.reasoning_effort": false,
     "fallback.min_switch_reset_seconds": false,
     fallback_model: false,
@@ -265,7 +267,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(82);
+  expect(status.fields).toHaveLength(83);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
@@ -509,9 +511,22 @@ it("accepts a structured fallback chain and rejects unsafe model/provider identi
   expect(result.fields.find((field) => field.key === "fallback_model")?.value).toEqual(chain);
   expect(result.write).toMatchObject({ persisted: true, applied: null });
   await expect(service.update({ key: "model.provider", value: "evil; command" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "model.base_url", value: "https://llm.example.com/v1?x=1" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "model.base_url", value: "http://llm.example.com/v1" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "agent.reasoning_effort", value: "unsupported" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "fallback_model", value: [{ provider: "openrouter", model: "" }] }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "compression.threshold", value: 1.1 }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("accepts only bounded custom-provider base URLs", () => {
+  expect(validBaseUrl("https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1")).toBe(true);
+  expect(validBaseUrl("http://127.0.0.1:11434/v1")).toBe(true);
+  expect(validBaseUrl("http://localhost:8080/v1")).toBe(true);
+  expect(validBaseUrl("http://llm.example.com/v1")).toBe(false);
+  expect(validBaseUrl("https://user:pw@llm.example.com/v1")).toBe(false);
+  expect(validBaseUrl("https://llm.example.com/v1?x=1")).toBe(false);
+  expect(validBaseUrl("ftp://llm.example.com")).toBe(false);
+  expect(validBaseUrl("https://llm example.com")).toBe(false);
 });
 
 it("clears optional run budget without claiming a live-turn change", async () => {

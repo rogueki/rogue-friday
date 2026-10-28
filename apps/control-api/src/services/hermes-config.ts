@@ -9,6 +9,7 @@ import type { HermesInventoryEntry } from "./skills";
 export const HERMES_CONFIG_FIELDS = {
   "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
   "model.default": { type: "string", kind: "model", family: "models", consumer: "new Hermes model request" },
+  "model.base_url": { type: "string", kind: "baseUrl", family: "models", consumer: "new Hermes custom-provider request" },
   "agent.reasoning_effort": { type: "string", kind: "reasoning", family: "models", consumer: "new Hermes model request" },
   "fallback.min_switch_reset_seconds": { type: "integer", min: 0, max: 3600, family: "models", consumer: "next Hermes fallback decision" },
   fallback_model: { type: "fallback", family: "models", consumer: "new Hermes provider route" },
@@ -129,7 +130,18 @@ const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high
 function printablePath(value: string): boolean {
   return value.length <= 512 && value.startsWith("/") && !/[\p{C}\p{Zl}\p{Zp}]/u.test(value);
 }
-function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
+// OPENAI_API_KEY is sent to this host, so plaintext URLs are limited to loopback and credentials/query are refused.
+export function validBaseUrl(value: string): boolean {
+  if (value.length < 1 || value.length > 512 || value.includes("?") || value.includes("#") ||
+      [...value].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) >= 127)) return false;
+  let url: URL;
+  try { url = new URL(value); } catch { return false; }
+  if (url.username || url.password || !url.hostname) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "[::1]" || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(url.hostname));
+}
+function validStringPatch(kind: "provider" | "model" | "baseUrl" | "reasoning" | "tailMode" | "executionBackend" |
   "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" | "browserEngine" |
   "approvalMode" | "automaticApproval" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
@@ -147,6 +159,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "manifestPath") return value === "" || printablePath(value);
   if (kind === "workspacePath") return value === "." || printablePath(value);
   if (kind === "logLevel") return value === "DEBUG" || value === "INFO" || value === "WARNING";
+  if (kind === "baseUrl") return validBaseUrl(value);
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
@@ -668,6 +681,8 @@ export class HermesConfigService {
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
       if (action === "update" && error instanceof Error) {
+        if (error.message.includes("custom_provider_required"))
+          throw validationFailed("Die Basis-URL gilt nur für den eigenen Anbieter (custom). Zuerst den Anbieter auf custom umstellen.");
         if (error.message.includes("profile_snapshot_cleanup_failed"))
           throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
             message: "Browserprofil-Zustimmung wurde geändert, aber der Hermes-Snapshot konnte nicht bestätigt entfernt werden. Status neu laden und den lokalen Profilordner prüfen." });

@@ -10,6 +10,7 @@ import { HermesAccessArea } from "./HermesAccessArea";
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
   "model.default": "Hermes-Standardmodell",
+  "model.base_url": "Basis-URL des eigenen Anbieters",
   "agent.reasoning_effort": "Denkstufe für neue Anfragen",
   "fallback.min_switch_reset_seconds": "Fallback-Wechsel ab Resetzeit (Sekunden)",
   fallback_model: "Fallback-Kette",
@@ -338,12 +339,20 @@ export function HermesConfigArea() {
               </select>
             ) : field.type === "string" ? (
               <>
-                <input id={`hermes-${field.key}`} type="text" value={String(value ?? "")}
+                <input id={`hermes-${field.key}`} type={field.key === "model.base_url" ? "url" : "text"} value={String(value ?? "")}
                   list={field.key === "model.provider" ? "hermes-provider-ids" :
                     field.key === "model.default" && selectedCatalog.data?.data.selected?.id === effectiveProvider ?
                       "hermes-model-ids" : undefined}
-                  maxLength={field.key === "model.provider" ? 64 : 200}
+                  maxLength={field.key === "model.provider" ? 64 : field.key === "model.base_url" ? 512 : 200}
+                  placeholder={field.key === "model.base_url" ? "https://anbieter.example/v1" : undefined}
+                  disabled={field.key === "model.base_url" && effectiveProvider !== "custom"}
+                  aria-describedby={field.key === "model.base_url" ? "hermes-model.base_url-hint" : undefined}
                   onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))} />
+                {field.key === "model.base_url" ? <small id="hermes-model.base_url-hint">
+                  {effectiveProvider === "custom"
+                    ? "OpenAI-kompatible Adresse, z. B. https://…/v1. HTTP nur für lokale Server (localhost/127.0.0.1). Friday setzt OPENAI_BASE_URL auf denselben Wert, damit der Schlüssel nur an diesen Host geht."
+                    : "Nur für den eigenen Anbieter: zuerst die Hermes-Anbieterkennung auf „custom“ setzen und speichern."}
+                </small> : null}
                 {field.key === "model.provider" ? <datalist id="hermes-provider-ids">
                   {(catalog.data?.data.providers ?? data.modelProviders).map((provider) => <option key={provider.id} value={provider.id} />)}
                 </datalist> : null}
@@ -423,12 +432,14 @@ export function HermesConfigArea() {
               type="button"
               disabled={
                 !field.writable ||
+                (field.key === "model.base_url" && effectiveProvider !== "custom") ||
                 patch.isPending ||
                 draft[field.key] === undefined ||
                 draft[field.key] === field.value ||
                 (field.type === "fallback" && Array.isArray(draft[field.key]) &&
                   (draft[field.key] as Array<{ provider: string; model: string }>).some((entry) => !entry.provider || !entry.model))
               }
+              aria-describedby={field.key === "model.base_url" && effectiveProvider !== "custom" ? "hermes-model.base_url-hint" : undefined}
               onClick={() =>
                 patch.mutate(
                   { revision, patch: { key: field.key, value: draft[field.key] } as HermesConfigPatch },

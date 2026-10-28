@@ -103,6 +103,10 @@ export type HermesConfigPatch =
       value: string;
     }
   | {
+      key: "model.base_url";
+      value: string;
+    }
+  | {
       key: "agent.reasoning_effort";
       value: "" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
     }
@@ -3470,6 +3474,7 @@ export interface HermesConfigStatus {
     key:
       | "model.provider"
       | "model.default"
+      | "model.base_url"
       | "agent.reasoning_effort"
       | "fallback.min_switch_reset_seconds"
       | "fallback_model"
