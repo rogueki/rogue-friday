@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $scriptPath = Join-Path $PSScriptRoot '..\scripts\recover-friday.ps1'
 $fixture = Join-Path $env:TEMP ('friday-recovery-faults-' + [guid]::NewGuid().ToString('N'))
 $target = Join-Path $fixture 'target'

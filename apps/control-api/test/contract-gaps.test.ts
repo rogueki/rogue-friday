@@ -197,6 +197,17 @@ describe("contract gaps: authorization and enforcement", () => {
       expect(exported).toContain("[REDACTED]");
     });
 
+    it("records the forgotten entry's title, not its content, when a memory is deleted", async () => {
+      const memory = (await list("/api/v1/memory")).find((candidate: any) => candidate.sensitivity === "normal" && !candidate.locked && candidate.title);
+      const staged = await owner.delete(`/api/v1/memory/${memory.id}`);
+      expect(staged.statusCode, staged.body).toBe(403);
+      const deleted = await owner.delete(`/api/v1/memory/${memory.id}`, confirm(staged.json().error.details.previewId));
+      expect(deleted.statusCode, deleted.body).toBe(200);
+      const audit = auditOf("memory.deleted").find((entry) => entry.before?.id === memory.id);
+      expect(audit?.before).toEqual({ id: memory.id, title: memory.title });
+      expect(JSON.stringify(audit)).not.toContain(memory.content);
+    });
+
     it("resolves a conflict (replace forgets the other memory) and refuses to resolve it twice", async () => {
       const memories = await list("/api/v1/memory");
       const memory = memories.find((candidate) => candidate.conflicts.some((entry: any) => entry.resolution === "pending"));

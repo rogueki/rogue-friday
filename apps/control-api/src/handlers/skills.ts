@@ -14,7 +14,90 @@ async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
   }
 }
 
+async function mutateSkill(ctx: Parameters<Handler>[0]) {
+  const name = typeof ctx.pathParams.name === "string" ? ctx.pathParams.name : "";
+  const body = ctx.body as { action?: unknown; identifier?: unknown; force?: unknown } | undefined;
+  const action = body?.action;
+  if (action !== "install" && action !== "update" && action !== "uninstall")
+    throw validationFailed("Unbekannte Skill-Aenderung.");
+  const identifier = typeof body?.identifier === "string" ? body.identifier : undefined;
+  const force = body?.force === true;
+  const result = await ctx.runtime.hermesConfig.mutateSkill(action, name, identifier, force);
+  ctx.audit.action = `skills.${action}ed`;
+  ctx.audit.after = { name: result.name, installed: result.installed, enabled: result.enabled,
+    snapshot: result.snapshot, force };
+  return { status: 200 as const, body: single(result) };
+}
+
+async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "audit" | "diff",
+  auditAction: string) {
+  const name = typeof ctx.pathParams.name === "string" ? ctx.pathParams.name : "";
+  const result = await ctx.runtime.hermesConfig.skillReport(action, name);
+  ctx.audit.action = auditAction;
+  ctx.audit.after = { name: result.name, bytes: result.bytes, truncated: result.truncated };
+  return { status: 200 as const, body: single({ action: result.action, name: result.name, text: result.text,
+    bytes: result.bytes, truncated: result.truncated, observedAt: result.observedAt }) };
+}
+
+async function mutateSkillGovernance(ctx: Parameters<Handler>[0]) {
+  const body = ctx.body as { action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset"; path: string | null;
+    repo: string | null; name: string | null };
+  const result = await ctx.runtime.hermesConfig.mutateSkillGovernance(body.action, body);
+  ctx.audit.action = `skills.governance_${body.action.replace("-", "_")}`;
+  ctx.audit.after = { action: result.action, target: result.target, bytes: result.bytes };
+  return { status: 200 as const, body: single(result) };
+}
+
+async function skillCommandReport(ctx: Parameters<Handler>[0]) {
+  const query = ctx.query as { command?: string; name?: string; page?: string; size?: string; source?: string };
+  const command = query.command;
+  if (command !== "browse" && command !== "check" && command !== "tap-list")
+    throw validationFailed("Unbekannter Skill-Befehl.");
+  const number = (value: string | undefined, field: string): number | undefined => {
+    if (value === undefined) return undefined;
+    if (!/^[0-9]{1,2}$/.test(value) || Number(value) < 1 || Number(value) > 50)
+      throw validationFailed(`Feld ${field} muss zwischen 1 und 50 liegen.`);
+    return Number(value);
+  };
+  const result = await ctx.runtime.hermesConfig.skillCommand(command, {
+    name: query.name, page: number(query.page, "page"), size: number(query.size, "size"), source: query.source,
+  });
+  ctx.audit.action = `skills.command_${command.replace("-", "_")}`;
+  ctx.audit.after = { command, name: result.name, bytes: result.bytes, truncated: result.truncated };
+  return { status: 200 as const, body: single(result) };
+}
+
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  mutateSkill,
+
+  async searchSkillHub(ctx) {
+    const query = typeof ctx.query.query === "string" ? ctx.query.query : "";
+    const source = typeof ctx.query.source === "string" ? ctx.query.source : undefined;
+    const limit = typeof ctx.query.limit === "number" ? ctx.query.limit : 10;
+    const result = await ctx.runtime.hermesConfig.hubSearch(query, source, limit);
+    ctx.audit.action = "skills.hub_searched";
+    ctx.audit.after = { query: result.query, source: result.source, hits: result.results.length };
+    return { status: 200, body: single(result) };
+  },
+  async getSkillInspection(ctx) { return skillReport(ctx, "inspect", "skills.inspected"); },
+  async getSkillAudit(ctx) { return skillReport(ctx, "audit", "skills.audited"); },
+  async getSkillDiff(ctx) { return skillReport(ctx, "diff", "skills.diffed"); },
+  getSkillCommandReport: skillCommandReport,
+  mutateSkillGovernance,
+  async listModifiedSkills(ctx) {
+    const result = await ctx.runtime.hermesConfig.modifiedSkills();
+    ctx.audit.action = "skills.modified_listed";
+    ctx.audit.after = { count: result.names.length };
+    return { status: 200, body: single({ names: result.names, observedAt: result.at }) };
+  },
+  async getSkillMarkdown(ctx) {
+    const id = ctx.pathParams.id ?? "";
+    const friday = ctx.runtime.skills.fridayMarkdown(id);
+    const result = friday ?? await ctx.runtime.hermesConfig.skillMarkdown(id);
+    ctx.audit.action = "skills.markdown_read";
+    ctx.audit.after = { id, bytes: result.bytes, source: friday ? "friday" : "hermes" };
+    return { status: 200, body: single(result) };
+  },
   async createPowerPointDeck(ctx) {
     await requirePowerPoint(ctx);
     const deck = await ctx.runtime.powerpoint.create(ctx.body as PowerPointRequest);

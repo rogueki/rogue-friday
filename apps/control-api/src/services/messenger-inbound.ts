@@ -12,6 +12,9 @@ const secretCue = /\b(?:password|passwort|passphrase|api[ _-]?key|access[ _-]?to
 const secretValue = /\b(?:sk-[a-zA-Z0-9_-]{16,}|gh[pousr]_[a-zA-Z0-9]{16,}|(?:\d[ -]*?){13,19})\b/;
 const sourceId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 128 &&
   Array.from(value).every((char) => char.codePointAt(0)! >= 32 && char.codePointAt(0)! !== 127);
+/** Durable memory rejects a known event id whose stored content differs — for a re-delivered messenger
+ *  message that is not an error, the first capture already happened. */
+const isEventIdConflict = (error: unknown): boolean => error instanceof Error && error.message === "Event ID conflict";
 
 export interface InboundMessage { platform: string; accountId: string; accountEpoch: string; senderId: string; chatId: string;
   chatType: string; messageId: string; text: string;
@@ -112,6 +115,10 @@ export class MessengerInboundService {
     let result: { eventId: string; accepted: boolean; pending: boolean };
     try { result = this.memory.capture(event); }
     catch (error) {
+      // The platform re-delivered this message id with a different receipt time. The first capture
+      // stands, so the delivery is idempotent instead of a 5xx; an edited re-delivery keeps the
+      // already stored text.
+      if (isEventIdConflict(error)) return { reason: "captured", eventId };
       this.db.prepare("DELETE FROM messenger_inbound_events WHERE id=?").run(eventId);
       throw error;
     }
@@ -164,6 +171,8 @@ export class MessengerInboundService {
     let result: { eventId: string; accepted: boolean; pending: boolean };
     try { result = this.memory.capture(event); }
     catch (error) {
+      // Same idempotency rule as for the user utterance above: a repeated turn is not a failure.
+      if (isEventIdConflict(error)) return { reason: "captured", eventId };
       this.db.prepare("DELETE FROM messenger_turn_events WHERE id=?").run(eventId);
       throw error;
     }

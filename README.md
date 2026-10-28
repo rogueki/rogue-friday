@@ -11,6 +11,11 @@
 3. Im grafischen Assistenten Installationsort, lokale Sprache oder ElevenLabs, Stimme, Wake Word und Zugangsdaten wählen. Vor dem Start zeigt er alle Entscheidungen. Danach zeigt er jeden Installationsschritt und dessen Meldungen.
 4. Wenn WSL einen Neustart braucht, Windows neu starten. Der Assistent öffnet sich nach der Anmeldung erneut und setzt erledigte Schritte fort. Beim ersten Dashboard-Aufruf das Besitzerkonto anlegen.
 
+
+Wer die Konsole bevorzugt: `installer\install-friday.bat` startet denselben Installer mit sichtbarem Fenster und nimmt
+`-InstallRoot`, `-DistroName`, `-Resume`, `-SkipWslUpdate`, `-UpdateDashboard`, `-ChangeName` und `-ChangeVoice` an.
+Nach einem Abbruch liegt im Installationsordner `resume.bat` mit dem richtigen Zielordner. Ein Doppelklick auf
+`Friday installieren.bat` oeffnet immer den grafischen Assistenten; Trockenlaeufe sind nur im lokalen Testmodus moeglich.
 Du brauchst für diesen Einstieg weder Git noch eine KI noch einen vorher installierten Node- oder Python-Befehl. Das ZIP ist ein **Online-Installer**: WSL, Modelle und Programmteile werden während der Einrichtung aus dem Internet geladen. Für lokale Sprache brauchst du eine NVIDIA-GPU mit mindestens 6 GB VRAM; ElevenLabs benötigt einen eigenen API-Zugang und kann Kosten verursachen. Mehr dazu in der [Installationsanleitung](installer/ANLEITUNG.md).
 
 ## Dashboard im Überblick

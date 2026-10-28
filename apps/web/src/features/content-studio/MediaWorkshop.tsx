@@ -21,6 +21,10 @@ export function MediaWorkshop() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
+  const mediaCheckBlocked = busy ? "Läuft gerade …" : !prompt.trim() ? "Zuerst eine Beschreibung eingeben." : undefined;
+  const statusBlocked = busy ? "Läuft gerade …" : !taskId.trim() ? "Zuerst eine Auftrags-ID eingeben." : undefined;
+  const speechCheckBlocked = busy ? "Läuft gerade …" : !voiceId.trim() ? "Zuerst eine Stimme angeben." : !script.trim() ? "Zuerst ein Skript eingeben." : undefined;
+
   const createMedia = async (): Promise<void> => {
     if (mediaPreview !== JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }) || busy) return;
     setBusy(true); setMessage("");
@@ -73,16 +77,16 @@ export function MediaWorkshop() {
       <label>Medium<select value={kind} onChange={(event) => setKind(event.target.value as "image" | "video")}><option value="image">Bild</option><option value="video">Video · 5 Sekunden</option></select></label>
       <label>Seitenverhältnis<select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "1:1" | "16:9")}><option value="1:1">1:1</option><option value="16:9">16:9</option></select></label>
       <label className="cs-span">Prompt<textarea value={prompt} maxLength={2000} onChange={(event) => setPrompt(event.target.value)} /></label>
-      <Button type="button" disabled={busy || !prompt.trim()} onClick={() => setMediaPreview(JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }))}>Auftrag prüfen</Button>
+      <Button type="button" disabled={mediaCheckBlocked !== undefined} title={mediaCheckBlocked} onClick={() => setMediaPreview(JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }))}>Auftrag prüfen</Button>
       {mediaPreview === JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }) && <div className="cs-span cs-notice" role="status"><p>{kind === "image" ? "Bild" : "Video"} bei kie.ai erzeugen. Dieser Auftrag ist kostenpflichtig. Prüfe Prompt und Nutzungsrechte.</p><Button type="button" disabled={busy} onClick={() => void createMedia()}>Kostenpflichtigen Auftrag starten</Button><Button type="button" variant="ghost" onClick={() => setMediaPreview("")}>Abbrechen</Button></div>}
       <label>Auftrags-ID<input value={taskId} onChange={(event) => setTaskId(event.target.value)} /></label>
-      <Button type="button" variant="ghost" disabled={busy || !taskId.trim()} onClick={() => void readStatus()}>Status abrufen</Button>
+      <Button type="button" variant="ghost" disabled={statusBlocked !== undefined} title={statusBlocked} onClick={() => void readStatus()}>Status abrufen</Button>
       {task && <div className="cs-span" role="status"><p>Status: {task.state} · ID: {task.taskId}</p>{task.creditsConsumed !== null && <p>Verbrauch: {task.creditsConsumed} Credits</p>}{task.resultUrls.map((url) => <p key={url}><a href={url} target="_blank" rel="noopener noreferrer">Ergebnis öffnen</a></p>)}</div>}
     </div></HudPanel>
     <HudPanel title="Sprechertext mit ElevenLabs"><div className="cs-form">
       <label className="cs-span">Voice-ID<input value={voiceId} maxLength={128} onChange={(event) => setVoiceId(event.target.value)} /></label>
       <label className="cs-span">Text<textarea value={script} maxLength={2500} onChange={(event) => setScript(event.target.value)} /></label>
-      <Button type="button" disabled={busy || !voiceId.trim() || !script.trim()} onClick={() => setSpeechPreview(JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }))}>MP3-Auftrag prüfen</Button>
+      <Button type="button" disabled={speechCheckBlocked !== undefined} title={speechCheckBlocked} onClick={() => setSpeechPreview(JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }))}>MP3-Auftrag prüfen</Button>
       {speechPreview === JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }) && <div className="cs-span cs-notice" role="status"><p>ElevenLabs-Stimme {voiceId.trim()} verwenden. Dieser Auftrag ist kostenpflichtig. Prüfe Text und Stimmrechte.</p><Button type="button" disabled={busy} onClick={() => void createSpeech()}>Kostenpflichtige MP3 erzeugen</Button><Button type="button" variant="ghost" onClick={() => setSpeechPreview("")}>Abbrechen</Button></div>}
       <p className="cs-span">Die Datei wird heruntergeladen; prüfe Aussprache, Dauer und Ton vor Verwendung. CapCut-Schnitt erfolgt manuell.</p>
     </div></HudPanel>

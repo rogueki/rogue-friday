@@ -15,6 +15,11 @@
     },
     {
       "type": "object",
+      "properties": { "key": { "const": "model.base_url" }, "value": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^https?://[!-~]+$" } },
+      "required": ["key", "value"], "additionalProperties": false
+    },
+    {
+      "type": "object",
       "properties": { "key": { "const": "agent.reasoning_effort" }, "value": { "enum": ["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] } },
       "required": ["key", "value"], "additionalProperties": false
     },

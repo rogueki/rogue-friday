@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("friday update task " + [guid]::NewGuid().ToString('N'))
 $name = 'FRIDAY_Update_Test_' + [guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $fixture | Out-Null

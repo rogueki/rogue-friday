@@ -1316,6 +1316,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/content-studio/skill-production-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start automatic production for one planned idea from a skill or voice command
+         * @description Same guarantees as the manual production route (confirmation, plan revision, Idempotency-Key), plus the identifier of the triggering skill so the audit trail records who started the job.
+         */
+        post: operations["createSkillContentProductionJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/data-retention": {
         parameters: {
             query?: never;
@@ -2746,6 +2766,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/hermes-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read pooled Hermes provider credentials without exposing any secret */
+        get: operations["getHermesAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-config": {
         parameters: {
             query?: never;
@@ -2965,6 +3002,23 @@ export interface paths {
         put?: never;
         /** Import a layout (schema-validated) */
         post: operations["importLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/mail-connection-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test one unsaved IMAP or SMTP candidate without storing it or sending a message */
+        post: operations["testMailConnection"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3199,6 +3253,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/{id}/markdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the installed SKILL.md text for one skill; never HTML */
+        get: operations["getSkillMarkdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI audit report for one skill as text
+         * @description The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+         */
+        get: operations["getSkillAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI diff between the local skill and its packaged version as text
+         * @description The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied. A refusal by the CLI (for example an untracked skill) answers 409 with the CLI's own reason. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+         */
+        get: operations["getSkillDiff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI inspection report for one skill as text
+         * @description The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+         */
+        get: operations["getSkillInspection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/mutations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Install, update or remove one skill with a snapshot that can be restored
+         * @description The bridge copies the installed skill directory into ~/.hermes/friday-snapshots before the CLI runs and
+         *     replays the copy when the CLI fails or the read-back does not match. Nothing runs before the request passed
+         *     validation; `identifier` is required for `install` and forbidden for the other actions. `force` is passed
+         *     through as `--force`, which is the only way to overwrite local edits.
+         */
+        post: operations["mutateSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/governance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trust or untrust a project root, or add and remove a tap
+         * @description Both commands change global Hermes state, so the target is checked in the adapter: a trust target must be an
+         *     absolute directory that really carries `.hermes/skills` or `.agents/skills`, a tap is `owner/repo`, and a tap
+         *     removal names a configured tap. `hermes skills config` is deliberately not exposed - it refuses to run without
+         *     an interactive terminal.
+         */
+        post: operations["mutateSkillGovernance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/hub/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the configured skill registries via the CLI JSON output */
+        get: operations["searchSkillHub"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/modified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bundled skills edited locally, which updates skip */
+        get: operations["listModifiedSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills/powerpoint/decks": {
         parameters: {
             query?: never;
@@ -3245,6 +3456,28 @@ export interface paths {
         put?: never;
         /** Create a confirmed speaker-verified PowerPoint through the local voice bridge */
         post: operations["createVoicePowerPointDeck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the text report of a read-only skill command
+         * @description The CLI offers no JSON for `browse`, `check` and `tap list`, so their text is passed through unchanged and
+         *     capped; nothing is parsed into fields. `browse` accepts page, size and source, `check` accepts one skill name,
+         *     `tap list` accepts nothing - a parameter outside that set is rejected with 422 before the CLI runs.
+         */
+        get: operations["getSkillCommandReport"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4964,7 +5197,7 @@ export interface components {
             };
             accountId?: string;
             /** @enum {unknown} */
-            action: "upsert" | "delete" | "discover" | "select" | "default" | "check" | "events" | "create" | "update" | "delete-event";
+            action: "upsert" | "delete" | "discover" | "select" | "default" | "check" | "write-test" | "events" | "create" | "update" | "delete-event";
             calendarId?: string;
             defaultCalendarId?: string | null;
             etag?: string;
@@ -5447,7 +5680,7 @@ export interface components {
          * ChannelKind
          * @enum {string}
          */
-        ChannelKind: "email" | "telegram" | "whatsapp" | "sms" | "phone" | "other";
+        ChannelKind: "email" | "telegram" | "whatsapp" | "discord" | "sms" | "phone" | "other";
         /**
          * ChannelListResponse
          * @description Cursor-paginated list envelope for Channel.
@@ -5729,6 +5962,14 @@ export interface components {
                 status: "geplant" | "gepostet" | "verpasst";
                 titel: string;
                 uhrzeit: string;
+                /** @description Nur bei status=gepostet: manuell markiert oder durch einen angebundenen Publisher bestaetigt. */
+                veroeffentlichung?: null | {
+                    /** Format: date-time */
+                    am: string;
+                    /** @enum {string} */
+                    art: "manuell" | "bestaetigt";
+                    quelle: string;
+                };
                 ziele?: ("LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube")[];
             }[];
             /** @constant */
@@ -6516,6 +6757,27 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /** HermesAccess */
+        "hermes-access.schema": {
+            providers: {
+                count: number;
+                credentials: {
+                    active: boolean;
+                    index: number;
+                    label: string;
+                    source: string;
+                    /** @enum {unknown} */
+                    type: "api_key" | "oauth";
+                }[];
+                provider: string;
+            }[];
+        };
+        /** HermesAccessResponse */
+        HermesAccessResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["hermes-access.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** HermesApprovalTestRequest */
         HermesApprovalTestRequest: {
             command: string;
@@ -6545,6 +6807,10 @@ export interface components {
         } | {
             /** @constant */
             key: "model.default";
+            value: string;
+        } | {
+            /** @constant */
+            key: "model.base_url";
             value: string;
         } | {
             /** @constant */
@@ -6905,7 +7171,7 @@ export interface components {
                 /** @enum {unknown} */
                 family: "agent" | "models" | "execution" | "extensions" | "operations";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.container_cpu" | "terminal.container_memory" | "terminal.container_disk" | "terminal.container_persistent" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.inactivity_timeout" | "browser.engine" | "browser.headed" | "browser.auto_local_for_private_urls" | "browser.dialog_policy" | "browser.dialog_timeout_s" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "code_execution.kernel_idle_timeout" | "code_execution.max_session_kernels" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "computer_use.max_image_dimension" | "computer_use.ax_max_elements" | "computer_use.capture_after_mode" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.denial_breaker_threshold" | "approvals.deny" | "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
+                key: "model.provider" | "model.default" | "model.base_url" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.container_cpu" | "terminal.container_memory" | "terminal.container_disk" | "terminal.container_persistent" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.inactivity_timeout" | "browser.engine" | "browser.headed" | "browser.auto_local_for_private_urls" | "browser.dialog_policy" | "browser.dialog_timeout_s" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "code_execution.kernel_idle_timeout" | "code_execution.max_session_kernels" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "computer_use.max_image_dimension" | "computer_use.ax_max_elements" | "computer_use.capture_after_mode" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.denial_breaker_threshold" | "approvals.deny" | "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
@@ -7259,6 +7525,20 @@ export interface components {
             };
             freshness: components["schemas"]["Freshness"];
         };
+        /** SkillHubSearch */
+        "hub-search.schema": {
+            /** Format: date-time */
+            observedAt: string | null;
+            query: string;
+            results: {
+                description: string;
+                identifier: string;
+                name: string;
+                source: string;
+                trustLevel: string;
+            }[];
+            source: string;
+        };
         /**
          * IntegrationEvent
          * @description Capture candidate. A durable writer must enforce captureEligibility and redact sensitive text before storage.
@@ -7606,6 +7886,30 @@ export interface components {
                     role: string | null;
                 }[];
                 ok: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * MailConnectionTestRequest
+         * @description Verbindungstest fuer einen noch nicht gespeicherten Postfach-Entwurf. Der Server verbindet sich einmalig, meldet Erfolg oder einen erklaerbaren Grund und speichert nichts.
+         */
+        MailConnectionTestRequest: {
+            host: string;
+            password: string;
+            port: number;
+            /** @enum {string} */
+            protocol: "imap" | "smtp";
+            /** @enum {string} */
+            security: "tls" | "start-tls";
+            username: string;
+        };
+        /** MailConnectionTestResponse */
+        MailConnectionTestResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                ok: boolean;
+                /** @enum {string} */
+                reason: "ok" | "auth" | "tls" | "network" | "protocol";
             };
             freshness: components["schemas"]["Freshness"];
         };
@@ -8543,6 +8847,18 @@ export interface components {
                 reasoningLevel: components["schemas"]["ReasoningLevel"];
                 taskKind: string;
             }[];
+        };
+        /** ModifiedSkills */
+        "modified-skills.schema": {
+            names: string[];
+            /** Format: date-time */
+            observedAt: string | null;
+        };
+        /** ModifiedSkillsResponse */
+        ModifiedSkillsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["modified-skills.schema"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** NavigationSettings */
         NavigationSettings: {
@@ -9560,6 +9876,57 @@ export interface components {
             data: unknown;
             freshness: components["schemas"]["Freshness"];
         };
+        /** SkillCommandReport */
+        "skill-command-report.schema": {
+            bytes: number;
+            /** @enum {string} */
+            command: "browse" | "check" | "tap-list";
+            name: string | null;
+            /** Format: date-time */
+            observedAt: string | null;
+            text: string;
+            truncated: boolean;
+        };
+        /** SkillGovernance */
+        "skill-governance.schema": {
+            /** @enum {string} */
+            action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+            bytes: number;
+            /** Format: date-time */
+            changedAt: string | null;
+            target: string;
+            text: string;
+        };
+        /** SkillMarkdown */
+        "skill-markdown.schema": {
+            bytes: number;
+            content: string;
+            id: string;
+        };
+        /** SkillMutation */
+        "skill-mutation.schema": {
+            /** @enum {string} */
+            action: "install" | "update" | "uninstall";
+            bytes: number;
+            enabled: boolean | null;
+            installed: boolean;
+            name: string;
+            /** Format: date-time */
+            observedAt: string | null;
+            snapshot: string | null;
+            text: string;
+        };
+        /** SkillReport */
+        "skill-report.schema": {
+            /** @enum {string} */
+            action: "inspect" | "audit" | "diff";
+            bytes: number;
+            name: string;
+            /** Format: date-time */
+            observedAt: string | null;
+            text: string;
+            truncated: boolean;
+        };
         /** SkillActivationRequest */
         SkillActivationRequest: {
             enabled: boolean;
@@ -9602,11 +9969,13 @@ export interface components {
             observationSource: string;
             /** Format: date-time */
             observedAt: string | null;
+            origin: string;
             packaged: boolean;
             requiredCapabilities: string[];
             setupRefs: string[];
             /** @enum {unknown} */
             source: "friday" | "hermes";
+            trust: string;
             version: string | null;
             $defs: {
                 prerequisite: {
@@ -9624,6 +9993,66 @@ export interface components {
             data: components["schemas"]["SkillCatalogEntry"][];
             freshness: components["schemas"]["Freshness"];
             hermesError: string | null;
+        };
+        /** SkillCommandReportResponse */
+        SkillCommandReportResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-command-report.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillContentProductionRequest */
+        SkillContentProductionRequest: {
+            /** @constant */
+            confirmed: true;
+            ideaId: string;
+            planRevision: number;
+            skillId: string;
+            voiceId?: string;
+        };
+        /** SkillGovernanceRequest */
+        SkillGovernanceRequest: {
+            /** @enum {string} */
+            action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+            name: string | null;
+            path: string | null;
+            repo: string | null;
+        };
+        /** SkillGovernanceResponse */
+        SkillGovernanceResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-governance.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillHubSearchResponse */
+        SkillHubSearchResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["hub-search.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillMarkdownResponse */
+        SkillMarkdownResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-markdown.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillMutationRequest */
+        SkillMutationRequest: {
+            /** @enum {string} */
+            action: "install" | "update" | "uninstall";
+            force?: boolean;
+            identifier?: string | null;
+        };
+        /** SkillMutationResponse */
+        SkillMutationResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-mutation.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillReportResponse */
+        SkillReportResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-report.schema"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** SkillResponse */
         SkillResponse: {
@@ -10856,7 +11285,7 @@ export interface components {
         };
     };
     parameters: {
-        /** @description Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN §32.5). */
+        /** @description Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN Â§32.5). */
         ApprovalToken: string;
         /** @description Generated by the server when absent; echoed in the response. */
         CorrelationId: string;
@@ -11400,7 +11829,7 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN §32.5). */
+                /** @description Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN Â§32.5). */
                 "X-Approval-Token"?: components["parameters"]["ApprovalToken"];
                 /** @description Generated by the server when absent; echoed in the response. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
@@ -13905,6 +14334,42 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createSkillContentProductionJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillContentProductionRequest"];
+            };
+        };
+        responses: {
+            /** @description Durable production job started from a skill */
+            202: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentProductionJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     getDataRetentionStatus: {
@@ -17060,6 +17525,29 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getHermesAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider credentials with source markers only; never a key value */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesAccessResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     getHermesConfig: {
         parameters: {
             query?: never;
@@ -17596,6 +18084,39 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    testMailConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailConnectionTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Connection outcome with an explainable reason; nothing is stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailConnectionTestResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -18208,6 +18729,253 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getSkillMarkdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw Markdown text from the installed skill directory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillMarkdownResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The CLI refused the report and its reason is passed on unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillDiff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The CLI refused the report and its reason is passed on unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The CLI refused the report and its reason is passed on unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    mutateSkill: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillMutationRequest"];
+            };
+        };
+        responses: {
+            /** @description Freshly observed state after the mutation, with the snapshot that allows a manual restore */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillMutationResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    mutateSkillGovernance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillGovernanceRequest"];
+            };
+        };
+        responses: {
+            /** @description The CLI confirmation, unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillGovernanceResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    searchSkillHub: {
+        parameters: {
+            query: {
+                limit?: number;
+                query: string;
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registry hits exactly as the CLI reported them */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillHubSearchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listModifiedSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Names reported by the CLI, never parsed out of a table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModifiedSkillsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listPowerPointDecks: {
         parameters: {
             query?: never;
@@ -18327,6 +19095,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillCommandReport: {
+        parameters: {
+            query: {
+                command: "browse" | "check" | "tap-list";
+                /** @description Only for `check`; omit to check every installed skill. */
+                name?: string;
+                /** @description Only for `browse`. */
+                page?: number;
+                /** @description Only for `browse`. */
+                size?: number;
+                /** @description Only for `browse`; a registry name such as `skills-sh`. */
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillCommandReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

@@ -1,4 +1,4 @@
-# Safe GUI/backend protocol test. No installation, restart, downloads, or API calls.
+﻿# Safe GUI/backend protocol test. No installation, restart, downloads, or API calls.
 $gui = Join-Path $PSScriptRoot '..\install-friday-gui.ps1'
 $backend = Join-Path $PSScriptRoot '..\install-friday.ps1'
 foreach ($file in @($gui, $backend)) {
@@ -22,13 +22,15 @@ $rejected = $false
 try { [void](Gui-Secret 'linuxPassword') } catch { $rejected = $true }
 if (-not $rejected) { throw 'Corrupt DPAPI ciphertext was accepted.' }
 $synthetic.Dispose(); $decoded = $null; $script:GuiConfig = $null
+# Der Assistent akzeptiert -Simulation nur im Testmodus; dieser Test ist der Testmodus.
+$env:FRIDAY_GUI_TEST = '1'
 foreach ($case in @(@{ mode='success'; expected=0 }, @{ mode='failure'; expected=1 }, @{ mode='restart'; expected=10 })) {
     $result = & powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File $gui -Simulation $case.mode 2>&1 | Out-String
     if ($result -notmatch "GUI_TEST mode=$($case.mode) exit=$($case.expected)") { throw "Unexpected GUI result for $($case.mode): $result" }
     $screenshot = Join-Path $env:TEMP "friday-gui-$($case.mode).png"
     if (-not (Test-Path -LiteralPath $screenshot -PathType Leaf)) { throw "Missing rendered screenshot: $screenshot" }
 }
-foreach ($page in 0..5) {
+foreach ($page in 0..6) {
     if (-not (Test-Path -LiteralPath (Join-Path $env:TEMP "friday-gui-page-$page.png") -PathType Leaf)) { throw "Page $page did not render." }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $env:TEMP 'friday-gui-cloud.png') -PathType Leaf)) { throw 'ElevenLabs page did not render.' }

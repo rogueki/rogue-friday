@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/hub-search.schema.json",
+  "title": "SkillHubSearch",
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "results": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "trustLevel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "identifier",
+          "name",
+          "source",
+          "trustLevel",
+          "description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "observedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "query",
+    "source",
+    "results",
+    "observedAt"
+  ],
+  "additionalProperties": false
+}

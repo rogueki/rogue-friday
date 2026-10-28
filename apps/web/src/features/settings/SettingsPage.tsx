@@ -24,7 +24,7 @@ import {
   User,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useT, type MessageKey } from "@/i18n";
 import { useThemes } from "@/lib/api/domains/settings";
 import { AdaptersArea } from "./AdaptersArea";
@@ -129,6 +129,14 @@ function SaveBar() {
   const { settings, readOnly, dirtyAreas, externalDirty, discard, save, saving, saveError, conflicts, resolveConflicts } = useSettingsDrafts();
   const label = (area: string): string => t(`settings.area.${area}` as MessageKey);
   const dirty = dirtyAreas.length > 0;
+  const discardBlocked = saving ? t("settings.blocked.saving") : !dirty ? t("settings.blocked.clean") : undefined;
+  const saveBlocked = readOnly
+    ? t("settings.blocked.readOnly")
+    : conflicts.length > 0
+      ? t("settings.blocked.conflicts")
+      : !dirty
+        ? t("settings.blocked.clean")
+        : undefined;
   return (
     <section className="st-savebar" aria-label={t("settings.save.region")} data-dirty={dirty || undefined}>
       <div className="st-savebar__status" role="status" aria-live="polite">
@@ -164,10 +172,10 @@ function SaveBar() {
         </p>
       ) : null}
       <div className="st-savebar__actions">
-        <Button type="button" variant="ghost" icon={<Undo2 size={15} />} disabled={!dirty || saving} onClick={() => discard()}>
+        <Button type="button" variant="ghost" icon={<Undo2 size={15} />} disabled={discardBlocked !== undefined} title={discardBlocked} onClick={() => discard()}>
           {t("settings.discardAll")}
         </Button>
-        <Button type="button" icon={<Save size={15} />} loading={saving} disabled={readOnly || !dirty || conflicts.length > 0} onClick={() => void save()}>
+        <Button type="button" icon={<Save size={15} />} loading={saving} disabled={saveBlocked !== undefined} title={saveBlocked} onClick={() => void save()}>
           {t("settings.save")}
         </Button>
       </div>
@@ -184,6 +192,8 @@ function SettingsBody() {
   const requested = params.get("area");
   // `/settings?adapter=<id>` is the "Adapter konfigurieren" link of offline panels.
   const area: SettingsAreaId = isSettingsArea(requested) ? requested : adapterParam ? "adapters" : "profile";
+  // Leaving an area or an adapter with unsaved edits asks first instead of dropping the draft silently.
+  const [pending, setPending] = useState<{ kind: "area"; id: SettingsAreaId } | { kind: "adapter"; id: string } | null>(null);
 
   const go = (next: SettingsAreaId, extra?: Record<string, string>): void => {
     const query = new URLSearchParams({ area: next, ...extra });
@@ -194,6 +204,30 @@ function SettingsBody() {
     if (id === "layout") return drafts.externalDirty.includes("layout");
     if (id === "adapters") return drafts.externalDirty.some((key) => key.startsWith("adapter:"));
     return (AREA_DRAFTS[id] ?? []).some((draftArea) => drafts.dirtyAreas.includes(draftArea));
+  };
+
+  const leaveArea = (next: SettingsAreaId): void => {
+    if (next === area) return;
+    if (areaDirty(area)) setPending({ kind: "area", id: next });
+    else go(next);
+  };
+
+  const selectAdapter = (id: string): void => {
+    if (area === "adapters" && id !== adapterParam && areaDirty("adapters")) setPending({ kind: "adapter", id });
+    else go("adapters", { adapter: id });
+  };
+
+  const dialogLabel = pending?.kind === "area" ? t(`settings.area.${pending.id}` as MessageKey) : pending?.kind === "adapter" ? pending.id : "";
+
+  const confirmSwitch = (): void => {
+    if (!pending) return;
+    if (pending.kind === "area") {
+      drafts.discard();
+      go(pending.id);
+    } else {
+      go("adapters", { adapter: pending.id });
+    }
+    setPending(null);
   };
 
   let content: ReactNode;
@@ -220,7 +254,7 @@ function SettingsBody() {
       />
     );
   } else if (area === "adapters") {
-    content = <AdaptersArea selectedId={adapterParam} onSelect={(id) => go("adapters", { adapter: id })} />;
+    content = <AdaptersArea selectedId={adapterParam} onSelect={selectAdapter} />;
   } else if (area === "layout") {
     content = <LayoutArea />;
   } else {
@@ -248,7 +282,7 @@ function SettingsBody() {
           <ul>
             {SETTINGS_AREAS.map((id) => (
               <li key={id} data-sub={id === "layout" || undefined}>
-                <button type="button" className="st-areas__item" aria-current={area === id ? "page" : undefined} onClick={() => go(id)}>
+                <button type="button" className="st-areas__item" aria-current={area === id ? "page" : undefined} onClick={() => leaveArea(id)}>
                   <span className="st-areas__icon" aria-hidden="true">
                     {AREA_ICONS[id]}
                   </span>
@@ -280,6 +314,27 @@ function SettingsBody() {
         )}
       </div>
       <SaveBar />
+      {pending ? (
+        <div
+          className="st-dialog"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setPending(null);
+          }}
+        >
+          <div className="st-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="st-dialog-title" aria-describedby="st-dialog-desc">
+            <h2 id="st-dialog-title">{t("settings.draftSwitch.title")}</h2>
+            <p id="st-dialog-desc">{t("settings.draftSwitch.desc", { target: dialogLabel })}</p>
+            <div className="st-dialog__actions">
+              <Button type="button" variant="ghost" onClick={() => setPending(null)} autoFocus>
+                {t("settings.draftSwitch.stay")}
+              </Button>
+              <Button type="button" onClick={confirmSwitch}>
+                {t("settings.draftSwitch.discard")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

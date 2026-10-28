@@ -817,6 +817,11 @@ function ResearchProviderSetup() {
       setSaving(false);
     }
   };
+  const installBlocked = !config.data?.data.setup.available
+    ? t("research.provider.status.unavailable")
+    : saving
+      ? t("research.provider.installing")
+      : undefined;
   return (
     <form
       className="rs-create"
@@ -829,7 +834,8 @@ function ResearchProviderSetup() {
       <div className="mc-toolbar">
         <Button
           type="button"
-          disabled={saving || !config.data?.data.setup.available}
+          disabled={installBlocked !== undefined}
+          title={installBlocked}
           onClick={() => void save(true)}
         >
           {saving ? t("research.provider.installing") : t("research.provider.installLocal")}
@@ -911,6 +917,14 @@ function ResearchContent() {
     [params, router],
   );
 
+  const startBlocked = !canCreate
+    ? t("research.create.unavailable")
+    : stagedBusy
+      ? t("research.create.busy")
+      : topic.trim().length < 3
+        ? t("research.create.topicTooShort")
+        : undefined;
+
   const startResearch = (): void => {
     const requested = topic.trim();
     if (!requested || stagedBusy) return;
@@ -958,7 +972,7 @@ function ResearchContent() {
               disabled={!canCreate || stagedBusy}
               placeholder={t("research.create.placeholder")}
             />
-            <Button type="submit" disabled={!canCreate || stagedBusy || topic.trim().length < 3}>
+            <Button type="submit" disabled={startBlocked !== undefined} title={startBlocked}>
               {t("research.create.start")}
             </Button>
           </div>

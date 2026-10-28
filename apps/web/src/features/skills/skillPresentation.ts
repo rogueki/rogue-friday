@@ -1,5 +1,30 @@
 import type { SkillCatalogEntry } from "@friday/sdk";
 
+// Hermes names the registry a skill came from ("skills.sh", "clawhub", ...) and the trust its checker assigned
+// ("trusted", "community", ...). The vocabulary grows with every registry, so unknown tokens are shown verbatim
+// instead of being labelled "Unbekannt" — the operator can act on the real name.
+const ORIGIN_LABELS: Record<string, string> = {
+  friday: "Friday-Paket", builtin: "Hermes mitgeliefert", local: "Lokal installiert",
+  hub: "Hub-Installation", unknown: "Unbekannt",
+};
+
+const TRUST_LABELS: Record<string, string> = {
+  builtin: "Mitgeliefert", local: "Lokal", project: "Projektfreigabe", trusted: "Vertrauenswürdige Quelle",
+  community: "Community", unknown: "Unbekannt",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  registry: "Friday-Register", "hermes-dashboard": "Hermes-Dashboard", "hermes-cli": "Hermes-CLI",
+  unavailable: "Nicht erreichbar",
+};
+
+/** Origin is where the skill lives; trust is what lets Hermes load it. Both stay separate from activation. */
+export const originLabel = (origin: SkillCatalogEntry["origin"]): string => ORIGIN_LABELS[origin] ?? origin;
+export const trustLabel = (trust: SkillCatalogEntry["trust"]): string => TRUST_LABELS[trust] ?? trust;
+
+/** Where the observed state came from; unknown tokens stay verbatim like origin and trust. */
+export const sourceLabel = (source: string | null | undefined): string => (source ? SOURCE_LABELS[source] ?? source : "Unbekannt");
+
 export function skillState(skill: SkillCatalogEntry): { label: string; tone: "green" | "amber" | "red"; detail: string } {
   if (skill.discovered === false) return { label: "Nicht gefunden", tone: "red", detail: "Im Paket enthalten, aber in der laufenden Hermes-Instanz nicht gefunden." };
   if (skill.discovered === null) return { label: "Laufzeit unbekannt", tone: "amber", detail: "Hermes hat keinen verlässlichen Laufzeitstatus geliefert." };
@@ -38,11 +63,14 @@ export function officialReference(value: string): string | null {
   }
 }
 
-export function visibleSkills(catalog: readonly SkillCatalogEntry[], search: string, source = "all", stateFilter = "all"): SkillCatalogEntry[] {
+export function visibleSkills(catalog: readonly SkillCatalogEntry[], search: string, source = "all",
+  stateFilter = "all", category = "all", origin = "all"): SkillCatalogEntry[] {
   const needle = search.trim().toLocaleLowerCase();
   return catalog.filter((skill) =>
     (!needle || `${skill.name} ${skill.description} ${skill.category}`.toLocaleLowerCase().includes(needle)) &&
     (source === "all" || skill.source === source) &&
+    (origin === "all" || skill.origin === origin) &&
+    (category === "all" || skill.category === category) &&
     (stateFilter === "all" || (stateFilter === "enabled" ? skill.enabled === true : stateFilter === "missing" ? skill.discovered === false : skill.discovered === null)),
   );
 }

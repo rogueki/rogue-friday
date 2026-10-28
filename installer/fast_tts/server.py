@@ -11,7 +11,7 @@ from pathlib import Path
 
 def load_voice_clones(directory: Path) -> dict[str, dict[str, str]]:
     voices = {}
-    for choice in ("friday-female", "classic"):
+    for choice in ("friday-female", "classic", "custom"):
         audio = directory / f"{choice}.wav"
         transcript = directory / f"{choice}.txt"
         if audio.is_file() and transcript.is_file():

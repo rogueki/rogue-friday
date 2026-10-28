@@ -17,13 +17,16 @@ const stateOf = (upstream: FakeUpstream): HermesState | undefined => states.get(
 
 const EVENTS_ROUTE = { method: "GET", path: "/api/plugins/kanban/events" };
 
-const create: Record<HermesCategory, (options: HermesAdapterOptions) => FridayAdapter> = {
+// Automations have no event stream, so the generic suite covers the three event-bearing categories.
+type ConformantCategory = Exclude<HermesCategory, "automations">;
+
+const create: Record<ConformantCategory, (options: HermesAdapterOptions) => FridayAdapter> = {
   tasks: (options) => new HermesTasksAdapter(options),
   activity: (options) => new HermesActivityAdapter(options),
   agents: (options) => new HermesAgentsAdapter(options),
 };
 
-const fixtures: Record<HermesCategory, ConformanceFixtures> = {
+const fixtures: Record<ConformantCategory, ConformanceFixtures> = {
   tasks: {
     seed: (upstream, { count }) => {
       states.set(

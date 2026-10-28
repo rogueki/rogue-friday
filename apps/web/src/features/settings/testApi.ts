@@ -86,6 +86,7 @@ export const ADAPTERS: AdapterConfigSettings[] = [
     category: "communication",
     provider: "mock-communication",
     enabled: true,
+    version: 7,
     config: { latencyMs: 0, imapHost: "imap.example" },
     configSchema: {
       type: "object",
@@ -117,6 +118,10 @@ export interface FakeApiOptions {
   conflictOnce?: boolean;
   /** Extra route handler, consulted first; return undefined to fall through. */
   extra?: (call: RecordedCall) => Response | undefined;
+  /** Data mode the fake `/meta` reports; decides whether the UI may talk about simulation. */
+  dataMode?: "mock" | "hybrid" | "live";
+  /** Configured adapters; a reduced list models a host where only some categories are set up. */
+  adapters?: AdapterConfigSettings[];
 }
 
 export function createFakeApi(options: FakeApiOptions = {}) {
@@ -155,7 +160,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
       return single({ authenticated: true, user: { id: "usr_01JAAAAAAAAAAAAAAAAAAAAAAA", username: "erik", displayName: "Erik Brandt", role }, role, csrfToken: "csrf", expiresAt: "2026-10-14T18:00:00Z", reauthUntil: null });
     }
     if (method === "GET" && path === "/meta") {
-      return jsonResponse({ contractVersion: "2.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true, scenarioControls: options.scenarioControls ?? true }, defaultLocale: "de" });
+      return jsonResponse({ contractVersion: "2.0.0", apiVersion: "v1", dataMode: options.dataMode ?? "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true, scenarioControls: options.scenarioControls ?? true }, defaultLocale: "de" });
     }
     if (method === "GET" && path === "/settings") return single(state.settings);
     if (method === "PATCH" && path === "/settings") {
@@ -180,7 +185,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
       if (request.activate) state.settings = { ...state.settings, dashboard: { ...state.settings.dashboard, activeLayoutId: request.layout.layoutId }, version: state.settings.version + 1 };
       return single(request.layout);
     }
-    if (method === "GET" && path === "/settings/adapters") return role === "owner" ? list(ADAPTERS) : apiError(403, "FORBIDDEN", "verboten");
+    if (method === "GET" && path === "/settings/adapters") return role === "owner" ? list(options.adapters ?? ADAPTERS) : apiError(403, "FORBIDDEN", "verboten");
     if (method === "PATCH" && path.startsWith("/settings/adapters/")) return single(ADAPTERS[0]);
     if (method === "POST" && path.endsWith("/test")) {
       return single({ adapterId: "mock-communication", success: true, latencyMs: 12, message: "Verbindung erfolgreich getestet.", testedAt: "2026-10-14T08:00:00Z", correlationId: "corr_01JAAAAAAAAAAAAAAAAAAAAAAA" });

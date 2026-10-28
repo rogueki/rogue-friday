@@ -13,6 +13,7 @@ const PAGES = [
   ["Kalender", "/calendar"],
   ["Automationen", "/automations"],
   ["Recherche", "/research"],
+  ["Content Studio", "/content-studio"],
   ["Dateien & Dokumente", "/files"],
   ["Sprache", "/voice"],
   ["Meldungen & Alarme", "/alerts"],
@@ -33,8 +34,17 @@ test("all menu entries are reachable by click and mark the current page", async 
   }
 });
 
+test("at 1920x1080 every menu entry is visible without scrolling the navigation (PLAN §24.12)", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await open(page, "/");
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  const overflow = await nav.evaluate((element) => element.scrollHeight - element.clientHeight);
+  expect(overflow, "the navigation needs scrolling to reach its last entries").toBeLessThanOrEqual(0);
+  for (const [label] of PAGES) await expect(nav.getByRole("link", { name: label })).toBeInViewport({ ratio: 1 });
+});
+
 test("every route also loads directly (static export + SPA fallback)", async ({ page }) => {
-  test.setTimeout(180_000); // 17 full document loads on the CI software renderer.
+  test.setTimeout(180_000); // 18 full document loads on the CI software renderer.
   for (const [label, route] of PAGES) {
     await page.goto(route);
     await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();

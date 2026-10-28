@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/skill-mutation.schema.json",
+  "title": "SkillMutation",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "install",
+        "update",
+        "uninstall"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "installed": {
+      "type": "boolean"
+    },
+    "enabled": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "snapshot": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "observedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "action",
+    "name",
+    "installed",
+    "enabled",
+    "snapshot",
+    "text",
+    "bytes",
+    "observedAt"
+  ],
+  "additionalProperties": false
+}

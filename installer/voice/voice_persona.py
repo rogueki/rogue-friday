@@ -7,7 +7,10 @@ import urllib.parse
 from pathlib import Path
 
 
-CHOICES = ("friday-female", "classic")
+CHOICES = ("friday-female", "classic", "custom")
+# Piper-Basisstimme je Platz. Der eigene Platz nutzt dieselbe Basis wie der weibliche, unterscheidet sich
+# aber durch seine eigene Referenz (config/voice-references/custom-reference.*).
+PIPER_FALLBACK = {"friday-female": "de_DE-kerstin-low", "classic": "de_DE-thorsten-medium", "custom": "de_DE-kerstin-low"}
 
 
 class PersonaUnavailable(ValueError):
@@ -42,7 +45,7 @@ def resolve(cfg: dict, root: str, choice: str) -> dict:
         raise PersonaUnavailable("Der Sprachmodus ist nicht unterstützt.")
     base = Path(root)
     reference = _reference(base, choice)
-    fallback_name = "de_DE-kerstin-low" if choice == "friday-female" else "de_DE-thorsten-medium"
+    fallback_name = PIPER_FALLBACK[choice]
     fallback = base / "models" / "tts" / f"{fallback_name}.onnx"
     if not fallback.is_file():
         raise PersonaUnavailable(f"Die lokale Basisstimme für {choice} fehlt. Bitte im Installer einrichten.")

@@ -2,12 +2,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
 import type { HermesCronMutationReceipt, HermesCronMutationRequest } from "@friday/sdk";
-import { ApiError, conflict, validationFailed } from "../util/errors";
+import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
+import type { HermesInventoryEntry } from "./skills";
 
 export const HERMES_CONFIG_FIELDS = {
   "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
   "model.default": { type: "string", kind: "model", family: "models", consumer: "new Hermes model request" },
+  "model.base_url": { type: "string", kind: "baseUrl", family: "models", consumer: "new Hermes custom-provider request" },
   "agent.reasoning_effort": { type: "string", kind: "reasoning", family: "models", consumer: "new Hermes model request" },
   "fallback.min_switch_reset_seconds": { type: "integer", min: 0, max: 3600, family: "models", consumer: "next Hermes fallback decision" },
   fallback_model: { type: "fallback", family: "models", consumer: "new Hermes provider route" },
@@ -128,7 +130,18 @@ const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high
 function printablePath(value: string): boolean {
   return value.length <= 512 && value.startsWith("/") && !/[\p{C}\p{Zl}\p{Zp}]/u.test(value);
 }
-function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
+// OPENAI_API_KEY is sent to this host, so plaintext URLs are limited to loopback and credentials/query are refused.
+export function validBaseUrl(value: string): boolean {
+  if (value.length < 1 || value.length > 512 || value.includes("?") || value.includes("#") ||
+      [...value].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) >= 127)) return false;
+  let url: URL;
+  try { url = new URL(value); } catch { return false; }
+  if (url.username || url.password || !url.hostname) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "[::1]" || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(url.hostname));
+}
+function validStringPatch(kind: "provider" | "model" | "baseUrl" | "reasoning" | "tailMode" | "executionBackend" |
   "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" | "browserEngine" |
   "approvalMode" | "automaticApproval" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
@@ -146,6 +159,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "manifestPath") return value === "" || printablePath(value);
   if (kind === "workspacePath") return value === "." || printablePath(value);
   if (kind === "logLevel") return value === "DEBUG" || value === "INFO" || value === "WARNING";
+  if (kind === "baseUrl") return validBaseUrl(value);
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
@@ -201,11 +215,23 @@ interface BridgeStatus {
   write: { key: string; persisted: boolean } | null;
 }
 
-const unavailable = () =>
+/**
+ * The distro name was never part of this message's truth: it blamed "Friday-Ubuntu" even when the bridge had crashed
+ * on a missing import or the inventory rejected an unknown origin token. State what is known, keep the reason.
+ */
+const unavailable = (detail?: string) =>
   new ApiError({
     code: "ADAPTER_UNAVAILABLE",
-    message: "Hermes-Konfiguration in Friday-Ubuntu ist nicht erreichbar.",
+    message: "Die Hermes-Bruecke in WSL antwortet nicht oder lieferte ein unerwartetes Format.",
+    ...(detail ? { details: { detail: detail.slice(0, 400) } } : {}),
   });
+
+/**
+ * A local precondition that the operator can fix (no installation state, no WSL target). The reason belongs in the
+ * message, not behind a generic "the bridge does not answer".
+ */
+const unavailableBecause = (message: string) =>
+  new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
 
 export class HermesConfigService {
   constructor(
@@ -277,6 +303,317 @@ export class HermesConfigService {
     return raw;
   }
 
+  async skillMarkdown(id: string) {
+    if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id))
+      throw validationFailed("Ungültige Skill-Kennung.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-md"], JSON.stringify({ id }), 10000, 70000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_md_missing")) throw notFound("Skill-Datei", id);
+      if (message.includes("skill_md_too_large"))
+        throw validationFailed("Die SKILL.md ist größer als 64 KiB und wird nicht angezeigt.");
+      if (message.includes("invalid_skill_id")) throw validationFailed("Ungültige Skill-Kennung.");
+      throw unavailable();
+    }
+    if (raw.id !== id || typeof raw.content !== "string" || raw.content.length < 1 ||
+        raw.content.length > 65536 || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 1 ||
+        (raw.bytes as number) > 65536) throw unavailable();
+    // Raw text only: the UI must escape it, the bridge never renders HTML.
+    return { id, content: raw.content, bytes: raw.bytes as number };
+  }
+
+  async hubSearch(query: string, source: string | undefined, limit: number) {
+    const trimmed = query.trim();
+    if (trimmed.length < 1 || trimmed.length > 120) throw validationFailed("Der Suchbegriff braucht 1 bis 120 Zeichen.");
+    if (source !== undefined && !/^[a-z0-9][a-z0-9.-]{0,39}$/.test(source))
+      throw validationFailed("Unbekannte Skill-Quelle.");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw validationFailed("Limit muss zwischen 1 und 50 liegen.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["hub-search"],
+        JSON.stringify({ query: trimmed, source: source ?? null, limit }), 65000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("hub_search_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Skill-Registry hat nicht rechtzeitig geantwortet." });
+      if (message.includes("hub_search_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Skill-Suche hat ein unbekanntes Format geliefert." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Suchanfrage.");
+      throw unavailable();
+    }
+    if (raw.query !== trimmed || raw.source !== (source ?? null) || !Array.isArray(raw.results) ||
+        raw.results.length > 50) throw unavailable();
+    const results = raw.results.map((value) => {
+      if (!value || typeof value !== "object") throw unavailable();
+      const hit = value as Record<string, unknown>;
+      if (typeof hit.identifier !== "string" || hit.identifier.length < 1 || hit.identifier.length > 300 ||
+          typeof hit.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(hit.name) ||
+          typeof hit.source !== "string" || hit.source.length < 1 || hit.source.length > 40 ||
+          typeof hit.trustLevel !== "string" || hit.trustLevel.length < 1 || hit.trustLevel.length > 40 ||
+          typeof hit.description !== "string" || hit.description.length > 2000) throw unavailable();
+      return { identifier: hit.identifier, name: hit.name, source: hit.source,
+        trustLevel: hit.trustLevel, description: hit.description };
+    });
+    return { query: trimmed, source: source ?? "all", results, observedAt: new Date().toISOString() };
+  }
+
+  async modifiedSkills(): Promise<{ names: string[]; at: string }> {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["modified-list"], undefined, 120000, 131072);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("modified_skills_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die Liste lokal geaenderter Skills hat ein unbekanntes Format." });
+      throw unavailable();
+    }
+    if (!Array.isArray(raw.names) || raw.names.length > 500) throw unavailable();
+    const names = raw.names.map((value) => {
+      if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(value)) throw unavailable();
+      return value;
+    });
+    return { names, at: new Date().toISOString() };
+  }
+
+  async mutateSkill(action: "install" | "update" | "uninstall", name: string, identifier: string | undefined,
+    force: boolean) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    if (action === "install") {
+      if (typeof identifier !== "string" || identifier.length < 3 || identifier.length > 300 || /\s/.test(identifier))
+        throw validationFailed("Zum Installieren wird eine Skill-Kennung gebraucht.");
+    } else if (identifier !== undefined) {
+      throw validationFailed("Eine Kennung ist nur beim Installieren erlaubt.");
+    }
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-mutate"],
+        JSON.stringify({ action, name, identifier: identifier ?? null, force }), 195000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_mutation_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die Skill-Aenderung hat nicht rechtzeitig geantwortet; der alte Stand wurde wiederhergestellt." });
+      if (message.includes("skill_mutation_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die CLI hat die Skill-Aenderung nicht bestaetigt; der alte Stand wurde wiederhergestellt." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Skill-Aenderung.");
+      throw unavailable();
+    }
+    if (raw.action !== action || raw.name !== name || typeof raw.installed !== "boolean" ||
+        (raw.enabled !== null && typeof raw.enabled !== "boolean") ||
+        (raw.snapshot !== null && (typeof raw.snapshot !== "string" || raw.snapshot.length > 200)) ||
+        typeof raw.text !== "string" || raw.text.length > 4096 || !Number.isInteger(raw.bytes) ||
+        (raw.bytes as number) < 0) throw unavailable();
+    const expected = action !== "uninstall";
+    if (raw.installed !== expected) throw unavailable();
+    return { action, name, installed: raw.installed, enabled: raw.enabled as boolean | null,
+      snapshot: raw.snapshot as string | null, text: raw.text, bytes: raw.bytes as number,
+      observedAt: new Date().toISOString() };
+  }
+
+  async skillReport(action: "inspect" | "audit" | "diff", name: string) {
+    // A full identifier (`source/category/name`) is unambiguous where a bare name can collide (N-053).
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(\/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$/.test(name))
+      throw validationFailed("Ungueltiger Skill-Name oder ungueltige Kennung.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      // inspect and audit resolve the name against the registries first (measured 2 s for an identifier, over 90 s for
+      // a bare name), diff answers locally. The API budget stays above the bridge budget so the bridge's own message
+      // arrives instead of a generic runner timeout.
+      raw = await this.invoke(script, distro, user, ["skill-report"], JSON.stringify({ action, name }),
+        action === "diff" ? 90000 : 180000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // A runner-level kill looks like "unexpected format" unless it is named; keep both budget levels honest.
+      if (message.includes("runner_timeout") || message.includes(`skill_${action}_timeout`))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Der Skill-Bericht hat das Zeitlimit ueberschritten.", details: { action, name } });
+      if (message.includes("skill_report_empty"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
+      if (message.includes("skill_report_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Bericht hat ein unbekanntes Format." });
+      if (message.includes(`skill_${action}_failed`)) {
+        // The CLI usually has a precise reason ("not tracked", "unknown skill"); hide it and the operator is stuck.
+        const detail = /"detail":\s*"((?:[^"\\]|\\.)*)"/.exec(message)?.[1]?.replace(/\\n/g, " ").trim();
+        throw conflict(`Die CLI hat den Bericht abgelehnt${detail ? `: ${detail.slice(0, 300)}` : "."}`,
+          { action, name, cliDetail: detail?.slice(0, 600) ?? null });
+      }
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltiger Skill-Name.");
+      if (message.startsWith("runner_invalid:"))
+        throw unavailableBecause(`Die WSL-Distribution ${distro} antwortet nicht (${message}); Installation und `
+          + "Distributionsnamen in config/install-state.json pruefen.");
+      throw unavailable(message);
+    }
+    if (raw.action !== action || raw.name !== name || typeof raw.text !== "string" || raw.text.length > 65536 ||
+        raw.text.trim() === "" || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0 ||
+        typeof raw.truncated !== "boolean") throw unavailable();
+    return { action, name, text: raw.text, bytes: raw.bytes as number, truncated: raw.truncated,
+      observedAt: new Date().toISOString() };
+  }
+
+  /** Trust markers and taps change global Hermes state; the target checks live in the bridge, next to the CLI. */
+  async mutateSkillGovernance(action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset",
+    params: { path?: string | null; repo?: string | null; name?: string | null }) {
+    const path = params.path ?? null;
+    const repo = params.repo ?? null;
+    const name = params.name ?? null;
+    if (action === "reset") {
+      if (name === null || path !== null || repo !== null) throw validationFailed("reset braucht nur einen Skill-Namen.");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    } else if (action === "trust" || action === "untrust") {
+      if (path === null || repo !== null || name !== null)
+        throw validationFailed("trust und untrust brauchen nur einen Pfad.");
+      if (!path.startsWith("/")) throw validationFailed("Der Pfad muss absolut sein.");
+    } else {
+      // Both tap actions name the repository, exactly as `hermes skills tap list` shows it.
+      if (repo === null || path !== null || name !== null) throw validationFailed("tap-Aktionen brauchen nur ein Repository.");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,38}\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(repo))
+        throw validationFailed("Das Repository muss die Form owner/repo haben.");
+    }
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-governance"],
+        JSON.stringify({ action, path, repo, name }), 95000, 65536);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_governance_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Befehl hat nicht rechtzeitig geantwortet." });
+      if (message.includes("skill_governance_unconfirmed"))
+        throw new ApiError({ code: "CONFLICT", message: "Die CLI hat die Aenderung nicht bestaetigt." });
+      if (message.includes("skill_governance_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat den Befehl mit einem Fehler beendet." });
+      if (message.includes("missing_project_skills"))
+        throw validationFailed("Das Verzeichnis enthaelt keine Projektskills (.hermes/skills oder .agents/skills).");
+      if (message.includes("invalid_target")) throw validationFailed("Das Verzeichnis existiert nicht.");
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Parameter fuer diesen Befehl.");
+      throw unavailable();
+    }
+    const target = action === "reset" ? name : action === "trust" || action === "untrust" ? path : repo;
+    if (raw.action !== action || raw.target !== target || typeof raw.text !== "string" || raw.text.length > 4096 ||
+        !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0) throw unavailable();
+    return { action, target: raw.target as string, text: raw.text, bytes: raw.bytes as number,
+      changedAt: new Date().toISOString() };
+  }
+
+  /** browse, check and tap list answer with text only; each takes its own, deliberately narrow parameter set. */
+  async skillCommand(command: "browse" | "check" | "tap-list", params: { name?: string; page?: number; size?: number;
+    source?: string }) {
+    const { name = null, page = null, size = null, source = null } = params;
+    if (command === "browse") {
+      if (name !== null) throw validationFailed("browse kennt keinen Skill-Namen.");
+      if (page === null || size === null) throw validationFailed("browse braucht page und size.");
+    } else if (command === "check") {
+      if (page !== null || size !== null || source !== null)
+        throw validationFailed("check kennt nur einen optionalen Skill-Namen.");
+      if (name !== null && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    } else if (name !== null || page !== null || size !== null || source !== null)
+      throw validationFailed("tap list nimmt keine Parameter.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      const timeout = command === "browse" ? 95000 : command === "check" ? 125000 : 95000;
+      raw = await this.invoke(script, distro, user, ["skill-command"],
+        JSON.stringify({ command, name, page, size, source }), timeout, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_command_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Befehl hat nicht rechtzeitig geantwortet." });
+      if (message.includes("skill_report_empty"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
+      if (message.includes("skill_command_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat den Befehl mit einem Fehler beendet." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Parameter fuer diesen Befehl.");
+      throw unavailable();
+    }
+    if (raw.command !== command || raw.name !== name || typeof raw.text !== "string" || raw.text.length > 65536 ||
+        raw.text.trim() === "" || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0 ||
+        typeof raw.truncated !== "boolean") throw unavailable();
+    return { command, name, text: raw.text, bytes: raw.bytes as number, truncated: raw.truncated,
+      observedAt: new Date().toISOString() };
+  }
+
+  async skillInventory(): Promise<{ entries: HermesInventoryEntry[]; at: string }> {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skills-list"], undefined, 120000, 512000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("skills_list_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Das Hermes-Skill-Inventar hat ein unbekanntes Format; Herkunft und Trust bleiben unbekannt." });
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith("runner_invalid:"))
+        throw unavailableBecause(`Die WSL-Distribution ${distro} antwortet nicht (${message}); das Skill-Inventar `
+          + "bleibt deshalb unbekannt.");
+      throw unavailable(message);
+    }
+    if (!Number.isInteger(raw.count) || !Array.isArray(raw.skills) || raw.count !== raw.skills.length ||
+        raw.skills.length > 2000) throw unavailable();
+    const names = new Set<string>();
+    const entries = raw.skills.map((value): HermesInventoryEntry => {
+      if (!value || typeof value !== "object") throw unavailable();
+      const entry = value as Record<string, unknown>;
+      if (typeof entry.name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(entry.name) ||
+          typeof entry.category !== "string" || entry.category.length > 64 ||
+          // Bounded tokens, not fixed lists: the CLI renamed `local` to `external` in v0.22.2 and a closed list would
+          // have thrown away the whole inventory on one unknown value (N-064).
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(entry.origin as string) ||
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(entry.trust as string) ||
+          !["enabled", "disabled"].includes(entry.state as string) || names.has(entry.name)) throw unavailable();
+      names.add(entry.name);
+      return { name: entry.name, category: entry.category, origin: entry.origin as HermesInventoryEntry["origin"],
+        trust: entry.trust as HermesInventoryEntry["trust"], state: entry.state as HermesInventoryEntry["state"] };
+    });
+    return { entries, at: new Date().toISOString() };
+  }
+
+  async access() {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["auth-list"], undefined, 20000, 512000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("auth_list_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die Hermes-Zugaenge konnten nicht gelesen werden: die CLI-Ausgabe hat ein unbekanntes Format." });
+      throw unavailable();
+    }
+    if (!Array.isArray(raw.providers) || raw.providers.length > 64) throw unavailable();
+    const seen = new Set<string>();
+    const providers = raw.providers.map((entry) => {
+      const provider = entry as Record<string, unknown>;
+      if (!provider || typeof provider !== "object" || typeof provider.provider !== "string" ||
+          !/^[A-Za-z0-9_.-]{1,64}$/.test(provider.provider) || seen.has(provider.provider) ||
+          !Array.isArray(provider.credentials) || provider.credentials.length < 1 ||
+          provider.credentials.length > 100 || provider.count !== provider.credentials.length) throw unavailable();
+      seen.add(provider.provider);
+      const credentials = provider.credentials.map((item) => {
+        const credential = item as Record<string, unknown>;
+        if (!credential || typeof credential !== "object" || !Number.isInteger(credential.index) ||
+            (credential.index as number) < 1 || typeof credential.label !== "string" ||
+            credential.label.length < 1 || credential.label.length > 200 ||
+            !["api_key", "oauth"].includes(String(credential.type)) ||
+            typeof credential.source !== "string" || credential.source.length < 1 ||
+            credential.source.length > 200 || typeof credential.active !== "boolean") throw unavailable();
+        // A misbehaving CLI must not be able to smuggle a key through label or source.
+        if (/(?:sk-|ghp_|xox[bp]-)[A-Za-z0-9_-]{8,}/.test(`${credential.label} ${credential.source}`))
+          throw unavailable();
+        return { index: credential.index as number, label: credential.label, type: credential.type as "api_key" | "oauth",
+          source: credential.source, active: credential.active };
+      });
+      return { provider: provider.provider, count: credentials.length, credentials };
+    });
+    return { providers };
+  }
+
   private target(): { script: string; distro: string; user: string } {
     if (process.platform !== "win32")
       return { script: nativeRunnerScript(this.dataDir, "hermes_config_bridge.py").script,
@@ -284,14 +621,16 @@ export class HermesConfigService {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1)
       root = resolve(root, "..");
-    if (!existsSync(join(root, "config", "install-state.json"))) throw unavailable();
+    if (!existsSync(join(root, "config", "install-state.json")))
+      throw unavailableBecause("Friday-Installationszustand fehlt: config/install-state.json wurde bis "
+        + root + " nicht gefunden.");
     let state: { distro_name?: string; linux_user?: string };
     try {
       state = JSON.parse(
         readFileSync(join(root, "config", "install-state.json"), "utf8").replace(/^\uFEFF/, ""),
       ) as typeof state;
     } catch {
-      throw unavailable();
+      throw unavailableBecause("Friday-Installationszustand ist unlesbar (config/install-state.json).");
     }
     if (
       !state.distro_name ||
@@ -299,7 +638,7 @@ export class HermesConfigService {
       !/^[a-zA-Z0-9_.-]+$/.test(state.distro_name) ||
       !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)
     )
-      throw unavailable();
+      throw unavailableBecause("WSL-Ziel ist nicht konfiguriert: distro_name und linux_user fehlen im Installationszustand.");
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match) throw unavailable();
     return {
@@ -342,6 +681,8 @@ export class HermesConfigService {
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
       if (action === "update" && error instanceof Error) {
+        if (error.message.includes("custom_provider_required"))
+          throw validationFailed("Die Basis-URL gilt nur für den eigenen Anbieter (custom). Zuerst den Anbieter auf custom umstellen.");
         if (error.message.includes("profile_snapshot_cleanup_failed"))
           throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
             message: "Browserprofil-Zustimmung wurde geändert, aber der Hermes-Snapshot konnte nicht bestätigt entfernt werden. Status neu laden und den lokalen Profilordner prüfen." });

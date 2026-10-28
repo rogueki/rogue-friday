@@ -1,10 +1,13 @@
 """Gefuehrte Aufnahme fuer den Assistenten: Wake-Word-Samples, Sprecher-Enrollment, harte Negativbeispiele.
 
-Aufruf: python enroll_record.py [--name Friday] [--phrase "Hey Friday"]
+Aufruf: python enroll_record.py [--name Friday] [--phrase "Hey Friday"] [--gui] [--interaction-file PFAD]
 Ohne Angaben gelten assistant_name/wake_phrase aus ../config/persona.json, sonst Friday / "Hey <Name>".
 Speichert 16 kHz Mono WAVs unter profiles/owner/raw/<block>/. Biometrische Daten bleiben lokal.
 Ordner der Wake-Blocks: wake_<slug der Phrase> (z. B. wake_hey_friday) und, wenn die Phrase mit einem Grusswort beginnt,
 wake_<slug der Kurzform> (wake_friday). Gegenbeispiele leiten sich aus den Woertern der Phrase ab (negatives).
+
+Interaktion: mit --interaction-file laeuft die gesamte Fuehrung ueber die Datei, die der grafische Assistent
+liest (Aktionen ok/replay/skip/cancel). Ohne diese Datei bleibt --gui bei kleinen Dialogen und der Rest bei stdin.
 """
 import argparse
 import datetime
@@ -24,15 +27,44 @@ RAW = os.path.join(ROOT, "profiles", "owner", "raw")
 MANIFEST = os.path.join(RAW, "manifest.jsonl")
 DEFAULT_NAME = "Friday"
 GUI_MODE = "--gui" in sys.argv
+ARGS = None
+CLIENT = None
+LAST_SAVED = None
 
 
-def ready(message: str) -> None:
+def replay_last() -> None:
+    """Spielt die zuletzt gespeicherte Aufnahme erneut ab (Samplewiederholung ohne neues Sprechen)."""
+    if not LAST_SAVED or not os.path.isfile(LAST_SAVED):
+        print("      Noch keine Aufnahme zum Anhoeren.")
+        return
+    audio, rate = sf.read(LAST_SAVED, dtype="float32")
+    sd.play(audio, rate, blocking=True)
+
+
+def ready(message: str, *, block: str = "", index: int = 0, total: int = 0,
+          detail: str = "", actions: tuple = ("ok", "replay", "cancel")) -> str:
+    """Wartet auf die Aktion des Assistenten und gibt sie zurueck ('ok' oder 'skip').
+
+    Mit Interaktionsdatei fuehrt der grafische Assistent; ohne sie bleibt der bisherige Weg
+    (kleine Dialoge bei --gui, sonst Enter auf der Konsole). Ein Abbruch beendet die Aufnahme mit 2.
+    """
+    if CLIENT is not None:
+        while True:
+            action = CLIENT.ask(message, title="Stimmaufnahme", kind="record", block=block, index=index,
+                                total=total, detail=detail, actions=actions, timeout=1800.0)
+            if action == "cancel":
+                raise SystemExit(2)
+            if action == "replay":
+                replay_last()
+                continue
+            return action
     if GUI_MODE:
         from tkinter import messagebox
         if not messagebox.askokcancel("F.R.I.D.A.Y. Stimmaufnahme", message + "\n\nOK startet diese Aufnahme. Abbrechen beendet die Stimmaufnahme."):
             raise SystemExit(2)
-    else:
-        input(message + "\n  -> Enter druecken, wenn bereit ... ")
+        return "ok"
+    input(message + "\n  -> Enter druecken, wenn bereit ... ")
+    return "ok"
 
 import negative_texts  # noqa: E402
 import personal_wake  # noqa: E402  (gleicher Ordner: slugify, hard_negatives, enrollment_blocks)
@@ -49,11 +81,14 @@ def _persona_field(key: str):
 def assistant_identity() -> tuple[str, str]:
     """(Name, Wake Phrase): --name/--phrase, sonst persona.json, sonst Friday / "Hey <Name>". Ungueltige Angaben brechen
     ab (der Installer prueft sie vorher)."""
+    global ARGS
     ap = argparse.ArgumentParser()
     ap.add_argument("--name")
     ap.add_argument("--phrase")
     ap.add_argument("--gui", action="store_true")
+    ap.add_argument("--interaction-file")
     args = ap.parse_args()
+    ARGS = args
     name = (args.name or _persona_field("assistant_name") or DEFAULT_NAME).strip()
     if not personal_wake.valid_name(name):
         raise SystemExit(f"Ungueltiger Assistentenname '{name}' (2-20 Buchstaben).")
@@ -121,6 +156,7 @@ def record(seconds: float) -> np.ndarray:
 
 
 def save(block: str, idx: int, audio: np.ndarray, meta: dict) -> str:
+    global LAST_SAVED
     os.makedirs(os.path.join(RAW, block), exist_ok=True)
     path = os.path.join(RAW, block, f"{block}_{idx:03d}.wav")
     sf.write(path, audio, SR, subtype="PCM_16")
@@ -128,6 +164,7 @@ def save(block: str, idx: int, audio: np.ndarray, meta: dict) -> str:
         f.write(json.dumps({"file": os.path.relpath(path, RAW), "block": block,
                             "time": datetime.datetime.now().isoformat(timespec="seconds"), **meta},
                            ensure_ascii=False) + "\n")
+    LAST_SAVED = path
     return path
 
 
@@ -135,11 +172,16 @@ def level(audio: np.ndarray) -> tuple[float, float]:
     return float(np.max(np.abs(audio))), float(np.sqrt(np.mean(audio ** 2)))
 
 
-def capture_short(block: str, idx: int, text: str, hint: str, seconds: float = 2.0) -> None:
+def capture_short(block: str, idx: int, text: str, hint: str, seconds: float = 2.0, total: int = 0) -> bool:
+    """Eine kurze Aufnahme. Gibt False zurueck, wenn sie im Assistenten uebersprungen wurde."""
     while True:
         print(f"\n  [{idx:02d}] ({hint})  Gleich sagen:  >>> {text} <<<")
-        if GUI_MODE:
-            ready(f"Aufnahme {idx}: {hint}\n\nSage nach dem Signal: {text}")
+        action = ready(f"Aufnahme {idx}{f' von {total}' if total else ''}: {hint}\n\nSage nach dem Signal: {text}",
+                       block=block, index=idx, total=total, detail=hint,
+                       actions=("ok", "replay", "skip", "cancel"))
+        if action == "skip":
+            print("      uebersprungen")
+            return False
         time.sleep(0.8)
         beep()
         print("      JETZT sprechen ...", flush=True)
@@ -153,14 +195,15 @@ def capture_short(block: str, idx: int, text: str, hint: str, seconds: float = 2
             continue
         save(block, idx, audio, {"text": text, "hint": hint, "peak": round(peak, 3), "rms": round(rms, 4)})
         print(f"      ok (peak {peak:.2f})")
-        return
+        return True
 
 
-def pause(msg: str) -> None:
-    ready(msg)
+def pause(msg: str, *, block: str = "", index: int = 0, total: int = 0) -> None:
+    ready(msg, block=block, index=index, total=total, actions=("ok", "cancel"))
 
 
 def main() -> None:
+    global CLIENT
     name, phrase = assistant_identity()
     if GUI_MODE:
         try:
@@ -169,6 +212,9 @@ def main() -> None:
             sd.default.device = (audio_config.get("input_device"), audio_config.get("output_device"))
         except (OSError, ValueError) as exc:
             raise SystemExit(f"Audiogeraete konnten nicht geladen werden: {exc}")
+    if ARGS.interaction_file:
+        import gui_interaction
+        CLIENT = gui_interaction.InteractionClient(ARGS.interaction_file)
     texts = passages(phrase)
     print("=" * 70)
     print(f" {name} - Stimmaufnahme (alles bleibt lokal auf diesem Rechner)")
@@ -192,26 +238,28 @@ def main() -> None:
             remaining = max(0, target - idx)
             if not remaining:
                 continue
-            pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({remaining} Aufnahmen)")
+            pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({remaining} Aufnahmen)",
+                  block=block, index=idx, total=target)
             for _ in range(remaining):
                 idx += 1
-                capture_short(block, idx, text, hint)
+                capture_short(block, idx, text, hint, total=target)
 
     negatives = [(i, word) for i, word in enumerate(personal_wake.hard_negatives(phrase), 1)
                  if not os.path.isfile(os.path.join(RAW, "negatives", f"negatives_{i:03d}.wav"))]
     if negatives:
-        pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter bzw. Teile der Phrase, NICHT das Wake Word (je 2 s).")
+        pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter bzw. Teile der Phrase, NICHT das Wake Word (je 2 s).",
+              block="negatives", total=len(negatives))
     for i, word in negatives:
-        capture_short("negatives", i, word, "Gegenbeispiel")
+        capture_short("negatives", i, word, "Gegenbeispiel", total=len(negatives))
 
     remaining_texts = [(i, text) for i, text in enumerate(texts, 1)
                        if not os.path.isfile(os.path.join(RAW, "speech", f"speech_{i:03d}.wav"))]
     if remaining_texts:
         pause("SCHRITT Sprecherprofil: 8 Texte vorlesen, je 20 Sekunden. Natuerlich sprechen; "
-              "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.")
+              "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.", block="speech", total=len(texts))
     for i, text in remaining_texts:
         print(f"\n  Text {i}/{len(texts)}:\n\n    {text}\n")
-        ready(f"Text {i}/{len(texts)}:\n\n{text}")
+        ready(f"Text {i} von {len(texts)}:\n\n{text}", block="speech", index=i, total=len(texts))
         beep()
         print("      Aufnahme laeuft (20 s) ...", flush=True)
         audio = record(20)
@@ -224,7 +272,7 @@ def main() -> None:
     print("=" * 70)
     beep(800, 150)
     beep(1200, 250)
-    if not GUI_MODE:
+    if not GUI_MODE and CLIENT is None:
         input()
 
 
@@ -233,3 +281,6 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         sys.exit(1)
+    finally:
+        if CLIENT is not None:
+            CLIENT.close()

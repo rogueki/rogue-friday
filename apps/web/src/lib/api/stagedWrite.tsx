@@ -4,7 +4,7 @@ import { isFridayApiError } from "@friday/sdk";
 import { ConfirmDialog, useToast } from "@friday/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { queryKeys } from "@/lib/api/queryKeys";
@@ -28,6 +28,8 @@ export interface StagedWrite {
   invalidateKeys: readonly (readonly unknown[])[];
   /** Receives the parsed success response, e.g. a send receipt the caller keeps working with. */
   onExecuted?: (response: unknown) => void;
+  /** Called when the write did not execute: before staging or after confirmation. */
+  onFailed?: (error: unknown) => void;
 }
 
 export type StagedWriteOutcome = "executed" | "preview" | "approval" | "failed";
@@ -41,15 +43,19 @@ interface PendingStagedWrite {
 interface StagedWriteStore {
   pending: PendingStagedWrite | null;
   busy: boolean;
+  returnFocus: HTMLElement | null;
   setPending: (pending: PendingStagedWrite | null) => void;
   setBusy: (busy: boolean) => void;
+  setReturnFocus: (returnFocus: HTMLElement | null) => void;
 }
 
 const useStagedWriteStore = create<StagedWriteStore>((set) => ({
   pending: null,
   busy: false,
+  returnFocus: null,
   setPending: (pending) => set({ pending }),
   setBusy: (busy) => set({ busy }),
+  setReturnFocus: (returnFocus) => set({ returnFocus }),
 }));
 
 /** True while a staged write is in flight (staging or confirming). */
@@ -87,9 +93,17 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
   const queryClient = useQueryClient();
   const setPending = useStagedWriteStore((s) => s.setPending);
   const setBusy = useStagedWriteStore((s) => s.setBusy);
+  const setReturnFocus = useStagedWriteStore((s) => s.setReturnFocus);
 
   return useCallback(
     async (write) => {
+      if (useStagedWriteStore.getState().pending === null) {
+        setReturnFocus(
+          document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+            ? document.activeElement
+            : null,
+        );
+      }
       setBusy(true);
       try {
         const response = await write.send();
@@ -140,12 +154,13 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
         if (isFridayApiError(error) && error.code === "CONFLICT") {
           for (const key of write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
         }
+        write.onFailed?.(error);
         return "failed";
       } finally {
         setBusy(false);
       }
     },
-    [queryClient, router, setBusy, setPending, t, toast],
+    [queryClient, router, setBusy, setPending, setReturnFocus, t, toast],
   );
 }
 
@@ -159,6 +174,10 @@ export function StagedWriteConfirmHost() {
   const busy = useStagedWriteStore((s) => s.busy);
   const setPending = useStagedWriteStore((s) => s.setPending);
   const setBusy = useStagedWriteStore((s) => s.setBusy);
+  const returnFocus = useStagedWriteStore((s) => s.returnFocus);
+  // The trigger was disabled while the write was staged, so the focus trap would only remember <body>.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  returnFocusRef.current = returnFocus;
 
   const confirm = async (): Promise<void> => {
     if (!pending) return;
@@ -205,6 +224,7 @@ export function StagedWriteConfirmHost() {
           for (const key of pending.write.invalidateKeys)
             void queryClient.invalidateQueries({ queryKey: key });
         }
+        pending.write.onFailed?.(error);
       }
     } finally {
       setBusy(false);
@@ -238,6 +258,7 @@ export function StagedWriteConfirmHost() {
       confirmLabel={t("command.confirm")}
       cancelLabel={t("common.cancel")}
       loading={busy}
+      returnFocusRef={returnFocusRef}
       onConfirm={() => void confirm()}
     />
   );

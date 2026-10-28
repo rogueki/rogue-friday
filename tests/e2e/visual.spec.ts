@@ -21,12 +21,17 @@ declare global {
  *    The "3D smoke" test keeps checking the live (unfrozen) canvas.
  *  - the only live value left, the event-stream latency chip, is masked.
  */
-/** Wall-clock / live-metric spots that are not part of the design: stream latency, "Aktualisiert hh:mm" (server wall clock), host metrics. */
+/** Wall-clock / live-metric spots that are not part of the design: stream latency, "Aktualisiert hh:mm" (server wall clock), host metrics; the durable audit trail (real timestamps, durations and count depend on what ran earlier in the shard). */
 const MASK_LIVE = (page: Page) => [
   eventStreamChip(page),
   page.getByText(/^Aktualisiert \d/),
   page.getByRole("region", { name: "Systemmonitor" }),
   page.getByText("Netzwerk", { exact: true }).locator(".."),
+  page.getByRole("grid", { name: "Audit-Verlauf" }),
+  page.getByText(/^\d+ Ereignisse geladen$/),
+  page.getByText(/^\d+ von \d+ Ereignissen$/),
+  page.getByTestId("audit-integrity"),
+  page.locator(".mc-strip"),
 ];
 
 async function prepare(page: Page, api: ApiClient, opts: { motion?: "off" | "reduced"; renderMode?: "auto" | "2d" } = {}): Promise<void> {
@@ -53,8 +58,9 @@ async function shot(page: Page, name: string, opts: { fullPage?: boolean } = {})
 
 const PAGES: ReadonlyArray<readonly [string, string]> = [
   ["overview", "/"], ["tasks", "/tasks"], ["activity", "/activity"], ["memory", "/memory"], ["agents", "/agents"],
+  ["skills", "/skills"],
   ["approvals", "/approvals"], ["communication", "/communication"], ["calendar", "/calendar"], ["automations", "/automations"],
-  ["research", "/research"], ["files", "/files"], ["voice", "/voice"], ["alerts", "/alerts"], ["system", "/system"],
+  ["research", "/research"], ["content-studio", "/content-studio"], ["files", "/files"], ["voice", "/voice"], ["alerts", "/alerts"], ["system", "/system"],
   ["audit", "/audit"], ["settings", "/settings"], ["dev-scenarios", "/dev/scenarios"],
 ];
 

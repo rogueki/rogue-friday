@@ -57,7 +57,7 @@ tags:
   - name: dev
     description: Development/QA scenario console (mock mode only)
   - name: observability
-    description: Prometheus metrics and frontend telemetry (PLAN §50.3)
+    description: Prometheus metrics and frontend telemetry (PLAN Â§50.3)
 security:
   - cookieAuth: []
 paths:
@@ -5866,6 +5866,46 @@ paths:
       x-capability: meta.read
       x-required-role: owner
       x-max-body-bytes: 4096
+  /api/v1/content-studio/skill-production-jobs:
+    post:
+      operationId: createSkillContentProductionJob
+      tags:
+        - settings
+      summary: Start automatic production for one planned idea from a skill or voice command
+      description: >-
+        Same guarantees as the manual production route (confirmation, plan revision, Idempotency-Key), plus the
+        identifier of the triggering skill so the audit trail records who started the job.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillContentProductionRequest"
+      responses:
+        "202":
+          description: Durable production job started from a skill
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentProductionJobResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 4096
   /api/v1/content-studio/production-jobs/{id}:
     get:
       operationId: getContentProductionJob
@@ -5958,6 +5998,349 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{id}/markdown:
+    get:
+      operationId: getSkillMarkdown
+      tags: [skills]
+      summary: Read the installed SKILL.md text for one skill; never HTML
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9][a-z0-9._-]{0,63}$"
+      responses:
+        "200":
+          description: Raw Markdown text from the installed skill directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillMarkdownResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/mutations:
+    post:
+      operationId: mutateSkill
+      tags: [skills]
+      summary: Install, update or remove one skill with a snapshot that can be restored
+      description: |
+        The bridge copies the installed skill directory into ~/.hermes/friday-snapshots before the CLI runs and
+        replays the copy when the CLI fails or the read-back does not match. Nothing runs before the request passed
+        validation; `identifier` is required for `install` and forbidden for the other actions. `force` is passed
+        through as `--force`, which is the only way to overwrite local edits.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillMutationRequest"
+      responses:
+        "200":
+          description: Freshly observed state after the mutation, with the snapshot that allows a manual restore
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillMutationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.write
+      x-required-role: owner
+  /api/v1/skills/governance:
+    post:
+      operationId: mutateSkillGovernance
+      tags: [skills]
+      summary: Trust or untrust a project root, or add and remove a tap
+      description: |
+        Both commands change global Hermes state, so the target is checked in the adapter: a trust target must be an
+        absolute directory that really carries `.hermes/skills` or `.agents/skills`, a tap is `owner/repo`, and a tap
+        removal names a configured tap. `hermes skills config` is deliberately not exposed - it refuses to run without
+        an interactive terminal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillGovernanceRequest"
+      responses:
+        "200":
+          description: The CLI confirmation, unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillGovernanceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.write
+      x-required-role: owner
+  /api/v1/skills/reports:
+    get:
+      operationId: getSkillCommandReport
+      tags: [skills]
+      summary: Show the text report of a read-only skill command
+      description: |
+        The CLI offers no JSON for `browse`, `check` and `tap list`, so their text is passed through unchanged and
+        capped; nothing is parsed into fields. `browse` accepts page, size and source, `check` accepts one skill name,
+        `tap list` accepts nothing - a parameter outside that set is rejected with 422 before the CLI runs.
+      parameters:
+        - name: command
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [browse, check, tap-list]
+        - name: name
+          in: query
+          required: false
+          description: Only for `check`; omit to check every installed skill.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+        - name: page
+          in: query
+          required: false
+          description: Only for `browse`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - name: size
+          in: query
+          required: false
+          description: Only for `browse`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - name: source
+          in: query
+          required: false
+          description: Only for `browse`; a registry name such as `skills-sh`.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillCommandReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/inspect:
+    get:
+      operationId: getSkillInspection
+      tags: [skills]
+      summary: Show the CLI inspection report for one skill as text
+      description: The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/audit:
+    get:
+      operationId: getSkillAudit
+      tags: [skills]
+      summary: Show the CLI audit report for one skill as text
+      description: The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/diff:
+    get:
+      operationId: getSkillDiff
+      tags: [skills]
+      summary: Show the CLI diff between the local skill and its packaged version as text
+      description: The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied. A refusal by the CLI (for example an untracked skill) answers 409 with the CLI's own reason. Takes a skill name or a full registry identifier (`source/category/name`); the CLI resolves identifiers without guessing and names the target it resolved (N-053).
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/hub/search:
+    get:
+      operationId: searchSkillHub
+      tags: [skills]
+      summary: Search the configured skill registries via the CLI JSON output
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 40
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Registry hits exactly as the CLI reported them
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillHubSearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/modified:
+    get:
+      operationId: listModifiedSkills
+      tags: [skills]
+      summary: List bundled skills edited locally, which updates skip
+      responses:
+        "200":
+          description: Names reported by the CLI, never parsed out of a table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModifiedSkillsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
   /api/v1/skills/powerpoint/decks:
@@ -6902,6 +7285,26 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-access:
+    get:
+      operationId: getHermesAccess
+      tags: [settings]
+      summary: Read pooled Hermes provider credentials without exposing any secret
+      responses:
+        "200":
+          description: Provider credentials with source markers only; never a key value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesAccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-model-catalog:
     get:
       operationId: getHermesModelCatalog
@@ -7141,6 +7544,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HimalayaSmtpCheckResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/mail-connection-test:
+    post:
+      operationId: testMailConnection
+      x-max-body-bytes: 8192
+      tags: [settings]
+      summary: Test one unsaved IMAP or SMTP candidate without storing it or sending a message
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailConnectionTestRequest"
+      responses:
+        "200":
+          description: Connection outcome with an explainable reason; nothing is stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailConnectionTestResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
@@ -8845,7 +9276,7 @@ components:
       name: X-Approval-Token
       in: header
       required: false
-      description: Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN §32.5).
+      description: Short-lived, single-use approval token from GET /approvals/{id} (response header X-Approval-Token). The server rejects an approve without a valid token with 403 APPROVAL_REQUIRED (PLAN Â§32.5).
       schema:
         type: string
     CsrfToken:
@@ -9208,6 +9639,10 @@ components:
       $ref: ../schemas/settings/himalaya-account-response.schema.json
     HimalayaSmtpCheckResponse:
       $ref: ../schemas/settings/himalaya-smtp-check-response.schema.json
+    MailConnectionTestRequest:
+      $ref: ../schemas/settings/mail-connection-test-request.schema.json
+    MailConnectionTestResponse:
+      $ref: ../schemas/settings/mail-connection-test-response.schema.json
     HimalayaMailboxListResponse:
       $ref: ../schemas/communication/himalaya-mailbox-list-response.schema.json
     HimalayaEnvelopeListResponse:
@@ -9294,6 +9729,24 @@ components:
       $ref: ../schemas/skills/coding-cli-status-response.schema.json
     SkillActivationRequest:
       $ref: ../schemas/skills/activation-request.schema.json
+    SkillMarkdownResponse:
+      $ref: ../schemas/integrations/skill-markdown-response.schema.json
+    SkillHubSearchResponse:
+      $ref: ../schemas/skills/hub-search-response.schema.json
+    ModifiedSkillsResponse:
+      $ref: ../schemas/skills/modified-skills-response.schema.json
+    SkillReportResponse:
+      $ref: ../schemas/skills/skill-report-response.schema.json
+    SkillCommandReportResponse:
+      $ref: ../schemas/skills/skill-command-report-response.schema.json
+    SkillGovernanceRequest:
+      $ref: ../schemas/skills/skill-governance-request.schema.json
+    SkillGovernanceResponse:
+      $ref: ../schemas/skills/skill-governance-response.schema.json
+    SkillMutationRequest:
+      $ref: ../schemas/skills/skill-mutation-request.schema.json
+    SkillMutationResponse:
+      $ref: ../schemas/skills/skill-mutation-response.schema.json
     SkillResponse:
       $ref: ../schemas/skills/skill-response.schema.json
     OnboardingUpdate:
@@ -9308,6 +9761,8 @@ components:
       $ref: ../schemas/content-studio/plan-state-response.schema.json
     ContentProductionRequest:
       $ref: ../schemas/content-studio/production-request.schema.json
+    SkillContentProductionRequest:
+      $ref: ../schemas/content-studio/skill-production-request.schema.json
     ContentProductionJob:
       $ref: ../schemas/content-studio/production-job.schema.json
     ContentProductionJobResponse:
@@ -9708,6 +10163,8 @@ components:
       $ref: ../schemas/integrations/hermes-mcp-oauth-response.schema.json
     HermesModelCatalog:
       $ref: ../schemas/integrations/hermes-model-catalog.schema.json
+    HermesAccessResponse:
+      $ref: ../schemas/integrations/hermes-access-response.schema.json
     HermesModelCatalogResponse:
       $ref: ../schemas/integrations/hermes-model-catalog-response.schema.json
     DurableMemoryStatus:

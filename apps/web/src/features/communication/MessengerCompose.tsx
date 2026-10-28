@@ -139,8 +139,8 @@ export function MessengerCompose() {
     } catch (error) { setMessage(error instanceof Error ? error.message : "Zustellung unklar. Belege prüfen, bevor ein neuer Versuch gestartet wird."); }
     finally { setBusy(false); }
   }
-  return <section className="mk-panel" aria-label="Messenger-Nachricht">
-    <h2>Messenger-Nachricht</h2>
+  return <section className="mk-panel" aria-label="Nachricht über den gewählten Kanal">
+    <h2>Nachricht über den gewählten Kanal</h2>
     <p>Ausgehende Ziele werden hier ausdrücklich registriert. Hermes’ Listen erlaubter Absender gelten nur für eingehende Nachrichten. Eine Vorschau sendet noch nichts.</p>
     <label>Kanal <select value={platform} disabled={Boolean(notificationId)} onChange={(event) => change(() => setPlatform(event.target.value as typeof platform))}>
       {platforms.map((item) => <option key={item} value={item}>{item}</option>)}

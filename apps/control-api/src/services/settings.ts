@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { VOICE_PERSONAS, type VoicePersona } from "./voice-persona";
 import {
   CONTRACT_VERSION,
   SCHEMAS,
@@ -63,11 +64,11 @@ const NAVIGATION_ORDER = [
 export const FALLBACK_THEME_ID = "friday-command-midnight";
 export const FALLBACK_LAYOUT_ID = "friday-command-overview";
 
-function installedVoiceChoice(config: FridayConfig): "friday-female" | "classic" | null {
+function installedVoiceChoice(config: FridayConfig): VoicePersona | null {
   try {
     const file = resolve(config.configDir, "..", "..", "config", "voice.json");
     const value = JSON.parse(readFileSync(file, "utf8")) as { tts_voice_choice?: unknown };
-    return value.tts_voice_choice === "friday-female" || value.tts_voice_choice === "classic" ? value.tts_voice_choice : null;
+    return typeof value.tts_voice_choice === "string" && (VOICE_PERSONAS as readonly string[]).includes(value.tts_voice_choice) ? (value.tts_voice_choice as VoicePersona) : null;
   } catch { return null; }
 }
 
@@ -83,7 +84,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       timeFormat: "24h",
       firstDayOfWeek: "monday",
     },
-    dashboard: { activeLayoutId: config.ui.layout, fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false, contentStudioEnabled: false },
+    dashboard: { activeLayoutId: config.ui.layout, fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false, contentStudioEnabled: config.ui.contentStudio },
     theme: { activeThemeId: config.ui.theme, cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
     orb: {
       preset: "gold-reference",

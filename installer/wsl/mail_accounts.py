@@ -273,8 +273,66 @@ def select(client, mailbox, readonly=True):
     return uidvalidity[0].decode() if uidvalidity and uidvalidity[0] else None
 
 
+def candidate_connection(account, password, protocol):
+    context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    if protocol == "imap":
+        if account["imapSecurity"] == "tls":
+            client = imaplib.IMAP4_SSL(account["imapHost"], account["imapPort"], ssl_context=context, timeout=12)
+        else:
+            client = imaplib.IMAP4(account["imapHost"], account["imapPort"], timeout=12)
+            client.starttls(ssl_context=context)
+        with client:
+            client.login(account["imapLogin"], password)
+        return
+    if account["smtpSecurity"] == "tls":
+        client = smtplib.SMTP_SSL(account["smtpHost"], account["smtpPort"], timeout=12, context=context)
+    else:
+        client = smtplib.SMTP(account["smtpHost"], account["smtpPort"], timeout=12)
+        client.ehlo()
+        client.starttls(context=context)
+    with client:
+        client.ehlo()
+        client.login(account["smtpLogin"], password)
+
+
+def check_candidate(request):
+    """Connect once with an unsaved draft and report a stable reason. Never stores anything, never sends mail."""
+    protocol = request.get("protocol")
+    if protocol not in ("imap", "smtp"):
+        raise ValueError("invalid_protocol")
+    incoming = request.get("account")
+    secrets = request.get("secrets")
+    if not isinstance(incoming, dict) or not isinstance(secrets, dict):
+        raise ValueError("invalid_account")
+    account = {
+        "id": "candidate", "aliases": [], "signature": "", "sentFolder": "Sent", "draftsFolder": "Drafts",
+        "trashFolder": "Trash", "archiveFolder": "Archive", "spamFolder": "Spam", "revision": 1,
+        "authMode": "password", "oauthClientId": "", "oauthTenant": "",
+        **incoming,
+    }
+    validate(account)
+    password = secrets.get("password")
+    if not isinstance(password, str) or not 0 < len(password) <= 1024 or any(ord(ch) < 32 for ch in password):
+        raise ValueError("invalid_secret")
+    try:
+        candidate_connection(account, password, protocol)
+    except ssl.SSLError:
+        return {"ok": False, "reason": "tls"}
+    except smtplib.SMTPAuthenticationError:
+        return {"ok": False, "reason": "auth"}
+    except imaplib.IMAP4.error:
+        return {"ok": False, "reason": "auth"}
+    except smtplib.SMTPException:
+        return {"ok": False, "reason": "protocol"}
+    except OSError:
+        return {"ok": False, "reason": "network"}
+    return {"ok": True, "reason": "ok"}
+
 def run(request):
     action = request.get("action")
+    if action == "check-candidate":
+        return check_candidate(request)
     data = load()
     if action == "list":
         return {"revision": data["revision"], "defaultAccountId": data["defaultAccountId"],

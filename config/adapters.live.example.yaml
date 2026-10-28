@@ -11,6 +11,7 @@ allowlist:
   hermes-tasks: "@friday/adapter-hermes"
   hermes-activity: "@friday/adapter-hermes"
   hermes-agents: "@friday/adapter-hermes"
+  hermes-automations: "@friday/adapter-hermes"
   friday-voice-http: "@friday/adapter-voice-http"
   local-system: "@friday/adapter-system-local"
 
@@ -44,6 +45,14 @@ adapters:
       apiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
       dashboardBaseUrl: http://127.0.0.1:43691
       boards: [default]
+  automations:
+    provider: hermes-automations
+    enabled: true
+    timeoutMs: 10000
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardAuth: scrape
   voice:
     provider: friday-voice-http
     enabled: true

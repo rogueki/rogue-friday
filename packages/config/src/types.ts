@@ -58,7 +58,7 @@ export interface FridayConfig {
     secureCookies: boolean;
   };
   realtime: { ringBufferSize: number; heartbeatSeconds: number };
-  ui: { locale: string; timezone: string; assistantName: string; theme: string; layout: string };
+  ui: { locale: string; timezone: string; assistantName: string; theme: string; layout: string; contentStudio: boolean };
   dev: { scenarioConsole: boolean; responseValidation: boolean };
   logging: { level: LogLevelName; redactEmails: boolean; file: { enabled: boolean; maxBytes: number; maxFiles: number } };
   adapters: Readonly<Record<AdapterCategory, ResolvedAdapterConfig>>;

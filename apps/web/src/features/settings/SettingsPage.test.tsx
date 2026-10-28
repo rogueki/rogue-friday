@@ -221,7 +221,8 @@ describe("adapters (schema-generated form)", () => {
 
     await waitFor(() => expect(api.find("PATCH", "/settings/adapters/mock-communication")).toHaveLength(1));
     const call = api.find("PATCH", "/settings/adapters/mock-communication")[0];
-    expect(call?.ifMatch).toBe("3");
+    // The adapter's own revision, not the settings version (they drift apart after any adapter change).
+    expect(call?.ifMatch).toBe("7");
     expect(call?.body).toMatchObject({ enabled: true, config: { imapHost: "imap.neu.example", latencyMs: 0 }, secrets: { imapPassword: "neues-passwort" } });
     // the secret must never travel inside `config`
     expect(JSON.stringify((call?.body as { config: unknown }).config)).not.toContain("neues-passwort");

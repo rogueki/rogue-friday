@@ -59,6 +59,7 @@ jobs:
             installer/voice/tests/test_personal_wake.py \
             installer/voice/tests/test_wake_enrollment.py \
             installer/voice/tests/test_runtime_settings.py \
+            installer/voice/tests/test_persona_soul.py \
             installer/voice/tests/test_mail_voice.py \
             installer/voice/tests/test_mail_voice_pipeline.py \
             installer/voice/tests/test_calendar_voice.py \
@@ -66,6 +67,7 @@ jobs:
             installer/voice/tests/test_voice_runtime_paths.py \
             installer/voice/tests/test_update_dependency_closure.py \
             installer/wsl/test_update_wsl_dependency_closure.py \
+            installer/wsl/test_setup_hermes_base_url.py \
             installer/wsl/test_friday_memory_plugin.py \
             installer/wsl/test_mail_accounts.py \
             installer/wsl/test_calendar_accounts.py \
@@ -186,15 +188,16 @@ jobs:
           retention-days: 3
 
   e2e:
-    name: End-to-end (Playwright ${{ matrix.shard }}/8)
+    name: End-to-end (Playwright ${{ matrix.shard }}/12)
     if: ${{ !inputs.capture_baselines }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # fullyParallel splits single tests across shards; 12 keep each shard well inside the 30 min guard.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -218,7 +221,7 @@ jobs:
         run: pnpm build
 
       - name: E2E tests
-        run: pnpm test:e2e --shard=${{ matrix.shard }}/8 --workers=1
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/12 --workers=1
 
       - name: Upload Playwright report
         if: failure()

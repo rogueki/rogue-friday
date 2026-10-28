@@ -42,6 +42,7 @@ ui:
   assistantName: F.R.I.D.A.Y. # Anzeigename; settings.profile.assistantName hat Vorrang
   theme: friday-command-midnight
   layout: friday-command-overview
+  contentStudio: true # Creator Studio (Menue und API) ausliefern
 
 dev:
   scenarioConsole: true # Standard: true in mock, sonst false

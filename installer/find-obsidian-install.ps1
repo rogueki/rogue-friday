@@ -1,4 +1,4 @@
-function Find-ObsidianInstall {
+﻿function Find-ObsidianInstall {
     param(
         [string[]]$CandidatePaths = @(),
         [switch]$OnlyCandidates

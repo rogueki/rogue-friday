@@ -20,7 +20,6 @@ import { formatCivil, isView, offsetLabel, VIEWS, viewKey, type CalendarView } f
 import { MonthGrid } from "./MonthGrid";
 import { ProposalDialog, type ProposalDefaults } from "./ProposalDialog";
 import { CalDavCreateDialog } from "./CalDavCreateDialog";
-import { CalendarAccounts } from "./CalendarAccounts";
 import { LocalEventDialog } from "./LocalEventDialog";
 import { TimeGrid } from "./TimeGrid";
 import "./calendar.css";
@@ -120,6 +119,7 @@ function CalendarPageInner() {
   const zoneName = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const offset = offsetLabel(tzOffsetMinutes(now, timeZone));
   const label = t("calendar.viewLabel", { view: t(viewKey(view)), range: rangeLabel });
+  const todayBlocked = civilKey(focus) === civilKey(today) ? t("calendar.todayActive") : undefined;
 
   const propose = (type: CalendarProposalType, event: CalendarEvent): void => setProposal({ type, eventId: event.id });
 
@@ -152,7 +152,7 @@ function CalendarPageInner() {
             </div>
             <div className="cal-nav" role="group" aria-label={t("calendar.navigate")}>
               <IconButton label={t("calendar.previous")} icon={<ChevronLeft size={16} strokeWidth={1.5} />} size="sm" onClick={() => step(-1)} />
-              <Button size="sm" variant="ghost" onClick={() => setDateParam(null)} disabled={civilKey(focus) === civilKey(today)}>
+              <Button size="sm" variant="ghost" onClick={() => setDateParam(null)} disabled={todayBlocked !== undefined} title={todayBlocked}>
                 {t("calendar.today")}
               </Button>
               <IconButton label={t("calendar.next")} icon={<ChevronRight size={16} strokeWidth={1.5} />} size="sm" onClick={() => step(1)} />
@@ -192,8 +192,7 @@ function CalendarPageInner() {
         </PanelFrame>
         <CalendarSide focusDay={focus} events={events} now={now} onOpenEvent={(id) => setEventId(id, { push: true })} onPropose={setProposal} />
       </div>
-      {session.role === "owner" && <CalendarAccounts />}
-
+      
       {events.length === 0 && state.kind === "ready" && view !== "agenda" ? (
         <EmptyState compact icon={<CalendarDays size={20} strokeWidth={1.5} />} title={t("calendar.empty.range")} description={t("calendar.empty.rangeHint")} />
       ) : null}

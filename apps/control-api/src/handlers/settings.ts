@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterConfigPatch, type ContentStudioKeyPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type AdapterConfigPatch, type ContentStudioKeyPatch, type Freshness, type MailConnectionTestRequest, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { HimalayaAccountPatch } from "../services/himalaya-account";
@@ -220,6 +220,23 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     const result = await ctx.runtime.mailAccounts.check(account.id, "smtp");
     ctx.audit.action = "settings.himalaya_smtp_checked";
     ctx.audit.after = { ok: result.ok };
+    return { status: 200, body: single(result) };
+  },
+  async testMailConnection(ctx) {
+    const input = ctx.body as MailConnectionTestRequest;
+    const protocol = input.protocol;
+    // Der Kandidat wird nie gespeichert: beide Protokollfelder tragen dieselbe Anmeldung, verbunden wird nur das gewaehlte.
+    const account = {
+      displayName: input.username, email: input.username.includes("@") ? input.username : "candidate@friday.local",
+      senderName: input.username, aliases: [], signature: "",
+      imapHost: input.host, imapPort: input.port, imapSecurity: input.security, imapLogin: input.username,
+      smtpHost: input.host, smtpPort: input.port, smtpSecurity: input.security, smtpLogin: input.username,
+      sentFolder: "Sent", draftsFolder: "Drafts", trashFolder: "Trash", archiveFolder: "Archive", spamFolder: "Spam",
+      authMode: "password" as const, oauthClientId: "", oauthTenant: "",
+    };
+    const result = await ctx.runtime.mailAccounts.checkCandidate(account, protocol, input.password);
+    ctx.audit.action = "settings.mail_connection_tested";
+    ctx.audit.after = { protocol, ok: result.ok, reason: result.reason };
     return { status: 200, body: single(result) };
   },
   async putHimalayaAccount(ctx) {

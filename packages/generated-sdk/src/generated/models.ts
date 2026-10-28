@@ -72,7 +72,7 @@ export type RequiredAuth = "none" | "confirm" | "reauth";
 export type ApprovalStatus =
   "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed";
 export type CalendarProposalType = "create" | "reschedule" | "cancel" | "invite" | "respond";
-export type ChannelKind = "email" | "telegram" | "whatsapp" | "sms" | "phone" | "other";
+export type ChannelKind = "email" | "telegram" | "whatsapp" | "discord" | "sms" | "phone" | "other";
 export type ChannelStatus = "online" | "degraded" | "offline" | "read_only" | "not_configured";
 export type DraftStatus = "draft" | "pending_approval" | "approved" | "sent" | "failed" | "discarded";
 export type FileCategory =
@@ -100,6 +100,10 @@ export type HermesConfigPatch =
     }
   | {
       key: "model.default";
+      value: string;
+    }
+  | {
+      key: "model.base_url";
       value: string;
     }
   | {
@@ -924,6 +928,8 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesAccess: HermesAccess;
+  HermesAccessResponse: HermesAccessResponse;
   HermesApprovalTestRequest: HermesApprovalTestRequest;
   HermesApprovalTestResponse: HermesApprovalTestResponse;
   HermesConfigPatch: HermesConfigPatch;
@@ -984,6 +990,8 @@ export interface FridayModelMap {
   MailAttachmentResponse: MailAttachmentResponse;
   MailChangeRequest: MailChangeRequest;
   MailCheckResponse: MailCheckResponse;
+  MailConnectionTestRequest: MailConnectionTestRequest;
+  MailConnectionTestResponse: MailConnectionTestResponse;
   MailDraftRequest: MailDraftRequest;
   MailDraftResponse: MailDraftResponse;
   MailEnvelopesResponse: MailEnvelopesResponse;
@@ -1040,6 +1048,8 @@ export interface FridayModelMap {
   ModelProvider: ModelProvider;
   ModelProviderListResponse: ModelProviderListResponse;
   ModelsRoutingSettings: ModelsRoutingSettings;
+  ModifiedSkills: ModifiedSkills;
+  ModifiedSkillsResponse: ModifiedSkillsResponse;
   NavigationSettings: NavigationSettings;
   Notification: Notification;
   NotificationActionRequest: NotificationActionRequest;
@@ -1123,6 +1133,21 @@ export interface FridayModelMap {
   SkillActivationRequest: SkillActivationRequest;
   SkillCatalogEntry: SkillCatalogEntry;
   SkillCatalogResponse: SkillCatalogResponse;
+  SkillCommandReport: SkillCommandReport;
+  SkillCommandReportResponse: SkillCommandReportResponse;
+  SkillContentProductionRequest: SkillContentProductionRequest;
+  SkillGovernance: SkillGovernance;
+  SkillGovernanceRequest: SkillGovernanceRequest;
+  SkillGovernanceResponse: SkillGovernanceResponse;
+  SkillHubSearch: SkillHubSearch;
+  SkillHubSearchResponse: SkillHubSearchResponse;
+  SkillMarkdown: SkillMarkdown;
+  SkillMarkdownResponse: SkillMarkdownResponse;
+  SkillMutation: SkillMutation;
+  SkillMutationRequest: SkillMutationRequest;
+  SkillMutationResponse: SkillMutationResponse;
+  SkillReport: SkillReport;
+  SkillReportResponse: SkillReportResponse;
   SkillResponse: SkillResponse;
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
@@ -2086,6 +2111,7 @@ export interface CalendarAccountAction {
     | "select"
     | "default"
     | "check"
+    | "write-test"
     | "events"
     | "create"
     | "update"
@@ -2760,6 +2786,14 @@ export interface ContentPlanDocument {
       | "YouTube-Short";
     titel: string;
     status: "geplant" | "gepostet" | "verpasst";
+    /**
+     * Nur bei status=gepostet: manuell markiert oder durch einen angebundenen Publisher bestaetigt.
+     */
+    veroeffentlichung?: null | {
+      art: "manuell" | "bestaetigt";
+      am: string;
+      quelle: string;
+    };
   }[];
 }
 export interface ContentPlanState {
@@ -3397,6 +3431,24 @@ export interface HealthcheckResultResponse {
   data: HealthcheckResult;
   freshness: Freshness;
 }
+export interface HermesAccess {
+  providers: {
+    provider: string;
+    count: number;
+    credentials: {
+      index: number;
+      label: string;
+      type: "api_key" | "oauth";
+      source: string;
+      active: boolean;
+    }[];
+  }[];
+}
+export interface HermesAccessResponse {
+  contractVersion: ContractVersion;
+  data: HermesAccess;
+  freshness: Freshness;
+}
 export interface HermesApprovalTestRequest {
   command: string;
 }
@@ -3422,6 +3474,7 @@ export interface HermesConfigStatus {
     key:
       | "model.provider"
       | "model.default"
+      | "model.base_url"
       | "agent.reasoning_effort"
       | "fallback.min_switch_reset_seconds"
       | "fallback_model"
@@ -4149,6 +4202,25 @@ export interface MailCheckResponse {
   };
   freshness: Freshness;
 }
+/**
+ * Verbindungstest fuer einen noch nicht gespeicherten Postfach-Entwurf. Der Server verbindet sich einmalig, meldet Erfolg oder einen erklaerbaren Grund und speichert nichts.
+ */
+export interface MailConnectionTestRequest {
+  protocol: "imap" | "smtp";
+  host: string;
+  port: number;
+  security: "tls" | "start-tls";
+  username: string;
+  password: string;
+}
+export interface MailConnectionTestResponse {
+  contractVersion: ContractVersion;
+  data: {
+    ok: boolean;
+    reason: "ok" | "auth" | "tls" | "network" | "protocol";
+  };
+  freshness: Freshness;
+}
 export interface MailDraftRequest {
   to?: string[];
   from?: string;
@@ -4794,6 +4866,15 @@ export interface ModelsRoutingSettings {
     fallbackModel: string | null;
   }[];
   monthlyBudgetEur: number | null;
+}
+export interface ModifiedSkills {
+  names: string[];
+  observedAt: string | null;
+}
+export interface ModifiedSkillsResponse {
+  contractVersion: ContractVersion;
+  data: ModifiedSkills;
+  freshness: Freshness;
 }
 export interface NavigationSettings {
   order: string[];
@@ -5775,6 +5856,8 @@ export interface SkillActivationRequest {
 export interface SkillCatalogEntry {
   id: string;
   source: "friday" | "hermes";
+  origin: string;
+  trust: string;
   name: string;
   category: string;
   description: string;
@@ -5821,6 +5904,104 @@ export interface SkillCatalogResponse {
   data: SkillCatalogEntry[];
   catalogError: string | null;
   hermesError: string | null;
+  freshness: Freshness;
+}
+export interface SkillCommandReport {
+  command: "browse" | "check" | "tap-list";
+  name: string | null;
+  text: string;
+  bytes: number;
+  truncated: boolean;
+  observedAt: string | null;
+}
+export interface SkillCommandReportResponse {
+  contractVersion: ContractVersion;
+  data: SkillCommandReport;
+  freshness: Freshness;
+}
+export interface SkillContentProductionRequest {
+  ideaId: string;
+  planRevision: number;
+  voiceId?: string;
+  skillId: string;
+  confirmed: true;
+}
+export interface SkillGovernance {
+  action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+  target: string;
+  text: string;
+  bytes: number;
+  changedAt: string | null;
+}
+export interface SkillGovernanceRequest {
+  action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";
+  path: string | null;
+  repo: string | null;
+  name: string | null;
+}
+export interface SkillGovernanceResponse {
+  contractVersion: ContractVersion;
+  data: SkillGovernance;
+  freshness: Freshness;
+}
+export interface SkillHubSearch {
+  query: string;
+  source: string;
+  results: {
+    identifier: string;
+    name: string;
+    source: string;
+    trustLevel: string;
+    description: string;
+  }[];
+  observedAt: string | null;
+}
+export interface SkillHubSearchResponse {
+  contractVersion: ContractVersion;
+  data: SkillHubSearch;
+  freshness: Freshness;
+}
+export interface SkillMarkdown {
+  id: string;
+  content: string;
+  bytes: number;
+}
+export interface SkillMarkdownResponse {
+  contractVersion: ContractVersion;
+  data: SkillMarkdown;
+  freshness: Freshness;
+}
+export interface SkillMutation {
+  action: "install" | "update" | "uninstall";
+  name: string;
+  installed: boolean;
+  enabled: boolean | null;
+  snapshot: string | null;
+  text: string;
+  bytes: number;
+  observedAt: string | null;
+}
+export interface SkillMutationRequest {
+  action: "install" | "update" | "uninstall";
+  identifier?: string | null;
+  force?: boolean;
+}
+export interface SkillMutationResponse {
+  contractVersion: ContractVersion;
+  data: SkillMutation;
+  freshness: Freshness;
+}
+export interface SkillReport {
+  action: "inspect" | "audit" | "diff";
+  name: string;
+  text: string;
+  bytes: number;
+  truncated: boolean;
+  observedAt: string | null;
+}
+export interface SkillReportResponse {
+  contractVersion: ContractVersion;
+  data: SkillReport;
   freshness: Freshness;
 }
 export interface SkillResponse {

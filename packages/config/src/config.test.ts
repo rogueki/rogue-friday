@@ -111,10 +111,16 @@ describe('defaults', () => {
       ownerPasswordHash: { ref: 'env:FRIDAY_OWNER_PASSWORD_HASH', configured: false },
     });
     expect(config.realtime).toEqual({ ringBufferSize: 5000, heartbeatSeconds: 15 });
-    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'friday-command-midnight', layout: 'friday-command-overview' });
+    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'friday-command-midnight', layout: 'friday-command-overview', contentStudio: true });
     expect(config.dev).toEqual({ scenarioConsole: true, responseValidation: true });
     expect(config.files).toEqual({ dashboard: null, adapters: null });
     expect(config.warnings.some((w) => w.includes('dashboard.yaml not found'))).toBe(true);
+  });
+
+  it('delivers the Content Studio by default and keeps an explicit opt-out', () => {
+    expect(load({ dashboard: 'ui:\n  theme: friday-command-midnight\n' }).ui.contentStudio).toBe(true);
+    expect(load({ dashboard: 'ui:\n  contentStudio: false\n' }).ui.contentStudio).toBe(false);
+    expect(loadError({ dashboard: 'ui:\n  contentStudio: vielleicht\n' }).message).toContain('ui.contentStudio');
   });
 
   it('derives dev defaults from the data mode but honours explicit values', () => {
@@ -323,6 +329,15 @@ describe('mode presets', () => {
     expect(config.adapters.activity).toMatchObject({ provider: null, packageName: null, enabled: false, origin: 'disabled-by-mode' });
     expect(config.adapters.voice.enabled).toBe(false);
     expect(config.warnings.some((w) => w.includes('adapters.memory.provider "mock-memory" is a mock provider'))).toBe(true);
+  });
+
+  it('warns when a production run keeps a simulated data mode', () => {
+    const simulated = load({ dashboard: 'dataMode: hybrid\n', adapters }, { NODE_ENV: 'production' });
+    expect(simulated.warnings.some((warning) => warning.includes('in a production run'))).toBe(true);
+    const live = load({ dashboard: 'dataMode: live\n', adapters }, { NODE_ENV: 'production' });
+    expect(live.warnings.some((warning) => warning.includes('in a production run'))).toBe(false);
+    const development = load({ dashboard: 'dataMode: hybrid\n', adapters }, { NODE_ENV: 'development' });
+    expect(development.warnings.some((warning) => warning.includes('in a production run'))).toBe(false);
   });
 
   it('applies adapter resilience defaults and overrides', () => {

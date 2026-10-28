@@ -30,7 +30,12 @@ export default defineConfig({
         test: {
           name: "node",
           environment: "node",
+          // Route sweeps start a real API server and touch every guarded endpoint; with two workers they
+          // regularly need more than vitest's 5 s default while asserting the same thing.
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
           include: [`{${roots}}/*/{src,test}/**/*.test.{ts,mts,mjs}`, "tests/unit/**/*.test.ts"],
+          setupFiles: ["tests/setup/node.ts"],
           ...common,
           exclude: [...common.exclude, "**/*.dom.test.*"],
         },
@@ -39,6 +44,8 @@ export default defineConfig({
         test: {
           name: "dom",
           environment: "jsdom",
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
           include: [`{${roots}}/*/{src,test}/**/*.test.tsx`, `{${roots}}/*/{src,test}/**/*.dom.test.ts`],
           setupFiles: ["tests/setup/dom.ts"],
           ...common,

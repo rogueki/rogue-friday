@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param(
     [ValidateSet('status', 'opencode', 'codex', 'claude')][string]$Cli = 'status',
     [switch]$Login,

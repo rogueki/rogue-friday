@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $helper = Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts\update-voice-personas.ps1'
 $tokens = $null
 $parseErrors = $null

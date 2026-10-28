@@ -1,30 +1,72 @@
 ﻿#Requires -Version 5.1
 param([string]$ResumeRoot = '', [ValidateSet('','success','failure','restart')][string]$Simulation = '')
 
+# Simulation nur im lokalen Testmodus: ohne Marker keine Trockenlaeufe, die einen Erfolg vortaeuschen.
+if ($Simulation -and $env:FRIDAY_GUI_TEST -ne '1') {
+    [Console]::Error.WriteLine('Simulation ist nur im lokalen GUI-Testmodus erlaubt (FRIDAY_GUI_TEST=1).')
+    exit 2
+}
+
+# Start mit Administratorrechten: nur fester Skriptpfad und optionaler Zielordner, keine Geheimnisse.
+. (Join-Path $PSScriptRoot 'lib\elevation.ps1')
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    $forward = @()
+    if ($ResumeRoot) { $forward += @('-ResumeRoot', ('"' + $ResumeRoot + '"')) }
+    if ($Simulation) { $forward += @('-Simulation', $Simulation) }
+    $elevation = Start-ElevatedPowerShell -ScriptPath $PSCommandPath -ForwardedArguments $forward -Sta
+    if ($elevation.Canceled) { exit 3 }
+    if (-not $elevation.Started) { [Console]::Error.WriteLine('Start mit Administratorrechten fehlgeschlagen: ' + $elevation.Message); exit 4 }
+    exit
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    # Escalate before collecting credentials. Only the fixed script path and optional root are passed to UAC.
-    $arguments = '-NoProfile -STA -ExecutionPolicy Bypass -File "' + $PSCommandPath + '"'
-    if ($ResumeRoot) { $arguments += ' -ResumeRoot "' + $ResumeRoot + '"' }
-    if ($Simulation) { $arguments += ' -Simulation ' + $Simulation }
-    Start-Process -FilePath powershell.exe -ArgumentList $arguments -Verb RunAs
-    exit
-}
+# Kooperativer Abbruch: dieselbe Bitte, die der Installer an seinen Schrittgrenzen prueft.
+. (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Ereignisstrom des Installers (Protokoll 2); unbekannte Zeilen bleiben sichtbarer Text.
+. (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
+# Rueckkanal der Stimmaufnahme: Anfrage und Antwort als Dateien (derselbe Vertrag wie in der Aufnahme).
+. (Join-Path $PSScriptRoot 'lib\gui-interaction.ps1')
+# Layoutvertrag, Bild und Rahmen der Oberflaeche.
+. (Join-Path $PSScriptRoot 'gui\layout.ps1')
+. (Join-Path $PSScriptRoot 'gui\background.ps1')
+. (Join-Path $PSScriptRoot 'gui\shell.ps1')
+
+$script:cancelGraceSeconds = 25
+$script:fields = @{}
+
+# Die Anzeigeskalierung kommt aus dem System, nicht aus einer Annahme: bei 150 % waechst das Fenster
+# mit und alle Abstaende und Schriften wachsen mit.
+$script:dpiScale = 1.0
+try {
+    $screenGraphics = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
+    try { $script:dpiScale = [math]::Round($screenGraphics.DpiX / 96, 2) } finally { $screenGraphics.Dispose() }
+} catch { $script:dpiScale = 1.0 }
+if ($script:dpiScale -lt 1) { $script:dpiScale = 1.0 }
+$startSize = New-Object Drawing.Size([int](1200 * $script:dpiScale), [int](760 * $script:dpiScale))
+$shell = New-GuiShell -ClientSize $startSize -Scale $script:dpiScale -AdditionalBackdropPaths @((Join-Path $PSScriptRoot '..\installer_background.png'))
+$form = $shell.Form
+# Felder liegen in einer Spalte; Beschriftung links, Eingabe rechts daneben. Alle Masse skalieren.
+$script:labelWidth = [int](190 * $script:dpiScale)
+$script:inputLeft = [int](196 * $script:dpiScale)
+$script:inputWidth = [int](300 * $script:dpiScale)
+$script:rowHeight = [int](38 * $script:dpiScale)
 
 function Add-Row($panel, [string]$name, [string]$label, [int]$y, [string]$value = '', [bool]$password = $false) {
     $caption = New-Object Windows.Forms.Label
-    $caption.Text = $label; $caption.Location = New-Object Drawing.Point(24, $y)
-    $caption.Size = New-Object Drawing.Size(310, 24)
+    $caption.Text = $label; $caption.Location = New-Object Drawing.Point(0, ($y + 3))
+    $caption.Size = New-Object Drawing.Size($script:labelWidth, [int](20 * $script:dpiScale))
+    $caption.BackColor = [Drawing.Color]::Transparent
+    $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $panel.Controls.Add($caption)
     $input = New-Object Windows.Forms.TextBox
     $input.Name = $name; $input.Text = $value
-    $input.Location = New-Object Drawing.Point(340, $y)
-    $input.Size = New-Object Drawing.Size(405, 27)
+    $input.Location = New-Object Drawing.Point($script:inputLeft, $y)
+    $input.Size = New-Object Drawing.Size($script:inputWidth, [int](25 * $script:dpiScale))
     $input.UseSystemPasswordChar = $password
     $panel.Controls.Add($input)
     $script:fields[$name] = $input
@@ -33,18 +75,23 @@ function Add-Row($panel, [string]$name, [string]$label, [int]$y, [string]$value 
 function Add-Check($panel, [string]$name, [string]$label, [int]$y, [bool]$checked = $false) {
     $box = New-Object Windows.Forms.CheckBox
     $box.Name = $name; $box.Text = $label; $box.Checked = $checked
-    $box.Location = New-Object Drawing.Point(24, $y)
-    $box.Size = New-Object Drawing.Size(730, 29)
+    $box.Location = New-Object Drawing.Point(0, $y)
+    $box.Size = New-Object Drawing.Size([int](496 * $script:dpiScale), [int](27 * $script:dpiScale))
+    $box.BackColor = [Drawing.Color]::Transparent
+    $box.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $panel.Controls.Add($box); $script:fields[$name] = $box
     return $box
 }
 function Add-Choice($panel, [string]$name, [string]$label, [int]$y, [string[]]$items, [int]$selected = 0) {
     $caption = New-Object Windows.Forms.Label
-    $caption.Text = $label; $caption.Location = New-Object Drawing.Point(24, $y)
-    $caption.Size = New-Object Drawing.Size(310, 24); $panel.Controls.Add($caption)
+    $caption.Text = $label; $caption.Location = New-Object Drawing.Point(0, ($y + 3))
+    $caption.Size = New-Object Drawing.Size($script:labelWidth, [int](20 * $script:dpiScale))
+    $caption.BackColor = [Drawing.Color]::Transparent
+    $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+    $panel.Controls.Add($caption)
     $box = New-Object Windows.Forms.ComboBox
-    $box.Name = $name; $box.DropDownStyle = 'DropDownList'; $box.Location = New-Object Drawing.Point(340, $y)
-    $box.Size = New-Object Drawing.Size(405, 28)
+    $box.Name = $name; $box.DropDownStyle = 'DropDownList'; $box.Location = New-Object Drawing.Point($script:inputLeft, $y)
+    $box.Size = New-Object Drawing.Size($script:inputWidth, [int](25 * $script:dpiScale))
     [void]$box.Items.AddRange($items)
     $box.SelectedIndex = $selected
     $panel.Controls.Add($box); $script:fields[$name] = $box
@@ -52,10 +99,49 @@ function Add-Choice($panel, [string]$name, [string]$label, [int]$y, [string[]]$i
 }
 function Add-Text($panel, [string]$text, [int]$y, [int]$height = 42) {
     $label = New-Object Windows.Forms.Label
-    $label.Text = $text; $label.Location = New-Object Drawing.Point(24, $y)
-    $label.Size = New-Object Drawing.Size(730, $height)
+    $label.Text = $text; $label.Location = New-Object Drawing.Point(0, $y)
+    $label.Size = New-Object Drawing.Size([int](496 * $script:dpiScale), [int]($height * $script:dpiScale))
+    $label.BackColor = [Drawing.Color]::Transparent
+    $label.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $panel.Controls.Add($label)
     return $label
+}
+function Get-FocusedControl($root) {
+    # WinForms meldet am Formular nur den obersten Container; fuer die Tastaturpruefung wird das
+    # tatsaechlich fokussierte Bedienelement gebraucht.
+    foreach ($child in $root.Controls) {
+        if ($child.Focused) { return $child }
+        $found = Get-FocusedControl $child
+        if ($found) { return $found }
+    }
+    return $null
+}
+function Test-FocusReachable($page, $form) {
+    # Laeuft die Tabulatorreihenfolge der Seite einmal durch und liefert die erreichten Namen.
+    $reachable = @()
+    $first = $null
+    foreach ($control in $page.Panel.Controls) {
+        if ($control.TabStop -and $control.Enabled -and $control.Visible -and
+            ($control -is [Windows.Forms.TextBox] -or $control -is [Windows.Forms.ComboBox] -or
+             $control -is [Windows.Forms.Button] -or $control -is [Windows.Forms.CheckBox])) {
+            $first = $control; break
+        }
+    }
+    if (-not $first) { $first = $form.CancelButton }
+    if (-not $first) { return $reachable }
+    $first.Select()
+    [System.Windows.Forms.Application]::DoEvents()
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    for ($step = 0; $step -lt 80 -and $watch.Elapsed.TotalSeconds -lt 8; $step++) {
+        $current = Get-FocusedControl $form
+        if (-not $current) { break }
+        if ($reachable -notcontains $current.Name) { $reachable += $current.Name }
+        [void]$form.SelectNextControl($current, $true, $true, $true, $true)
+        [System.Windows.Forms.Application]::DoEvents()
+        $next = Get-FocusedControl $form
+        if (-not $next -or $next.Name -eq $current.Name) { break }
+    }
+    return $reachable
 }
 function Value([string]$name) { return $script:fields[$name].Text.Trim() }
 function Checked([string]$name) { return [bool]$script:fields[$name].Checked }
@@ -125,6 +211,11 @@ function Test-Wizard {
     }
     if ((Value 'voiceReference') -and -not ($state -and $state.voice_mode) -and
         -not (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) { throw 'Die gewählte Stimmreferenz wurde nicht gefunden.' }
+    if ((Value 'voiceReference') -and (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) {
+        $referenceFile = Get-Item -LiteralPath (Value 'voiceReference')
+        if ($referenceFile.Extension.ToLowerInvariant() -notin @('.wav', '.mp3')) { throw 'Die Stimmreferenz muss eine WAV- oder MP3-Datei sein.' }
+        if ($referenceFile.Length -lt 1024) { throw 'Die Stimmreferenz ist leer oder beschädigt.' }
+    }
     if ($state -and @($state.done) -contains 'voicepython' -and
         ($script:fields.inputDevice.SelectedIndex -gt 0 -or $script:fields.outputDevice.SelectedIndex -gt 0)) {
         throw 'Die Gerätewahl gilt bei neuer Spracheinrichtung.'
@@ -135,33 +226,29 @@ function Test-Wizard {
     return $state
 }
 
-$script:fields = @{}
-$form = New-Object Windows.Forms.Form
-$form.Text = 'F.R.I.D.A.Y. – geführte Installation'; $form.StartPosition = 'CenterScreen'
-$form.Size = New-Object Drawing.Size(820, 690); $form.MinimumSize = New-Object Drawing.Size(820, 690)
-$form.Font = New-Object Drawing.Font('Segoe UI', 10)
-$tabs = New-Object Windows.Forms.TabControl
-$tabs.Location = New-Object Drawing.Point(10, 10); $tabs.Size = New-Object Drawing.Size(785, 580)
-$form.Controls.Add($tabs)
-foreach ($title in @('Systemprüfung','Installationsort','Sprache & Stimme','Persönlichkeit','Zugänge','Zusammenfassung','Installation')) {
-    $page = New-Object Windows.Forms.TabPage
-    $page.Text = $title; $page.AutoScroll = $true
-    [void]$tabs.TabPages.Add($page)
+# --- Seiten des Assistenten. Eine Seite ist ein Panel in der Seitenflaeche des Rahmens.
+$script:pages = New-Object System.Collections.ArrayList
+function New-WizardPage([string]$key, [string]$title, [string]$body) {
+    $panel = New-Object Windows.Forms.Panel
+    $panel.Name = $key
+    $panel.Dock = [Windows.Forms.DockStyle]::Fill
+    $panel.BackColor = [Drawing.Color]::Transparent
+    $panel.AutoScroll = $true
+    $panel.Visible = $false
+    $shell.PageHost.Controls.Add($panel)
+    $page = [ordered]@{ Key = $key; Title = $title; Body = $body; Panel = $panel }
+    [void]$script:pages.Add($page)
+    return $page
 }
-$tabs.SelectedIndex = 0
-$back = New-Object Windows.Forms.Button; $back.Text = 'Zurück'; $back.Location = New-Object Drawing.Point(490, 605)
-$back.Size = New-Object Drawing.Size(90, 32); $form.Controls.Add($back)
-$next = New-Object Windows.Forms.Button; $next.Text = 'Weiter'; $next.Location = New-Object Drawing.Point(590, 605)
-$next.Size = New-Object Drawing.Size(90, 32); $form.Controls.Add($next)
-$start = New-Object Windows.Forms.Button; $start.Text = 'Installieren'; $start.Location = New-Object Drawing.Point(690, 605)
-$start.Size = New-Object Drawing.Size(90, 32); $form.Controls.Add($start)
 
-$system = $tabs.TabPages[0]
-[void](Add-Text $system 'Systemprüfung vor der Installation' 25 35)
-$systemReport = Add-Text $system 'Prüfung läuft …' 75 180
-[void](Add-Text $system 'Benötigt: Windows mit WSL2, 40 GB freier Speicher, Internet und Administratorrechte. Lokale Sprache benötigt eine NVIDIA-GPU mit mindestens 6 GB VRAM. ElevenLabs verwendet eine Cloud-API; je nach Konto können Kosten entstehen.' 280 120)
-$refresh = New-Object Windows.Forms.Button; $refresh.Text = 'Erneut prüfen'; $refresh.Location = New-Object Drawing.Point(24, 430)
-$system.Controls.Add($refresh)
+$systemPage = New-WizardPage 'systemPage' 'Systemprüfung' 'Prüft Windows, WSL2, Speicher, Rechte und Grafik, bevor etwas verändert wird.'
+$systemReport = Add-Text $systemPage.Panel 'Prüfung läuft …' 0 120
+$systemPage.Panel.Controls.Add((Add-Text $systemPage.Panel 'Benötigt: Windows mit WSL2, 40 GB freier Speicher, Internet und Administratorrechte. Lokale Sprache benötigt eine NVIDIA-GPU mit mindestens 6 GB VRAM. ElevenLabs verwendet eine Cloud-API; je nach Konto können Kosten entstehen.' 128 96))
+$refresh = New-Object Windows.Forms.Button; $refresh.Text = 'Erneut prüfen'
+$refresh.Location = New-Object Drawing.Point(0, 232); $refresh.Size = New-Object Drawing.Size(150, 30)
+$systemPage.Panel.Controls.Add($refresh)
+# Die Systempruefung ist teuer (WMI, nvidia-smi): sie laeuft beim Wechsel des Ordners, nicht bei jedem Fokuswechsel.
+$script:refreshedRoot = ''
 $refresh.Add_Click({
     try {
         $drive = (Value 'installRoot').Substring(0,1)
@@ -171,14 +258,15 @@ $refresh.Add_Click({
         $gpu = if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { (& nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>$null | Select-Object -First 1) } else { 'Keine NVIDIA-GPU erkannt' }
         $systemReport.Text = "Windows Build $([Environment]::OSVersion.Version.Build)`r`nRAM: $ram GB`r`n${drive}: $free GB frei`r`nGrafik: $gpu`r`nWSL: $([bool](Get-Command wsl.exe -ErrorAction SilentlyContinue))`r`nInternet wird beim Start vom Installer geprüft."
     } catch { $systemReport.Text = "Systemprüfung nicht vollständig: $($_.Exception.Message)" }
+    $script:refreshedRoot = Value 'installRoot'
 })
 
-$paths = $tabs.TabPages[1]
-[void](Add-Text $paths 'Installationsort und WSL-Distribution. Bei einer vorhandenen Installation werden die gespeicherten Werte übernommen.' 25 55)
-[void](Add-Row $paths 'installRoot' 'Installationsordner' 95 'C:\Friday')
+$pathsPage = New-WizardPage 'pathsPage' 'Installationsort' 'Bei einer vorhandenen Installation werden die gespeicherten Werte übernommen; nichts wird still überschrieben.'
+[void](Add-Text $pathsPage.Panel 'Installationsordner und WSL-Distribution. Ein anderer Ordner verlangt einen eigenen Distributionsnamen.' 0 44)
+[void](Add-Row $pathsPage.Panel 'installRoot' 'Installationsordner' 50 'C:\Friday')
 $browseRoot = New-Object Windows.Forms.Button; $browseRoot.Text = 'Ordner wählen'
-$browseRoot.Location = New-Object Drawing.Point(340, 125); $browseRoot.Size = New-Object Drawing.Size(130, 30)
-$paths.Controls.Add($browseRoot)
+$browseRoot.Location = New-Object Drawing.Point(196, 78); $browseRoot.Size = New-Object Drawing.Size(130, 26)
+$pathsPage.Panel.Controls.Add($browseRoot)
 $browseRoot.Add_Click({
     $picker = New-Object Windows.Forms.FolderBrowserDialog
     $picker.Description = 'Übergeordneten Ordner für die neue Friday-Installation wählen'
@@ -189,14 +277,20 @@ $browseRoot.Add_Click({
         Update-PathFields; Load-RootState; $refresh.PerformClick()
     }
 })
-[void](Add-Row $paths 'distroName' 'WSL-Distributionsname' 165 'Ubuntu')
-[void](Add-Row $paths 'distroLocation' 'WSL-Ablageort' 205 '(Windows-Standardort)')
-[void](Add-Check $paths 'migrateLegacy' 'Vorhandenes C:\Jarvis nach C:\Friday übernehmen' 252 $true)
-[void](Add-Check $paths 'disableLegacy' 'Bei frischer Installation alte JARVIS-Dienste deaktivieren' 288 $true)
-[void](Add-Check $paths 'reuseDistro' 'Vorhandene passende WSL-Distribution verwenden' 324 $true)
-[void](Add-Check $paths 'disableForeignTasks' 'Bei Migration kollidierende alte Aufgaben deaktivieren' 360 $true)
-[void](Add-Check $paths 'overwriteDashboardConfig' 'Abweichende Dashboard-Vorgabe nach Sicherung überschreiben' 396 $false)
-[void](Add-Text $paths 'Bestehende Daten, Stimmprofile und Konfigurationen werden bei Fortsetzung berücksichtigt. Eine frühere JARVIS-Installation bleibt als Sicherung erhalten.' 450 65)
+[void](Add-Row $pathsPage.Panel 'distroName' 'WSL-Distributionsname' 112 'Ubuntu')
+[void](Add-Row $pathsPage.Panel 'distroLocation' 'WSL-Ablageort' 150 '(Windows-Standardort)')
+[void](Add-Check $pathsPage.Panel 'migrateLegacy' 'Vorhandenes C:\Jarvis nach C:\Friday übernehmen' 190 $true)
+[void](Add-Check $pathsPage.Panel 'disableLegacy' 'Bei frischer Installation alte JARVIS-Dienste deaktivieren' 220 $true)
+[void](Add-Check $pathsPage.Panel 'reuseDistro' 'Vorhandene passende WSL-Distribution verwenden' 250 $true)
+[void](Add-Check $pathsPage.Panel 'disableForeignTasks' 'Bei Migration kollidierende alte Aufgaben deaktivieren' 280 $true)
+[void](Add-Check $pathsPage.Panel 'overwriteDashboardConfig' 'Abweichende Dashboard-Vorgabe nach Sicherung überschreiben' 310 $false)
+[void](Add-Text $pathsPage.Panel 'Bestehende Daten, Stimmprofile und Konfigurationen werden bei Fortsetzung berücksichtigt. Eine frühere JARVIS-Installation bleibt als Sicherung erhalten.' 346 56)
+# Beim Verlassen des Ordnerfelds wird die Systempruefung nur bei echter Aenderung neu gerechnet.
+$script:fields.installRoot.Add_Leave({
+    Update-PathFields
+    Load-RootState
+    if ($script:refreshedRoot -ne (Value 'installRoot')) { $refresh.PerformClick() }
+})
 function Update-PathFields {
     $custom = (Value 'installRoot') -ine 'C:\Friday'
     $script:fields.distroName.Enabled = $custom
@@ -210,26 +304,27 @@ function Update-PathFields {
         $script:fields.distroLocation.Text = '(Windows-Standardort)'
     }
 }
-$script:fields.installRoot.Add_Leave({ Update-PathFields; Load-RootState; $refresh.PerformClick() })
 
-$voice = $tabs.TabPages[2]
-[void](Add-Text $voice 'Wähle die Sprachverarbeitung und die Stimme. Lokale Stimmen bleiben auf deinem PC; ElevenLabs benötigt Internet und einen geeigneten API-Tarif.' 25 65)
-[void](Add-Choice $voice 'voiceMode' 'Sprachbetrieb' 102 @('Lokal (NVIDIA 6 GB VRAM)', 'ElevenLabs Cloud'))
-[void](Add-Choice $voice 'voiceChoice' 'Lokale Ausgabestimme' 147 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)'))
-[void](Add-Row $voice 'voiceReference' 'Eigene MP3/WAV (optional)' 193)
-$browse = New-Object Windows.Forms.Button; $browse.Text = 'Datei wählen'; $browse.Location = New-Object Drawing.Point(340, 235)
-$browse.Size = New-Object Drawing.Size(120, 31)
-$voice.Controls.Add($browse)
+
+$voicePage = New-WizardPage 'voicePage' 'Sprache & Stimme' 'Lokale Stimmen bleiben auf deinem PC; ElevenLabs braucht Internet und einen passenden Tarif.'
+[void](Add-Text $voicePage.Panel 'Wähle die Sprachverarbeitung und die Stimme. Die Gerätewahl gilt für die Aufnahme deiner Stimmproben.' 0 44)
+[void](Add-Choice $voicePage.Panel 'voiceMode' 'Sprachbetrieb' 50 @('Lokal (NVIDIA 6 GB VRAM)', 'ElevenLabs Cloud'))
+[void](Add-Choice $voicePage.Panel 'voiceChoice' 'Lokale Ausgabestimme' 88 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)'))
+[void](Add-Row $voicePage.Panel 'voiceReference' 'Eigene MP3/WAV (optional)' 126)
+$browse = New-Object Windows.Forms.Button; $browse.Text = 'Datei wählen'
+$browse.Location = New-Object Drawing.Point(196, 154); $browse.Size = New-Object Drawing.Size(120, 26)
+$voicePage.Panel.Controls.Add($browse)
 $browse.Add_Click({ $picker = New-Object Windows.Forms.OpenFileDialog; $picker.Filter = 'Audio (*.wav;*.mp3)|*.wav;*.mp3'; if ($picker.ShowDialog() -eq 'OK') { $script:fields.voiceReference.Text = $picker.FileName } })
-[void](Add-Row $voice 'voiceId' 'ElevenLabs Voice ID (optional)' 287)
+[void](Add-Row $voicePage.Panel 'voiceId' 'ElevenLabs Voice ID (optional)' 188)
 $audioEndpoints = @(Get-PnpDevice -Class AudioEndpoint -Status OK -ErrorAction SilentlyContinue)
 $inputs = @('Windows-Standardmikrofon') + @($audioEndpoints | Where-Object { $_.InstanceId -match '\{0\.0\.1\.' } |
     Select-Object -ExpandProperty FriendlyName -Unique)
 $outputs = @('Windows-Standardlautsprecher') + @($audioEndpoints | Where-Object { $_.InstanceId -match '\{0\.0\.0\.' } |
     Select-Object -ExpandProperty FriendlyName -Unique)
-[void](Add-Choice $voice 'inputDevice' 'Mikrofon' 334 $inputs)
-[void](Add-Choice $voice 'outputDevice' 'Lautsprecher' 378 $outputs)
-$voiceHelp = Add-Text $voice 'Klassisch wählt ohne eigene Datei automatisch die mitgelieferte Referenz. Für die weibliche lokale Qwen-Stimme kann eine eigene Referenz gewählt werden; ohne Referenz wird Piper Kerstin verwendet.' 430 82
+[void](Add-Choice $voicePage.Panel 'inputDevice' 'Mikrofon' 226 $inputs)
+[void](Add-Choice $voicePage.Panel 'outputDevice' 'Lautsprecher' 264 $outputs)
+$voiceHelp = Add-Text $voicePage.Panel 'Klassisch wählt ohne eigene Datei automatisch die mitgelieferte Referenz. Für die weibliche lokale Qwen-Stimme kann eine eigene Referenz gewählt werden; ohne Referenz wird Piper Kerstin verwendet.' 302 72
+
 $script:fields.voiceId.Enabled = $false
 $script:fields.voiceMode.Add_SelectedIndexChanged({
     $local = $script:fields.voiceMode.SelectedIndex -eq 0
@@ -242,28 +337,47 @@ $script:fields.voiceMode.Add_SelectedIndexChanged({
     }
 })
 
-$identity = $tabs.TabPages[3]
-[void](Add-Row $identity 'assistantName' 'Name des Assistenten' 35 'Friday')
-[void](Add-Row $identity 'wakePhrase' 'Aktivierungswort / Satz' 78 'Hey Friday')
-[void](Add-Row $identity 'ownerName' 'Dein Vorname' 121 $env:USERNAME)
-[void](Add-Choice $identity 'address' 'Anrede' 165 @('Sir und Sie','Vorname und Sie','Vorname und Du'))
-[void](Add-Choice $identity 'character' 'Charakter' 209 @('Britischer Butler','Freundlich','Sachlich'))
-[void](Add-Choice $identity 'length' 'Antwortlänge' 253 @('Kurz','Ausführlicher'))
-[void](Add-Row $identity 'about' 'Über dich (optional)' 297)
-[void](Add-Check $identity 'keepIdentity' 'Bestehenden Namen und Wake Word beibehalten' 347 $true)
-[void](Add-Check $identity 'repeatEnrollment' 'Stimmaufnahme bei unverändertem Namen wiederholen' 384 $false)
-[void](Add-Text $identity 'Für ein persönliches Wake Word werden später Sprachproben aufgenommen. Die Aufnahme führt dich mit sichtbaren Dialogen und Hörsignalen durch die Sätze.' 434 70)
+$identityPage = New-WizardPage 'identityPage' 'Persönlichkeit' 'Name, Anrede und Charakter bestimmen, wie F.R.I.D.A.Y. mit dir spricht.'
+[void](Add-Row $identityPage.Panel 'assistantName' 'Name des Assistenten' 0 'Friday')
+[void](Add-Row $identityPage.Panel 'wakePhrase' 'Aktivierungswort / Satz' 38 'Hey Friday')
+[void](Add-Row $identityPage.Panel 'ownerName' 'Dein Vorname' 76 $env:USERNAME)
+[void](Add-Choice $identityPage.Panel 'address' 'Anrede' 114 @('Sir und Sie','Vorname und Sie','Vorname und Du'))
+[void](Add-Choice $identityPage.Panel 'character' 'Charakter' 152 @('Britischer Butler','Freundlich','Sachlich'))
+[void](Add-Choice $identityPage.Panel 'length' 'Antwortlänge' 190 @('Kurz','Ausführlicher'))
+[void](Add-Row $identityPage.Panel 'about' 'Über dich (optional)' 228)
+[void](Add-Check $identityPage.Panel 'keepIdentity' 'Bestehenden Namen und Wake Word beibehalten' 266 $true)
+[void](Add-Check $identityPage.Panel 'repeatEnrollment' 'Stimmaufnahme bei unverändertem Namen wiederholen' 296 $false)
+[void](Add-Text $identityPage.Panel 'Für ein persönliches Wake Word werden später Sprachproben aufgenommen. Die Aufnahme führt dich mit sichtbaren Dialogen und Hörsignalen durch die Sätze.' 332 56)
 $script:fields.assistantName.Add_Leave({ if ($script:fields.wakePhrase.Text -eq 'Hey Friday') { $script:fields.wakePhrase.Text = 'Hey ' + $script:fields.assistantName.Text.Trim() } })
 
-$keys = $tabs.TabPages[4]
-[void](Add-Row $keys 'linuxUser' 'Linux-Benutzername' 35 'friday')
-[void](Add-Row $keys 'linuxPassword' 'Linux-Passwort' 78 '' $true)
-[void](Add-Row $keys 'linuxPasswordRepeat' 'Linux-Passwort wiederholen' 121 '' $true)
-[void](Add-Check $keys 'useExistingKimi' 'Vorhandenen Kimi-Schlüssel verwenden, falls verfügbar' 165 $true)
-[void](Add-Row $keys 'kimiKey' 'Kimi-API-Schlüssel' 209 '' $true)
-[void](Add-Row $keys 'elevenlabsKey' 'ElevenLabs-API-Schlüssel' 253 '' $true)
-[void](Add-Check $keys 'openBrowser' 'Dashboard nach der Installation öffnen' 303 $true)
-[void](Add-Text $keys 'Zugangsdaten werden verdeckt eingegeben, nur für diesen Windows-Benutzer verschlüsselt an den Installer übergeben und nicht in dessen Argumenten gespeichert. Das Dashboard-Besitzerkonto legst du beim ersten Öffnen an.' 365 90)
+$modelPage = New-WizardPage 'modelPage' 'KI-Zugang' 'Der Schlüssel wird verdeckt eingegeben und nur an den Installer übergeben.'
+[void](Add-Choice $modelPage.Panel 'providerChoice' 'Anbieter' 0 @(
+    'OpenAI (empfohlen)', 'Anthropic (Claude)', 'Erweitert: Kimi, DeepSeek, OpenRouter oder eigener Server'))
+[void](Add-Row $modelPage.Panel 'modelBaseUrl' 'Basis-URL (nur Erweitert, z. B. https://api.deepseek.com/v1)' 38)
+[void](Add-Row $modelPage.Panel 'modelName' 'Modellname (leer = Standard des Anbieters)' 76)
+[void](Add-Row $modelPage.Panel 'openaiKey' 'OpenAI-API-Key' 114 '' $true)
+[void](Add-Row $modelPage.Panel 'anthropicKey' 'Anthropic-API-Key' 152 '' $true)
+[void](Add-Row $modelPage.Panel 'customKey' 'API-Key des erweiterten Anbieters' 190 '' $true)
+$modelHelp = Add-Text $modelPage.Panel 'Der Schlüssel landet ausschließlich in der WSL-Installation unter ~/.hermes/.env. Ein hier gefundener Kimi-Code-Schlüssel (sk-kimi-…) richtet automatisch den Kimi-Coding-Zugang ein.' 232 80
+
+function Update-ProviderFields {
+    $choice = $script:fields.providerChoice.SelectedIndex
+    $script:fields.openaiKey.Enabled = $choice -eq 0
+    $script:fields.anthropicKey.Enabled = $choice -eq 1
+    foreach ($name in @('customKey', 'modelBaseUrl', 'modelName')) { $script:fields[$name].Enabled = $choice -eq 2 }
+}
+$script:fields.providerChoice.Add_SelectedIndexChanged({ Update-ProviderFields })
+Update-ProviderFields
+
+$keysPage = New-WizardPage 'keysPage' 'Zugänge' 'Zugangsdaten werden verdeckt eingegeben, verschlüsselt übergeben und nicht in Argumenten gespeichert.'
+[void](Add-Row $keysPage.Panel 'linuxUser' 'Linux-Benutzername' 0 'friday')
+[void](Add-Row $keysPage.Panel 'linuxPassword' 'Linux-Passwort' 38 '' $true)
+[void](Add-Row $keysPage.Panel 'linuxPasswordRepeat' 'Linux-Passwort wiederholen' 76 '' $true)
+[void](Add-Check $keysPage.Panel 'useExistingKimi' 'Vorhandenen Kimi-Schlüssel verwenden, falls verfügbar' 116 $true)
+[void](Add-Row $keysPage.Panel 'kimiKey' 'Kimi-API-Schlüssel' 152 '' $true)
+[void](Add-Row $keysPage.Panel 'elevenlabsKey' 'ElevenLabs-API-Schlüssel' 190 '' $true)
+[void](Add-Check $keysPage.Panel 'openBrowser' 'Dashboard nach der Installation öffnen' 230 $true)
+[void](Add-Text $keysPage.Panel 'Das Dashboard-Besitzerkonto legst du beim ersten Öffnen an. Diese Angaben gelten nur für diesen Windows-Benutzer.' 266 56)
 $script:fields.useExistingKimi.Add_CheckedChanged({ $script:fields.kimiKey.Enabled = -not $script:fields.useExistingKimi.Checked })
 $kimiEnvironment = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
 if (-not $kimiEnvironment) {
@@ -272,34 +386,32 @@ if (-not $kimiEnvironment) {
     $script:fields.kimiKey.Enabled = $true
 }
 
-$summary = $tabs.TabPages[5]
+$summaryPage = New-WizardPage 'summaryPage' 'Zusammenfassung' 'Prüfe die Angaben; geändert wird erst nach deinem Klick auf Installieren.'
 $summaryText = New-Object Windows.Forms.TextBox
 $summaryText.Multiline = $true; $summaryText.ReadOnly = $true; $summaryText.ScrollBars = 'Vertical'
-$summaryText.Location = New-Object Drawing.Point(24, 25); $summaryText.Size = New-Object Drawing.Size(730, 470)
-$summary.Controls.Add($summaryText)
-$progress = $tabs.TabPages[6]
-$status = Add-Text $progress 'Bereit.' 20 40
-$details = New-Object Windows.Forms.TextBox
-$details.Multiline = $true; $details.ReadOnly = $true; $details.ScrollBars = 'Vertical'
-$details.Font = New-Object Drawing.Font('Consolas', 9)
-$details.Location = New-Object Drawing.Point(20, 72); $details.Size = New-Object Drawing.Size(738, 430)
-$progress.Controls.Add($details)
-$toggleDetails = New-Object Windows.Forms.Button; $toggleDetails.Text = 'Details ausblenden'
-$toggleDetails.Location = New-Object Drawing.Point(535, 515); $toggleDetails.Size = New-Object Drawing.Size(220, 34)
-$progress.Controls.Add($toggleDetails)
-$toggleDetails.Add_Click({
-    $details.Visible = -not $details.Visible
-    $toggleDetails.Text = if ($details.Visible) { 'Details ausblenden' } else { 'Details anzeigen' }
-})
-$retry = New-Object Windows.Forms.Button; $retry.Text = 'Erneut versuchen'; $retry.Location = New-Object Drawing.Point(20, 515)
-$retry.Size = New-Object Drawing.Size(150, 34)
-$retry.Enabled = $false; $progress.Controls.Add($retry)
-$reboot = New-Object Windows.Forms.Button; $reboot.Text = 'Jetzt neu starten'; $reboot.Location = New-Object Drawing.Point(180, 515)
-$reboot.Size = New-Object Drawing.Size(160, 34); $reboot.Enabled = $false; $progress.Controls.Add($reboot)
+$summaryText.Dock = [Windows.Forms.DockStyle]::Fill
+$summaryText.BackColor = Get-GuiColor '#0F1622'
+$summaryText.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+$summaryText.BorderStyle = 'None'
+$summaryPage.Panel.Controls.Add($summaryText)
+
+$progressPage = New-WizardPage 'progressPage' 'Installation' 'Der Installer meldet jeden Schritt; Details erscheinen nur auf Klick.'
+$status = Add-Text $progressPage.Panel 'Bereit.' 0 44
+$progressPage.Panel.Controls.Add($status)
+$retry = New-Object Windows.Forms.Button; $retry.Text = 'Erneut versuchen'
+$retry.Location = New-Object Drawing.Point(0, 56); $retry.Size = New-Object Drawing.Size(150, 32)
+$retry.Enabled = $false; $progressPage.Panel.Controls.Add($retry)
+$reboot = New-Object Windows.Forms.Button; $reboot.Text = 'Jetzt neu starten'
+$reboot.Location = New-Object Drawing.Point(162, 56); $reboot.Size = New-Object Drawing.Size(160, 32)
+$reboot.Enabled = $false; $progressPage.Panel.Controls.Add($reboot)
 $reboot.Add_Click({
     if ([Windows.Forms.MessageBox]::Show('Windows jetzt neu starten? Der Assistent setzt die Installation nach der Anmeldung fort.',
         'Neustart', 'YesNo', 'Question') -eq 'Yes') { Restart-Computer -Force }
 })
+# Das Protokoll sammelt nur noch; sichtbar wird es ausschliesslich im Detaildialog des Verweises.
+$script:details = New-Object Windows.Forms.TextBox
+$script:details.Multiline = $true; $script:details.ReadOnly = $true; $script:details.ScrollBars = 'Vertical'
+$script:details.Font = New-Object Drawing.Font('Consolas', 9)
 
 function Load-RootState {
     $root = Value 'installRoot'
@@ -312,7 +424,7 @@ function Load-RootState {
     $script:fields.linuxUser.Text = if ($saved -and $saved.linux_user) { $saved.linux_user } else { 'friday' }
     $script:fields.about.Text = ''
     $script:fields.address.SelectedIndex = 0; $script:fields.character.SelectedIndex = 0; $script:fields.length.SelectedIndex = 0
-    foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey')) { $script:fields[$field].Clear() }
+    foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey')) { $script:fields[$field].Clear() }
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
     $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
@@ -430,34 +542,264 @@ Nach einer neuen WSL-Einrichtung kann ein Windows-Neustart erforderlich sein.
 Die Zugangsdaten werden in dieser Übersicht nicht angezeigt.
 "@).Replace("`r`n", "`n").Replace("`n", "`r`n")
 }
-$tabs.Add_SelectedIndexChanged({
-    if ($script:process) {
-        if ($tabs.SelectedIndex -ne 6) { $tabs.SelectedIndex = 6 }
-        $back.Enabled = $false; $next.Enabled = $false; $start.Enabled = $false
+
+$script:pageIndex = 0
+function Show-GuiPage([int]$index) {
+    # Eine Wahrheit fuer die Anzeige: Seite, Schritttext und Fusszeile werden immer gemeinsam gesetzt.
+    if ($index -lt 0 -or $index -ge $script:pages.Count) { return }
+    $script:pageIndex = $index
+    foreach ($candidate in $script:pages) { $candidate.Panel.Visible = $false }
+    $page = $script:pages[$index]
+    $page.Panel.Visible = $true
+    $page.Panel.BringToFront()
+    $running = [bool]($script:process -and -not $script:process.HasExited)
+    $isProgress = $page.Key -eq 'progressPage'
+    $isSummary = $page.Key -eq 'summaryPage'
+    Set-GuiShellPage $shell ("Schritt $($index + 1) von $($script:pages.Count)") $page.Title $page.Body $isProgress $shell.ProgressBar.Value
+    if ($isProgress) { $shell.BodyLabel.Text = $status.Text }
+    $shell.BackButton.Visible = (-not $isProgress) -and ($index -gt 0)
+    $shell.BackButton.Enabled = $shell.BackButton.Visible -and (-not $running)
+    $shell.PrimaryButton.Visible = (-not $isProgress)
+    $shell.PrimaryButton.Enabled = -not $running
+    $shell.PrimaryButton.Text = if ($isSummary) { 'Installieren' } else { 'Weiter' }
+    $shell.CancelButton.Text = if ($running) { 'Abbrechen' } elseif ($isProgress) { 'Schließen' } else { 'Abbrechen' }
+    if ($isSummary) { Update-Summary }
+}
+
+# --- Stimmaufnahme: die Aufnahme fordert jede Aktion als Datei an, die Oberflaeche antwortet.
+# Ein eigenes Fenster oder eine unsichtbare Enter-Abfrage gibt es damit nicht mehr.
+$script:interactionId = ''
+$script:interactionRoot = ''
+$script:interactionProof = ''
+# Beantwortete Anfragen bleiben gemerkt: die Aufnahme loescht ihre Datei erst beim naechsten Schritt.
+$script:interactionAnswered = @{}
+$script:interactionPage = New-Object Windows.Forms.Panel
+$script:interactionPage.Name = 'interactionPage'
+$script:interactionPage.Dock = [Windows.Forms.DockStyle]::Fill
+$script:interactionPage.BackColor = [Drawing.Color]::Transparent
+$script:interactionPage.Visible = $false
+$shell.PageHost.Controls.Add($script:interactionPage)
+function New-InteractionLabel([int]$y, [int]$height, [int]$size, $style, [string]$color) {
+    $label = New-Object Windows.Forms.Label
+    $label.AutoSize = $false
+    $label.Location = New-Object Drawing.Point(0, [int]($y * $script:dpiScale))
+    $label.Size = New-Object Drawing.Size([int](540 * $script:dpiScale), [int]($height * $script:dpiScale))
+    $label.Font = New-GuiFont $size $style $script:dpiScale
+    $label.ForeColor = Get-GuiColor $color
+    $label.BackColor = [Drawing.Color]::Transparent
+    $script:interactionPage.Controls.Add($label)
+    return $label
+}
+$script:interactionTitle = New-InteractionLabel 0 44 20 ([Drawing.FontStyle]::Bold) $script:GuiLayout.PrimaryText
+$script:interactionPrompt = New-InteractionLabel 52 150 13 ([Drawing.FontStyle]::Regular) $script:GuiLayout.PrimaryText
+$script:interactionDetail = New-InteractionLabel 210 26 11 ([Drawing.FontStyle]::Regular) $script:GuiLayout.SecondaryText
+$script:interactionProgress = New-InteractionLabel 242 26 12 ([Drawing.FontStyle]::Bold) $script:GuiLayout.Accent
+$script:interactionHint = New-InteractionLabel 332 48 10 ([Drawing.FontStyle]::Regular) $script:GuiLayout.SecondaryText
+$script:interactionHint.Text = 'Sprich nach dem Signalton. Die Aufnahme bleibt lokal; "Anhören" spielt die letzte Aufnahme erneut ab.'
+function New-InteractionButton([string]$name, [string]$text, [int]$x, [int]$width, [scriptblock]$onClick) {
+    $button = New-Object Windows.Forms.Button
+    $button.Name = $name
+    $button.Text = $text
+    $button.Location = New-Object Drawing.Point([int]($x * $script:dpiScale), [int](278 * $script:dpiScale))
+    $button.Size = New-Object Drawing.Size([int]($width * $script:dpiScale), [int](42 * $script:dpiScale))
+    $button.BackColor = Get-GuiColor $script:GuiLayout.Surface
+    $button.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+    $button.FlatStyle = 'Flat'
+    $button.Add_Click($onClick)
+    $script:interactionPage.Controls.Add($button)
+    return $button
+}
+$script:interactionOk = New-InteractionButton 'interactionOk' 'Jetzt sprechen' 0 190 { Complete-GuiInteraction 'ok' }
+$script:interactionReplay = New-InteractionButton 'interactionReplay' 'Anhören' 202 150 { Complete-GuiInteraction 'replay' }
+$script:interactionSkip = New-InteractionButton 'interactionSkip' 'Überspringen' 364 150 { Complete-GuiInteraction 'skip' }
+function Show-GuiInteraction([object]$Request) {
+    # Anfrage der Aufnahme anzeigen: Aufforderung, Fortschritt und nur die angebotenen Aktionen.
+    if (-not $Request) { return }
+    if ($script:interactionAnswered.ContainsKey([string]$Request.Id)) { return }
+    $script:interactionId = [string]$Request.Id
+    $script:interactionTitle.Text = if ($Request.Title) { [string]$Request.Title } else { 'Stimmaufnahme' }
+    $script:interactionPrompt.Text = [string]$Request.Prompt
+    $script:interactionDetail.Text = [string]$Request.Detail
+    if ($Request.Total -gt 0) { $script:interactionProgress.Text = "Aufnahme $($Request.Index) von $($Request.Total)" }
+    elseif ($Request.Index -gt 0) { $script:interactionProgress.Text = "Aufnahme $($Request.Index)" }
+    else { $script:interactionProgress.Text = '' }
+    $script:interactionReplay.Enabled = ($Request.Actions -contains 'replay')
+    $script:interactionSkip.Enabled = ($Request.Actions -contains 'skip')
+    $script:interactionPage.Visible = $true
+    $script:interactionPage.BringToFront()
+    $script:interactionOk.Focus() | Out-Null
+    Set-GuiShellPage $shell 'Stimmaufnahme' $script:interactionTitle.Text $script:interactionPrompt.Text $false $shell.ProgressBar.Value
+    $shell.BodyLabel.Text = $script:interactionDetail.Text
+    $shell.BackButton.Visible = $false
+    $shell.PrimaryButton.Visible = $false
+    $shell.CancelButton.Text = 'Abbrechen'
+    $shell.CancelButton.Enabled = $true
+}
+function Complete-GuiInteraction([string]$Action) {
+    # Antwort genau auf die offene Anfrage; ohne offene Anfrage passiert nichts.
+    if (-not $script:interactionId) { return }
+    $root = $script:interactionRoot
+    if (-not $root) { try { $root = [string](Value 'installRoot') } catch { $root = '' } }
+    $sent = Send-GuiInteractionResponse $root $script:interactionId $Action
+    $script:interactionAnswered[$script:interactionId] = $true
+    $requestPath = Join-Path (Join-Path $root 'run') 'gui-interaction.json'
+    if (Test-Path -LiteralPath $requestPath) { Remove-Item -LiteralPath $requestPath -Force -ErrorAction SilentlyContinue }
+    if ($sent) { Append-Log "[AUFNAHME] '$Action' an die Stimmaufnahme gesendet." }
+    else { Append-Log "[AUFNAHME] Die Antwort '$Action' konnte nicht zugestellt werden." }
+    $script:interactionId = ''
+    $script:interactionPage.Visible = $false
+    if ($script:process -and -not $script:process.HasExited) { Show-GuiPage 7 }
+}
+$script:interactionTimer = New-Object Windows.Forms.Timer
+$script:interactionTimer.Interval = 200
+$script:interactionTimer.Add_Tick({
+    $root = $script:interactionRoot
+    # Ohne laufenden Lauf und ohne ausdruecklichen Testordner wird nichts gelesen: eine liegen
+    # gebliebene Datei darf den Assistenten nicht vor dem Start blockieren.
+    if (-not $root) {
+        if (-not ($script:process -and -not $script:process.HasExited)) { return }
+        try { $root = [string](Value 'installRoot') } catch { $root = '' }
+        if (-not $root) { return }
+    }
+    $request = Read-GuiInteractionRequest $root
+    if (-not $request) { return }
+    if ($request.Id -eq $script:interactionId) { return }
+    if ($script:interactionAnswered.ContainsKey($request.Id)) { return }
+    Show-GuiInteraction $request
+})
+$script:interactionTimer.Start()
+
+$shell.BackButton.Add_Click({ Show-GuiPage ($script:pageIndex - 1) })
+$shell.PrimaryButton.Add_Click({
+    if ($script:pageIndex -eq $script:pages.Count - 2) { Start-Backend; return }
+    Show-GuiPage ($script:pageIndex + 1)
+})
+$shell.CancelButton.Add_Click({
+    if ($script:interactionId) { Complete-GuiInteraction 'cancel'; return }
+    if ($script:process -and -not $script:process.HasExited) {
+        if (-not (Request-GuiCancel 'Abbrechen im Assistenten')) { Show-Error 'Der Abbruch konnte nicht übermittelt werden.' }
         return
     }
-    if ($tabs.SelectedIndex -eq 5) { Update-Summary }
-    $back.Enabled = $tabs.SelectedIndex -gt 0 -and $tabs.SelectedIndex -lt 6
-    $next.Enabled = $tabs.SelectedIndex -lt 5
-    $start.Enabled = $tabs.SelectedIndex -eq 5
+    $form.Close()
 })
-$back.Add_Click({ if ($tabs.SelectedIndex -gt 0) { $tabs.SelectedIndex-- } })
-$next.Add_Click({ if ($tabs.SelectedIndex -lt 5) { $tabs.SelectedIndex++ } })
+$shell.DetailsLink.Add_LinkClicked({
+    # Protokolle nur auf ausdruecklichen Klick, nie dauerhaft sichtbar.
+    $dialog = New-Object Windows.Forms.Form
+    $dialog.Text = 'Protokoll dieses Laufs'
+    $dialog.ClientSize = New-Object Drawing.Size(760, 480)
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.BackColor = Get-GuiColor '#0B1220'
+    $log = New-Object Windows.Forms.TextBox
+    $log.Multiline = $true; $log.ReadOnly = $true; $log.ScrollBars = 'Vertical'
+    $log.Dock = [Windows.Forms.DockStyle]::Fill
+    $log.Font = New-Object Drawing.Font('Consolas', 9)
+    $log.BackColor = Get-GuiColor '#0B1220'; $log.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+    $log.BorderStyle = 'None'
+    $log.Text = $script:details.Text
+    $dialog.Controls.Add($log)
+    try { [void]$dialog.ShowDialog($form) } finally { $dialog.Dispose() }
+})
 
 $script:process = $null
 $script:simulationFile = $null
 $script:stdoutTask = $null
 $script:stderrTask = $null
 $script:guiExitCode = 0
+$script:sawRunDone = $false
 $script:redactions = @()
 $script:configPath = $null
+$script:runId = ''
+$script:lastOutputAt = $null
+$script:stalledReported = $false
+# Jede Installation bekommt eine eigene Kennung. Ohne sie laesst sich ein Protokoll nach einer
+# Wiederholung nicht eindeutig einem Lauf zuordnen.
+function New-RunId { return ([guid]::NewGuid().ToString('N').Substring(0, 12)) }
+# Ein Lauf ohne Ausgabe ist nicht dasselbe wie ein haengender Lauf: der Assistent meldet die Stille,
+# beendet aber nichts, weil ein Abbruch mitten in der Einrichtung mehr zerstoert als rettet.
+function Test-RunStalled([object]$LastOutput, [object]$Now, [int]$Minutes = 15) {
+    if (-not $LastOutput -or -not $Now) { return $false }
+    return ($Now - $LastOutput).TotalMinutes -ge $Minutes
+}
 $timer = New-Object Windows.Forms.Timer; $timer.Interval = 150
+function Format-GuiEvent([object]$Event) {
+    # Nur echte Felder, keine aus Text geratenen Prozentzahlen oder Erfolge.
+    switch ([string]$Event.type) {
+        'step' {
+            if ("$($Event.state)" -eq 'start') { return "Schritt $($Event.step) gestartet" }
+            return "Schritt $($Event.step) abgeschlossen"
+        }
+        'download' {
+            if ("$($Event.state)" -eq 'start') { return "Download $($Event.name) laeuft" }
+            if ("$($Event.state)" -eq 'failed') { return "Download $($Event.name) fehlgeschlagen" }
+            return "Download $($Event.name) fertig"
+        }
+        'pip' { return "Pakete werden installiert ($($Event.label))" }
+        'warmup' {
+            if ("$($Event.state)" -eq 'start') { return "Modell $($Event.service) wird geladen" }
+            if ($Event.PSObject.Properties['seconds']) { return "Modell $($Event.service) bereit nach $($Event.seconds) s" }
+            return "Modell $($Event.service) bereit"
+        }
+        'run' {
+            if ("$($Event.state)" -eq 'start') { return "Lauf $($Event.run) gestartet ($($Event.mode))" }
+            return "Lauf beendet: $($Event.state) (Exitcode $($Event.exitCode))"
+        }
+        default { return "Ereignis: $($Event.type)" }
+    }
+}
+function Receive-BackendLine([string]$Line) {
+    $parsed = ConvertFrom-GuiEventLine $Line
+    if ($parsed.Kind -ne 'event') { Append-Log $Line; return }
+    $text = Format-GuiEvent $parsed.Event
+    if ($parsed.Event.type -eq 'run' -and $parsed.Event.state -ne 'start') { $script:sawRunDone = $true }
+    if ("$($parsed.Event.type)" -eq 'step' -and "$($parsed.Event.state)" -eq 'start') {
+        $status.Text = $text
+        # Der eine Fortschrittsbalken folgt der Schrittfolge des Installers; unbekannte Schritte
+        # lassen ihn stehen, statt einen erfundenen Fortschritt zu zeigen.
+        $percent = Get-GuiStepPercent ([string]$parsed.Event.step)
+        if ($percent -ge 0) { $shell.ProgressBar.Value = [math]::Min(100, $percent) }
+        $stepNumber = [array]::IndexOf($script:GuiStepOrder, [string]$parsed.Event.step) + 1
+        if ($stepNumber -gt 0) { $shell.StepLabel.Text = "Schritt $stepNumber von $($script:GuiStepOrder.Count)" }
+        if ($script:pageIndex -eq 7) { $shell.BodyLabel.Text = $text }
+    }
+    Append-Log $text
+}
 function Append-Log([string]$line) {
+    $script:lastOutputAt = Get-Date
     foreach ($secret in $script:redactions) {
         if ($secret) { $line = $line.Replace($secret, '[verdeckt]') }
     }
-    $details.AppendText($line + "`r`n")
-    if ($line -match '^\s*(Schritt \d+|\[GUI\]|\[FEHLER\]|\[OK\])') { $status.Text = $line.Trim() }
+    $script:details.AppendText($line + "`r`n")
+    if ($line -match '^\s*(Schritt \d+|\[GUI\]|\[FEHLER\]|\[OK\])') {
+        if ($script:pageIndex -eq 7) { $shell.BodyLabel.Text = $line.Trim() }
+    }
+}
+function Request-GuiCancel([string]$Reason) {
+    # Ohne laufenden Lauf und ohne Laufkennung gibt es niemanden, den die Bitte erreichen koennte.
+    if (-not $script:process -or $script:process.HasExited -or -not $script:runId) { return $false }
+    $targetRoot = ''
+    try { $targetRoot = [string](Value 'installRoot') } catch { }
+    if (-not $targetRoot) { return $false }
+    $flagPath = Request-InstallerCancel -Root $targetRoot -RunId $script:runId -Reason $Reason
+    if (-not $flagPath) { return $false }
+    Append-Log "[ABBRUCH] Bitte an den Lauf gesendet; der Installer haelt an der naechsten sicheren Grenze an."
+    return $true
+}
+function Stop-BackendGracefully([string]$Reason) {
+    # Erst bitten, dann warten, erst zuletzt beenden. Ein hartes Beenden mitten in Kopier-, pip- oder
+    # WSL-Schritten hinterlaesst halbe Artefakte und reisst Dienstprozesse mit.
+    if (-not $script:process -or $script:process.HasExited) { return }
+    if (Request-GuiCancel $Reason) {
+        $deadline = (Get-Date).AddSeconds($script:cancelGraceSeconds)
+        while (-not $script:process.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+        if ($script:process.HasExited) {
+            $script:process.WaitForExit(5000) | Out-Null
+            Append-Log "[ABBRUCH] Der Installer hat an einer sicheren Grenze angehalten."
+            return
+        }
+        Append-Log "[ABBRUCH] Der Installer reagiert nicht auf die Bitte; der Prozess wird beendet."
+    }
+    try { if (-not $script:process.HasExited) { & taskkill.exe /PID $script:process.Id /T /F | Out-Null } } catch { }
+    $script:process.WaitForExit(5000) | Out-Null
 }
 function Start-Backend {
     if ($script:process) { return }
@@ -477,12 +819,16 @@ function Start-Backend {
         keepIdentity = BoolText (Checked 'keepIdentity'); repeatEnrollment = BoolText (Checked 'repeatEnrollment')
         retryEnrollment = 'false'; openBrowser = BoolText (Checked 'openBrowser')
         useExistingKimi = BoolText (Checked 'useExistingKimi'); restartNow = 'false'
+        providerChoice = [string]($script:fields.providerChoice.SelectedIndex + 1)
+        modelBaseUrl = Value 'modelBaseUrl'; modelName = Value 'modelName'
     }
     $secrets = @{
         linuxPassword = Secure-Field 'linuxPassword'; linuxPasswordRepeat = Secure-Field 'linuxPasswordRepeat'
         kimiKey = Secure-Field 'kimiKey'; elevenlabsKey = Secure-Field 'elevenlabsKey'
+        openaiKey = Secure-Field 'openaiKey'; anthropicKey = Secure-Field 'anthropicKey'
+        customKey = Secure-Field 'customKey'
     }
-    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey') |
+    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey') |
         ForEach-Object { $script:fields[$_].Text } | Where-Object { $_ })
     $config = @{ protocol = 1; answers = $answers; secrets = $secrets }
     if ($Simulation) { $config.simulation = $Simulation }
@@ -503,25 +849,32 @@ function Start-Backend {
         if ($Simulation) { $psi.Arguments += ' -GuiSimulation'; $psi.EnvironmentVariables['FRIDAY_GUI_TEST'] = '1' }
         $script:process = New-Object Diagnostics.Process
         $script:process.StartInfo = $psi
+        $script:runId = New-RunId
+        $psi.EnvironmentVariables['FRIDAY_INSTALL_RUN'] = $script:runId
         if (-not $script:process.Start()) { throw 'Installationsprozess konnte nicht gestartet werden.' }
+        Append-Log "Lauf $($script:runId) gestartet."
+        $script:lastOutputAt = Get-Date
+        $script:stalledReported = $false
         $script:stdoutTask = $script:process.StandardOutput.ReadLineAsync()
         $script:stderrTask = $script:process.StandardError.ReadLineAsync()
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
         $script:fields.kimiKey.Clear(); $script:fields.elevenlabsKey.Clear()
-        $details.Clear(); $status.Text = 'Installation läuft …'
-        $tabs.SelectedIndex = 6; $timer.Start(); $retry.Enabled = $false
-        $back.Enabled = $false; $next.Enabled = $false; $start.Enabled = $false
+        foreach ($name in @('openaiKey','anthropicKey','customKey')) { $script:fields[$name].Clear() }
+        $script:details.Clear(); $status.Text = 'Installation läuft …'
+        Show-GuiPage 7
+        $shell.ProgressBar.Value = 0
+        $timer.Start(); $retry.Enabled = $false
+        $shell.CancelButton.Text = 'Abbrechen'
     } catch {
         if ($script:process) {
-            try { if (-not $script:process.HasExited) { & taskkill.exe /PID $script:process.Id /T /F | Out-Null } } catch { }
+            Stop-BackendGracefully 'Startfehler'
             $script:process.Dispose(); $script:process = $null
         }
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
         Show-Error "Installation konnte nicht starten: $($_.Exception.Message)"
     }
 }
-$start.Add_Click({ Start-Backend })
-$retry.Add_Click({ $tabs.SelectedIndex = 5; Update-Summary })
+$retry.Add_Click({ Show-GuiPage 6; Update-Summary })
 $timer.Add_Tick({
     foreach ($stream in @('stdout','stderr')) {
         $taskName = $stream + 'Task'
@@ -530,10 +883,15 @@ $timer.Add_Tick({
         $read = 0
         while ($task -and $task.IsCompleted -and $read -lt 100) {
             if ($null -eq $task.Result) { $task = $null; break }
-            Append-Log $task.Result
+            Receive-BackendLine $task.Result
             $task = $reader.ReadLineAsync(); $read++
         }
         Set-Variable -Name $taskName -Scope Script -Value $task
+    }
+    if ($script:process -and -not $script:process.HasExited -and -not $script:stalledReported -and
+        (Test-RunStalled $script:lastOutputAt (Get-Date))) {
+        $script:stalledReported = $true
+        Append-Log "[HINWEIS] Seit 15 Minuten keine Ausgabe aus der Installation. Der Lauf arbeitet weiter; bitte Protokoll und Status prüfen, bevor du abbrichst."
     }
     if ($script:process -and $script:process.HasExited) {
         $timer.Stop()
@@ -547,24 +905,30 @@ $timer.Add_Tick({
                     break
                 }
                 if ($null -eq $task.Result) { break }
-                Append-Log $task.Result
+                Receive-BackendLine $task.Result
                 $task = $reader.ReadLineAsync()
             }
         }
         $exitCode = $script:process.ExitCode
         $script:guiExitCode = $exitCode
+        # Der Exitcode bleibt massgeblich; ein fehlendes Abschlussereignis wird nur benannt, nicht als Erfolg verkauft.
+        if (-not $script:sawRunDone) { Append-Log '[HINWEIS] Der Installer hat kein Abschlussereignis gesendet; massgeblich ist der Exitcode.' }
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
         if ($exitCode -eq 0) { $status.Text = 'Installation abgeschlossen. Dashboard und Dienste wurden geprüft.' }
         elseif ($exitCode -eq 10) { $status.Text = 'Windows-Neustart erforderlich. Nach der Anmeldung öffnet sich dieser Assistent erneut.'; $reboot.Enabled = $true }
+        elseif ($exitCode -eq 20) { $status.Text = 'Es läuft bereits eine Installation. Bitte dort abschließen oder beenden; dieser Start hat nichts geändert.'; $retry.Enabled = $true }
         else { $status.Text = "Installation angehalten (Fehlercode $exitCode). Details prüfen, dann erneut versuchen."; $retry.Enabled = $true }
+        $shell.BodyLabel.Text = $status.Text
+        $shell.ProgressBar.Value = if ($exitCode -eq 0) { 100 } else { $shell.ProgressBar.Value }
+        $shell.CancelButton.Text = 'Schließen'
         $script:process.Dispose(); $script:process = $null
         $script:redactions = @()
         if ($Simulation) {
             $capture = Join-Path $env:TEMP "friday-gui-$Simulation.png"
-            $bitmap = New-Object Drawing.Bitmap($form.Width, $form.Height)
-            try { $form.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $form.Width, $form.Height))); $bitmap.Save($capture) }
+            $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
+            try { $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height))); $bitmap.Save($capture) }
             finally { $bitmap.Dispose() }
-            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) screenshot=$capture"
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) screenshot=$capture"
             $form.Close()
         }
     }
@@ -574,13 +938,23 @@ $form.Add_FormClosing({
         $choice = [Windows.Forms.MessageBox]::Show('Die Installation läuft. Beim Schließen wird der aktuelle Installationsprozess beendet. Erledigte Schritte bleiben gespeichert. Schließen?',
             'Installation läuft', 'YesNo', 'Warning')
         if ($choice -ne 'Yes') { $_.Cancel = $true; return }
-        try { & taskkill.exe /PID $script:process.Id /T /F | Out-Null; $script:process.WaitForExit(5000) | Out-Null } catch { }
+        Stop-BackendGracefully 'Fenster geschlossen'
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
     }
 })
 $form.Add_Shown({
     $form.Activate()
-    if ($Simulation) {
+    Show-GuiPage 0
+if ($Simulation) {
+        $script:watchdog = New-Object Windows.Forms.Timer
+        $script:watchdog.Interval = 600000
+        $script:watchdog.Add_Tick({
+            $script:watchdog.Stop()
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=zeitlimit"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+        })
+        $script:watchdog.Start()
         $originalRoot = $script:fields.installRoot.Text
         $testRoot = Join-Path $env:TEMP ('friday-gui-resume-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path (Join-Path $testRoot 'config') -Force | Out-Null
@@ -611,27 +985,122 @@ $form.Add_Shown({
                 Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
+        foreach ($required in @('providerChoice', 'modelBaseUrl', 'modelName', 'openaiKey', 'anthropicKey', 'customKey')) {
+            if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
+        }
+        if ($script:pages.Count -ne 8 -or $script:pages[4].Title -ne 'KI-Zugang') { throw 'GUI provider page missing.' }
+        # Jede Seite wird gezeichnet und abgelegt; das belegt, dass sie ohne Terminal darstellbar ist.
+        foreach ($index in 0..7) {
+            Show-GuiPage $index
+            [System.Windows.Forms.Application]::DoEvents()
+            if ($index -eq 2) { $script:fields.voiceMode.SelectedIndex = 0 }
+            $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
+            try {
+                $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height)))
+                $bitmap.Save((Join-Path $env:TEMP "friday-gui-page-$index.png"))
+            } finally { $bitmap.Dispose() }
+        }
+        Show-GuiPage 2; $script:fields.voiceMode.SelectedIndex = 1
+        $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
+        try {
+            $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height)))
+            $bitmap.Save((Join-Path $env:TEMP 'friday-gui-cloud.png'))
+        } finally { $bitmap.Dispose() }
+        $script:fields.voiceMode.SelectedIndex = 0
+        # Tastatur: jede Seite muss ihre Bedienelemente ohne Maus erreichen koennen. Geprueft wird die
+        # echte Tabulatorreihenfolge von WinForms, nicht eine behauptete Liste.
+        $focusSummary = @()
+        # Ein vorhandener Zustand sperrt Felder; fuer den Tastaturdurchlauf gilt ein neutraler Ordner,
+        # damit jede Seite wirklich bedienbar geprueft wird.
+        $walkRoot = Join-Path $env:TEMP ('friday-gui-focus-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $walkRoot -Force | Out-Null
+        $walkOriginalRoot = $script:fields.installRoot.Text
+        try {
+        $script:fields.installRoot.Text = $walkRoot
+        $script:configuredRoot = ''
+        Load-RootState
+        foreach ($index in 0..7) {
+            Show-GuiPage $index
+            [System.Windows.Forms.Application]::DoEvents()
+            $page = $script:pages[$index]
+            $tour = Test-FocusReachable $page $form
+            $expected = @($page.Panel.Controls | Where-Object {
+                $_.TabStop -and $_.Enabled -and $_.Visible -and
+                ($_ -is [Windows.Forms.TextBox] -or $_ -is [Windows.Forms.ComboBox] -or
+                 $_ -is [Windows.Forms.Button] -or $_ -is [Windows.Forms.CheckBox])
+            } | ForEach-Object { $_.Name })
+            $missing = @($expected | Where-Object { $tour -notcontains $_ })
+            if ($expected.Count -gt 0 -and $missing.Count -gt 0) { throw "GUI Tastatur: Seite $index erreicht $($missing -join ', ') nicht." }
+            # Ohne erreichbaren Abbruch ist die Tastaturbedienung unvollstaendig.
+            if ($tour -notcontains 'cancelButton') { throw "GUI Tastatur: Seite $index erreicht den Abbruch nicht (erreicht: $($tour -join '.'))." }
+            if ($index -lt 7 -and $tour -notcontains 'primaryButton') { throw "GUI Tastatur: Seite $index erreicht die Hauptaktion nicht (erreicht: $($tour -join '.'), primary sichtbar=$($shell.PrimaryButton.Visible) aktiv=$($shell.PrimaryButton.Enabled) tabstop=$($shell.PrimaryButton.TabStop))." }
+            $focusSummary += "$index=$($tour.Count)"
+        }
+        } catch {
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=tastatur:$($_.Exception.Message)"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+            return
+        } finally {
+            $script:fields.installRoot.Text = $walkOriginalRoot
+            $script:configuredRoot = ''
+            Load-RootState
+            $verifiedWalk = [IO.Path]::GetFullPath($walkRoot)
+            if ($verifiedWalk.StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $verifiedWalk -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        $script:focusSummary = ($focusSummary -join ',')
+        # Geheimnisse erst jetzt: Load-RootState im Tastaturdurchlauf leert Passwort- und Schluesselfelder.
         $script:fields.useExistingKimi.Checked = $false
         $script:fields.kimiKey.Text = 'synthetic-test-key'
         $script:fields.linuxPassword.Text = 'synthetic-test-password'
         $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
-        foreach ($index in 0..5) {
-            $tabs.SelectedIndex = $index
-            if ($index -eq 2) { $script:fields.voiceMode.SelectedIndex = 0 }
-            $bitmap = New-Object Drawing.Bitmap($form.Width, $form.Height)
-            try {
-                $form.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $form.Width, $form.Height)))
-                $bitmap.Save((Join-Path $env:TEMP "friday-gui-page-$index.png"))
-            } finally { $bitmap.Dispose() }
-        }
-        $tabs.SelectedIndex = 2; $script:fields.voiceMode.SelectedIndex = 1
-        $bitmap = New-Object Drawing.Bitmap($form.Width, $form.Height)
+        # Aufnahme-Interaktion: eine Anfrage im Lauf-Ordner muss die Aufnahmenseite zeigen und die Antwort schreiben.
+        $interactionRoot = Join-Path $env:TEMP ('friday-gui-interaction-' + [guid]::NewGuid().ToString('N'))
         try {
-            $form.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $form.Width, $form.Height)))
-            $bitmap.Save((Join-Path $env:TEMP 'friday-gui-cloud.png'))
-        } finally { $bitmap.Dispose() }
-        $script:fields.voiceMode.SelectedIndex = 0
-        $tabs.SelectedIndex = 5
+            New-Item -ItemType Directory -Path (Join-Path $interactionRoot 'run') -Force | Out-Null
+            $request = @{ v = 1; id = 'selftest0001'; kind = 'record'; title = 'Stimmaufnahme'
+                          prompt = 'Aufnahme 1 von 44: normal, ca. 50 cm' + [char]10 + [char]10 + 'Sage nach dem Signal: Hey Friday'
+                          detail = 'normal, ca. 50 cm vom Laptop'; block = 'wake_hey_friday'; index = 1; total = 44
+                          actions = @('ok', 'replay', 'skip', 'cancel'); created = (Get-Date).ToString('s') }
+            [IO.File]::WriteAllText((Join-Path $interactionRoot 'run\gui-interaction.json'),
+                ($request | ConvertTo-Json -Depth 4 -Compress), (New-Object Text.UTF8Encoding $false))
+            $script:interactionRoot = $interactionRoot
+            for ($wait = 0; $wait -lt 60 -and -not $script:interactionPage.Visible; $wait++) {
+                [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50
+            }
+            if (-not $script:interactionPage.Visible) { throw 'Die Aufnahmenseite erscheint nicht.' }
+            if ($script:interactionPrompt.Text -notmatch 'Hey Friday') { throw 'Die Aufnahmeaufforderung wird nicht angezeigt.' }
+            if ($script:interactionProgress.Text -ne 'Aufnahme 1 von 44') { throw "Fortschritt falsch: '$($script:interactionProgress.Text)'" }
+            if ($shell.PrimaryButton.Visible -or $shell.BackButton.Visible) { throw 'Die Fusszeile zeigt waehrend der Aufnahme falsche Aktionen.' }
+            if ($shell.CancelButton.Text -ne 'Abbrechen') { throw 'Der Abbruch ist waehrend der Aufnahme nicht erreichbar.' }
+            $tour = Test-FocusReachable @{ Panel = $script:interactionPage } $form
+            foreach ($needed in @('interactionOk', 'interactionReplay', 'interactionSkip')) {
+                if ($tour -notcontains $needed) { throw "GUI Tastatur: Aufnahmenseite erreicht $needed nicht (erreicht: $($tour -join '.'))." }
+            }
+            if ($tour -notcontains 'cancelButton') { throw 'GUI Tastatur: Aufnahmenseite erreicht den Abbruch nicht.' }
+            [void]$script:interactionOk.PerformClick()
+            [Windows.Forms.Application]::DoEvents()
+            $answerFile = Join-Path $interactionRoot 'run\gui-interaction.json.response'
+            if (-not (Test-Path -LiteralPath $answerFile)) { throw 'Die Aufnahmeantwort wurde nicht geschrieben.' }
+            $answer = Get-Content -LiteralPath $answerFile -Raw | ConvertFrom-Json
+            if ($answer.id -ne 'selftest0001' -or $answer.action -ne 'ok') { throw "Falsche Antwort '$($answer.action)' auf '$($answer.id)'." }
+            if ($script:interactionPage.Visible) { throw 'Die Aufnahmenseite bleibt nach der Antwort sichtbar.' }
+            $script:interactionProof = 'interaction=visible:True ok:True'
+        } catch {
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=aufnahme:$($_.Exception.Message)"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+            return
+        } finally {
+            $script:interactionRoot = ''
+            $verifiedInteraction = [IO.Path]::GetFullPath($interactionRoot)
+            if ($verifiedInteraction.StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $verifiedInteraction -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        Show-GuiPage 6
         Start-Backend
     }
 })

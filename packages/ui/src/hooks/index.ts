@@ -93,16 +93,25 @@ export function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
+// Nested overlays each install a document listener; only the most recently activated trap may react to keys.
+const trapStack: object[] = [];
+
 /**
  * Focus trap while `active`: moves focus inside, loops Tab / Shift+Tab, restores focus to the
- * previously focused element on deactivation, and calls `onEscape` on Esc.
+ * previously focused element on deactivation, and calls `onEscape` on Esc. When traps are
+ * stacked, only the most recently activated trap reacts to keys. An explicit return target
+ * wins over the element focused at activation, e.g. when that trigger was disabled meanwhile.
  */
 export function useFocusTrap(
   ref: RefObject<HTMLElement | null>,
   active: boolean,
-  options: { onEscape?: () => void; initialFocus?: RefObject<HTMLElement | null> } = {},
+  options: {
+    onEscape?: () => void;
+    initialFocus?: RefObject<HTMLElement | null>;
+    returnFocus?: RefObject<HTMLElement | null>;
+  } = {},
 ): void {
-  const { onEscape, initialFocus } = options;
+  const { onEscape, initialFocus, returnFocus } = options;
   const escapeRef = useRef(onEscape);
   escapeRef.current = onEscape;
   useEffect(() => {
@@ -112,8 +121,11 @@ export function useFocusTrap(
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const target = initialFocus?.current ?? getFocusable(root)[0] ?? root;
     target.focus({ preventScroll: true });
+    const token = {};
+    trapStack.push(token);
 
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (trapStack[trapStack.length - 1] !== token) return;
       if (event.key === 'Escape') {
         event.stopPropagation();
         escapeRef.current?.();
@@ -139,9 +151,15 @@ export function useFocusTrap(
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
+      const index = trapStack.indexOf(token);
+      if (index !== -1) trapStack.splice(index, 1);
       document.removeEventListener('keydown', onKeyDown, true);
-      previous?.focus?.({ preventScroll: true });
+      // Read at close time on purpose: the caller decides the return target while the overlay is open.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const explicit = returnFocus?.current;
+      (explicit && explicit.isConnected ? explicit : previous)?.focus?.({ preventScroll: true });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, ref, initialFocus]);
 }
 

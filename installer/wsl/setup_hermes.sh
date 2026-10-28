@@ -61,37 +61,79 @@ if [ -f "$MODEL_SETUP" ]; then
 fi
 mkdir -p "$H"
 touch "$H/.env" && chmod 600 "$H/.env"
+# Anbieterkatalog, Authart und Variablenname kommen aus dem installierten Hermes. Ein selbst
+# geratener Name wird abgelehnt, statt still eine falsche Konfiguration zu schreiben: "openai"
+# ist z. B. kein Katalogeintrag, sondern ein Alias, den der Runtime-Resolver auf einen
+# Aggregator abbildet. OAuth-Anbieter sind im Installer nicht anmeldbar und werden deshalb
+# sichtbar abgelehnt statt halb eingerichtet.
+CAPS="$(printf '{"names": ["%s"]}' "$PROVIDER" | python3 "$INST/wsl/hermes_config_bridge.py" provider-auth 2>/dev/null)" || CAPS=""
+RESOLVED="$(printf '%s' "$CAPS" | python3 -c 'import json, sys
+try:
+    entry = json.load(sys.stdin)["providers"][0]
+except Exception:
+    raise SystemExit(3)
+if not entry.get("offered"):
+    raise SystemExit(4)
+if entry.get("authType") != "api_key" and not (entry["id"] == "custom" and entry.get("offered")):
+    raise SystemExit(5)
+print(entry["id"])
+print(entry.get("baseUrlEnvVar") or "")
+print(",".join(entry.get("apiKeyEnvVars") or []))')" || RESOLVED=""
+if [ -z "$RESOLVED" ]; then
+    echo "FAIL Anbieter $PROVIDER ist in dieser Hermes-Version nicht als API-Key-Anbieter verfuegbar"
+    exit 1
+fi
+PROVIDER="$(printf '%s' "$RESOLVED" | sed -n 1p)"
+BASE_ENV="$(printf '%s' "$RESOLVED" | sed -n 2p)"
+KEY_VAR="$(printf '%s' "$RESOLVED" | sed -n 3p | cut -d, -f1)"
+if [ -z "$KEY_VAR" ]; then
+    # Weder kimi-coding noch custom nennen in dieser Version eine Env-Variable; der Key gehoert
+    # in den Credential-Pool. Die dokumentierten Variablen bleiben als Fallback, und der
+    # Verbindungstest entscheidet, ob der Zugang wirklich traegt.
+    case "$PROVIDER" in
+        custom) KEY_VAR="OPENAI_API_KEY" ;;
+        *) KEY_VAR="KIMI_API_KEY" ;;
+    esac
+    echo "HINWEIS: $PROVIDER nennt in dieser Version keine Env-Variable; $KEY_VAR dient als Fallback."
+fi
 case "$PROVIDER" in
-    openai)
-        KEY_VAR=OPENAI_API_KEY
+    openai-api)
         [ -n "$MODEL" ] || MODEL=gpt-5
         BASE_URL=""
         ;;
     anthropic)
-        KEY_VAR=ANTHROPIC_API_KEY
         [ -n "$MODEL" ] || MODEL=claude-sonnet-4-5
         BASE_URL=""
         ;;
     kimi-coding)
-        KEY_VAR=KIMI_API_KEY
         [ -n "$MODEL" ] || MODEL=k3
         BASE_URL=""
         ;;
-    *)
-        PROVIDER=custom
-        KEY_VAR=OPENAI_API_KEY
+    custom)
         [ -n "$MODEL" ] || MODEL=deepseek-chat
         if [ -z "$BASE_URL" ]; then echo "FAIL Basis-URL fuer den eigenen Anbieter fehlt"; exit 1; fi
+        ;;
+    *)
+        echo "FAIL Anbieter $PROVIDER ist nicht vorgesehen"
+        exit 1
         ;;
 esac
 sed -i "/^${KEY_VAR}=/d" "$H/.env"
 printf '%s=%s\n' "$KEY_VAR" "$KEY" >> "$H/.env"
 # Eine alte Basis-URL darf einen anderen Anbieter nicht verfaelschen.
 sed -i '/^OPENAI_BASE_URL=/d' "$H/.env"
-if [ "$PROVIDER" = "custom" ]; then printf 'OPENAI_BASE_URL=%s\n' "$BASE_URL" >> "$H/.env"; fi
+if [ "$PROVIDER" = "custom" ]; then
+    BASE_ENV="${BASE_ENV:-OPENAI_BASE_URL}"
+    printf '%s=%s\n' "$BASE_ENV" "$BASE_URL" >> "$H/.env"
+fi
 unset KEY
 hermes config set model.provider "$PROVIDER"
 hermes config set model.default "$MODEL"
+if [ "$PROVIDER" = "custom" ]; then
+    # Hermes waehlt den Endpunkt eines eigenen Anbieters nur ueber model.base_url; die Env-Basis-URL bindet
+    # lediglich den API-Key an diesen Host. Beide muessen deshalb auf dieselbe URL zeigen.
+    hermes config set model.base_url "$BASE_URL"
+fi
 printf 'ANBIETER=%s MODELL=%s\n' "$PROVIDER" "$MODEL"
 case "$PROVIDER" in
     anthropic|kimi-coding)

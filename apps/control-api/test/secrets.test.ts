@@ -87,6 +87,7 @@ describe("secret hygiene", () => {
     expect(hasCanary(settings.body)).toBeUndefined();
   });
 
+  // End-to-end scan over every read route: ~17 s alone, longer under full-suite load; 120 s is a real limit, not a retry.
   it("does not leak any secret, password, password hash or server key through any read endpoint", async () => {
     const hash = api.env.FRIDAY_OWNER_PASSWORD_HASH as string;
     expect(hash).toBeTruthy();
@@ -134,8 +135,10 @@ describe("secret hygiene", () => {
         if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway" || spec.operationId === "getTelephony") continue;
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
           spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
-          spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } : {}));
-        if (["getHermesModelCatalog", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
+          spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } :
+          spec.operationId === "searchSkillHub" ? { query: { query: "hermes" } } :
+          spec.operationId === "getSkillCommandReport" ? { query: { command: "tap-list" } } : {}));
+        if (["getHermesModelCatalog", "getHermesAccess", "getSkillMarkdown", "searchSkillHub", "listModifiedSkills", "getSkillCommandReport", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
           expect(response.statusCode, spec.operationId).toBe(503);
           expect((JSON.parse(response.body) as { error: { code: string } }).error.code).toBe("ADAPTER_UNAVAILABLE");
         } else expect(response.statusCode, spec.operationId).toBe(200);
@@ -156,7 +159,7 @@ describe("secret hygiene", () => {
       whatsappPairing.mockRestore();
       messengerCatalog.mockRestore();
     }
-  });
+  }, 120_000);
 
   it("keeps secrets and credentials out of responses and headers of every call made in this suite", () => {
     expect(wire.length).toBeGreaterThan(30);

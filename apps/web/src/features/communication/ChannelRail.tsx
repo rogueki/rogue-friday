@@ -5,6 +5,7 @@ import { Badge, Button, IconTile, StatusChip } from "@friday/ui";
 import { Check, Inbox, Minus, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
+import { partitionChannels } from "./channelList";
 import { useT } from "@/i18n";
 import { CHANNEL_ICON, CHANNEL_STATUS_TONE, channelStatusKey } from "../memory/kit/channelStatus";
 import { useFormat } from "../memory/kit/hooks";
@@ -17,6 +18,8 @@ export interface ChannelRailProps {
   onSelect: (id: string | null) => void;
   /** Horizontal strip for tablet widths. */
   compact?: boolean;
+  /** Kanaele, die absichtlich nicht in der Navigation stehen (SMS, weitere Hermes-Kanaele). */
+  hiddenCount?: number;
 }
 
 function Capability({ label, allowed }: { label: string; allowed: boolean }) {
@@ -29,10 +32,13 @@ function Capability({ label, allowed }: { label: string; allowed: boolean }) {
 }
 
 /** Channel list with the status vocabulary of PLAN §33.4 and what each channel may do (read / draft / send). */
-export function ChannelRail({ channels, state, selectedId, totalUnread, onSelect, compact }: ChannelRailProps) {
+export function ChannelRail({ channels, state, selectedId, totalUnread, onSelect, compact, hiddenCount = 0 }: ChannelRailProps) {
   const { t } = useT();
   const router = useRouter();
   const format = useFormat();
+  // Immer nur die Standardliste: Alle Kanaele, E-Mail, Telegram, WhatsApp, Telefon, Discord (DASH-Kontext 2).
+  const { visible, hidden } = partitionChannels(channels);
+  const suppressed = hiddenCount || hidden.length;
   return (
     <PanelFrame title={t("communication.channels.title")} state={state} skeletonRows={4} className={`mk-narrow com-rail${compact ? " com-rail--compact" : ""}`}>
       <ul className="mk-list com-channels" aria-label={t("communication.channels.title")}>
@@ -46,7 +52,7 @@ export function ChannelRail({ channels, state, selectedId, totalUnread, onSelect
             {totalUnread > 0 ? <Badge count={totalUnread} label={t("communication.unread", { count: totalUnread })} /> : null}
           </button>
         </li>
-        {channels.map((channel) => {
+        {visible.map((channel) => {
           const Icon = CHANNEL_ICON[channel.kind];
           const tone = CHANNEL_STATUS_TONE[channel.status];
           const selected = selectedId === channel.id;
@@ -82,6 +88,7 @@ export function ChannelRail({ channels, state, selectedId, totalUnread, onSelect
           );
         })}
       </ul>
+      {suppressed > 0 ? <p className="mk-note">{t("communication.channels.hiddenHint")}</p> : null}
     </PanelFrame>
   );
 }

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param(
     [Parameter(Mandatory=$true)][string]$InstallRoot,
     [Parameter(Mandatory=$true)][string]$SourceRoot,
@@ -12,7 +12,7 @@ $source = [IO.Path]::GetFullPath($SourceRoot).TrimEnd('\')
 $run = Join-Path $root "updates\voice-personas-$RunId"
 $resultFile = Join-Path $run 'result.json'
 $backupDir = Join-Path $run 'backup'
-$pairs = @('friday-female','classic')
+$pairs = @('friday-female','classic','custom')
 $files = @(
     'voice\audio_devices.py', 'voice\audio_level.py', 'voice\audio_output.py', 'voice\browser_audio.py',
     'voice\build_personal_wake.py', 'voice\negative_texts.py',
@@ -130,7 +130,8 @@ function Invoke-WslVoice([string]$action, [object]$state) {
     if ($action -eq 'Apply') {
         $paths = @('installer\fast_tts\server.py',
             'config\voice-references\friday-female-streaming.wav', 'config\voice-references\friday-female-reference.txt',
-            'config\voice-references\classic-streaming.wav', 'config\voice-references\classic-reference.txt')
+            'config\voice-references\classic-streaming.wav', 'config\voice-references\classic-reference.txt',
+    'config\voice-references\custom-streaming.wav', 'config\voice-references\custom-reference.txt')
         foreach ($relative in $paths) {
             $windows = if ($relative -like 'installer\*') { Join-Path $source $relative } else { Join-Path $root $relative }
             $args += Wsl-Path $windows $state.distro $state.user

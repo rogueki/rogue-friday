@@ -68,6 +68,9 @@ export class CalendarAccountsService {
       if (message.includes("scope_required")) throw validationFailed("Terminserie erfordert eine ausdrückliche Serienauswahl.");
       if (message.includes("unsupported_occurrence")) throw validationFailed("Einzelne Serienvorkommen werden noch nicht sicher unterstützt.");
       if (message.includes("operation_conflict")) throw conflict("Idempotency-Key wurde bereits für andere Termindaten verwendet.");
+      if (message.includes("write_not_confirmed")) throw validationFailed("Der Schreibtest wurde geschrieben, aber nicht zurückgelesen. Nichts geändert.");
+      if (message.includes("cleanup_failed")) throw validationFailed("Der Schreibtest konnte nicht aufgeräumt werden. Termin bitte manuell im Testkalender löschen.");
+      if (message.includes("write_failed")) throw validationFailed("Der Testkalender hat den Schreibtest abgelehnt.");
       if (message.includes("operation_key_required") || message.includes("unsupported_timezone")) throw validationFailed("Kalenderaktion oder Zeitzone ist ungültig.");
       if (/missing_secret|private_host|cross_origin|response_too_large|read_failed|calendar_unavailable/.test(message)) throw unavailable();
       if (/invalid_(event|range|date|rrule|title|url)/.test(message)) throw validationFailed("Kalendereingabe ist ungültig.");
@@ -83,6 +86,9 @@ export class CalendarAccountsService {
       if (result.error === "scope_required") throw validationFailed("Terminserie erfordert eine ausdrückliche Serienauswahl.");
       if (result.error === "unsupported_occurrence") throw validationFailed("Einzelne Serienvorkommen werden noch nicht sicher unterstützt.");
       if (result.error === "operation_conflict") throw conflict("Idempotency-Key wurde bereits für andere Termindaten verwendet.");
+      if (result.error === "write_not_confirmed") throw validationFailed("Der Schreibtest wurde geschrieben, aber nicht zurückgelesen.");
+      if (result.error === "cleanup_failed") throw validationFailed("Der Schreibtest konnte nicht aufgeräumt werden. Termin bitte manuell entfernen.");
+      if (result.error === "write_failed") throw validationFailed("Der Testkalender hat den Schreibtest abgelehnt.");
       if (result.error === "operation_key_required" || result.error === "unsupported_timezone") throw validationFailed("Kalenderaktion oder Zeitzone ist ungültig.");
       if (typeof result.error === "string" && result.error.startsWith("invalid_")) throw validationFailed("Kalendereingabe ist ungültig.");
       throw unavailable();
@@ -112,6 +118,9 @@ export class CalendarAccountsService {
   }
   setDefault(accountId: string, expectedRevision: number) {
     return this.run<{ revision: number; defaultAccountId: string }>({ action: "default", accountId, expectedRevision });
+  }
+  writeTest(accountId: string, calendarId: string) {
+    return this.run<{ ok: boolean; calendarId: string; uid: string; cleaned: boolean }>({ action: "write-test", accountId, calendarId }, true);
   }
   check(accountId: string, calendarId: string) {
     return this.run<{ ok: boolean; canRead: boolean; canWrite: boolean }>({ action: "check", accountId, calendarId });

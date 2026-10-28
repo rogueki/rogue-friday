@@ -2255,13 +2255,13 @@ class VoiceService:
                     self.wfile.write(body)
                     return
                 if self.path == "/control/voice":
-                    from voice_persona import PersonaUnavailable, resolve
+                    from voice_persona import CHOICES, PersonaUnavailable, resolve
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 128:
                             raise ValueError("Invalid request size")
                         body = json.loads(self.rfile.read(size))
-                        if not isinstance(body, dict) or set(body) != {"voice"} or body["voice"] not in ("friday-female", "classic"):
+                        if not isinstance(body, dict) or set(body) != {"voice"} or body["voice"] not in CHOICES:
                             raise ValueError("Invalid voice")
                     except (ValueError, TypeError, AttributeError):
                         self.send_error(400)

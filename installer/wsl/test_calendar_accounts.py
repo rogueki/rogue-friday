@@ -22,6 +22,7 @@ class Fixture(http.server.BaseHTTPRequestHandler):
     etag = '"v1"'
     methods = []
     drop_after_put = False
+    suppress_readback = False
 
     def log_message(self, *_args):
         pass
@@ -73,7 +74,10 @@ class Fixture(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         Fixture.methods.append(("GET", self.path, None))
-        self.send(200, Fixture.event, "text/calendar", Fixture.etag) if Fixture.event else self.send(404)
+        if Fixture.suppress_readback:
+            self.send(200, b"", "text/calendar", Fixture.etag)
+        else:
+            self.send(200, Fixture.event, "text/calendar", Fixture.etag) if Fixture.event else self.send(404)
 
     def do_PUT(self):
         Fixture.methods.append(("PUT", self.path, self.headers.get("If-Match") or self.headers.get("If-None-Match")))
@@ -119,6 +123,7 @@ class CalendarProtocolTest(unittest.TestCase):
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         Fixture.event, Fixture.etag, Fixture.methods, Fixture.drop_after_put = None, '"v1"', [], False
+        Fixture.suppress_readback = False
         self.http = calendar.CalDavHttp("127.0.0.1", server.server_port, ssl._create_unverified_context())
 
     def action(self, action, **kwargs):
@@ -262,7 +267,59 @@ class CalendarProtocolTest(unittest.TestCase):
         excluded = calendar.occurrence_document(moved.decode(), None, "2026-11-01T00:00:00Z", True)
         self.assertIn(b"EXDATE;VALUE=DATE:20261101", excluded)
         self.assertNotIn(b"RECURRENCE-ID", excluded)
+    def test_write_test_confirms_and_removes_the_probe_event(self):
+        account = self.action("upsert", account={"kind": "caldav", "displayName": "Probe", "baseUrl": ORIGIN + "/",
+                                                 "username": "alice", "syncMinutes": 15}, password="fixture-secret", expectedRevision=None)
+        account = self.action("discover", accountId=account["id"], expectedRevision=1)
+        write = next(item for item in account["calendars"] if item["canWrite"])
+        read_only = next(item for item in account["calendars"] if not item["canWrite"])
+        Fixture.methods.clear()
+        result = self.action("write-test", accountId=account["id"], calendarId=write["id"])
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["cleaned"])
+        self.assertTrue(result["uid"].startswith("friday-selftest-"))
+        self.assertEqual([entry[0] for entry in Fixture.methods], ["PUT", "GET", "DELETE"])
+        self.assertIsNone(Fixture.event)
+        with self.assertRaisesRegex(ValueError, "read_only"):
+            self.action("write-test", accountId=account["id"], calendarId=read_only["id"])
+        self.assertEqual([entry[0] for entry in Fixture.methods], ["PUT", "GET", "DELETE"])
 
+    def test_write_test_cleans_up_when_the_readback_is_missing(self):
+        account = self.action("upsert", account={"kind": "caldav", "displayName": "Probe", "baseUrl": ORIGIN + "/",
+                                                 "username": "alice", "syncMinutes": 15}, password="fixture-secret", expectedRevision=None)
+        account = self.action("discover", accountId=account["id"], expectedRevision=1)
+        write = next(item for item in account["calendars"] if item["canWrite"])
+        Fixture.methods.clear()
+        Fixture.suppress_readback = True
+        with self.assertRaisesRegex(ValueError, "write_not_confirmed"):
+            self.action("write-test", accountId=account["id"], calendarId=write["id"])
+        self.assertEqual([entry[0] for entry in Fixture.methods], ["PUT", "GET", "DELETE"])
+        self.assertIsNone(Fixture.event)
+
+    def test_removing_an_account_sends_no_delete_for_server_calendars(self):
+        account = self.action("upsert", account={"kind": "caldav", "displayName": "Entfernen", "baseUrl": ORIGIN + "/",
+                                                 "username": "alice", "syncMinutes": 15}, password="fixture-secret", expectedRevision=None)
+        account = self.action("discover", accountId=account["id"], expectedRevision=1)
+        Fixture.methods.clear()
+        self.assertTrue(self.action("delete", accountId=account["id"], expectedRevision=account["revision"])["deleted"])
+        self.assertEqual([entry[0] for entry in Fixture.methods if entry[0] in ("PUT", "DELETE")], [])
+        self.assertEqual(calendar.load()["accounts"], [])
+
+    def test_failed_discovery_keeps_the_previous_account_active(self):
+        first = self.action("upsert", account={"kind": "caldav", "displayName": "Aktiv", "baseUrl": ORIGIN + "/",
+                                               "username": "alice", "syncMinutes": 15}, password="fixture-secret", expectedRevision=None)
+        first = self.action("discover", accountId=first["id"], expectedRevision=1)
+        self.assertEqual(calendar.load()["defaultAccountId"], first["id"])
+        second = self.action("upsert", account={"kind": "caldav", "displayName": "Zweites", "baseUrl": ORIGIN + "/other/",
+                                                "username": "alice", "syncMinutes": 15}, password="fixture-secret", expectedRevision=None)
+        self.assertEqual(calendar.load()["defaultAccountId"], first["id"])
+        with self.assertRaisesRegex(ValueError, "discovery_failed"):
+            self.action("discover", accountId=second["id"], expectedRevision=second["revision"])
+        data = calendar.load()
+        self.assertEqual(data["defaultAccountId"], first["id"])
+        kept = next(item for item in data["accounts"] if item["id"] == first["id"])
+        self.assertEqual({item["name"] for item in kept["calendars"]}, {"Work", "Shared"})
+        self.assertEqual(next(item for item in data["accounts"] if item["id"] == second["id"])["calendars"], [])
 
 if __name__ == "__main__":
     unittest.main()

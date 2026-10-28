@@ -1,8 +1,8 @@
 import type { Runtime } from "../runtime/types";
 import { ApiError, validationFailed } from "../util/errors";
 
-export type VoicePersona = "friday-female" | "classic";
-export const VOICE_PERSONAS: readonly VoicePersona[] = ["friday-female", "classic"];
+export type VoicePersona = "friday-female" | "classic" | "custom";
+export const VOICE_PERSONAS: readonly VoicePersona[] = ["friday-female", "classic", "custom"];
 
 export async function applyVoicePersona(runtime: Runtime, choice: VoicePersona): Promise<void> {
   const adapter = runtime.config.adapters.voice;

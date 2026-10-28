@@ -158,9 +158,10 @@ html[data-density="compact"] .ov-providers { gap: 5px; }
   .ov-orb__updated { display: none; }
 }
 
-/* The nav must fit all 16 entries plus the voice panel at 1080 px height without scrolling (PLAN §24.12). */
+/* The nav must fit all 18 entries plus the voice panel at 1080 px height without scrolling (PLAN §24.12). */
 @media (min-width: 1024px) and (max-height: 1120px) {
-  .jv-nav__item { height: 36px; }
+  .jv-nav__item { height: 33px; }
+  .jv-nav__list { gap: 1px; }
   .jv-nav__scroll { padding-block: 8px 4px; }
 }
 .web-voicenav__flags { gap: 6px; }

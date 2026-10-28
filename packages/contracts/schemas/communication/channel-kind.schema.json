@@ -3,5 +3,5 @@
   "$id": "https://friday.local/schemas/communication/channel-kind.schema.json",
   "title": "ChannelKind",
   "type": "string",
-  "enum": ["email", "telegram", "whatsapp", "sms", "phone", "other"]
+  "enum": ["email", "telegram", "whatsapp", "discord", "sms", "phone", "other"]
 }

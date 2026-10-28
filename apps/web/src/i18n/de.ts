@@ -265,6 +265,7 @@ export const de = {
   "task.create.priority": "Priorität",
   "task.create.submit": "Aufgabe anlegen",
   "task.create.unavailable": "Das Anlegen von Aufgaben ist im aktuellen Betrieb nicht verfügbar.",
+  "task.create.titleRequired": "Zuerst einen Titel eingeben.",
   "task.created": "Aufgabe angelegt",
   "priority.P0": "Kritisch",
   "priority.P1": "Dringend",

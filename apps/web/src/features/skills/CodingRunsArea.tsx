@@ -84,6 +84,8 @@ export function CodingRunsArea({ skills }: { skills: SkillCatalogEntry[] }) {
     finally { setBusy(false); }
   }
   const active = status.data?.data ?? started;
+  const voiceSaveBlocked = !voiceProject.data ? "Sprachprojekt wird noch geladen." : busy ? "Läuft gerade …" : voiceAlias.trim().length < 2 ? "Alias mit mindestens 2 Zeichen eingeben." : !voiceRepository.trim() ? "Zuerst ein Repository angeben." : undefined;
+  const codingStartBlocked = busy ? "Läuft gerade …" : !repository.trim() ? "Zuerst ein Repository angeben." : task.trim().length < 10 ? "Auftrag mit mindestens 10 Zeichen beschreiben." : undefined;
   return <section className="sk-coding" aria-labelledby="sk-coding-title">
     <h2 id="sk-coding-title">Coding mit Hermes</h2>
     <p>Wähle eine CLI und den Root-Ordner eines lokalen Git-Repositories. Friday prüft den aktivierten Hermes-Skill und startet genau diese native CLI im gewählten, für Linux-Git lesbaren Repository. Anbieter-Anmeldung und mögliche Kosten sind vorab selbst zu prüfen.</p>
@@ -101,11 +103,11 @@ export function CodingRunsArea({ skills }: { skills: SkillCatalogEntry[] }) {
       <p>Lege ein Git-Repository einmal im Dashboard fest. Beim Speichern prüft Friday, ob Friday-Ubuntu das Git-Root lesen kann; eine Coding-CLI oder ein Modell wird dabei nicht gestartet. Friday akzeptiert per Sprache nur diesen Projektnamen, liest CLI, Projekt und Auftrag vor und wartet nach Ende der Ansage höchstens 90 Sekunden auf ein erneut sprecherverifiziertes „Ja“. Anbieter können Kosten verursachen.</p>
       <label>Gesprochener Projektname<input value={voiceAlias} maxLength={32} onChange={(event) => setVoiceAlias(event.target.value)} placeholder="Mein Projekt" /></label>
       <label>Git-Repository für Sprachaufträge<input value={voiceRepository} onChange={(event) => setVoiceRepository(event.target.value)} placeholder="C:\Users\Name\Projekte\mein-repo" /></label>
-      <button type="button" disabled={busy || !voiceProject.data || voiceAlias.trim().length < 2 || !voiceRepository.trim()} onClick={() => void saveVoiceProject()}>Sprachprojekt speichern</button>
+      <button type="button" disabled={voiceSaveBlocked !== undefined} title={voiceSaveBlocked} onClick={() => void saveVoiceProject()}>Sprachprojekt speichern</button>
       {voiceSaved && <p role="status">{voiceSaved}</p>}
       <p>Beispiel: „Starte Codex im Projekt {voiceAlias.trim() || "Mein Projekt"} mit dem Auftrag, korrigiere den Fehler in der Anmeldung.“</p>
     </div>
-    <button type="button" disabled={busy || !repository.trim() || task.trim().length < 10} onClick={() => void start()}>Coding-Auftrag starten</button>
+    <button type="button" disabled={codingStartBlocked !== undefined} title={codingStartBlocked} onClick={() => void start()}>Coding-Auftrag starten</button>
     {error && <p role="alert" className="sk-warning">{error}</p>}
     {runId && <div className="sk-coding__status" role="status"><strong>Run {runId}</strong> · {status.isError ? "Status derzeit nicht verfügbar" : active?.status ?? "Status wird geladen"} · Gewählte CLI: {active?.requestedCli ?? "unbekannt"} · CLI-Prozess: {active?.executionVerified ? "im gewählten Repository gestartet" : "noch nicht bestätigt"}
       {active?.output && <pre>{active.output}</pre>}{active?.error && <p className="sk-warning">{active.error}</p>}

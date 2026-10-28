@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SkillCatalogEntry } from "@friday/sdk";
-import { integrationSetupLink, internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, internalSetupLink, officialReference, originLabel, selectedVisibleSkill, skillState, sourceLabel, trustLabel, visibleSkills } from "./skillPresentation";
 import { clearOnboardingSnooze, isOnboardingSnoozed, snoozeOnboarding } from "./onboardingSnooze";
 
 const base = { discovered: true, enabled: true } as SkillCatalogEntry;
@@ -11,6 +11,13 @@ describe("skill status presentation", () => {
     expect(skillState(base).detail).toContain("nicht geprüft");
     expect(skillState({ ...base, discovered: null, enabled: null }).label).toBe("Laufzeit unbekannt");
     expect(skillState({ ...base, discovered: false, enabled: null }).label).toBe("Nicht gefunden");
+  });
+
+  it("names the observation source in German and keeps unknown tokens", () => {
+    expect(sourceLabel("unavailable")).toBe("Nicht erreichbar");
+    expect(sourceLabel("registry")).toBe("Friday-Register");
+    expect(sourceLabel("skills.sh")).toBe("skills.sh");
+    expect(sourceLabel("")).toBe("Unbekannt");
   });
 
   it("only turns known settings targets and HTTPS references into links", () => {
@@ -52,4 +59,32 @@ describe("skill status presentation", () => {
     clearOnboardingSnooze();
     expect(isOnboardingSnoozed()).toBe(false);
   });
+});
+
+it("narrows the catalog to one category without dropping the other filters", () => {
+  const catalog = [
+    { id: "a", name: "Mail", description: "Postfach", category: "Kommunikation", source: "friday", enabled: true, discovered: true },
+    { id: "b", name: "Kalender", description: "Termine", category: "Produktivität", source: "friday", enabled: true, discovered: true },
+    { id: "c", name: "Notizen", description: "Ideen", category: "Produktivität", source: "hermes", enabled: false, discovered: true },
+  ] as never;
+  expect(visibleSkills(catalog, "", "all", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b", "c"]);
+  expect(visibleSkills(catalog, "", "friday", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b"]);
+  expect(visibleSkills(catalog, "", "all", "all", "all")).toHaveLength(3);
+});
+
+it("labels origin and trust separately and filters by origin", () => {
+  expect(originLabel("friday")).toBe("Friday-Paket");
+  expect(originLabel("builtin")).toBe("Hermes mitgeliefert");
+  expect(originLabel("local")).toBe("Lokal installiert");
+  expect(originLabel("hub")).toBe("Hub-Installation");
+  expect(trustLabel("project")).toBe("Projektfreigabe");
+  expect(trustLabel("unknown")).toBe("Unbekannt");
+  const catalog = [
+    { id: "friday:a", name: "A", description: "", category: "Test", source: "friday", origin: "friday", trust: "unknown", enabled: true, discovered: true },
+    { id: "hermes:b", name: "B", description: "", category: "Test", source: "hermes", origin: "builtin", trust: "builtin", enabled: true, discovered: true },
+    { id: "hermes:c", name: "C", description: "", category: "Test", source: "hermes", origin: "hub", trust: "project", enabled: false, discovered: true },
+  ] as never;
+  expect(visibleSkills(catalog, "", "all", "all", "all", "hub").map((skill) => skill.id)).toEqual(["hermes:c"]);
+  expect(visibleSkills(catalog, "", "hermes", "all", "all", "local")).toEqual([]);
+  expect(visibleSkills(catalog, "", "all", "all", "all", "all")).toHaveLength(3);
 });

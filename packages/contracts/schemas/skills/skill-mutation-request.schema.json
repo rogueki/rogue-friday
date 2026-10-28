@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/skill-mutation-request.schema.json",
+  "title": "SkillMutationRequest",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "install",
+        "update",
+        "uninstall"
+      ]
+    },
+    "identifier": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 3,
+      "maxLength": 300
+    },
+    "force": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "additionalProperties": false
+}

@@ -153,6 +153,9 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
   const factories = new Map<string, AdapterFactory>();
   const available = packageFactories(world);
   for (const [providerId, packageName] of Object.entries(config.allowlist)) {
+    // Built-in mock providers stay in the allowlist, but a live runtime has no mock factories by design.
+    // Warning about them would claim a broken build for a provider the operator never configured.
+    if (!world && isMockProvider(providerId)) continue;
     const successor = SUPERSEDED_BY[packageName];
     const real = successor ? available[successor]?.find((candidate) => candidate.providerId === providerId) : undefined;
     if (real) {
@@ -176,7 +179,19 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
     const saved = savedOverrides.get(category);
     const { values, refs } = splitConfig(resolved.config);
     const mock = isMockProvider(resolved.provider);
-    const provider = saved?.provider && (!mock || category === "calendar") && config.dataMode !== "mock" ? saved.provider : resolved.provider;
+    // A saved provider choice from an earlier hybrid run can point at a mock adapter. Without a mock world
+    // (live mode) that choice can never work, so it is ignored instead of reporting a simulated adapter.
+    if (saved?.provider && isMockProvider(saved.provider) && !world && config.dataMode !== "mock") {
+      logger.warn("Gespeicherte Provider-Wahl wird ignoriert: im Live-Betrieb gibt es keinen Mock-Adapter", {
+        category,
+        savedProvider: saved.provider,
+      });
+    }
+    const staleMockOverride = !world && config.dataMode !== "mock";
+    const provider = saved?.provider && (!mock || category === "calendar") && config.dataMode !== "mock" &&
+      !(staleMockOverride && isMockProvider(saved.provider))
+      ? saved.provider
+      : resolved.provider;
     const entry: AdapterEntryConfig = {
       provider,
       enabled: saved?.enabled ?? resolved.enabled,

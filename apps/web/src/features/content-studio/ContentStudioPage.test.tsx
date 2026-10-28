@@ -83,6 +83,9 @@ describe("Content Studio parity views", () => {
     await waitFor(() => expect(requests.filter((request) => request.method === "PUT")).toHaveLength(1));
     expect(requests.at(-1)?.headers.get("If-Match")).toBe("3");
     expect(plan.postings[0]?.status).toBe("gepostet");
+    expect((plan.postings[0] as { veroeffentlichung?: { art?: string; quelle?: string } }).veroeffentlichung).toMatchObject({ art: "manuell", quelle: "manuell" });
+    expect(screen.queryByText("Gepostet")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Manuell markiert/).length).toBeGreaterThan(0);
     const ideaColumn = screen.getByRole("region", { name: "Idee: 1 Ideen" });
     await userEvent.setup().click(within(ideaColumn).getByRole("button", { name: "Bearbeiten" }));
     expect(commandContextForRoute("/content-studio")).toEqual({ route: "/content-studio", selectedIds: ["server"] });

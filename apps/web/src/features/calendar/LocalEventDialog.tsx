@@ -73,6 +73,8 @@ function Body({ event, onOpenChange }: { event: CalendarEvent | null; onOpenChan
     onOpenChange(false);
   }
 
+  const saveBlocked = busy ? "Wird gespeichert …" : !title.trim() ? "Zuerst einen Titel eingeben." : !start || !end ? "Beginn und Ende angeben." : undefined;
+
   return <Dialog open onOpenChange={(next) => { if (!busy) onOpenChange(next); }} title={event ? "Friday-Termin bearbeiten" : "Friday-Termin anlegen"} size="lg" closeLabel="Schließen"
     footer={<Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>Schließen</Button>}>
     <p>Dein Termin wird direkt in Friday gespeichert. Eine Verbindung zu Google, Outlook oder CalDAV ist dafür nicht nötig.</p>
@@ -80,7 +82,7 @@ function Body({ event, onOpenChange }: { event: CalendarEvent | null; onOpenChan
     <label>Beginn <input type="datetime-local" value={start} disabled={busy} onChange={(change) => setStart(change.target.value)} /></label>
     <label>Ende <input type="datetime-local" value={end} disabled={busy} onChange={(change) => setEnd(change.target.value)} /></label>
     <p>Zeitzone: {zone}</p>
-    <Button disabled={busy || !title.trim() || !start || !end} loading={busy} onClick={() => void save()}>{event ? "Änderung speichern" : "Termin anlegen"}</Button>
+    <Button disabled={saveBlocked !== undefined} title={saveBlocked} loading={busy} onClick={() => void save()}>{event ? "Änderung speichern" : "Termin anlegen"}</Button>
     {event && <Button variant="ghost" disabled={busy} onClick={() => void remove()}>Termin löschen</Button>}
     {error && <p role="alert">{error}</p>}
   </Dialog>;

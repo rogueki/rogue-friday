@@ -16,7 +16,7 @@
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard,
       [string]$InstallRoot = 'C:\Friday', [string]$DistroName = '', [string]$DistroLocation = '',
-      [string]$GuiConfigPath = '', [switch]$GuiSimulation)
+      [string]$GuiConfigPath = '', [switch]$GuiSimulation, [switch]$SkipWslUpdate)
 
 if ($InstallRoot -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $InstallRoot -match '[\\/]\.\.?([\\/]|$)|[\x00-\x1F]' -or
     ([bool]$DistroName -ne [bool]$DistroLocation) -or
@@ -48,9 +48,17 @@ if ($GuiMode) {
                       'repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
         if (-not $GuiConfig.answers.PSObject.Properties[$key]) { throw "GUI-Antwort fehlt: $key" }
     }
-    foreach ($key in @('voiceMode','voiceChoice','length')) {
+    foreach ($key in @('voiceMode','length')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2')) { throw "Ungültige GUI-Auswahl: $key" }
     }
+    # Drei Stimmen: die dritte ist die eigene MP3/WAV. Ob die Datei vorliegt, prueft der
+    # Stimmschritt selbst - hier waere die Pruefung falsch, weil ein fortgesetzter Lauf die
+    # Referenz bereits im Zustand hat und das Feld dann leer bleiben darf.
+    if ([string]$GuiConfig.answers.voiceChoice -notin @('1','2','3')) { throw 'Ungültige GUI-Auswahl: voiceChoice' }
+    if ([string]$GuiConfig.answers.modelName -and ([string]$GuiConfig.answers.modelName).Length -gt 200) {
+        throw 'Ungültiger Modellname.'
+    }
+    if ($env:FRIDAY_INSTALL_RUN) { Write-Host "[GUI] Lauf $($env:FRIDAY_INSTALL_RUN)" }
     foreach ($key in @('address','character')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2','3')) { throw "Ungültige GUI-Auswahl: $key" }
     }
@@ -59,6 +67,39 @@ if ($GuiMode) {
         if ([string]$GuiConfig.answers.$key -notin @('true','false')) { throw "Ungültige GUI-Entscheidung: $key" }
     }
 }
+# Data-mode migration lives in its own module so installer/test/data-mode.test.ps1 can prove it without a full run.
+. (Join-Path $PSScriptRoot 'lib\data-mode.ps1')
+# Einzelinstanz: benannter Mutex plus Sperrdatei mit PID und Startzeit (Begruendung im Modul).
+. (Join-Path $PSScriptRoot 'lib\installer-lock.ps1')
+# Kooperativer Abbruch: Abbruchbitte der GUI als Datei mit Laufkennung (Begruendung im Modul).
+. (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Rueckkanal der Aufnahme: Anfrage und Antwort als Dateien, gelesen vom grafischen Assistenten.
+. (Join-Path $PSScriptRoot 'lib\gui-interaction.ps1')
+# Sicherung des Stimmprofils vor einer erneuten Aufnahme (Manifest mit Pruefsummen).
+. (Join-Path $PSScriptRoot 'lib\voice-profile-backup.ps1')
+# Bereitschaft eines lokalen Dienstes: 503 ("Loading model") ist Laden, nicht Fehler.
+. (Join-Path $PSScriptRoot 'lib\wait-http.ps1')
+# Keepalive zaehlt nur als echter wsl.exe-Prozess, nicht als "bereit"-Aufgabe.
+. (Join-Path $PSScriptRoot 'lib\wsl-keepalive.ps1')
+# Pruefsummen geladener Dateien: falsche Datei wird geloescht statt weiterverwendet.
+. (Join-Path $PSScriptRoot 'lib\download-integrity.ps1')
+# Auswertung der wslpath-Antwort: Warnzeilen filtern, erst danach den Exitcode bewerten.
+. (Join-Path $PSScriptRoot 'lib\wsl-path.ps1')
+# Globale .wslconfig: vorhandene Einstellungen erhalten, fremde Distributionen nicht herunterfahren.
+. (Join-Path $PSScriptRoot 'lib\wsl-config.ps1')
+# Dashboard-Quellen: Inhaltshash und Kopie ins Ziel (kanonischer Stand, keine Build-Ausgaben).
+. (Join-Path $PSScriptRoot 'lib\dashboard-sync.ps1')
+# Dashboard-Sicherung: Manifest mit Pruefsummen, pruefbare Wiederherstellung inklusive Datenbank.
+. (Join-Path $PSScriptRoot 'lib\dashboard-backup.ps1')
+# Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
+$script:DownloadTimeoutSeconds = 3600
+# Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
+. (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
+# Job-Objekte: damit beendet ein Zeitlimit auch Enkelprozesse des eigenen Aufrufs (pip -> python).
+. (Join-Path $PSScriptRoot 'lib\job-object.ps1')
+# Ueberwachte Unterprozesse: hartes Zeitlimit und gezieltes Beenden genau des gestarteten Prozesses.
+. (Join-Path $PSScriptRoot 'lib\process-supervisor.ps1')
+
 if ($GuiSimulation) {
     if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
     [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
@@ -105,7 +146,18 @@ if (-not $admin) {
     if ($GuiMode) { $fwd += ' -GuiConfigPath "' + $GuiConfigPath + '"' }
     $fwd += ' -InstallRoot "' + $InstallRoot + '"'
     if ($DistroName) { $fwd += ' -DistroName "' + $DistroName + '" -DistroLocation "' + $DistroLocation + '"' }
-    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
+    # Ein Abbruch der Windows-Abfrage ist kein Fehler: es wurde noch nichts angelegt oder geaendert.
+    . (Join-Path $PSScriptRoot 'lib\elevation.ps1')
+    $elevation = Start-ElevatedPowerShell -ScriptPath $PSCommandPath -ForwardedArguments @($fwd.Trim())
+    if ($elevation.Canceled) {
+        Write-Host ''
+        Write-Host '  Abgebrochen: ohne Administratorrechte wurde nichts installiert oder geaendert.' -ForegroundColor Yellow
+        exit 3
+    }
+    if (-not $elevation.Started) {
+        Write-Host ('  Start mit Administratorrechten fehlgeschlagen: ' + $elevation.Message) -ForegroundColor Yellow
+        exit 4
+    }
     exit
 }
 $Host.UI.RawUI.WindowTitle = 'F.R.I.D.A.Y. Installation'
@@ -115,20 +167,39 @@ function Title($text) { Write-Host ""; Write-Host ("=" * 70) -ForegroundColor Da
 function Info($text)  { Write-Host "  $text" }
 function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
+function ConvertTo-BatchArgument([string]$Value) {
+    # Argument fuer eine Batchdatei: in Anfuehrungszeichen sind &, ^ und ! unkritisch, Prozentzeichen
+    # expandiert cmd aber auch dort - es muss verdoppelt werden. Ein Pfad mit abschliessendem Backslash
+    # wuerde in der Kindzeile das Anfuehrungszeichen maskieren, daher wird "\." angehaengt.
+    if ($null -eq $Value) { return '""' }
+    $escaped = $Value -replace '%', '%%'
+    if ($escaped.EndsWith('\')) { $escaped += '.' }
+    return '"' + $escaped + '"'
+}
 function Stop-Install($text) {
+    Write-GuiRunDone 1 'failed'
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
     # Frueher stand hier nur "install-friday.bat erneut starten". Diese .bat startet das Skript ohne
     # Parameter und faellt damit auf C:\Friday + Standard-Distribution zurueck: bei einem eigenen
     # Zielordner begann so eine zweite, falsche Installation (2026-10-21 real passiert).
-    $resumeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Resume')
-    if ($Root) { $resumeArgs += @('-InstallRoot', "`"$Root`"") }
-    if ($Distro) { $resumeArgs += @('-DistroName', "`"$Distro`"") }
-    if ($DistroLocation) { $resumeArgs += @('-DistroLocation', "`"$DistroLocation`"") }
+    $resumeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (ConvertTo-BatchArgument $PSCommandPath), '-Resume')
+    if ($Distro) { $resumeArgs += @('-DistroName', (ConvertTo-BatchArgument $Distro)) }
+    if ($DistroLocation) { $resumeArgs += @('-DistroLocation', (ConvertTo-BatchArgument $DistroLocation)) }
     $resumeCmd = 'powershell.exe ' + ($resumeArgs -join ' ')
     if (-not $GuiMode -and $Root -and (Test-Path -LiteralPath $Root)) {
         try {
-            $resumeBat = "@echo off`r`n" + $resumeCmd + "`r`n"
-            [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, [Text.Encoding]::Default)
+            # chcp 65001 plus UTF-8 ohne BOM: cmd liest die Datei sonst in der OEM-Codepage und
+            # verstuemmelt Umlaute im Zielpfad, wodurch der Fortsetzungsbefehl den Zustand nicht mehr
+            # findet und eine frische Installation an einem falschen Pfad prueft (real reproduziert).
+            # Der Zielordner kommt aus dem Ordner der Datei selbst (%CD% nach cd /d %~dp0): damit koennen
+            # &, %, ! und Umlaute im Pfad den Fortsetzungsbefehl nicht mehr verstuemmeln, und der Ordner
+            # bleibt auch nach einem Verschieben richtig. Bewusst ohne abschliessenden Backslash, den die
+            # Kindzeile als maskierendes Zeichen lesen koennte.
+            $batArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (ConvertTo-BatchArgument $PSCommandPath), '-Resume', '-InstallRoot', '"%CD%"')
+            if ($Distro) { $batArgs += @('-DistroName', (ConvertTo-BatchArgument $Distro)) }
+            if ($DistroLocation) { $batArgs += @('-DistroLocation', (ConvertTo-BatchArgument $DistroLocation)) }
+            $resumeBat = "@echo off`r`nchcp 65001>nul`r`ncd /d `"%~dp0`"`r`npowershell.exe " + ($batArgs -join ' ') + "`r`n"
+            [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, (New-Object Text.UTF8Encoding($false)))
         } catch { }
     }
     Write-Host "  So geht es an dieser Stelle weiter:" -ForegroundColor Yellow
@@ -137,6 +208,7 @@ function Stop-Install($text) {
     # Marker entfernen: ein -NoExit-Fenster hielt ihn mit lebendem PID, Watchdogs hielten den Installer
     # dadurch faelschlich fuer laufend.
     if ($ActiveFile) { Remove-Item -LiteralPath $ActiveFile -Force -ErrorAction SilentlyContinue }
+    Exit-InstallerLock $InstallerLock
     try { Stop-Transcript | Out-Null } catch { }
     if (-not $GuiMode) { Read-Host "  Enter zum Beenden" }
     exit 1
@@ -228,25 +300,90 @@ function Find-VoiceReference([string]$Choice, [string]$SavedReference, [string]$
     return ''
 }
 
+# Eine Referenzdatei ist nur brauchbar, wenn sie wirklich Audio enthaelt. Piper/Qwen scheitern
+# sonst erst mitten in der Einrichtung, nachdem der halbe Klon gebaut wurde.
+function Test-VoiceReferenceFile([string]$Path) {
+    if (-not $Path) { return @{ Ok = $false; Reason = 'kein Pfad' } }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return @{ Ok = $false; Reason = 'Datei nicht gefunden' }
+    }
+    $extension = [IO.Path]::GetExtension($Path).ToLowerInvariant()
+    if ($extension -notin @('.wav', '.mp3')) { return @{ Ok = $false; Reason = 'nur WAV oder MP3' } }
+    $length = (Get-Item -LiteralPath $Path).Length
+    if ($length -lt 1024) { return @{ Ok = $false; Reason = 'Datei ist leer oder zu kurz' } }
+    $head = New-Object byte[] 64
+    $read = 0
+    $stream = [IO.File]::OpenRead($Path)
+    try { $read = $stream.Read($head, 0, $head.Length) } finally { $stream.Dispose() }
+    if ($extension -eq '.wav') {
+        if ($read -lt 44 -or [Text.Encoding]::ASCII.GetString($head, 0, 4) -ne 'RIFF' -or
+            [Text.Encoding]::ASCII.GetString($head, 8, 4) -ne 'WAVE') {
+            return @{ Ok = $false; Reason = 'WAV-Kopf ist beschaedigt' }
+        }
+        $channels = [BitConverter]::ToUInt16($head, 22)
+        $rate = [BitConverter]::ToUInt32($head, 24)
+        $bits = [BitConverter]::ToUInt16($head, 34)
+        if ($channels -lt 1 -or $rate -lt 8000 -or $bits -lt 8) {
+            return @{ Ok = $false; Reason = 'WAV-Format ist ungueltig' }
+        }
+        $seconds = ($length - 44) / ($rate * $channels * ($bits / 8))
+        # voice_setup.py verlangt 3 bis 30 Sekunden; eine andere Grenze hier wuerde die Datei erst
+        # nach den Downloads im Stimmschritt scheitern lassen.
+        if ($seconds -lt 3) { return @{ Ok = $false; Reason = 'Audio ist kuerzer als drei Sekunden' } }
+        if ($seconds -gt 30) { return @{ Ok = $false; Reason = 'Audio ist laenger als 30 Sekunden' } }
+        return @{ Ok = $true; Reason = '' }
+    }
+    $sync = ($head[0] -eq 0xFF) -and (($head[1] -band 0xE0) -eq 0xE0)
+    if ([Text.Encoding]::ASCII.GetString($head, 0, 3) -ne 'ID3' -and -not $sync) {
+        return @{ Ok = $false; Reason = 'MP3-Kopf ist beschaedigt' }
+    }
+    return @{ Ok = $true; Reason = '' }
+}
+
 # ---------------------------------------------------------------- Helfer
-function Native([scriptblock]$cmd) { & $cmd 2>&1 | ForEach-Object { "$_" } }
-function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
+function Native([scriptblock]$cmd) {
+    Confirm-NotCancelled
+    & $cmd 2>&1 | ForEach-Object { "$_" }
+}
+function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '', [int]$TimeoutSeconds = 1800) {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
                 "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort", "FRIDAY_MEMORY_PORT=$DashPort")
-    $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
-    $lines = @($out | ForEach-Object { "$_" })
+    # Zeitlimit und Abbruchbitte gelten fuer den gesamten WSL-Aufruf; ohne Limit konnte ein haengendes
+    # Skript den Installer unbegrenzt blockieren.
+    $arguments = @('-d', $Distro, '-u', $User, '--exec', 'env') + $wslEnv + @('bash', $Script)
+    $run = if ($StdIn) {
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments $arguments -TimeoutSeconds $TimeoutSeconds -StdIn $StdIn -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    } else {
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments $arguments -TimeoutSeconds $TimeoutSeconds -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    }
+    $lines = @()
+    foreach ($stream in @($run.StdOut, $run.StdErr)) {
+        if ($stream) { $lines += @("$stream" -split "`r?`n" | Where-Object { $_ -ne '' }) }
+    }
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
+    if ($run.TimedOut) {
+        Stop-Install "WSL-Schritt '$Script' hat das Zeitlimit von $TimeoutSeconds Sekunden ueberschritten."
+    }
+    if ($run.Cancelled) { Stop-Install 'Installation abgebrochen.' }
     return ($lines -join "`n")
 }
-function Get-WslPath([string]$WindowsPath) {
-    $output = @(& wsl.exe -d $Distro -u root --exec wslpath -a -u $WindowsPath 2>$null)
-    $exitCode = $LASTEXITCODE
-    # Erste Zeile, die ein Linux-Pfad ist (WSL stellt ggf. Warnungen voran).
-    $linuxPath = $output | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
-    if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath" }
-    return "$linuxPath".Trim()
+function Get-WslPath([string]$WindowsPath, [switch]$Soft) {
+    # wslpath antwortet normalerweise in Millisekunden; haengt der Aufruf, darf er den Lauf nicht sperren.
+    $run = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '-u', 'root', '--exec', 'wslpath', '-a', '-u', $WindowsPath) -TimeoutSeconds 60
+    if ($run.TimedOut) {
+        if ($Soft) { return $null }
+        Stop-Install "WSL reagiert nicht auf die Pfadumwandlung (Zeitlimit 60 s): $WindowsPath"
+    }
+    # Vollstaendige Ausgabe auswerten, erst danach den Exitcode: WSL stellt Warnungen voran und
+    # beendet sich trotzdem mit 0 - die erste Zeile ist nicht automatisch der Pfad.
+    $linuxPath = Select-WslPathOutput (Split-WslOutput "$($run.StdOut)")
+    if ($run.ExitCode -ne 0 -or -not $linuxPath) {
+        if ($Soft) { return $null }
+        Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath"
+    }
+    return [string]$linuxPath
 }
 function Assert-CustomDistroLocation {
     $registration = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss' -ErrorAction SilentlyContinue |
@@ -259,31 +396,21 @@ function Wait-Http($url, $seconds, $headers = @{}) {
     # Bewusst ohne Invoke-WebRequest: waehrend des Modellstarts antwortet der Server erwartbar mit
     # HTTP 503 ({"error":{"message":"Loading model"}}), und PowerShell schrieb diese Fehlversuche als
     # "PS>TerminatingError(Invoke-WebRequest): ..." ins Transcript - das sah wie ein Abbruch aus.
-    $until = (Get-Date).AddSeconds($seconds)
-    while ((Get-Date) -lt $until) {
-        $response = $null
-        try {
-            $request = [Net.WebRequest]::Create($url)
-            $request.Method = 'GET'
-            $request.Timeout = 3000
-            $request.Proxy = $null
-            foreach ($name in $headers.Keys) { $request.Headers[$name] = $headers[$name] }
-            $response = $request.GetResponse()
-            return $true
-        } catch {
-            Start-Sleep 3
-        } finally {
-            if ($response) { $response.Close() }
-        }
+    # 503 zaehlt deshalb als "laedt" und wird getrennt von "nicht erreichbar" gemeldet.
+    $result = Wait-HttpEndpoint -Url $url -Seconds $seconds -Headers $headers -PollSeconds 3 `
+        -CancelCheck { Confirm-NotCancelled }
+    if ($result.Ok) { return $true }
+    if ($result.Classification -eq 'loading') {
+        Warn "Dienst antwortet nach $($result.Seconds) s weiterhin mit HTTP 503 (laedt noch): $url"
+    } else {
+        Warn "Dienst nicht erreichbar nach $($result.Seconds) s ($($result.Classification)): $url"
     }
     return $false
 }
 function Test-WslKeepalive {
-    $procs = Get-CimInstance Win32_Process -Filter "Name='wsl.exe'" -ErrorAction SilentlyContinue
-    foreach ($proc in $procs) {
-        if ($proc.CommandLine -match [regex]::Escape("-d $Distro ") -and $proc.CommandLine -match 'sleep\s+infinity') { return $true }
-    }
-    return $false
+    # Nur ein laufender wsl.exe-Prozess mit "sleep infinity" haelt die VM wach; eine eingerichtete Aufgabe
+    # kann "bereit" melden, ohne dass die VM laeuft (Regression 2026-10-21).
+    return ((Get-WslKeepaliveProcess -Distro $Distro).Count -gt 0)
 }
 function Assert-WslKeepalive {
     # Ohne laufenden Keepalive faehrt die WSL-VM nach ~60 s Idle herunter und reisst den gerade
@@ -300,6 +427,8 @@ function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
     # Fortschritt sichtbar machen: pip lief bisher mit -q und ohne jede Meldung 10-20 min lang, waehrend
     # das Terminal still blieb. Jetzt laeuft pip im Hintergrund und der Installer meldet im Takt weiter.
     # Der Exitcode kommt ueber eine cmd-Datei: Start-Process liefert ihn in PowerShell 5.1 nicht zuverlaessig.
+    Confirm-NotCancelled
+    Write-GuiEvent 'pip' @{ state = 'start'; label = $Label }
     $log = "$Root\logs\pip-$Label.log"
     $marker = "$log.code"
     $cmdFile = "$Root\logs\pip-$Label.cmd"
@@ -313,17 +442,44 @@ function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
                   'set RC=%ERRORLEVEL%',
                   ('> "' + $marker + '" echo %RC%')) -join "`r`n") + "`r`n"
     [IO.File]::WriteAllText($cmdFile, $cmdBody, [Text.Encoding]::Default)
-    $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', "`"$cmdFile`"") -NoNewWindow -PassThru
+    # cmd startet python als Kindprozess. Ein Abbruch, der nur cmd beendet, liesse pip weiterlaufen und
+    # das venv halb geschrieben zurueck. Darum laeuft der gesamte Baum in einem Job-Objekt, das nur
+    # Prozesse dieses Aufrufs enthaelt.
+    $job = New-ProcessJob
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = 'cmd.exe'
+    $startInfo.Arguments = '/c "' + $cmdFile + '"'
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $proc = $null
+    try { $proc = [System.Diagnostics.Process]::Start($startInfo) } catch { }
+    if (-not $proc) { Close-ProcessJob $job; Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue; return 1 }
+    if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $proc) }
     $start = Get-Date
+    $aborted = $false
     while (-not (Test-Path -LiteralPath $marker)) {
         $mins = [math]::Floor(((Get-Date) - $start).TotalMinutes)
         Write-Host ("`r  laeuft weiter ... {0} min" -f $mins).PadRight(48) -NoNewline
         if ($proc.HasExited -and (Test-Path -LiteralPath $marker)) { break }
-        if (((Get-Date) - $start).TotalMinutes -gt 120) { break }
+        if (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId) {
+            $aborted = $true
+            break
+        }
+        if (((Get-Date) - $start).TotalMinutes -gt 120) { $aborted = $true; break }
         Start-Sleep -Seconds 5
     }
+    if ($aborted) {
+        # Der Job nimmt Enkelprozesse mit; ohne Job bleibt es beim gezielten Beenden von cmd.
+        if (-not (Stop-ProcessJob $job)) {
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+        }
+        try { $proc.WaitForExit(5000) | Out-Null } catch { }
+    }
+    Close-ProcessJob $job
     Write-Host ("`r  abgeschlossen nach {0} s" -f [math]::Round(((Get-Date) - $start).TotalSeconds)).PadRight(48)
     Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
+    # Ein Abbruch wirkt hier als Abbruch des Laufs, nicht als pip-Fehler mit falscher Ursache.
+    if ($aborted) { Confirm-NotCancelled; return 1 }
     if (-not (Test-Path -LiteralPath $marker)) { return 1 }
     $code = 1
     try { $code = [int](Get-Content -LiteralPath $marker -Raw).Trim() } catch { $code = 1 }
@@ -380,10 +536,70 @@ function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPa
 function Stop-VoiceService { Stop-LauncherService 'FRIDAY_Voice' 'start-friday-voice.ps1' '*friday_voice.py*' $Root $ProcessRoots }
 function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-friday-voice.ps1' '*friday_voice.py*' $ProcessRoots).Count -gt 0) }
 function Download($url, $file) {
-    & curl.exe -L --fail --retry 5 -C - -s -o $file $url
-    return $LASTEXITCODE -eq 0
+    Confirm-NotCancelled
+    $downloadName = Split-Path -Path $file -Leaf
+    Write-GuiEvent 'download' @{ state = 'start'; name = $downloadName }
+    $run = Invoke-SupervisedProcess -FilePath 'curl.exe' -TimeoutSeconds $script:DownloadTimeoutSeconds -PollMilliseconds 500 `
+        -Arguments @('-L', '--fail', '--retry', '5', '-C', '-', '-s', '-o', $file, $url) `
+        -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    if ($run.Cancelled) { Confirm-NotCancelled }
+    if ($run.TimedOut) { Warn "Download $downloadName nach $($script:DownloadTimeoutSeconds) s abgebrochen; ein erneuter Lauf setzt an der vorhandenen Datei fort." }
+    $downloadOk = ($run.ExitCode -eq 0)
+    Write-GuiEvent 'download' @{ state = $(if ($downloadOk) { 'done' } else { 'failed' }); name = $downloadName }
+    return $downloadOk
 }
 function Sha256($file) { return (Get-FileHash $file -Algorithm SHA256).Hash.ToLower() }
+
+# ---------------------------------------------------------------- Einzelinstanz
+# Vor jeder Aenderung an Zustand, Aufgaben oder Diensten: zwei Laeufe duerfen den Fortschritt nicht
+# abwechselnd ersetzen. Der zweite Start aendert nichts und endet mit eigenem Exitcode, damit GUI und
+# geplante Aufgabe den Unterschied zwischen "laeuft schon" und "fehlgeschlagen" sehen.
+$InstallerMode = if ($UpdateDashboard) { 'update-dashboard' } elseif ($ChangeVoice) { 'change-voice' } elseif ($ChangeName) { 'change-name' } elseif ($GuiMode) { 'gui' } else { 'install' }
+# Eine Laufkennung fuer Sperre, Abbruchbitte und Meldungen. Ohne sie waere eine Abbruchbitte nicht
+# zuordenbar und eine liegen gebliebene Datei koennte spaetere Laeufe beenden.
+$InstallRunId = if ($env:FRIDAY_INSTALL_RUN) { [string]$env:FRIDAY_INSTALL_RUN } else { "$PID-$([guid]::NewGuid().ToString('N').Substring(0, 8))" }
+$InstallerLock = Enter-InstallerLock -Root $Root -RunId $InstallRunId -Mode $InstallerMode
+if (-not $InstallerLock.Acquired) {
+    Write-Host ""
+    Write-Host "  [BELEGT] Es laeuft bereits eine Installation." -ForegroundColor Yellow
+    Write-Host "  $(Format-InstallerLockHolder $InstallerLock.Holder)" -ForegroundColor Yellow
+    Write-Host "  Dieser Start wurde nicht begonnen; es wurde nichts geaendert." -ForegroundColor Yellow
+    # Kein Warten auf Eingabe bei -Resume: der Weg laeuft auch aus der geplanten Aufgabe, wo niemand
+    # Enter druecken kann. Doppelklick ohne -Resume behaelt die Pause, damit die Meldung lesbar bleibt.
+    if (-not $GuiMode -and -not $Resume) { Read-Host "  Enter zum Beenden" }
+    exit $script:InstallerAlreadyRunningExitCode
+}
+if ($InstallerLock.Stale) {
+    Warn ("Voriger Lauf (PID $($InstallerLock.Stale.pid)) endete ohne Aufraeumen; seine Schritte werden erneut geprueft.")
+}
+# Eine Abbruchbitte, die vor dem Start schon vorlag, beendet den Lauf, bevor irgendetwas geaendert wird.
+if (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId) {
+    Clear-InstallerCancel -Root $Root -RunId $InstallRunId
+    Write-Host ""
+    Write-Host "  [ABBRUCH] Fuer diesen Lauf lag bereits eine Abbruchbitte vor. Es wurde nichts geaendert." -ForegroundColor Yellow
+    # Wie bei der Sperre: kein Warten auf Eingabe, wenn der Weg aus einer geplanten Aufgabe kommt.
+    if (-not $GuiMode -and -not $Resume) { Read-Host "  Enter zum Beenden" }
+    exit 1
+}
+# Laufbeginn melden, damit die GUI Laufkennung und Modus aus dem Ereignisstrom kennt.
+Write-GuiEvent 'run' @{ state = 'start'; mode = $InstallerMode; run = $InstallRunId }
+function Enter-Step([string]$Name) {
+    # Schrittgrenze: Abbruch pruefen und den Schritt als Ereignis melden (die GUI zeigt nur echte Daten).
+    Confirm-NotCancelled
+    Write-GuiEvent 'step' @{ state = 'start'; step = $Name }
+}
+function Confirm-NotCancelled {
+    # Wird vor jedem Schritt und vor jedem Unterprozess aufgerufen: die Abbruchbitte wirkt an der
+    # naechsten sicheren Grenze, nicht mitten in einem Kopier- oder Installationsvorgang.
+    if (-not (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId)) { return }
+    $cancelFlag = Read-InstallerCancel $Root
+    $cancelReason = if ($cancelFlag -and $cancelFlag.reason) { [string]$cancelFlag.reason } else { 'ohne Angabe' }
+    Clear-InstallerCancel -Root $Root -RunId $InstallRunId
+    Stop-Install "Abbruch angefordert ($cancelReason). Die bereits erledigten Schritte bleiben gespeichert; ein erneuter Start setzt dort fort."
+}
+# Sicherheitsnetz fuer alle Ausgaenge (auch exit 10): die Datei verschwindet mit dem Prozess.
+$lockPathLiteral = "$($InstallerLock.Path)".Replace("'", "''")
+Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action ([scriptblock]::Create("Remove-Item '$lockPathLiteral' -Force -ErrorAction SilentlyContinue")) | Out-Null
 
 if (Get-ScheduledTask -TaskName $ResumeTask -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $ResumeTask -Confirm:$false
@@ -807,6 +1023,18 @@ function Show-MigrationSummary {
 }
 
 $CustomRoot = $Root -ine 'C:\Friday'
+function Test-FreshRootEmpty([string]$Path) {
+    # Der Installer legt seine Sperrdatei unter <Root>\run ab, bevor diese Pruefung greift. Sie darf
+    # einen wirklich leeren Zielordner nicht wie fremde Daten aussehen lassen - sonst waere jede frische
+    # Installation mit eigenem Root unmoeglich. Alles andere zaehlt weiter als belegt.
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $true }
+    foreach ($item in @(Get-ChildItem -LiteralPath $Path -Force)) {
+        if ($item.Name -ine 'run' -or -not $item.PSIsContainer) { return $false }
+        $inner = @(Get-ChildItem -LiteralPath $item.FullName -Force | Where-Object { $_.Name -ine 'installer.lock.json' })
+        if ($inner.Count -gt 0) { return $false }
+    }
+    return $true
+}
 if ($CustomRoot) {
     if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
         ($UpdateDashboard -or $ChangeVoice -or $ChangeName)) {
@@ -817,8 +1045,7 @@ if ($CustomRoot) {
         Stop-Install 'Frische Installation ausserhalb C:\Friday erfordert -DistroName und -DistroLocation.'
     }
     if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
-        (Test-Path -LiteralPath $Root -PathType Container) -and
-        (Get-ChildItem -LiteralPath $Root -Force | Select-Object -First 1)) {
+        -not (Test-FreshRootEmpty $Root)) {
         Stop-Install "Der frische InstallRoot ist nicht leer: $Root. Bestehende Daten werden nicht ueberschrieben."
     }
 } else {
@@ -870,9 +1097,44 @@ if (-not $Resume -and -not $PSBoundParameters.ContainsKey('InstallRoot')) {
 # ---------------------------------------------------------------- Fortschritt
 $StateFile = "$Root\config\install-state.json"
 $State = @{ done = @() }
+function Read-InstallerState([string]$Path) {
+    # Liefert $null, wenn die Datei fehlt, leer, kein JSON-Objekt oder ohne done[] ist. Eine halb
+    # geschriebene Datei darf nie als "noch nichts erledigt" durchgehen, sonst beginnt die
+    # Installation von vorn und ueberschreibt vorhandene Schritte.
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try { $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 } catch { return $null }
+    if (-not $raw -or -not $raw.Trim()) { return $null }
+    try { $parsed = $raw | ConvertFrom-Json } catch { return $null }
+    if (-not $parsed -or $parsed -isnot [System.Management.Automation.PSCustomObject]) { return $null }
+    if (-not $parsed.PSObject.Properties['done']) { return $null }
+    return $parsed
+}
+function Import-InstallerState([string]$Path) {
+    # Source: 'live' (unveraendert gelesen), 'backup' (Sicherung wiederhergestellt), $null (nichts brauchbar).
+    $result = @{ State = $null; Source = $null; Damaged = $null }
+    $live = Read-InstallerState $Path
+    if ($live) { $result.State = $live; $result.Source = 'live'; return $result }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { $result.Damaged = $Path }
+    $backup = Read-InstallerState "$Path.bak"
+    if ($backup) {
+        # Die Sicherung ist der letzte vollstaendig geschriebene Stand; sie ersetzt die kaputte Datei,
+        # damit auch spaetere Laeufe wieder eine lesbare Grundlage haben.
+        Copy-Item -LiteralPath "$Path.bak" -Destination $Path -Force
+        $result.State = $backup
+        $result.Source = 'backup'
+    }
+    return $result
+}
 $ExistingState = Test-Path -LiteralPath $StateFile -PathType Leaf
 if ($ExistingState) {
-    (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
+    $importedState = Import-InstallerState $StateFile
+    if (-not $importedState.State) {
+        Stop-Install "Der gespeicherte Fortschritt ist unlesbar ($StateFile) und auch die Sicherung $StateFile.bak hilft nicht. Bitte die Datei aus einer eigenen Sicherung zurueckholen; ohne Zustand wuerde die Installation von vorn beginnen."
+    }
+    if ($importedState.Source -eq 'backup') {
+        Warn "Der gespeicherte Fortschritt war unlesbar; die Sicherung $StateFile.bak wurde wiederhergestellt."
+    }
+    $importedState.State.PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
 }
 function IsDone($n) { return @($State.done) -contains $n }
 function Test-TaskForInstallRoot($task) {
@@ -882,6 +1144,13 @@ function Test-TaskForInstallRoot($task) {
     return $false
 }
 if ($CustomRoot) {
+    # Zuerst die gespeicherte Distribution uebernehmen: jede Meldung und jeder Fortsetzungsbefehl
+    # (resume.bat) muss die echte Distribution nennen, nicht den Standardnamen. Sonst haette ein
+    # Abbruch vor der Uebernahme "Ubuntu" vorgeschlagen und den eigenen Ablageort verschluckt.
+    if ($ExistingState) {
+        if ($State.distro_name) { $Distro = [string]$State.distro_name }
+        if ($State.distro_location) { $DistroLocation = [string]$State.distro_location }
+    }
     if ($ExistingState -and (-not $State.distro_name -or -not $State.distro_location -or -not $State.ports)) {
         Stop-Install 'Der gespeicherte Zustand enthaelt keine benannte Distribution, deren Ablageort oder Portbelegung. Update abgebrochen.'
     }
@@ -892,10 +1161,7 @@ if ($CustomRoot) {
     if ($ExistingState -and $DistroName -and ($DistroName -ne $State.distro_name -or $DistroLocation -ine $State.distro_location)) {
         Stop-Install "DistroName/DistroLocation widersprechen dem gespeicherten Zustand ($($State.distro_name), $($State.distro_location))."
     }
-    if ($ExistingState) {
-        $Distro = [string]$State.distro_name
-        $DistroLocation = [string]$State.distro_location
-    } else {
+    if (-not $ExistingState) {
         $Distro = $DistroName
         $State.distro_name = $Distro
         $State.distro_location = $DistroLocation
@@ -963,9 +1229,32 @@ if ($CustomRoot) {
     if (-not $ExistingState) { [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false))) }
 }
 function Save-State {
-    [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    $directory = Split-Path -Parent $StateFile
+    if ($directory -and -not (Test-Path -LiteralPath $directory -PathType Container)) {
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    }
+    # Erst vollstaendig daneben schreiben, dann ersetzen: ein Absturz mitten im Schreiben darf den
+    # Fortschritt (done[]) nicht auf eine halbe JSON-Datei reduzieren, sonst ist die Fortsetzung weg.
+    $temporary = "$StateFile.tmp"
+    [IO.File]::WriteAllText($temporary, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    if (Test-Path -LiteralPath $StateFile) {
+        try { [IO.File]::Replace($temporary, $StateFile, [NullString]::Value, $true) }
+        catch {
+            # Replace braucht NTFS-Semantik; wenn es scheitert, bleibt der Zustand trotzdem erhalten.
+            Remove-Item -LiteralPath $StateFile -Force
+            [IO.File]::Move($temporary, $StateFile)
+        }
+    } else {
+        [IO.File]::Move($temporary, $StateFile)
+    }
+    # Sicherung des zuletzt vollstaendig geschriebenen Stands. Ohne sie waere eine durch
+    # Datentraegerfehler oder Fremdeingriff unlesbare Datei der Verlust des gesamten Fortschritts.
+    try { [IO.File]::Copy($StateFile, "$StateFile.bak", $true) } catch { }
 }
-function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
+function MarkDone($n) {
+    $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State
+    Write-GuiEvent 'step' @{ state = 'done'; step = $n }
+}
 if ($GuiMode -and -not (IsDone 'voicepython')) {
     # The one-use GUI request is removed before provisioning. Preserve only
     # nonsecret answers so a WSL reboot can restore decisions made in the wizard.
@@ -1122,7 +1411,7 @@ if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday
     Save-State
 }
 if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
-    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
+    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic', 'custom'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y. (weiblich)'
     Info '2  J.A.R.V.I.S. (männlich)'
@@ -1134,38 +1423,46 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
         -not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
         Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX klingt Option 2 heller (Thorsten mit Filmfilter).'
     }
-    $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
+    $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'custom') { '3' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
     do {
         $answer = $(if ($GuiMode) { Gui-Answer 'voiceChoice' } else { Read-Host "  Stimme [1-3, Standard $defaultChoice]" }).Trim()
         if (-not $answer) { $answer = $defaultChoice }
     } while ($answer -notin @('1', '2', '3'))
-    # Option 3 nutzt denselben Stimmplatz wie F.R.I.D.A.Y.: der Qwen-Klon entsteht ohnehin aus der
-    # Referenzdatei. Ein eigener Platz muesste fast_tts, prepare_voice_pairs und die Stimmenliste im
-    # Dashboard mitziehen - die Referenz ist der eigentliche Unterschied.
-    $newChoice = if ($answer -eq '2') { 'classic' } else { 'friday-female' }
-    $ownReference = ($answer -eq '3')
+    # Option 3 hat einen eigenen Stimmplatz (custom): Persona, Referenzpaare, fast_tts und der Stimm-Endpunkt
+    # kennen ihn. Damit bleibt die beiliegende Referenz unberuehrt, wenn spaeter auf F.R.I.D.A.Y. zurueck
+    # gewechselt wird.
+    $newChoice = if ($answer -eq '2') { 'classic' } elseif ($answer -eq '3') { 'custom' } else { 'friday-female' }
+    $ownReference = ($newChoice -eq 'custom')
     $reference = ''
-    if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic')) {
+    if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic', 'custom')) {
         $choiceReference = $State["voice_reference_$newChoice"]
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
         if ($ownReference) {
             $prompt = '  Pfad zur eigenen MP3/WAV (3 bis 30 Sekunden, Pflichtfeld)'
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host $prompt }).Trim().Trim('"')
             if (-not $reference) { Stop-Install "Für 'Eigene MP3/WAV' wird eine Stimmdatei benötigt. Installation erneut starten und den Pfad angeben." }
-            if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmdatei nicht gefunden: $reference" }
+            $voiceFile = Test-VoiceReferenceFile $reference
+            if (-not $voiceFile.Ok) { Stop-Install "Stimmdatei ist nicht verwendbar: $reference ($($voiceFile.Reason))" }
         } else {
             $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
             if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
             if (-not $reference) { $reference = $defaultReference }
-            if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
+            if ($reference) {
+                $voiceFile = Test-VoiceReferenceFile $reference
+                if (-not $voiceFile.Ok) { Stop-Install "Stimmreferenz ist nicht verwendbar: $reference ($($voiceFile.Reason))" }
+            }
             if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
         }
     }
     $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
     $State.voice_choice = $newChoice
     $State.voice_reference = $reference
+    # Der eigene Platz speichert seine Referenz unter seinem eigenen Schluessel, damit ein erneuter Lauf sie
+    # wiederfindet und ein Zurueckwechseln die beiliegende Stimme unberuehrt laesst. voice_reference_own bleibt
+    # als Altlast-Alias erhalten.
     $State["voice_reference_$newChoice"] = $reference
+    if ($ownReference) { $State['voice_reference_own'] = $reference }
     if (($changed -or $ChangeVoice) -and (IsDone 'voicepython')) {
         $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
         Warn 'Die Ausgabestimme wird neu eingerichtet; vorhandene persönliche Aufnahmen bleiben erhalten.'
@@ -1175,6 +1472,7 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
 
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
+    Enter-Step 'preflight'
     Title 'Schritt 1/15 – Systemcheck'
     $build = [Environment]::OSVersion.Version.Build
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
@@ -1215,6 +1513,7 @@ if ($State.voice_mode -eq 'local' -and (-not $State.gpu.nvidia -or [int]$State.g
 # Bei jedem Start synchronisieren, solange das Skript nicht aus dem Ziel-Installerordner laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
+    Enter-Step 'files'
     Title "Schritt 2/15 – Installationsdateien nach $Root kopieren"
     if ($PSScriptRoot -ne $Inst) {
         & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -1267,8 +1566,9 @@ Sync-VoiceFiles
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
+    Enter-Step 'wslfeature'
     Title 'Schritt 3/15 – WSL2 (Linux-Subsystem) vorbereiten'
-    & wsl.exe --status *> $null
+    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--status') -TimeoutSeconds 120 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
@@ -1288,13 +1588,26 @@ if (-not (IsDone 'wslfeature')) {
         if ($GuiMode) { exit 10 }
         exit
     }
-    Native { wsl.exe --update } | Out-Null
-    Ok "WSL bereit: $((& wsl.exe --version | Select-Object -First 1))"
+    # WSL-Update nur, wenn es nicht abgeschaltet wurde, mit Zeitlimit und ohne Abbruch des Laufs:
+    # eine alte, aber funktionierende WSL darf die Installation nicht blockieren (Regression 2026-10-22).
+    if ($SkipWslUpdate) {
+        Info 'WSL-Update uebersprungen (--SkipWslUpdate).'
+    } else {
+        $updateRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--update') -TimeoutSeconds 600
+        if ($updateRun.TimedOut) {
+            Warn 'WSL-Update nach 600 s abgebrochen; die vorhandene WSL bleibt in Benutzung.'
+        } elseif ($updateRun.ExitCode -ne 0) {
+            Warn "WSL-Update meldete Exitcode $($updateRun.ExitCode); die vorhandene WSL bleibt in Benutzung."
+        }
+    }
+    $versionRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--version') -TimeoutSeconds 120
+Ok "WSL bereit: $(@("$($versionRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1))"
     MarkDone 'wslfeature'
 }
 
 # ================================================================ 4 Energie
 if (-not (IsDone 'power')) {
+    Enter-Step 'power'
     Title 'Schritt 4/15 – Energieoptionen (am Netzteil immer wach bleiben)'
     & powercfg /change standby-timeout-ac 0
     & powercfg /change hibernate-timeout-ac 0
@@ -1306,6 +1619,7 @@ if (-not (IsDone 'power')) {
 
 # ================================================================ 5 Persönlichkeit
 if (-not (IsDone 'persona')) {
+    Enter-Step 'persona'
     Title "Schritt 5/15 – Deine Wünsche an $AN"
     $name = ''
     while (-not $name) { $name = Ask 'Wie heißt du (Vorname)?' }
@@ -1330,25 +1644,33 @@ if (-not (IsDone 'persona')) {
 
 # ================================================================ 6 .wslconfig
 if (-not (IsDone 'wslconfig')) {
+    Enter-Step 'wslconfig'
     Title 'Schritt 6/15 – WSL-Ressourcen festlegen'
-    $mem = [math]::Max(4, [math]::Min(16, [math]::Floor($State.ram_gb / 2)))
-    $cpu = [math]::Max(2, [math]::Min(10, $State.cores - 2))
     $cfgFile = "$env:USERPROFILE\.wslconfig"
-    if (Test-Path $cfgFile) { Copy-Item $cfgFile "$Root\backups\.wslconfig.bak-$(Get-Date -Format yyyyMMdd-HHmmss)" }
-    $lines = @('[wsl2]', "memory=$($mem)GB", "processors=$cpu", 'swap=8GB', 'localhostForwarding=true')
-    if ($State.build -ge 22621) { $lines += @('networkingMode=mirrored', 'dnsTunneling=true', 'firewall=true') }
-    else { Warn 'Windows-Build < 22621: "mirrored networking" nicht verfügbar – Windows erreicht WSL-Dienste evtl. nur eingeschränkt.' }
-    $lines += @('', '[experimental]', 'autoMemoryReclaim=gradual')
-    Set-Content -Path $cfgFile -Value $lines -Encoding Ascii
-    & wsl.exe --shutdown
-    Ok "WSL: $mem GB RAM, $cpu Threads, 8 GB Swap."
+    $plan = Get-WslConfigPlan -ConfigPath $cfgFile -RunningDistros (Get-RunningWslDistros) -Distro $Distro
+    if (-not $plan.Write) {
+        Ok 'Vorhandene .wslconfig bleibt unveraendert (gilt fuer alle WSL-Distributionen).'
+    } else {
+        $lines = Get-FridayWslConfigLines -RamGb $State.ram_gb -Cores $State.cores -Build $State.build
+        if ($State.build -lt 22621) { Warn 'Windows-Build < 22621: "mirrored networking" nicht verfügbar – Windows erreicht WSL-Dienste evtl. nur eingeschränkt.' }
+        Set-Content -Path $cfgFile -Value $lines -Encoding Ascii
+        if ($plan.Shutdown) {
+            Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--shutdown') -TimeoutSeconds 120 | Out-Null
+            Ok "WSL-Ressourcen gesetzt: $($lines[1]), $($lines[2]), 8 GB Swap."
+        } else {
+            Warn 'Andere WSL-Distributionen laufen: die neue .wslconfig gilt erst nach dem naechsten WSL-Neustart; WSL wird nicht heruntergefahren.'
+        }
+    }
     MarkDone 'wslconfig'
 }
 
 # ================================================================ 7 Ubuntu
 if (-not (IsDone 'distro')) {
+    Enter-Step 'distro'
     Title 'Schritt 7/15 – Ubuntu 24.04 installieren'
-    $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
+    # Verteilte Liste ueber das Zeitlimit geholt: ein haengendes wsl.exe blockierte sonst die Frage nach der Distribution.
+    $listRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-l', '-q') -TimeoutSeconds 120
+    $existing = @(("$($listRun.StdOut)" -split "`r?`n") | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
     if ($existing -contains $Distro) {
         if ($CustomRoot -and -not $State.distro_requested) { Stop-Install "Die WSL-Distribution '$Distro' existiert bereits. Frische Installation darf sie nicht uebernehmen." }
         if (-not (YesNo "Es gibt bereits eine WSL-Distribution '$Distro'. Diese verwenden?")) { Stop-Install "Bitte vorhandenes '$Distro' sichern/entfernen oder umbenennen." }
@@ -1363,7 +1685,9 @@ if (-not (IsDone 'distro')) {
         } else {
             Native { wsl.exe --install Ubuntu-24.04 --name $Distro --no-launch --web-download } | ForEach-Object { Info $_ }
         }
-        $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
+        # Verteilte Liste ueber das Zeitlimit geholt: ein haengendes wsl.exe blockierte sonst die Frage nach der Distribution.
+    $listRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-l', '-q') -TimeoutSeconds 120
+    $existing = @(("$($listRun.StdOut)" -split "`r?`n") | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
         if ($existing -notcontains $Distro) { Stop-Install 'Ubuntu konnte nicht installiert werden (siehe Meldung oben).' }
     }
     if ($CustomRoot) { Assert-CustomDistroLocation }
@@ -1380,6 +1704,7 @@ if ($CustomRoot) {
 
 # ================================================================ 8 Linux-Benutzer
 if (-not (IsDone 'linuxuser')) {
+    Enter-Step 'linuxuser'
     Title 'Schritt 8/15 – Linux-Benutzer anlegen'
     Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
@@ -1399,10 +1724,12 @@ if (-not (IsDone 'linuxuser')) {
     $out = Wsl-Run 'root' "$WslInstPath/wsl/setup_root.sh" "$user`n$p1"
     $p1 = $null; $p2 = $null
     if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install 'Ubuntu-Grundeinrichtung fehlgeschlagen.' }
-    & wsl.exe --terminate $Distro | Out-Null
+    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--terminate', $Distro) -TimeoutSeconds 120 | Out-Null
     Start-Sleep 3
-    $who = (& wsl.exe -d $Distro --exec whoami 2>$null | Select-Object -First 1)
-    $pid1 = (& wsl.exe -d $Distro --exec ps -p 1 -o comm= 2>$null | Select-Object -First 1)
+    $whoRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '--exec', 'whoami') -TimeoutSeconds 60
+    $initRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '--exec', 'ps', '-p', '1', '-o', 'comm=') -TimeoutSeconds 60
+    $who = @("$($whoRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
+    $pid1 = @("$($initRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
     if ("$who".Trim() -ne $user -or "$pid1".Trim() -ne 'systemd') { Stop-Install "Prüfung fehlgeschlagen (Benutzer='$who', PID1='$pid1')." }
     $State.linux_user = $user
     Ok "Benutzer '$user' aktiv, systemd läuft."
@@ -1411,6 +1738,7 @@ if (-not (IsDone 'linuxuser')) {
 
 # ================================================================ 9 WSL wach halten
 if (-not (IsDone 'keepalive')) {
+    Enter-Step 'keepalive'
     Title 'Schritt 9/15 – WSL dauerhaft aktiv halten'
     Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`" `"$Distro`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
     Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive'
@@ -1421,15 +1749,16 @@ if (-not (IsDone 'keepalive')) {
 
 # ================================================================ 10 Hermes + Kimi
 if (-not (IsDone 'hermes')) {
+    Enter-Step 'hermes'
     Title 'Schritt 10/15 – Hermes Agent + KI-Anbieter'
     # Der Anbieter kommt aus dem Installer statt fest verdrahtet aus Kimi. Verknuepft wird ueber Hermes'
     # eigene Konfiguration (~/.hermes/.env + `hermes config set`) - kein eigener Auth-Stack, damit wir
     # update-fest bleiben. Das Hermes-Dashboard braucht der Nutzer dafuer nie zu oeffnen.
     $detectedKimi = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
     if ($GuiMode -and -not $State.model_provider -and -not $GuiConfig.answers.PSObject.Properties['providerChoice']) {
-        # Der grafische Assistent fragt den Anbieter noch nicht ab; dort bleibt es beim bisherigen Weg.
-        $State.model_provider = 'kimi-coding'
-        $State.model_name = 'k3'
+        # Kein stiller Standardanbieter: fehlt die Antwort der Oberflaeche, bricht der Lauf ab, statt
+        # eine vom Benutzer nie getroffene Wahl zu installieren.
+        Stop-Install 'Die Oberflaeche hat keinen Anbieter uebermittelt.'
     }
     $provider = [string]$State.model_provider
     if (-not $provider) {
@@ -1442,12 +1771,13 @@ if (-not (IsDone 'hermes')) {
             $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-3, Standard 1]' }).Trim()
             if (-not $answer) { $answer = '1' }
         } while ($answer -notin @('1', '2', '3'))
-        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai' } }
+        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai-api' } }
     }
     $modelName = [string]$State.model_name
     $baseUrl = [string]$State.model_base_url
     $key = ''
-    if ($provider -eq 'openai') {
+    if ($provider -in @('openai', 'openai-api')) {
+        $provider = 'openai-api'
         if (-not $modelName) { $modelName = 'gpt-5' }
         Info "OpenAI - Modell: $modelName"
         Info 'OpenAI-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
@@ -1468,8 +1798,10 @@ if (-not (IsDone 'hermes')) {
             $key = Plain $(if ($GuiMode) { Gui-Secret 'kimiKey' } else { Read-Host '  Kimi-API-Key' -AsSecureString })
         }
     } else {
-        # Ein Kimi-Code-Key (sk-kimi-...) gehoert nicht an die Moonshot-API, sondern an den eigenen
-        # Hermes-Provider kimi-coding (Modell k3) - so lief es hier bereits verifiziert.
+        # Hermes 0.22.2 kennt keinen Key-Prefix fuer kimi-coding (nur openrouter ist in
+        # KNOWN_PROVIDER_KEY_PREFIXES) und normalisiert "openai" auf einen Aggregator. Diese
+        # Zuordnung bleibt daher eine Installer-Heuristik; setup_hermes.sh prueft anschliessend
+        # gegen den installierten Katalog, ob der Anbieter ueberhaupt als API-Key-Anbieter existiert.
         if ($detectedKimi -and $detectedKimi -match '^sk-kimi-') {
             $provider = 'kimi-coding'
             $modelName = 'k3'
@@ -1589,6 +1921,7 @@ if (-not $ChangeVoice) {
 
 # ================================================================ 11 Qwen lokal
 if (-not (IsDone 'qwen')) {
+    Enter-Step 'qwen'
     if ($State.voice_mode -eq 'elevenlabs') {
         Info 'Cloud-Modus: lokaler Qwen-Download und -Dienst entfallen.'
         MarkDone 'qwen'
@@ -1612,7 +1945,7 @@ if (-not (IsDone 'qwen')) {
     foreach ($a in $assets) {
         $zip = "$Root\cache\$($a.name)"
         if (-not (Download $a.browser_download_url $zip)) { Stop-Install "Download fehlgeschlagen: $($a.name)" }
-        if ($a.digest -and ("sha256:" + (Sha256 $zip)) -ne $a.digest) { Remove-Item $zip -Force; Stop-Install "Prüfsumme falsch: $($a.name) - Datei gelöscht, erneut starten." }
+        if ($a.digest -and -not (Assert-FileSha256 $zip $a.digest "Archiv $($a.name)")) { Stop-Install "Prüfsumme falsch: $($a.name) - Datei gelöscht, erneut starten." }
         Expand-Archive $zip -DestinationPath "$Root\llama.cpp" -Force
         Ok "$($a.name) ($($rel.tag_name)) geprüft und entpackt"
     }
@@ -1620,17 +1953,20 @@ if (-not (IsDone 'qwen')) {
     New-Item -ItemType Directory -Force (Split-Path $model) | Out-Null
     Info 'Lade Qwen3-4B (2,5 GB) …'
     if (-not (Download 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf' $model)) { Stop-Install 'Qwen-Download fehlgeschlagen.' }
-    if ((Sha256 $model) -ne '7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5') { Remove-Item $model; Stop-Install 'Qwen-Prüfsumme falsch – erneut starten.' }
+    if (-not (Assert-FileSha256 $model '7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5' 'Qwen-Modell')) { Stop-Install 'Qwen-Prüfsumme falsch – erneut starten.' }
     Ok 'Qwen3-4B geprüft'
     $ctx = if ($gpu.nvidia -and [int]$gpu.vram_mb -gt 7000) { 8192 } else { 4096 }
     $layers = if ($gpu.nvidia) { 99 } else { 0 }
     @{ ctx_size = $ctx; gpu_layers = $layers; port = $Ports.Qwen } | ConvertTo-Json | Set-Content "$Root\config\qwen.json" -Encoding Ascii
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$Inst\scripts\start-qwen-server.ps1"
+    # Warmup getrennt vom Schritt melden: der Modellstart braucht Sekunden bis Minuten, ohne Ausgabe.
+    Write-GuiEvent 'warmup' @{ state = 'start'; service = 'qwen' }
     if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install "Qwen-Server startet nicht ($Root\logs\qwen-server.log)." }
     $body = @{ model = 'qwen3-router'; max_tokens = 10; chat_template_kwargs = @{ enable_thinking = $false }
                messages = @(@{ role = 'user'; content = 'Antworte nur mit LOCAL_OK' }) } | ConvertTo-Json -Depth 5
     $t = Measure-Command { $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$($Ports.Qwen)/v1/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120 }
     Ok ("Qwen antwortet ({0:N1} s): {1}" -f $t.TotalSeconds, $r.choices[0].message.content.Trim())
+    Write-GuiEvent 'warmup' @{ state = 'done'; service = 'qwen'; seconds = [math]::Round($t.TotalSeconds, 1) }
     Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
     MarkDone 'qwen'
     }
@@ -1638,6 +1974,7 @@ if (-not (IsDone 'qwen')) {
 
 # ================================================================ 12 Python + Sprachpakete
 if (-not (IsDone 'voicepython')) {
+    Enter-Step 'voicepython'
     Title 'Schritt 12/15 – Sprachsteuerung installieren (Python + Modelle)'
     $py = $null
     # Ohne Python-Launcher wirft der Aufruf nur einen Befehl-nicht-gefunden-Fehler und laesst $LASTEXITCODE unveraendert (alter Wert 0).
@@ -1714,22 +2051,30 @@ if (-not (IsDone 'voicepython')) {
             $windowsPaths += @("$referenceDir\friday-female-streaming.wav", "$referenceDir\friday-female-reference.txt",
                                "$referenceDir\classic-streaming.wav", "$referenceDir\classic-reference.txt")
         }
+        if ($pairs.custom) {
+            # Der eigene Platz wird nur mitgegeben, wenn wirklich eine eigene Aufnahme vorbereitet wurde.
+            $referenceDir = "$Root\config\voice-references"
+            $windowsPaths += @("$referenceDir\custom-streaming.wav", "$referenceDir\custom-reference.txt")
+        }
         $linuxPaths = @()
         foreach ($windowsPath in $windowsPaths) {
-            $pathOutput = @(& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1)
-            $exitCode = $LASTEXITCODE
-            # WSL kann vor dem Pfad Warnungen ausgeben (z. B. wsl2.localhostForwarding bei gespiegeltem Netzwerk).
-            # Frueher wurde blind die erste Zeile genommen, wodurch der Lauf daran abbrach.
-            $linuxPath = $pathOutput | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
-            if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
-            $linuxPaths += "$linuxPath".Trim()
+            # WSL kann vor dem Pfad Warnungen ausgeben (z. B. wsl2.localhostForwarding bei gespiegeltem Netzwerk);
+            # Get-WslPath nimmt die erste Linux-Zeile und bricht bei Zeitueberschreitung ab.
+            $linuxPath = Get-WslPath $windowsPath
+            if (-not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
+            $linuxPaths += $linuxPath
         }
         Assert-WslKeepalive
         $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
         if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
-        & wsl.exe -d $Distro -u $State.linux_user --exec bash @ttsArgs 2>&1 |
-            ForEach-Object { Info "$_" }
-        if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
+        # Das Installationsskript des TTS-Dienstes laedt Pakete nach und braucht daher ein eigenes Limit.
+        $ttsRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments (@('-d', $Distro, '-u', $State.linux_user, '--exec', 'bash') + $ttsArgs) -TimeoutSeconds 1800 -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+        foreach ($stream in @($ttsRun.StdOut, $ttsRun.StdErr)) {
+            if ($stream) { @("$stream" -split "`r?`n") | Where-Object { $_ -ne '' } | ForEach-Object { Info "$_" } }
+        }
+        if ($ttsRun.TimedOut) { Stop-Install 'Der lokale TTS-Dienst wurde nicht innerhalb von 30 Minuten installiert.' }
+        if ($ttsRun.Cancelled) { Stop-Install 'Installation abgebrochen.' }
+        if ($ttsRun.ExitCode -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
         # Kaltstart inkl. Modellpruefung und CUDA-Graphs braucht bis ~150 s, mit Download deutlich mehr.
         Info 'Lade die Stimme (Modell wird in den Grafikspeicher geladen, kann einige Minuten dauern) …'
         if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 900)) {
@@ -1739,7 +2084,7 @@ if (-not (IsDone 'voicepython')) {
         Ok "Lokaler TTS-Dienst bereit (Port $ttsPort)."
     } else {
         # Beim Stimmenwechsel auf Piper/Legacy bleibt sonst das alte GPU-Modell geladen.
-        & wsl.exe -d $Distro -u $State.linux_user --exec systemctl --user stop friday-tts.service 2>$null | Out-Null
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '-u', $State.linux_user, '--exec', 'systemctl', '--user', 'stop', 'friday-tts.service') -TimeoutSeconds 120 | Out-Null
     }
     Ok 'Sprachmodelle bereit.'
     MarkDone 'voicepython'
@@ -1747,19 +2092,31 @@ if (-not (IsDone 'voicepython')) {
 
 # ================================================================ 13 Stimme einlernen
 if (-not (IsDone 'enroll')) {
+    Enter-Step 'enroll'
     Title "Schritt 13/15 – $AN lernt deine Stimme"
     Info "$AN reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):"
     if ($WakeShort) { Info "  • 26x ""$WP"", 18x ""$WakeShort"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen" }
     else { Info "  • 44x ""$WP"", 15 ähnlich klingende Wörter (Teile und Varianten der Phrase), 8 kurze Texte vorlesen" }
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
-    Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.'
+    if ($GuiMode) { Info 'Der Assistent führt jetzt durch jede Aufnahme: Signal abwarten, sprechen, auf Wunsch anhören oder abbrechen.' }
+    else { Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.' }
     if (-not $GuiMode) { Read-Host '  Enter, wenn du bereit bist' }
+    # Vor einer erneuten Aufnahme das vorhandene Stimmprofil sichern: sonst ueberschreibt ein
+    # abgebrochener Durchlauf WAVs und Embedding ohne Rueckweg.
+    $profileBackup = Backup-VoiceProfile -Root $Root -Label 'vor-enrollment'
+    if ($profileBackup) { Info "Vorhandenes Stimmprofil gesichert: $profileBackup" }
     $vpy = "$Root\voice\.venv\Scripts\python.exe"
     $raw = "$Root\voice\profiles\owner\raw"
     while ($true) {
+        New-Item -ItemType Directory -Force "$Root\run" | Out-Null
+        # Jede Aufnahme fordert im Assistenten eine Aktion an; eine liegen gebliebene Anfrage wuerde sofort blockieren.
+        Clear-GuiInteraction $Root
         if ($GuiMode) {
-            & $vpy "$Root\voice\enroll_record.py" --name $AN --phrase $WP --gui 2>&1 | ForEach-Object { Info "$_" }
-            if ($LASTEXITCODE -ne 0) { Stop-Install 'Stimmaufnahme wurde abgebrochen oder ist fehlgeschlagen. Prüfe Mikrofon und Meldungen, dann den grafischen Assistenten erneut starten.' }
+            $interactionFile = "$Root\run\gui-interaction.json"
+            & $vpy "$Root\voice\enroll_record.py" --name $AN --phrase $WP --gui --interaction-file $interactionFile 2>&1 | ForEach-Object { Info "$_" }
+            $enrollExit = $LASTEXITCODE
+            Clear-GuiInteraction $Root
+            if ($enrollExit -ne 0) { Stop-Install 'Stimmaufnahme wurde abgebrochen oder ist fehlgeschlagen. Prüfe Mikrofon und Meldungen, dann den grafischen Assistenten erneut starten.' }
         } else {
             Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`" --phrase `"$WP`"" -WorkingDirectory "$Root\voice" -Wait
         }
@@ -1796,6 +2153,7 @@ if (-not (IsDone 'enroll')) {
 
 # ================================================================ 14 Sprachdienst + Abschluss
 if (-not (IsDone 'voiceservice')) {
+    Enter-Step 'voiceservice'
     Title "Schritt 14/15 – $AN starten"
     Register-UserTask 'FRIDAY_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-friday-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
     # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst Neustartschleife und Python beenden:
@@ -1803,13 +2161,18 @@ if (-not (IsDone 'voiceservice')) {
     Stop-VoiceService
     Start-ScheduledTask -TaskName 'FRIDAY_Voice'
     Info 'Lade die Sprachmodelle (bis zu 3 Minuten) …'
+    # Wie beim Modellstart: die Ladezeit des Sprachdienstes als eigenes Ereignis, nicht als stille Schrittzeit.
+    Write-GuiEvent 'warmup' @{ state = 'start'; service = 'voice' }
+    $voiceWarmupStart = Get-Date
     $ok = $false
     foreach ($i in 1..90) {
+        Confirm-NotCancelled
         try { if ((Invoke-RestMethod "http://127.0.0.1:$($Ports.Voice)" -TimeoutSec 2).state -eq 'listening') { $ok = $true; break } } catch {}
         Start-Sleep 2
     }
     if (-not $ok) { Stop-Install "Sprachdienst startet nicht ($Root\logs\voice-service.log)." }
     Ok "$AN antwortet auf dem Sprachport (state=listening)."
+    Write-GuiEvent 'warmup' @{ state = 'done'; service = 'voice'; seconds = [math]::Round(((Get-Date) - $voiceWarmupStart).TotalSeconds, 1) }
     if ($State.voice_mode -eq 'elevenlabs') {
         Info 'Cloud-Stimme wird erst beim ersten Sprachkommando verwendet; kein kostenpflichtiger Installations-Testaufruf.'
     } else {
@@ -1948,42 +2311,14 @@ function Ensure-FFmpeg {
     return $true
 }
 function Get-SourceHash([string]$src) {
-    # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen Konfigurationsdateien).
-    $files = New-Object System.Collections.Generic.List[string]
-    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { $files.Add("$src\$f") } }
-    $stack = New-Object System.Collections.Generic.Stack[string]
-    foreach ($d in ($DashSyncDirs + 'config')) { if (Test-Path "$src\$d") { $stack.Push("$src\$d") } }
-    while ($stack.Count -gt 0) {
-        $cur = $stack.Pop()
-        $di = New-Object IO.DirectoryInfo $cur
-        foreach ($sub in $di.GetDirectories()) { if ($DashExcludeDirs -notcontains $sub.Name) { $stack.Push($sub.FullName) } }
-        foreach ($fi in $di.GetFiles()) { $files.Add($fi.FullName) }
-    }
-    $files.Sort([StringComparer]::Ordinal)
-    $sb = New-Object Text.StringBuilder
-    foreach ($f in $files) {
-        $rel = $f.Substring($src.Length).TrimStart('\')
-        if ($rel -in 'config\dashboard.yaml', 'config\adapters.yaml') { continue }
-        [void]$sb.Append($rel).Append(':').Append((Get-FileHash $f -Algorithm SHA256).Hash).Append("`n")
-    }
-    $sha = [Security.Cryptography.SHA256]::Create()
-    return (-join ($sha.ComputeHash((New-Object Text.UTF8Encoding $false).GetBytes($sb.ToString())) | ForEach-Object { $_.ToString('x2') }))
+    # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen
+    # Konfigurationsdateien des Benutzers). Die Dateiliste liegt in lib\dashboard-sync.ps1.
+    return (Get-DashboardSourceHash -Source $src -RootFiles $DashRootFiles -Dirs ($DashSyncDirs + 'config') `
+        -ExcludeDirs $DashExcludeDirs -PreserveFiles @('config\dashboard.yaml', 'config\adapters.yaml'))
 }
 function Sync-DashSource([string]$src) {
-    New-Item -ItemType Directory -Force $Dash | Out-Null
-    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { Copy-Item "$src\$f" "$Dash\$f" -Force } }
-    foreach ($d in $DashSyncDirs) {
-        if (-not (Test-Path "$src\$d")) { continue }
-        # /MIR spiegelt (entfernt Veraltetes); ausgeschlossene Ordner (node_modules, dist, out, ...) bleiben im Ziel unberuehrt.
-        & robocopy.exe "$src\$d" "$Dash\$d" /MIR /XD @DashExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von '$d' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
-    }
-    if (Test-Path "$src\config") {
-        # Ohne /MIR und ohne dashboard.yaml/adapters.yaml: lokale Konfiguration des Benutzers bleibt erhalten.
-        & robocopy.exe "$src\config" "$Dash\config" /E /XF dashboard.yaml adapters.yaml /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von 'config' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
-    }
-    foreach ($d in 'config', 'data', 'backups') { New-Item -ItemType Directory -Force "$Dash\$d" | Out-Null }
+    Sync-DashboardSource -Source $src -Target $Dash -RootFiles $DashRootFiles -Dirs $DashSyncDirs `
+        -ExcludeDirs $DashExcludeDirs -PreserveFiles @('config\dashboard.yaml', 'config\adapters.yaml') | Out-Null
     New-Item -ItemType Directory -Force "$Root\logs\dashboard" | Out-Null
 }
 function Invoke-Pnpm([string[]]$pnpmArgs) {
@@ -2113,11 +2448,11 @@ function Write-DashboardConfig {
         if ($new -ne $old) { [IO.File]::WriteAllText("$cfg\dashboard.yaml", $new, (New-Object Text.UTF8Encoding $false)); Info "Anzeigename in dashboard.yaml auf '$AN' gesetzt." }
     }
     $dashboardYaml = @"
-# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
 # Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
 # Geaendert wird nach einem Neustart der Aufgabe FRIDAY_Dashboard wirksam.
 
-dataMode: hybrid # mock | hybrid | live - hybrid: in adapters.yaml genannte Kategorien live, der Rest mock
+dataMode: live # mock | hybrid | live - live: nur eingerichtete Kategorien, keine Simulation; mock/hybrid nur fuer Entwicklung
 
 server:
   host: 127.0.0.1 # nur Loopback
@@ -2151,6 +2486,9 @@ ui:
   assistantName: "$AN" # Anzeigename; settings.profile.assistantName (in der Oberflaeche geaendert) hat Vorrang
   theme: friday-command-midnight
   layout: friday-command-overview
+  # Creator Studio gehoert zum Standardpaket: Menueeintrag und API sind ohne Zusatzschritt da.
+  # Abschalten: contentStudio: false (oder in der Oberflaeche unter Einstellungen).
+  contentStudio: true
 
 dev:
   scenarioConsole: false
@@ -2165,10 +2503,11 @@ logging:
     maxFiles: 5
 "@
     $adaptersYaml = @"
-# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
 # Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
-# Alle anderen Kategorien (memory, approvals, communication, calendar, automations, research, files, notifications,
-# audit, commands) bleiben im Hybrid-Modus mock-* und sind in der Oberflaeche als Simulation erkennbar.
+# Nicht eingerichtete Kategorien (memory, approvals, communication, calendar, automations, research, files,
+# notifications, audit, commands) bleiben deaktiviert und werden in der Oberflaeche als nicht eingerichtet gezeigt -
+# es gibt keinen Mock-Fallback. Eine Kategorie wird erst aktiv, wenn hier ein Provider eingetragen ist.
 # Ports werden aus dem gespeicherten Installationszustand uebernommen.
 # Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
 
@@ -2176,6 +2515,7 @@ allowlist:
   hermes-tasks: "@friday/adapter-hermes"
   hermes-activity: "@friday/adapter-hermes"
   hermes-agents: "@friday/adapter-hermes"
+  hermes-automations: "@friday/adapter-hermes"
   friday-voice-http: "@friday/adapter-voice-http"
   local-system: "@friday/adapter-system-local"
   caldav-calendar: "@friday/adapter-calendar-placeholder"
@@ -2232,6 +2572,14 @@ adapters:
 "@
     Write-DashFile "$cfg\dashboard.yaml" $dashboardYaml 'dashboard.yaml'
     Write-DashFile "$cfg\adapters.yaml" $adaptersYaml 'adapters.yaml'
+    # An earlier installation keeps its own dashboard.yaml; move it to live so an upgrade does not keep the
+    # simulation. The migration writes a backup next to the file and logs the previous mode.
+    $modeResult = Set-ProductionDataMode -DashboardYaml "$cfg\dashboard.yaml" -BackupDir "$Root\backups"
+    if ($modeResult.Changed) {
+        Warn "dashboard.yaml stand auf dataMode: $($modeResult.From). Auf live umgestellt (Simulation deaktiviert); Sicherung: $($modeResult.Backup). Wirksam nach Neustart der Aufgabe FRIDAY_Dashboard."
+    } elseif ($modeResult.Reason -eq 'unknown-mode') {
+        Warn "dashboard.yaml enthaelt den unbekannten dataMode '$($modeResult.From)'. Bitte auf live setzen; der Dienst startet sonst nicht."
+    }
     # Existing installations keep their adapter choices. Only add the dormant ICS provider to the allowlist.
     if ($UpdateDashboard -and (Test-Path -LiteralPath "$cfg\adapters.yaml")) {
         $adapterPath = "$cfg\adapters.yaml"
@@ -2259,24 +2607,27 @@ function Set-DashboardOwnerPassword {
     Info "Öffne nach dem Start $DashUrl. Dort legst du Name, Benutzername und Passwort beim ersten Login selbst fest."
 }
 function Backup-CustomDashboard {
-    $backup = "$Root\backups\dashboard-update-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    # Vor dem Update: Build, Konfiguration UND Datenbank sichern; das Manifest macht die Wiederherstellung
+    # pruefbar (Groesse und Pruefsumme je Datei).
+    $entries = @(
+        @{ Source = "$Dash\config\dashboard.yaml"; Relative = 'config\dashboard.yaml' },
+        @{ Source = "$Dash\config\adapters.yaml"; Relative = 'config\adapters.yaml' },
+        @{ Source = $DashHashFile; Relative = 'config\dashboard_owner.hash' },
+        @{ Source = $StateFile; Relative = 'config\install-state.json' },
+        @{ Source = "$Dash\apps\control-api\dist"; Relative = 'apps\control-api\dist' },
+        @{ Source = "$Dash\apps\web\out"; Relative = 'apps\web\out' },
+        @{ Source = "$Dash\data\dashboard.sqlite"; Relative = 'data\dashboard.sqlite' },
+        @{ Source = "$Dash\data\dashboard.sqlite-wal"; Relative = 'data\dashboard.sqlite-wal' },
+        @{ Source = "$Dash\data\dashboard.sqlite-shm"; Relative = 'data\dashboard.sqlite-shm' },
+        @{ Source = "$Dash\data\dashboard-revision.json"; Relative = 'data\dashboard-revision.json' },
+        @{ Source = "$Dash\data\audit-head.json"; Relative = 'data\audit-head.json' }
+    )
     try {
-        New-Item -ItemType Directory -Path $backup -ErrorAction Stop | Out-Null
-        foreach ($entry in @(
-            @{ Source = "$Dash\config\dashboard.yaml"; Relative = 'config\dashboard.yaml' },
-            @{ Source = "$Dash\config\adapters.yaml"; Relative = 'config\adapters.yaml' },
-            @{ Source = $DashHashFile; Relative = 'config\dashboard_owner.hash' },
-            @{ Source = $StateFile; Relative = 'config\install-state.json' },
-            @{ Source = "$Dash\apps\control-api\dist"; Relative = 'apps\control-api\dist' },
-            @{ Source = "$Dash\apps\web\out"; Relative = 'apps\web\out' }
-        )) {
-            if (-not (Test-Path -LiteralPath $entry.Source)) { continue }
-            $target = Join-Path $backup $entry.Relative
-            New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force -ErrorAction Stop | Out-Null
-            Copy-Item -LiteralPath $entry.Source -Destination $target -Recurse -Force -ErrorAction Stop
-        }
-    } catch { Stop-Dashboard "Dashboard-Sicherung vor dem Update fehlgeschlagen: $($_.Exception.Message)" }
-    Ok "Vorheriger Dashboard-Build und Konfiguration gesichert: $backup"
+        $backup = Backup-DashboardState -BackupRoot "$Root\backups" -Entries $entries -Reason 'Dashboard-Update'
+    } catch {
+        Stop-Dashboard "Dashboard-Sicherung vor dem Update fehlgeschlagen: $($_.Exception.Message)"
+    }
+    Ok "Vorheriger Dashboard-Build, Konfiguration und Datenbank gesichert: $backup"
 }
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
@@ -2369,6 +2720,7 @@ function Install-Dashboard {
 
 Set-DashPort
 if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
+    Enter-Step 'dashboard'
     Title 'Schritt 15/15 – F.R.I.D.A.Y. Command Center (Dashboard) einrichten'
     try { Install-Dashboard }
     catch {
@@ -2557,6 +2909,9 @@ Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
+$finalCode = if ($GuiMode -and -not $DashProbe.Up) { 1 } else { 0 }
+Write-GuiRunDone $finalCode 'ok'
+Exit-InstallerLock $InstallerLock
 Stop-Transcript | Out-Null
 if (-not $GuiMode) { Read-Host '  Enter zum Schließen' }
 if ($GuiMode -and -not $DashProbe.Up) { exit 1 }

@@ -30,6 +30,8 @@ export function ProductionWorkspace({ ideas, revision }: { ideas: ContentIdea[];
   const [message, setMessage] = useState("");
   const idea = eligible.find((item) => item.id === ideaId);
   const fingerprint = JSON.stringify({ idea, voiceId: voiceId.trim(), revision });
+  const ideaSelectBlocked = eligible.length === 0 ? "Keine Content-Idee in einem unterstützten Format vorhanden." : undefined;
+  const checkBlocked = busy ? "Läuft gerade …" : !idea ? "Zuerst eine Content-Idee wählen." : undefined;
   const activeJobId = job?.id;
   const activeJobState = job?.state;
 
@@ -121,10 +123,10 @@ export function ProductionWorkspace({ ideas, revision }: { ideas: ContentIdea[];
   return <HudPanel title="Automatische Produktion">
     <div className="cs-form">
       <p className="cs-span">Wähle eine Idee. Nach einer einzigen auftragsbezogenen Freigabe erstellt F.R.I.D.A.Y. die Medien, die Stimme und den Schnitt selbst.</p>
-      <label>Content-Idee<select value={ideaId} onChange={(event) => { setIdeaId(event.target.value); setPreview(""); }} disabled={eligible.length === 0}>{eligible.length === 0 && <option value="">Noch keine unterstützte Idee</option>}{eligible.map((item) => <option key={item.id} value={item.id}>{item.titel} · {item.format}</option>)}</select></label>
+      <label>Content-Idee<select value={ideaId} onChange={(event) => { setIdeaId(event.target.value); setPreview(""); }} disabled={ideaSelectBlocked !== undefined} title={ideaSelectBlocked}>{eligible.length === 0 && <option value="">Noch keine unterstützte Idee</option>}{eligible.map((item) => <option key={item.id} value={item.id}>{item.titel} · {item.format}</option>)}</select></label>
       <label>ElevenLabs Voice-ID (optional)<input value={voiceId} maxLength={128} onChange={(event) => { setVoiceId(event.target.value); localStorage.setItem(voiceKey, event.target.value); setPreview(""); }} placeholder="Automatische weibliche Stimme" /></label>
       {idea && <p className="cs-span">Format: {idea.format}. Inhalt: {idea.beschreibung || idea.titel}</p>}
-      <Button type="button" disabled={!idea || busy} onClick={() => setPreview(fingerprint)}>Auftrag prüfen</Button>
+      <Button type="button" disabled={checkBlocked !== undefined} title={checkBlocked} onClick={() => setPreview(fingerprint)}>Auftrag prüfen</Button>
       {preview === fingerprint && idea && <div className="cs-span cs-notice" role="status"><p>F.R.I.D.A.Y. erzeugt „{idea.titel}“ mit kie.ai und ElevenLabs und schneidet die MP4 lokal. Stimme: {voiceId.trim() || "automatisch ausgewählte weibliche Stimme"}. Die Anbieteraufrufe können Kosten verursachen. Planrevision: {revision}.</p><Button type="button" disabled={busy} onClick={start}>Diesen Produktionsauftrag starten</Button><Button type="button" variant="ghost" onClick={() => setPreview("")}>Abbrechen</Button></div>}
       {pendingAvailable && <Button type="button" variant="ghost" disabled={busy} onClick={recover}>Unklaren Auftrag sicher wiederfinden</Button>}
       {job && <div className="cs-span cs-notice" role="status"><p>Auftrag {job.id}: {stateLabels[job.state]}</p>{job.errorCode && <p>Fehlercode: {job.errorCode}</p>}{!terminal.has(job.state) && <Button type="button" variant="ghost" disabled={busy} onClick={() => void cancel()}>Laufenden Auftrag abbrechen</Button>}{job.artifactReady && <Button type="button" disabled={busy} onClick={() => void download()}>Fertiges MP4 herunterladen</Button>}</div>}

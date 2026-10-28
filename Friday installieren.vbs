@@ -7,11 +7,18 @@ If Not fs.FileExists(gui) Then
     WScript.Quit 1
 End If
 extra = ""
-If WScript.Arguments.Count = 2 Then
-    If WScript.Arguments(0) = "-Simulation" Then
-        If WScript.Arguments(1) = "success" Or WScript.Arguments(1) = "failure" Or WScript.Arguments(1) = "restart" Then
-            extra = " -Simulation " & WScript.Arguments(1)
+i = 0
+Do While i < WScript.Arguments.Count
+    name = WScript.Arguments(i)
+    If (name = "-ResumeRoot" Or name = "-Simulation") And i + 1 < WScript.Arguments.Count Then
+        value = WScript.Arguments(i + 1)
+        If name = "-ResumeRoot" Then
+            extra = extra & " -ResumeRoot " & Chr(34) & value & Chr(34)
+        Else
+            extra = extra & " -Simulation " & value
         End If
+        i = i + 1
     End If
-End If
-shell.Run "powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & gui & """" & extra, 0, False
+    i = i + 1
+Loop
+shell.Run "powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Chr(34) & gui & Chr(34) & extra, 0, False

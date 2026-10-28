@@ -51,7 +51,8 @@ const invokeMailRunner: RunnerInvoker = (script, distro, user, args, input, time
 export class MailAccountsService {
   constructor(private readonly dataDir: string, private readonly invoke: RunnerInvoker = invokeMailRunner) {}
 
-  private target(): { script: string; distro: string; user: string } {
+  // Protected so tests can pin the WSL target: the real resolution needs a Windows install path.
+  protected target(): { script: string; distro: string; user: string } {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
     if (!existsSync(join(root, "config", "install-state.json"))) throw unavailable();
@@ -77,11 +78,24 @@ export class MailAccountsService {
       if (message.includes("oauthRefreshToken_missing")) throw validationFailed("OAuth-Autorisierung fehlt. Konto verbinden.");
       if (message.includes("oauth_refresh_failed")) throw validationFailed("OAuth-Token konnte nicht erneuert werden. Konto erneut verbinden.");
       if (message.includes("oauth_scope_missing")) throw validationFailed("OAuth-Berechtigung für IMAP und SMTP fehlt. Konto erneut verbinden.");
+      if (message.includes("invalid_sender")) throw validationFailed("Der Absender gehört nicht zu diesem Konto.",
+        [{ path: "from", message: "Konto-Adresse oder einen hinterlegten Alias wählen" }]);
+      if (message.includes("invalid_recipients")) throw validationFailed("Empfängeradresse fehlt oder ist ungültig.",
+        [{ path: "to", message: "Mindestens einen gültigen Empfänger angeben" }]);
+      if (message.includes("invalid_")) throw validationFailed("Die Verbindungsdaten sind unvollständig oder ungültig.",
+        [{ path: "account", message: "Host, Port, Verschlüsselung und Anmeldung prüfen" }]);
       throw unavailable();
     }
     if (result.error) {
       if (result.error === "revision_conflict") throw conflict("Das Mail Postfach wurde inzwischen geändert. Bitte neu laden.");
       if (result.error === "uidvalidity_conflict") throw conflict("Der Ordner wurde neu aufgebaut. Bitte Nachrichten neu laden.");
+      if (result.error === "oauthRefreshToken_missing") throw validationFailed("OAuth-Autorisierung fehlt. Konto verbinden.");
+      if (result.error === "oauth_refresh_failed") throw validationFailed("OAuth-Token konnte nicht erneuert werden. Konto erneut verbinden.");
+      if (result.error === "oauth_scope_missing") throw validationFailed("OAuth-Berechtigung für IMAP und SMTP fehlt. Konto erneut verbinden.");
+      if (result.error === "invalid_sender") throw validationFailed("Der Absender gehört nicht zu diesem Konto.",
+        [{ path: "from", message: "Konto-Adresse oder einen hinterlegten Alias wählen" }]);
+      if (result.error === "invalid_recipients") throw validationFailed("Empfängeradresse fehlt oder ist ungültig.",
+        [{ path: "to", message: "Mindestens einen gültigen Empfänger angeben" }]);
       throw unavailable();
     }
     return result as T;
@@ -96,6 +110,11 @@ export class MailAccountsService {
   }
   setDefault(accountId: string, expectedRevision: number) {
     return this.run<{ revision: number; defaultAccountId: string }>({ action: "default", accountId, expectedRevision });
+  }
+  /** Tests an unsaved draft without storing it; the bridge decides once and returns a stable reason. */
+  checkCandidate(account: MailAccountInput, protocol: "imap" | "smtp", password: string) {
+    return this.run<{ ok: boolean; reason: "ok" | "auth" | "tls" | "network" | "protocol" }>(
+      { action: "check-candidate", protocol, account, secrets: { password } });
   }
   check(accountId: string, protocol: "imap" | "smtp") {
     return this.run<{ ok: boolean; folders?: Array<{ id: string; name: string; role: string | null }> }>({ action: `check-${protocol}`, accountId });

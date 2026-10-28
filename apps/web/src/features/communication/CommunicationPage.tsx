@@ -13,6 +13,7 @@ import { useDebounced, useUrlParam } from "../memory/kit/hooks";
 import { QueryBoundary } from "../memory/kit/QueryBoundary";
 import { effectiveFreshness, usePanelState } from "../memory/kit/panelState";
 import { ChannelRail } from "./ChannelRail";
+import { channelGroup, partitionChannels } from "./channelList";
 import { ComposeDialog } from "./ComposeDialog";
 import { THREAD_STATUSES, threadStatusKey, type ThreadStatus } from "./labels";
 import { ThreadDetail } from "./ThreadDetail";
@@ -61,6 +62,9 @@ function CommunicationPageInner() {
   const threads = useThreads(filters);
 
   const channelItems = useMemo<Channel[]>(() => channels.data?.items ?? [], [channels.data]);
+  // Die Kommunikationsnavigation zeigt genau die Standardkanalliste; SMS und weitere Kanaele bleiben in den Daten.
+  const partition = useMemo(() => partitionChannels(channelItems), [channelItems]);
+  const visibleChannels = partition.visible;
   const channelById = useMemo(() => new Map(channelItems.map((channel) => [channel.id, channel])), [channelItems]);
   const totalUnread = channelItems.reduce((sum, channel) => sum + channel.unreadCount, 0);
   const selectedChannel = channelId ? channelById.get(channelId) : undefined;
@@ -142,11 +146,11 @@ function CommunicationPageInner() {
         </div>
       </HudPanel>
 
-      <HimalayaMailbox />
-      <MessengerCompose />
+      {channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
+      {channelGroup(selectedChannel?.kind) === "messenger" ? <MessengerCompose /> : null}
 
       <div className={`com-layout${wide && !fullOutage ? " com-layout--wide" : ""}`}>
-        {fullOutage ? null : <ChannelRail channels={channelItems} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}
+        {fullOutage ? null : <ChannelRail channels={visibleChannels} hiddenCount={partition.hidden.length} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}
         <PanelFrame title={t("communication.threads.title")} state={threadState} skeletonRows={6} className="com-threads-panel">
           <ul className="mk-list com-threads" aria-label={t("communication.threads.title")}>
             {threadItems.map((thread) => (
@@ -173,7 +177,7 @@ function CommunicationPageInner() {
           {detailBody}
         </Drawer>
       ) : null}
-      <ComposeDialog open={composing} onOpenChange={setComposing} channels={channelItems} channelId={channelId ?? undefined} />
+      <ComposeDialog open={composing} onOpenChange={setComposing} channels={visibleChannels} channelId={channelId ?? undefined} />
     </div>
   );
 }

@@ -462,7 +462,9 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     const statusId = statusPreview.json().previewId as string;
     expect(statusPreview.json().previewText).toContain("gepostet");
     expect((await command(owner, statusText, { confirm: true, previewId: statusId })).statusCode).toBe(200);
-    expect(api.runtime.contentStudioPlan.get().plan?.postings.find((entry) => entry.id === posting?.id)?.status).toBe("gepostet");
+    const marked = api.runtime.contentStudioPlan.get().plan?.postings.find((entry) => entry.id === posting?.id);
+    expect(marked?.status).toBe("gepostet");
+    expect(marked?.veroeffentlichung).toMatchObject({ art: "manuell", quelle: "manuell" });
   });
 
   it("removes an idea and a posting only after their exact preview is confirmed", async () => {

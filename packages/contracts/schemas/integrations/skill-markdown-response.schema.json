@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/skill-markdown-response.schema.json",
+  "title": "SkillMarkdownResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../integrations/skill-markdown.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "data",
+    "freshness"
+  ],
+  "additionalProperties": false
+}

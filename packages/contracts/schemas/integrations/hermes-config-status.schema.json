@@ -17,6 +17,7 @@
             "enum": [
               "model.provider",
               "model.default",
+              "model.base_url",
               "agent.reasoning_effort",
               "fallback.min_switch_reset_seconds",
               "fallback_model",

@@ -1,6 +1,7 @@
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { adapterHandlers } from "./adapters";
+import { auditHandlers } from "./audit";
 import { approvalHandlers } from "./approvals";
 import { authHandlers } from "./auth";
 import { commandHandlers } from "./commands";
@@ -39,6 +40,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
   const localReads = localCalendarReads(handlers.get("listCalendarEvents")!, handlers.get("getCalendarEvent")!);
   const localResearchReads = researchReads(handlers);
   const overrides: Array<Partial<Record<OperationId, Handler>>> = [
+    auditHandlers,
     metaHandlers,
     authHandlers,
     settingsHandlers,

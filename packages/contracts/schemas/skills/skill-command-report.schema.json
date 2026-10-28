@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/skill-command-report.schema.json",
+  "title": "SkillCommandReport",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": [
+        "browse",
+        "check",
+        "tap-list"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "observedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "command",
+    "name",
+    "text",
+    "bytes",
+    "truncated",
+    "observedAt"
+  ],
+  "additionalProperties": false
+}

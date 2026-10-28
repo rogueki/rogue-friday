@@ -116,6 +116,15 @@ export function ContentStudioPage() {
   };
   const updatePlan = (change: (current: StudioPlan) => StudioPlan): void => { void persist(change(plan)); };
 
+  // "gepostet" is a note by the operator, because no publisher is connected; the origin travels with the posting so
+  // the API can reject a claim that has none.
+  const setPostingStatus = (id: string, status: Posting["status"]): void =>
+    updatePlan((current) => ({ ...current, postings: current.postings.map((entry) => entry.id === id
+      ? { ...entry, status, veroeffentlichung: status === "gepostet"
+        ? entry.veroeffentlichung ?? { art: "manuell", am: new Date().toISOString(), quelle: "manuell" }
+        : null }
+      : entry) }));
+
   if (isLoading || !settings) return <div className="cs-page" role="status">Content Studio wird geladen …</div>;
   if (settings.dashboard.contentStudioEnabled !== true) return <div className="cs-page"><h1>Content Studio</h1><p>Das Modul ist deaktiviert. Aktiviere es unter Einstellungen → Dashboard.</p></div>;
   if (loadError) return <div className="cs-page"><h1>Content Studio</h1><p className="cs-notice" role="alert">{notice}</p><Button type="button" onClick={() => window.location.reload()}>Erneut laden</Button></div>;
@@ -169,9 +178,9 @@ export function ContentStudioPage() {
     <section aria-label="Automatische Content-Produktion"><ProductionWorkspace ideas={plan.content} revision={revision} /></section>
     <section id="cs-postings" className="cs-posting-section" aria-label="Posting-Planer">
       <HudPanel title="Post einplanen"><form className="cs-form" onSubmit={addManualPosting}><label className="cs-span">Titel / Notiz<input required maxLength={200} value={postingTitle} onChange={(event) => setPostingTitle(event.target.value)} /></label><label>Datum<input required type="date" value={postingDate} onChange={(event) => setPostingDate(event.target.value)} /></label><label>Uhrzeit<input required type="time" value={postingTime} onChange={(event) => setPostingTime(event.target.value)} /></label><label>Plattform<select value={postingPlatform} onChange={(event) => setPostingPlatform(event.target.value as Platform)}>{platforms.map((name) => <option key={name}>{name}</option>)}</select></label><label>Format<select value={postingFormat} onChange={(event) => setPostingFormat(event.target.value as ContentFormat)}>{formats.map((name) => <option key={name}>{name}</option>)}</select></label><Button type="submit" disabled={saving}>Post einplanen</Button></form></HudPanel>
-      <PostingCalendar postings={plan.postings} disabled={saving} onStatus={(id, status) => updatePlan((current) => ({ ...current, postings: current.postings.map((entry) => entry.id === id ? { ...entry, status } : entry) }))} />
+      <PostingCalendar postings={plan.postings} disabled={saving} onStatus={setPostingStatus} />
     </section>
-      <HudPanel title={`Postingplan · ${plan.postings.length}`}><div className="cs-list">{plan.postings.length === 0 ? <p>Noch keine Postings geplant.</p> : [...plan.postings].sort((a, b) => `${a.datum}${a.uhrzeit}`.localeCompare(`${b.datum}${b.uhrzeit}`)).map((post) => <article key={post.id} className="cs-card"><div><strong>{post.titel}</strong><p>{post.datum} · {post.uhrzeit} · {postingTargets(post).join(" + ")} · {post.format}</p></div><div className="cs-card-actions"><label>Status<select value={post.status} onChange={(event) => updatePlan((current) => ({ ...current, postings: current.postings.map((entry) => entry.id === post.id ? { ...entry, status: event.target.value as Posting["status"] } : entry) }))}><option value="geplant">Geplant</option><option value="gepostet">Gepostet</option><option value="verpasst">Verpasst</option></select></label><Button type="button" variant="ghost" onClick={() => updatePlan((current) => ({ ...current, postings: current.postings.filter((entry) => entry.id !== post.id) }))}>Entfernen</Button></div></article>)}</div></HudPanel>
+      <HudPanel title={`Postingplan · ${plan.postings.length}`}><div className="cs-list">{plan.postings.length === 0 ? <p>Noch keine Postings geplant.</p> : [...plan.postings].sort((a, b) => `${a.datum}${a.uhrzeit}`.localeCompare(`${b.datum}${b.uhrzeit}`)).map((post) => <article key={post.id} className="cs-card"><div><strong>{post.titel}</strong><p>{post.datum} · {post.uhrzeit} · {postingTargets(post).join(" + ")} · {post.format}</p></div><div className="cs-card-actions"><label>Status<select value={post.status} onChange={(event) => setPostingStatus(post.id, event.target.value as Posting["status"])}><option value="geplant">Geplant</option><option value="gepostet">Manuell markiert</option><option value="verpasst">Verpasst</option></select></label><Button type="button" variant="ghost" onClick={() => updatePlan((current) => ({ ...current, postings: current.postings.filter((entry) => entry.id !== post.id) }))}>Entfernen</Button></div></article>)}</div></HudPanel>
     <div id="cs-media"><MediaWorkshop /></div>
     <div id="cs-publishing"><SocialPublishingOnboarding /></div>
     <p className="cs-footnote">Der Plan liegt auf diesem F.R.I.D.A.Y.-Server (Revision {revision}). Export und Import verwenden plan.json. Hier wird nichts automatisch veröffentlicht.</p>

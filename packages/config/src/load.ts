@@ -73,6 +73,13 @@ export function loadConfig(options: LoadConfigOptions = {}): FridayConfig {
   }
 
   const dataMode = dashboard.dataMode as DataMode;
+  // mock/hybrid are development modes: in a production run every category without a real provider is simulated,
+  // which must never pass as live data.
+  if (dataMode !== 'live' && env.NODE_ENV === 'production') {
+    warnings.push(
+      `dataMode "${dataMode}" in a production run: categories without a real provider are simulated. Set dataMode: live in ${DASHBOARD_FILE}.`,
+    );
+  }
   const server = dashboard.server as FridayConfig['server'];
   const authSection = dashboard.auth as Tree;
 

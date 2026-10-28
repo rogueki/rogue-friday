@@ -84,3 +84,73 @@
 .sk-powerpoint input, .sk-powerpoint textarea { width: 100%; }
 .sk-powerpoint__slide { display: grid; gap: .7rem; padding: .8rem; border: 1px solid var(--border, #405064); border-radius: .6rem; }
 .sk-powerpoint__actions { display: flex; gap: .6rem; flex-wrap: wrap; }
+
+/* Master-Detail der Skillkonten: links die Skills, rechts nur die Konten des gewaehlten Skills. */
+.sk-workbench { display: grid; gap: 16px; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); align-items: start; }
+.sk-workbench__master { display: grid; gap: 6px; }
+.sk-workbench__master label { font-size: .85rem; color: var(--friday-muted); }
+.sk-workbench__master input, .sk-workbench__master select { padding: 8px; border: 1px solid var(--jv-line-soft); border-radius: 8px; }
+.sk-workbench__list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; max-height: 420px; overflow: auto; }
+.sk-workbench__entry { display: grid; gap: 2px; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--jv-line-soft); border-radius: 8px; background: transparent; cursor: pointer; }
+.sk-workbench__entry:hover { border-color: var(--friday-cyan); }
+.sk-workbench__entry.is-selected { border-color: var(--friday-cyan); background: var(--friday-tint-cyan-soft, rgba(0, 200, 255, .08)); }
+.sk-workbench__name { font-weight: 600; }
+.sk-workbench__meta { font-size: .8rem; color: var(--friday-muted); }
+.sk-badge { display: inline-block; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--jv-line-soft); font-size: .72rem; }
+.sk-badge--hermes { border-color: var(--friday-tint-amber-border); }
+.sk-state--fehlt, .sk-state--unvollstaendig { color: var(--friday-danger, #ff6b6b); }
+.sk-state--unbekannt { color: var(--friday-tint-amber-border, #d9a441); }
+.sk-state--bereit { color: var(--friday-ok, #3ddc97); }
+.sk-workbench__detail { padding: 16px; border: 1px solid var(--jv-line-soft); border-radius: 12px; }
+.sk-workbench__detail h3, .sk-workbench__detail h4 { margin: 0 0 6px; }
+.sk-workbench__accounts { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 8px; }
+.sk-workbench__accounts p { margin: 2px 0; }
+@media (max-width: 1023px) { .sk-workbench { grid-template-columns: minmax(0, 1fr); } }
+
+.sk-registry { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--jv-line-soft); background: var(--friday-panel-0); }
+.sk-registry__head h2 { margin: 0; }
+.sk-registry__head p { margin: 4px 0 0; }
+.sk-registry__form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.sk-registry__form label { display: flex; flex-direction: column; gap: 5px; color: var(--friday-muted); font-size: var(--jv-fs-xs); }
+.sk-registry__form input { min-height: 38px; padding: 7px 10px; min-width: min(320px, 70vw); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); color: var(--friday-text-strong); background: var(--friday-panel-0); font: inherit; font-size: var(--jv-fs-sm); }
+.sk-registry__hits { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sk-registry__hits li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-left: 2px solid var(--friday-border-active); }
+.sk-registry__hits p { margin: 0; }
+.sk-registry__hits code { color: var(--friday-muted); font-size: var(--jv-fs-xs); overflow-wrap: anywhere; }
+
+.sk-diff-list > li {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.sk-diff {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+}
+
+.sk-diff__meta {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+
+.sk-diff__text {
+  margin: 0;
+  padding: var(--space-3);
+  max-height: 22rem;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.sk-registry__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

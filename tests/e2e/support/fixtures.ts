@@ -8,6 +8,14 @@ type Settings = Record<string, unknown> & { version: number };
 interface WorkerFixtures {
   api: ApiClient;
   baselineSettings: Settings;
+  /** Adapter configurations of a fresh instance; restored through their own endpoint (see restoreAdapters). */
+  baselineAdapters: BaselineAdapter[];
+}
+
+export interface BaselineAdapter {
+  adapterId: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
 }
 
 interface TestFixtures {
@@ -39,12 +47,21 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     },
     { scope: "worker" },
   ],
+  baselineAdapters: [
+    async ({ api }, use) => {
+      const items = (await api.get("/settings/adapters")).body.items as BaselineAdapter[];
+      await use(items.map(({ adapterId, enabled, config }) => ({ adapterId, enabled, config })));
+    },
+    { scope: "worker" },
+  ],
   cleanWorld: [
-    async ({ api, baselineSettings }, use) => {
+    async ({ api, baselineSettings, baselineAdapters }, use) => {
       await api.reset();
       await restoreSettings(api, baselineSettings);
+      await restoreAdapters(api, baselineAdapters);
       await use();
       await restoreSettings(api, baselineSettings); // leave a clean instance behind, also after a failed test
+      await restoreAdapters(api, baselineAdapters);
     },
     { auto: true },
   ],
@@ -81,11 +98,29 @@ export async function restoreSettings(api: ApiClient, baseline: Settings): Promi
   const patch: Record<string, unknown> = {};
   for (const [area, value] of Object.entries(baseline)) {
     if (area === "version" || area === "updatedAt") continue;
+    // `adapters` mirrors adapters.yaml and is not writable through PATCH /settings (422 additionalProperties);
+    // restoreAdapters writes it back through /settings/adapters/{id}.
+    if (area === "adapters") continue;
     if (JSON.stringify(current[area]) !== JSON.stringify(value)) patch[area] = value;
   }
   if (Object.keys(patch).length === 0) return;
   const result = await api.request("PATCH", "/settings", patch, { "If-Match": String(current.version) });
   if (result.status !== 200) throw new Error(`Settings-Wiederherstellung fehlgeschlagen: ${result.status} ${JSON.stringify(result.body)}`);
+}
+
+/**
+ * Puts every adapter back to the captured configuration. Separate from the settings restore because adapter
+ * configuration has its own endpoint and the settings PATCH refuses an `adapters` area.
+ */
+export async function restoreAdapters(api: ApiClient, baseline: BaselineAdapter[]): Promise<void> {
+  const current = (await api.get("/settings/adapters")).body.items as BaselineAdapter[];
+  for (const target of baseline) {
+    const live = current.find((item) => item.adapterId === target.adapterId);
+    if (!live) continue;
+    if (live.enabled === target.enabled && JSON.stringify(live.config) === JSON.stringify(target.config)) continue;
+    const result = await api.request("PATCH", `/settings/adapters/${target.adapterId}`, { enabled: target.enabled, config: target.config });
+    if (result.status !== 200) throw new Error(`Adapter-Wiederherstellung fehlgeschlagen (${target.adapterId}): ${result.status} ${JSON.stringify(result.body)}`);
+  }
 }
 
 /** Patches settings areas through the API (as the settings page does), against the current version. */

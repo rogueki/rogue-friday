@@ -3,6 +3,7 @@
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import fcntl
 import os
@@ -23,6 +24,7 @@ from hermes_mcp_http_apply import valid_url
 FIELDS = {
     "model.provider": ("provider", None, None),
     "model.default": ("model", None, None),
+    "model.base_url": ("base_url", None, None),
     "agent.reasoning_effort": ("reasoning", None, None),
     "fallback.min_switch_reset_seconds": ("integer", 0, 3600),
     "fallback_model": ("fallback", None, None),
@@ -108,6 +110,31 @@ MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPI
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
 
 
+# The API key is sent to this host, so plaintext is only acceptable for loopback endpoints.
+def valid_base_url(value):
+    if (not isinstance(value, str) or not 1 <= len(value) <= 512 or "?" in value or "#" in value or
+            any(ord(ch) <= 32 or ord(ch) >= 127 for ch in value)):
+        return False
+    try:
+        parsed = urlsplit(value)
+        parsed.port
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host or parsed.username is not None or parsed.password is not None:
+        return False
+    if parsed.scheme == "https":
+        return True
+    if parsed.scheme != "http":
+        return False
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def valid_field_value(key, value, spec):
     kind = spec[0]
     if kind == "integer":
@@ -173,6 +200,8 @@ def valid_field_value(key, value, spec):
     if kind == "skill_names":
         return (type(value) is list and len(value) <= 512 and len(set(value)) == len(value) and
                 all(type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) for name in value))
+    if kind == "base_url":
+        return valid_base_url(value)
     return False
 PINNED_SOURCE = "d923a5eb"
 
@@ -259,11 +288,17 @@ EXCLUDED_SKILL_DIRS = frozenset((".git", ".github", ".hub", ".archive", ".curato
 SKILL_SUPPORT_DIRS = frozenset(("references", "templates", "assets", "scripts"))
 
 
-def installed_skills(roots):
-    """Profile roots, with the same recursive/pruned SKILL.md scan as agent.skill_utils."""
+def installed_skills(roots, report_missing=False):
+    """Profile roots, with the same recursive/pruned SKILL.md scan as agent.skill_utils.
+
+    A configured external dir on an unplugged drive simply is not there. The inventory asks for that to be
+    reported instead of silently dropping every skill behind it; the validation callers do not.
+    """
     result, errors = {}, []
     for root in roots:
         if not root.exists():
+            if report_missing:
+                errors.append("skill_root_missing")
             continue
         if not root.is_dir():
             errors.append("skill_root_unreadable")
@@ -361,9 +396,32 @@ def run_runtime_child(command, request, timeout):
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
+def apply_env_value(home, source, key, value):
+    # Hermes' CLI takes values only in argv; its Python closure reads them from stdin so secrets stay out of ps.
+    env_lock = lock_config(home, ".obsidian-vault.lock")
+    try:
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        probe = Path(__file__).with_name("hermes_model_credential_apply.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
+        try:
+            saved = json.loads(result.stdout).get("saved") is True
+        except (ValueError, TypeError):
+            saved = False
+        if result.returncode or not saved:
+            raise ValueError("credential_readback_failed")
+    finally:
+        fcntl.flock(env_lock, fcntl.LOCK_UN)
+        env_lock.close()
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "approval-test"):
-        return 2
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+        # An empty stdout with exit 2 looked like a broken adapter; the caller could not tell a typo from a crash.
+        print(json.dumps({"error": "invalid_request",
+                          "detail": "unknown action " + (sys.argv[1] if len(sys.argv) > 1 else "<missing>")}))
+        return 5
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
     cli = home.parent / ".local" / "bin" / "hermes"
@@ -371,6 +429,359 @@ def main():
         print(json.dumps({"error": "hermes_not_installed"}))
         return 5
     return locked_main(home, source, cli)
+
+
+SKILL_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+SKILL_MD_LIMIT = 65536
+
+
+def read_skill_markdown(home, source, slug):
+    """Return the installed SKILL.md text for one slug. Text only; rendering is the UI's escaping job."""
+    if type(slug) is not str or SKILL_SLUG.fullmatch(slug) is None:
+        raise ValueError("invalid_skill_id")
+    roots = [home / "skills", source / "skills"]
+    for root in roots:
+        if not root.is_dir():
+            continue
+        candidates = [root / slug / "SKILL.md"]
+        candidates.extend(child / slug / "SKILL.md" for child in root.iterdir() if child.is_dir())
+        for candidate in candidates:
+            if candidate.name != "SKILL.md" or not candidate.is_file() or candidate.is_symlink():
+                continue
+            try:
+                resolved = candidate.resolve()
+                resolved.relative_to(root.resolve())
+            except (OSError, ValueError):
+                continue
+            size = resolved.stat().st_size
+            if size > SKILL_MD_LIMIT:
+                raise ValueError("skill_md_too_large")
+            text = resolved.read_text(encoding="utf-8", errors="strict")
+            if not text.strip():
+                continue
+            return {"id": slug, "content": text, "bytes": size}
+    raise ValueError("skill_md_missing")
+
+
+def parse_auth_list(text):
+    """Parse `hermes auth list` text. Never returns a key: only type and source marker."""
+    providers = []
+    current = None
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        header = re.fullmatch(r"([A-Za-z0-9_.-]+) \((\d+) credentials?\):", line.strip())
+        if header:
+            current = {"provider": header.group(1), "count": int(header.group(2)), "credentials": []}
+            providers.append(current)
+            continue
+        entry = re.fullmatch(r"\s*#(\d+)\s{2,}(.+?)\s{2,}(api[_-]key|oauth(?:_token)?)\s+(\S+?)(\s*←)?\s*", line)
+        if entry and current is not None:
+            label = entry.group(2).strip()
+            kind = entry.group(3).replace("-", "_")
+            source = entry.group(4)
+            if not label or len(label) > 200 or len(source) > 200:
+                raise ValueError("auth_list_format")
+            current["credentials"].append({"index": int(entry.group(1)), "label": label,
+                                           "type": kind, "source": source, "active": bool(entry.group(5))})
+            continue
+        raise ValueError("auth_list_format")
+    if not providers:
+        raise ValueError("auth_list_format")
+    for provider in providers:
+        if provider["count"] != len(provider["credentials"]):
+            raise ValueError("auth_list_format")
+    return {"providers": providers}
+
+
+def read_request():
+    """Decode the JSON request from stdin. A UTF-8 BOM must not turn a valid request into a failure (N-068)."""
+    raw = sys.stdin.buffer.read()
+    if not raw:
+        raise ValueError("invalid_request")
+    try:
+        return json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError("invalid_request")
+
+
+SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+# inspect/audit resolve identities against the registries; a name alone is ambiguous there (N-053).
+SKILL_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$")
+# The table names the registry a skill came from ("builtin", "local", "skills.sh", "clawhub", ...) and the trust
+# the checker assigned ("builtin", "local", "trusted", "community", ...). Both vocabularies grow with every registry,
+# so a bounded token is checked instead of a fixed set; the row layout itself stays strictly parsed.
+SKILL_SOURCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
+SKILL_STATES = {"enabled", "disabled"}
+
+# A cold profile refreshes the skill catalog: 159 skills took 44 s on the operator system, so the old 30 s
+# turned a working inventory into "hermes_unavailable" (N-067). One budget for every list call.
+SKILL_LIST_TIMEOUT = 90
+
+
+def skill_list_timeout():
+    """Operators with a slow profile can raise the budget; nonsense falls back to the default."""
+    try:
+        value = int(os.environ.get("FRIDAY_SKILLS_LIST_TIMEOUT", ""))
+    except ValueError:
+        return SKILL_LIST_TIMEOUT
+    return value if 1 <= value <= 600 else SKILL_LIST_TIMEOUT
+
+
+def parse_skills_list(text):
+    """Parse `hermes skills list` output. Only the documented five-column layout is accepted."""
+    header = ["Name", "Category", "Source", "Trust", "Status"]
+    seen_header = False
+    skills = []
+    names = set()
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        # v0.20.5 draws the header with light borders (U+2502), v0.22.2 with heavy ones (U+2503); both layouts
+        # carry the same five columns, so the parser accepts either and rejects everything else.
+        if not line or line[0] not in ("\u2502", "\u2503"):
+            continue
+        cells = [cell.strip() for cell in re.split("[\u2502\u2503]", line)]
+        if len(cells) != 7 or cells[0] or cells[6]:
+            raise ValueError("skills_list_format")
+        values = cells[1:6]
+        if values == header:
+            if seen_header or skills:
+                raise ValueError("skills_list_format")
+            seen_header = True
+            continue
+        if not seen_header:
+            raise ValueError("skills_list_format")
+        name, category, origin, trust, state = values
+        if SKILL_NAME.fullmatch(name) is None or len(category) > 64 or name in names:
+            raise ValueError("skills_list_format")
+        if SKILL_SOURCE_TOKEN.fullmatch(origin) is None or SKILL_SOURCE_TOKEN.fullmatch(trust) is None or \
+                state not in SKILL_STATES:
+            raise ValueError("skills_list_format")
+        names.add(name)
+        skills.append({"name": name, "category": category, "origin": origin,
+                       "trust": trust, "state": state})
+    if not seen_header:
+        raise ValueError("skills_list_format")
+    return {"count": len(skills), "skills": skills}
+
+
+def parse_hub_search(text, query, source):
+    """Parse `hermes skills search --json`. Only the documented fields are read; extra keys are ignored."""
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        raise ValueError("hub_search_format")
+    if not isinstance(payload, list) or len(payload) > 50:
+        raise ValueError("hub_search_format")
+    results = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("hub_search_format")
+        name = item.get("name")
+        identifier = item.get("identifier")
+        origin = item.get("source")
+        trust = item.get("trust_level")
+        description = item.get("description")
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("hub_search_format")
+        if not isinstance(identifier, str) or not 1 <= len(identifier) <= 300:
+            raise ValueError("hub_search_format")
+        if not isinstance(origin, str) or not 1 <= len(origin) <= 40:
+            raise ValueError("hub_search_format")
+        if not isinstance(trust, str) or not 1 <= len(trust) <= 40:
+            raise ValueError("hub_search_format")
+        if not isinstance(description, str) or len(description) > 2000:
+            raise ValueError("hub_search_format")
+        results.append({"identifier": identifier, "name": name, "source": origin,
+                        "trustLevel": trust, "description": description})
+    return {"query": query, "source": source, "results": results}
+
+
+SKILL_REPORT_LIMIT = 65536
+# A measured run on v0.22.2: `diff` answers locally in well under a second, while `inspect` and `audit`
+# resolve the name against the registries first (37 s here, and a name that also exists upstream comes
+# back as an ambiguity table). The limits keep a hanging network from blocking the bridge forever.
+# A bare name is resolved against the registries first: 90 s was not enough on the operator system (the identifier
+# form answers in 2 s). One budget that a real resolution fits into.
+SKILL_REPORT_TIMEOUTS = {"inspect": 150, "audit": 150, "diff": 60}
+
+
+def parse_skill_report(text, action, name):
+    """The CLI documents no JSON for inspect/audit/diff, so the raw text is passed through unchanged.
+    It is capped instead of parsed: a table that changes shape between versions must never be turned
+    into invented fields."""
+    if not isinstance(text, str):
+        raise ValueError("skill_report_format")
+    body = text.strip("\n")
+    if body.strip() == "":
+        raise ValueError("skill_report_empty")
+    truncated = len(body) > SKILL_REPORT_LIMIT
+    body = body[:SKILL_REPORT_LIMIT]
+    return {"action": action, "name": name, "text": body, "bytes": len(text.encode("utf-8")),
+            "truncated": truncated}
+
+
+SKILL_MUTATIONS = ("install", "update", "uninstall")
+SNAPSHOT_DIR_NAME = "friday-snapshots"
+SKILL_MUTATION_TEXT_LIMIT = 4096
+SKILL_MUTATION_TIMEOUT = 180
+
+
+# tap list resolves its GitHub taps over the network; measured well over the old 30 s, so it gets the same budget
+# as browse. The service uses 35/95/125 s on top of these, so a timeout is reported, never silently shortened.
+SKILL_COMMANDS = {"browse": 90, "check": 120, "tap-list": 90}
+
+
+GOVERNANCE_ACTIONS = {"trust", "untrust", "tap-add", "tap-remove", "reset"}
+GOVERNANCE_TIMEOUT = 90
+
+
+def governance_target(home, request):
+    """Every action touches global state, so the target is checked here: a real directory for trust, a plain
+    owner/repo for a tap. Nothing is passed through unvalidated."""
+    action = request["action"]
+    if action in {"trust", "untrust"}:
+        path = request["path"]
+        if not isinstance(path, str) or not path.startswith("/") or ".." in path.split("/"):
+            raise ValueError("invalid_request")
+        resolved = os.path.realpath(path)
+        if not os.path.isdir(resolved):
+            raise ValueError("invalid_target")
+        # The CLI only loads project skills from these two directories; trusting anything else would be a no-op
+        # that still claims success.
+        if not any(os.path.isdir(os.path.join(resolved, marker, "skills")) for marker in (".hermes", ".agents")):
+            raise ValueError("missing_project_skills")
+        return resolved
+    if action == "tap-add":
+        repo = request["repo"]
+        if not isinstance(repo, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}", repo) is None:
+            raise ValueError("invalid_request")
+        return repo
+    if action == "reset":
+        # `--restore` is deliberately not exposed: it replaces the local copy with the bundled one, which belongs to
+        # the snapshot flow of DASH-10.07, not to a governance toggle.
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        return name
+    repo = request["repo"]
+    if not isinstance(repo, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}", repo) is None:
+        raise ValueError("invalid_request")
+    return repo
+
+
+def governance_argv(cli, action, target):
+    if action in {"trust", "untrust"}:
+        return [str(cli), "skills", action, target]
+    if action == "reset":
+        return [str(cli), "skills", "reset", target]
+    if action == "tap-add":
+        return [str(cli), "skills", "tap", "add", target]
+    return [str(cli), "skills", "tap", "remove", target]
+
+
+def skill_command_argv(cli, command, name, page, size, source):
+    """The three remaining read-only skill commands are text-only and take different arguments."""
+    argv = [str(cli), "skills"]
+    if command == "tap-list":
+        argv.extend(["tap", "list"])
+    elif command == "browse":
+        argv.append("browse")
+        if source is not None:
+            argv.extend(["--source", source])
+        argv.extend(["--page", str(page), "--size", str(size)])
+    else:
+        argv.append("check")
+        if name is not None:
+            argv.append(name)
+    return argv
+
+
+def skill_list_rows(cli, timeout=120):
+    """The inventory, read the same way as the `skills-list` action and parsed by the same strict parser.
+
+    The first call in a fresh profile refreshes the catalog, which takes far longer than the 30 s the plain
+    inventory allows; a mutation reads the list twice and must not fail on that cold start.
+    """
+    result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
+                            text=True, timeout=max(timeout, skill_list_timeout()), env=dict(os.environ, COLUMNS="400"))
+    if result.returncode:
+        raise ValueError("skills_list_failed")
+    return parse_skills_list(result.stdout)
+
+
+def skill_directories(home, name):
+    """Installed directories that carry this skill, found with the same pruned scan as the inventory."""
+    roots = [home / "skills"]
+    profiles = home / "profiles"
+    if profiles.is_dir():
+        roots.extend(sorted(profiles.glob("*/skills")))
+    found = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for current, dirs, files in os.walk(root, followlinks=False):
+            dirs[:] = [entry for entry in dirs if entry not in EXCLUDED_SKILL_DIRS]
+            if "SKILL.md" not in files:
+                continue
+            directory = Path(current)
+            try:
+                header = (directory / "SKILL.md").read_text(encoding="utf-8-sig")[:16384]
+            except OSError:
+                continue
+            metadata = yaml.safe_load(header.split("---", 2)[1]) if header.startswith("---") else {}
+            declared = metadata.get("name") if isinstance(metadata, dict) else None
+            if (declared or directory.name) == name:
+                found.append(directory)
+    return found
+
+
+def snapshot_skill(home, action, name):
+    """Copy the installed skill before a mutation so a failure can be undone without guesswork."""
+    directories = skill_directories(home, name)
+    if not directories:
+        return None
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    base = home / SNAPSHOT_DIR_NAME / ("%s-%s-%s" % (stamp, action, name))
+    target, attempt = base, 1
+    while target.exists():
+        attempt += 1
+        target = base.with_name("%s-%d" % (base.name, attempt))
+    payload = target / "skill"
+    payload.mkdir(parents=True, exist_ok=False)
+    for index, directory in enumerate(directories):
+        shutil.copytree(directory, payload / str(index), symlinks=False)
+    state = {"action": action, "name": name, "createdAt": stamp,
+             "directories": [str(directory) for directory in directories]}
+    (target / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    return target
+
+
+def restore_skill(snapshot):
+    state = json.loads((snapshot / "state.json").read_text(encoding="utf-8"))
+    for index, directory in enumerate(state["directories"]):
+        current = Path(directory)
+        if current.exists():
+            shutil.rmtree(current)
+        current.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(snapshot / "skill" / str(index), current)
+
+
+def parse_modified_skills(text):
+    """Parse `hermes skills list-modified --json`: a flat array of skill names or nothing."""
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        raise ValueError("modified_skills_format")
+    if not isinstance(payload, list) or len(payload) > 500:
+        raise ValueError("modified_skills_format")
+    names = []
+    for item in payload:
+        if not isinstance(item, str) or SKILL_NAME.fullmatch(item) is None or item in names:
+            raise ValueError("modified_skills_format")
+        names.append(item)
+    return {"names": names}
 
 
 def locked_main(home, source, cli):
@@ -383,13 +794,246 @@ def locked_main(home, source, cli):
             raise ValueError("hermes_config_failed")
         return result.stdout.strip()
 
+    if sys.argv[1] == "skill-md":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"id"}:
+            raise ValueError("invalid_request")
+        print(json.dumps(read_skill_markdown(home, source, request["id"])))
+        return 0
+    if sys.argv[1] == "skill-report":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"action", "name"}:
+            raise ValueError("invalid_request")
+        action = request["action"]
+        if action not in ("inspect", "audit", "diff"):
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_REFERENCE.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        try:
+            result = subprocess.run([str(cli), "skills", action, name], capture_output=True, text=True,
+                                    timeout=SKILL_REPORT_TIMEOUTS[action])
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_%s_timeout" % action}))
+            return 7
+        if result.returncode:
+            # The CLI explains refusals on stdout/stderr (e.g. "not tracked"); that reason belongs to the operator.
+            print(json.dumps({"error": "skill_%s_failed" % action,
+                              "detail": (result.stdout + result.stderr).strip()[-600:]}))
+            return 6
+        print(json.dumps(parse_skill_report(result.stdout, action, name)))
+        return 0
+    if sys.argv[1] == "skill-mutate":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"action", "name", "identifier", "force"}:
+            raise ValueError("invalid_request")
+        action = request["action"]
+        if action not in SKILL_MUTATIONS:
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        identifier = request["identifier"]
+        if action == "install":
+            if not isinstance(identifier, str) or not 3 <= len(identifier) <= 300 or re.search(r"\s", identifier):
+                raise ValueError("invalid_request")
+        elif identifier is not None:
+            raise ValueError("invalid_request")
+        force = request["force"]
+        if not isinstance(force, bool):
+            raise ValueError("invalid_request")
+        before = skill_list_rows(cli)
+        present_before = any(row["name"] == name for row in before["skills"])
+        skill_snapshot = snapshot_skill(home, action, name)
+        argv = [str(cli), "skills", action]
+        # install and uninstall ask for confirmation; without a TTY the prompt would block a headless invocation.
+        # update has no prompt and rejects the flag, so it gets the plain name.
+        argv.extend([identifier, "--yes"] if action == "install" else
+                    [name, "--yes"] if action == "uninstall" else [name])
+        if force:
+            argv.append("--force")
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=SKILL_MUTATION_TIMEOUT,
+                                    env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            if skill_snapshot is not None:
+                restore_skill(skill_snapshot)
+            print(json.dumps({"error": "skill_mutation_timeout", "restored": skill_snapshot is not None}))
+            return 7
+        text = (result.stdout + result.stderr).strip()
+        try:
+            after = skill_list_rows(cli)
+        except ValueError:
+            after = None
+        present_after = after is not None and any(row["name"] == name for row in after["skills"])
+        expected = action != "uninstall"
+        if result.returncode or after is None or present_after != expected:
+            restored = False
+            if skill_snapshot is not None:
+                restore_skill(skill_snapshot)
+                restored = True
+            elif present_after and not present_before:
+                for directory in skill_directories(home, name):
+                    shutil.rmtree(directory, ignore_errors=True)
+                restored = True
+            print(json.dumps({"error": "skill_mutation_failed", "restored": restored,
+                              "previousPresent": present_before, "detail": text[-600:]}))
+            return 6
+        row = next((entry for entry in after["skills"] if entry["name"] == name), None)
+        print(json.dumps({"action": action, "name": name, "installed": present_after,
+                          "enabled": (row["state"] == "enabled") if row else None,
+                          "snapshot": skill_snapshot.name if skill_snapshot is not None else None,
+                          "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
+        return 0
+    if sys.argv[1] == "skill-governance":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"action", "path", "repo", "name"}:
+            raise ValueError("invalid_request")
+        if request["action"] not in GOVERNANCE_ACTIONS:
+            raise ValueError("invalid_request")
+        try:
+            target = governance_target(home, request)
+        except ValueError as error:
+            # Shape errors stay `invalid_request` (exit 5); a refused target is a real answer with its own code.
+            if str(error) in {"invalid_target", "missing_project_skills"}:
+                print(json.dumps({"error": str(error)}))
+                return 6
+            raise
+        try:
+            result = subprocess.run(governance_argv(cli, request["action"], target), capture_output=True, text=True,
+                                    timeout=GOVERNANCE_TIMEOUT, env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_governance_timeout"}))
+            return 7
+        text = (result.stdout + result.stderr).strip()
+        # `hermes skills tap remove <unknown>` prints "Error: Tap not found" and still exits 0, so the text decides.
+        if result.returncode or text.startswith("Error:") or "\nError:" in text:
+            print(json.dumps({"error": "skill_governance_failed", "detail": text[-600:]}))
+            return 6
+        confirmed = False
+        if request["action"] == "reset":
+            # `hermes skills reset` answers with a sentence about the manifest entry; the text has to name the skill.
+            confirmed = target in text
+        elif request["action"] in {"trust", "untrust"}:
+            confirmed = target in text
+        else:
+            try:
+                taps = skill_command_argv(cli, "tap-list", None, None, None, None)
+                listing = subprocess.run(taps, capture_output=True, text=True, timeout=GOVERNANCE_TIMEOUT,
+                                         env=dict(os.environ, COLUMNS="400"))
+                listed = listing.stdout.lower()
+                # The tap table shows the repository, so that is what a removal names and what an addition must show.
+                present = target.lower() in listed
+                confirmed = present if request["action"] == "tap-add" else not present
+            except subprocess.TimeoutExpired:
+                confirmed = False
+        if not confirmed:
+            print(json.dumps({"error": "skill_governance_unconfirmed", "detail": text[-600:]}))
+            return 8
+        print(json.dumps({"action": request["action"], "target": target,
+                          "text": text[:SKILL_MUTATION_TEXT_LIMIT], "bytes": len(text.encode("utf-8"))}))
+        return 0
+    if sys.argv[1] == "skill-command":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"command", "name", "page", "size", "source"}:
+            raise ValueError("invalid_request")
+        command = request["command"]
+        if command not in SKILL_COMMANDS:
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if command == "check":
+            if name is not None and (not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None):
+                raise ValueError("invalid_request")
+        elif name is not None:
+            raise ValueError("invalid_request")
+        page, size, source = request["page"], request["size"], request["source"]
+        if command == "browse":
+            if type(page) is not int or not 1 <= page <= 50 or type(size) is not int or not 1 <= size <= 50:
+                raise ValueError("invalid_request")
+            if source is not None and (not isinstance(source, str) or SKILL_SOURCE_TOKEN.fullmatch(source) is None):
+                raise ValueError("invalid_request")
+        elif page is not None or size is not None or source is not None:
+            raise ValueError("invalid_request")
+        try:
+            result = subprocess.run(skill_command_argv(cli, command, name, page, size, source),
+                                    capture_output=True, text=True, timeout=SKILL_COMMANDS[command],
+                                    env=dict(os.environ, COLUMNS="400"))
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_command_timeout"}))
+            return 7
+        if result.returncode:
+            print(json.dumps({"error": "skill_command_failed",
+                              "detail": (result.stdout + result.stderr).strip()[-600:]}))
+            return 6
+        text = result.stdout
+        if len(text) > SKILL_REPORT_LIMIT:
+            text = text[:SKILL_REPORT_LIMIT]
+            truncated = True
+        else:
+            truncated = False
+        if text.strip() == "":
+            print(json.dumps({"error": "skill_report_empty"}))
+            return 6
+        print(json.dumps({"command": command, "name": name, "text": text.rstrip("\n"),
+                          "bytes": len(result.stdout.encode("utf-8")), "truncated": truncated}))
+        return 0
+    if sys.argv[1] == "hub-search":
+        request = read_request()
+        if not isinstance(request, dict) or set(request) != {"query", "source", "limit"}:
+            raise ValueError("invalid_request")
+        query = request["query"]
+        if not isinstance(query, str) or not 1 <= len(query) <= 120:
+            raise ValueError("invalid_request")
+        source = request["source"]
+        if source is not None and (not isinstance(source, str) or not 1 <= len(source) <= 40):
+            raise ValueError("invalid_request")
+        limit = request["limit"]
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 50:
+            raise ValueError("invalid_request")
+        argv = [str(cli), "skills", "search", query, "--json", "--limit", str(limit)]
+        if source is not None:
+            argv.extend(["--source", source])
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "hub_search_timeout"}))
+            return 7
+        if result.returncode:
+            print(json.dumps({"error": "hub_search_failed"}))
+            return 6
+        print(json.dumps(parse_hub_search(result.stdout, query, source)))
+        return 0
+    if sys.argv[1] == "modified-list":
+        result = subprocess.run([str(cli), "skills", "list-modified", "--json"], capture_output=True,
+                                text=True, timeout=skill_list_timeout())
+        if result.returncode:
+            print(json.dumps({"error": "modified_list_failed"}))
+            return 6
+        print(json.dumps(parse_modified_skills(result.stdout)))
+        return 0
+    if sys.argv[1] == "skills-list":
+        # A wide COLUMNS keeps the table from eliding names; the parser rejects every other layout.
+        result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
+                                text=True, timeout=skill_list_timeout(), env=dict(os.environ, COLUMNS="400"))
+        if result.returncode:
+            print(json.dumps({"error": "skills_list_failed"}))
+            return 6
+        print(json.dumps(parse_skills_list(result.stdout)))
+        return 0
+    if sys.argv[1] == "auth-list":
+        result = subprocess.run([str(cli), "auth", "list"], capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            print(json.dumps({"error": "auth_list_failed"}))
+            return 6
+        print(json.dumps(parse_auth_list(result.stdout)))
+        return 0
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
     if sys.argv[1] == "approval-test":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         if (not isinstance(request, dict) or set(request) != {"command", "revision"} or
                 type(request["command"]) is not str or not 1 <= len(request["command"]) <= 512 or
                 not request["command"].strip() or
@@ -439,7 +1083,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         action = sys.argv[1]
         if not isinstance(request, dict):
             raise ValueError("invalid_request")
@@ -569,7 +1213,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "mcp-probe":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         if (not isinstance(request, dict) or set(request) != {"name", "revision"} or
                 not valid_mcp_name(request["name"]) or type(request["revision"]) is not int):
             raise ValueError("invalid_request")
@@ -614,7 +1258,7 @@ def locked_main(home, source, cli):
     if sys.argv[1] == "model-catalog":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         provider_id = request.get("providerId") if isinstance(request, dict) and set(request) == {"providerId"} else False
         if provider_id is False or not (provider_id is None or
                                         isinstance(provider_id, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", provider_id)):
@@ -632,10 +1276,30 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
+    if sys.argv[1] == "provider-auth":
+        if not source_revision or not source_revision.startswith(PINNED_SOURCE):
+            raise ValueError("unsupported_source_revision")
+        request = read_request()
+        if (not isinstance(request, dict) or set(request) != {"names"} or
+                not isinstance(request["names"], list) or not 1 <= len(request["names"]) <= 8 or
+                any(not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name) is None
+                    for name in request["names"])):
+            raise ValueError("invalid_request")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        probe = Path(__file__).with_name("hermes_provider_auth.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps(request), 25)
+        response = json.loads(result.stdout)
+        if result.returncode or not isinstance(response, dict) or not isinstance(response.get("providers"), list):
+            raise ValueError("capability_unavailable")
+        print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
+                          "keyPrefixes": response.get("keyPrefixes") or {}}))
+        return 0
     if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
-        request = json.load(sys.stdin)
+        request = read_request()
         plugin_update = sys.argv[1] == "plugin-activation"
         mcp_activation = sys.argv[1] == "mcp-activation"
         mcp_update = sys.argv[1] in ("mcp-http", "mcp-activation")
@@ -678,6 +1342,8 @@ def locked_main(home, source, cli):
             if key in ("terminal.docker_mount_cwd_to_workspace", "terminal.docker_volumes") and \
                     nested(_raw_before, "terminal.backend") not in ("docker",):
                 raise ValueError("execution_backend_required")
+            if key == "model.base_url" and str(nested(_raw_before, "model.provider") or "").strip().lower() != "custom":
+                raise ValueError("custom_provider_required")
             if key == "terminal.cwd" and value != ".":
                 workspace = Path(value)
                 if (workspace.is_symlink() or not workspace.is_dir() or
@@ -808,27 +1474,18 @@ def locked_main(home, source, cli):
                 if root_errors or scan_errors or "hermes-agent" in value or not set(value) <= set(names):
                     raise ValueError("invalid_value")
             if credential_update:
-                # The CLI accepts secrets only in argv. Use its Python closure with stdin instead.
-                env_lock = lock_config(home, ".obsidian-vault.lock")
-                try:
-                    sys.path.insert(0, str(source))
-                    from hermes_cli._launchers import runtime_command
-                    probe = Path(__file__).with_name("hermes_model_credential_apply.py")
-                    command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
-                    result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
-                    try:
-                        saved = json.loads(result.stdout).get("saved") is True
-                    except (ValueError, TypeError):
-                        saved = False
-                    if result.returncode or not saved:
-                        raise ValueError("credential_readback_failed")
-                finally:
-                    fcntl.flock(env_lock, fcntl.LOCK_UN)
-                    env_lock.close()
+                apply_env_value(home, source, key, value)
             elif not plugin_update and not mcp_update and not mcp_bearer:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
+                if key == "model.base_url":
+                    # Hermes binds OPENAI_API_KEY only to the OPENAI_BASE_URL host, so both must name the same endpoint.
+                    apply_env_value(home, source, "OPENAI_BASE_URL", value)
+                if key == "model.provider" and str(value).strip().lower() != "custom" and \
+                        str(nested(_raw_before, "model.provider") or "").strip().lower() == "custom":
+                    # The OPENAI_BASE_URL binding belongs to the custom endpoint; left behind it would send a later OpenAI key there.
+                    apply_env_value(home, source, "OPENAI_BASE_URL", None)
                 if key == "browser.use_real_profile" and value is False:
                     # Revocation must remove credential snapshots now, rather
                     # than waiting for the next browser tool invocation.
@@ -866,7 +1523,7 @@ def locked_main(home, source, cli):
         if not valid_field_value(key, values[key], spec) and values[key] is not None:
             values[key] = None
     roots, root_errors = inventory_roots(home, call)
-    skill_names, skill_errors = installed_skills(roots)
+    skill_names, skill_errors = installed_skills(roots, report_missing=True)
     if not isinstance(disabled_skills, list) or not all(isinstance(name, str) for name in disabled_skills):
         disabled_skills = None
         skill_errors.append("skill_activation_unknown")
@@ -997,10 +1654,17 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
+        message = str(error)
+        canonical = message in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
             "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision",
             "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
             "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
             "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
-            "profile_pin_required"} else "hermes_unavailable"}))
+            "profile_pin_required", "custom_provider_required"}
+        # "hermes_unavailable" used to swallow the real reason (missing binary, broken profile, parse error) and the
+        # operator only saw an unreachable distro. Keep the canonical code, add what actually happened.
+        payload = {"error": message if canonical else "hermes_unavailable"}
+        if not canonical and message and message != "hermes_unavailable":
+            payload["detail"] = message[-400:]
+        print(json.dumps(payload))
         raise SystemExit(5)

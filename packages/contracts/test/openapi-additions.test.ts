@@ -70,10 +70,14 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 271 released operations", () => {
+  it("the contract includes the 282 released operations", () => {
     // 269 after the wave-2 merge, 270 with the staged Hermes cron mutation, 271 with the native
-    // approval dry run. Bump deliberately with the release note instead of fitting the number to a failure.
-    expect(operations).toHaveLength(271);
+    // approval dry run, 272 with the unsaved mailbox candidate test (DASH-05.03), 273 with the
+    // Hermes access read (DASH-07.03), 274 with the SKILL.md detail (DASH-10.02), 276 with the skill
+    // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
+    // diff reports, 283 with the content studio skill bridge (KEEP-05). Bump deliberately with the release note
+    // instead of fitting the number to a failure.
+    expect(operations).toHaveLength(283);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 export type Db = DatabaseSync;
@@ -484,12 +484,97 @@ export const MIGRATIONS: readonly Migration[] = [
 ];
 
 export function openDatabase(path: string): Db {
+  // Eine frische Datei hat nichts zu sichern; nur bestehende Installationen mit ausstehender Migration bekommen eine Kopie.
+  const existed = path !== ":memory:" && existsSync(path);
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
   if (path !== ":memory:") db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;");
+  if (existed && pendingMigrations(db).length > 0) backupBeforeMigration(db, path);
   migrate(db);
   return db;
+}
+
+/** Migrations, die auf dieser Datenbank noch fehlen. */
+export function pendingMigrations(db: Db): number[] {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
+  );
+  const applied = new Set(
+    (db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id),
+  );
+  return MIGRATIONS.filter((migration) => !applied.has(migration.id)).map((migration) => migration.id);
+}
+
+export interface MigrationBackup {
+  file: string;
+  migrations: number[];
+  bytes: number;
+  createdAt: string;
+}
+
+const BACKUP_KEEP = 3;
+
+/** Kopie vor einer Schema-Migration: WAL leeren, Datei kopieren, nur die letzten drei Kopien behalten. */
+function backupBeforeMigration(db: Db, path: string): MigrationBackup {
+  const migrations = pendingMigrations(db);
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const file = `${path}.pre-migrate-${stamp}.bak`;
+  copyFileSync(path, file);
+  const backups = listMigrationBackups(path);
+  for (const stale of backups.slice(BACKUP_KEEP)) rmSync(stale.file, { force: true });
+  return { file, migrations, bytes: statSync(file).size, createdAt: stamp };
+}
+
+/** Alle Sicherungen vor Migrationen zu einer Datenbank, neueste zuerst. */
+export function listMigrationBackups(path: string): MigrationBackup[] {
+  const directory = dirname(path);
+  const prefix = `${basename(path)}.pre-migrate-`;
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory)
+    .filter((entry) => entry.startsWith(prefix) && entry.endsWith(".bak"))
+    .map((entry) => {
+      const file = join(directory, entry);
+      return {
+        file,
+        migrations: [],
+        bytes: statSync(file).size,
+        createdAt: entry.slice(prefix.length, -4),
+      };
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+/**
+ * Spielt eine Kopie vor der Migration zurueck. Vorher wird geprueft, dass die Kopie eine unbeschaedigte Datenbank mit
+ * diesem Schema ist; danach ist die Migrationsmarke wieder auf dem alten Stand und die Migration laeuft beim naechsten
+ * Start erneut. Eine pauschale Neuanlage der Datenbank findet nicht statt.
+ */
+export function restoreMigrationBackup(backup: MigrationBackup | string, target: string): { restored: string; integrity: string } {
+  const file = typeof backup === "string" ? backup : backup.file;
+  if (!existsSync(file)) throw new Error(`Sicherung ${file} fehlt.`);
+  let probe: Db;
+  try {
+    probe = new DatabaseSync(file, { readOnly: true });
+  } catch (error) {
+    throw new Error(`Sicherung ${file} ist keine lesbare Datenbank: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
+  let integrity: string;
+  try {
+    integrity = String((probe.prepare("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check);
+    const tables = probe.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();
+    if (!tables) throw new Error(`Sicherung ${file} enthaelt keine Migrationsmarke.`);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("keine Migrationsmarke")) throw error;
+    throw new Error(`Sicherung ${file} ist keine lesbare Datenbank: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  } finally {
+    probe.close();
+  }
+  if (integrity !== "ok") throw new Error(`Sicherung ${file} ist beschaedigt (integrity_check: ${integrity}).`);
+  copyFileSync(file, target);
+  for (const suffix of ["-wal", "-shm"]) rmSync(`${target}${suffix}`, { force: true });
+  return { restored: target, integrity };
 }
 
 export function migrate(db: Db): number[] {

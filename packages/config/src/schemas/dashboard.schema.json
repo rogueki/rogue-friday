@@ -87,7 +87,12 @@
           "default": "F.R.I.D.A.Y."
         },
         "theme": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "friday-command-midnight" },
-        "layout": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "friday-command-overview" }
+        "layout": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "friday-command-overview" },
+      "contentStudio": {
+        "description": "Delivers the Content Studio module (menu entry and API). Runtime default; settings.dashboard.contentStudioEnabled takes precedence.",
+        "type": "boolean",
+        "default": true
+      }
       }
     },
     "dev": {

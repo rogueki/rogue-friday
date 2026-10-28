@@ -13,6 +13,9 @@ vi.mock("next/navigation", async () => (await import("../memory/kit/testRouter")
 const MAIL = "chan_01JAAAAAAAAAAAAAAAAAAAAAAA";
 const WA = "chan_01JBBBBBBBBBBBBBBBBBBBBBBB";
 const SMS = "chan_01JCCCCCCCCCCCCCCCCCCCCCCC";
+const DISCORD = "chan_01JDDDDDDDDDDDDDDDDDDDDDDD";
+const TELEGRAM = "chan_01JEEEEEEEEEEEEEEEEEEEEEEE";
+const PHONE = "chan_01JFFFFFFFFFFFFFFFFFFFFFFF";
 const THREAD = "thr_01JAAAAAAAAAAAAAAAAAAAAAAA";
 const DRAFT = "draft_01JAAAAAAAAAAAAAAAAAAAAAAA";
 const APPROVAL = "appr_01JAAAAAAAAAAAAAAAAAAAAAAA";
@@ -20,7 +23,7 @@ const APPROVAL = "appr_01JAAAAAAAAAAAAAAAAAAAAAAA";
 const channel = (id: string, partial: Partial<Channel>): Channel => ({
   ...resource(id),
   kind: "email",
-  name: "GMX Postfach",
+  name: "E-Mail Postfach",
   status: "online",
   capabilities: { read: true, draft: true, send: true },
   unreadCount: 2,
@@ -32,6 +35,9 @@ const channels = [
   channel(MAIL, {}),
   channel(WA, { kind: "whatsapp", name: "WhatsApp", status: "read_only", capabilities: { read: true, draft: false, send: false }, unreadCount: 1 }),
   channel(SMS, { kind: "sms", name: "SMS", status: "not_configured", capabilities: { read: false, draft: false, send: false }, unreadCount: 0, lastSyncAt: null }),
+  channel(DISCORD, { kind: "discord", name: "Discord", status: "not_configured", capabilities: { read: false, draft: false, send: false }, unreadCount: 0, lastSyncAt: null }),
+  channel(TELEGRAM, { kind: "telegram", name: "Telegram", status: "online", capabilities: { read: true, draft: true, send: true }, unreadCount: 0 }),
+  channel(PHONE, { kind: "phone", name: "Telefon", status: "degraded", capabilities: { read: true, draft: false, send: false }, unreadCount: 0 }),
 ];
 
 function makeThread(partial: Partial<Thread> = {}): Thread {
@@ -121,9 +127,10 @@ describe("communication page: inbox and channels", () => {
     const fake = routedFetch(routes());
     renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const rail = await screen.findByRole("list", { name: "Kanäle" });
-    await waitFor(() => expect(within(rail).getByText("Online")).toBeInTheDocument());
-    expect(within(rail).getByText("Nur lesen")).toBeInTheDocument();
-    expect(within(rail).getByText("Nicht konfiguriert")).toBeInTheDocument();
+    await waitFor(() => expect(within(rail).getAllByText("Online").length).toBeGreaterThan(0));
+    expect(within(rail).getAllByText("Nur lesen").length).toBeGreaterThan(0);
+    expect(within(rail).getAllByText("Nicht konfiguriert").length).toBeGreaterThan(0);
+    expect(within(rail).getAllByText("Eingeschränkt: Antworten sind verzögert.").length).toBeGreaterThan(0);
     expect(within(rail).getByText("Lesen verfügbar, Senden nicht verfügbar.")).toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();
   });
@@ -342,6 +349,53 @@ describe("communication page: thread detail and drafts", () => {
 });
 
 describe("communication page: compose", () => {
+  it("shows exactly the six standard navigation entries and keeps SMS out of them", async () => {
+    const fake = routedFetch(routes());
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const rail = await screen.findByRole("list", { name: "Kanäle" });
+    await within(rail).findByText("E-Mail Postfach");
+    const labels = Array.from(rail.querySelectorAll("button.com-channel")).map((button) => button.textContent ?? "");
+    // Alle Kanäle + die fünf Standardkanäle in der Reihenfolge der Spezifikation.
+    expect(labels).toHaveLength(6);
+    expect(labels[0]).toContain("Alle Kanäle");
+    expect(labels[1]).toContain("E-Mail Postfach");
+    expect(labels[2]).toContain("Telegram");
+    expect(labels[3]).toContain("WhatsApp");
+    expect(labels[4]).toContain("Telefon");
+    expect(labels[5]).toContain("Discord");
+    expect(within(rail).queryByText("SMS")).toBeNull();
+    expect(screen.getByText(/Weitere Kanäle wie SMS/)).toBeInTheDocument();
+  });
+
+  it("offers the mailbox only inside the e-mail channel and the messenger step only for messenger channels", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch({
+      ...routes(),
+      "GET /api/v1/auth/session": single({
+        authenticated: true,
+        user: { id: "usr_00000000000000000000000001", displayName: "Owner", role: "owner" },
+        role: "owner",
+        csrfToken: "test",
+        expiresAt: null,
+        reauthUntil: null,
+      }),
+    });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const rail = await screen.findByRole("list", { name: "Kanäle" });
+    await within(rail).findByText("E-Mail Postfach");
+    // Kein oberes Formular ohne Kanalauswahl.
+    expect(screen.queryByRole("region", { name: "E-Mail Postfach" })).toBeNull();
+    expect(screen.queryByRole("region", { name: /Nachricht über den gewählten Kanal/ })).toBeNull();
+
+    await user.click(within(rail).getByRole("button", { name: /E-Mail Postfach/ }));
+    expect(await screen.findByRole("region", { name: "E-Mail Postfach" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Nachricht über den gewählten Kanal/ })).toBeNull();
+
+    await user.click(within(rail).getByRole("button", { name: /WhatsApp/ }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "E-Mail Postfach" })).toBeNull());
+    expect(await screen.findByRole("region", { name: /Nachricht über den gewählten Kanal/ })).toBeInTheDocument();
+  });
+
   it("validates the recipient and creates an unthreaded draft", async () => {
     const user = userEvent.setup();
     const fake = routedFetch({ ...routes(), "POST /api/v1/communication/drafts": () => single(draft({ threadId: null, subject: "Hallo", body: "Text" })) });

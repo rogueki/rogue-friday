@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $installer = Join-Path $PSScriptRoot '..\install-friday.ps1'
 $tokens = $null
 $errors = $null
