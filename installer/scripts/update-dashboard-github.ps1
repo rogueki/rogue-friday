@@ -90,6 +90,16 @@ function Stop-Dashboard {
     foreach ($process in $processes) { Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue }
     foreach ($process in $processes) { Wait-Process -Id $process.ProcessId -Timeout 10 -ErrorAction SilentlyContinue }
 }
+function Test-DashboardPortOwner([int]$port) {
+    # Nur die Control API dieser Installation zaehlt; ein anderes Programm auf dem Port (etwa ein altes Dashboard aus
+    # einem anderen Ordner) beantwortet den Healthcheck sonst als Erfolg.
+    $prefix = [IO.Path]::GetFullPath($dash).TrimEnd('\') + '\'
+    $listener = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $listener) { return $false }
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction SilentlyContinue
+    return [bool]($owner -and $owner.CommandLine -and $owner.CommandLine.Contains($prefix) -and
+        $owner.CommandLine.Contains('control-api') -and $owner.CommandLine.Contains('main.js'))
+}
 function Health-Ready {
     $config = Join-Path $dash 'config\dashboard.yaml'
     $port = 3100
@@ -100,7 +110,7 @@ function Health-Ready {
     for ($i = 0; $i -lt 30; $i++) {
         try {
             $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$port/api/v1/health" -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return $true }
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300 -and (Test-DashboardPortOwner $port)) { return $true }
         } catch { }
         Start-Sleep -Seconds 2
     }
