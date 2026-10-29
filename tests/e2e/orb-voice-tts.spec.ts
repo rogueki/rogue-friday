@@ -1,4 +1,4 @@
-﻿import { GL_ARGS, launchOptions } from "./support/browser";
+﻿import { NO_GL_ARGS, launchOptions } from "./support/browser";
 import { test, expect } from "./support/fixtures";
 import { fakeMicArgs, maxOf, orbState, readAudio, sampleAudio, ttsFrame, writeMicFixture } from "./support/orb";
 import { openVoicePage, startMicrophone } from "./support/orbVoice";
@@ -8,7 +8,9 @@ import { openVoicePage, startMicrophone } from "./support/orbVoice";
  * service (`audio_start`, PCM frames, `audio_end`, `clear`); the browser plays the PCM through the output bus and the
  * analyser tap feeds the orb. Nothing in the app is test-only.
  */
-test.use({ launchOptions: launchOptions([...GL_ARGS, ...fakeMicArgs(writeMicFixture("silence"))]), permissions: ["microphone"] });
+// The 2D orb fallback is enough here (state and analyser come from the controller); under SwiftShader the audio thread
+// starved on CI and played the TTS several times slower than real time.
+test.use({ launchOptions: launchOptions([...NO_GL_ARGS, ...fakeMicArgs(writeMicFixture("silence"))]), permissions: ["microphone"] });
 
 test("TTS start activates speaking, the analyser follows the audio incl. pauses, the end returns to the passive microphone (idle)", async ({ page }) => {
   test.setTimeout(120_000);
@@ -17,7 +19,7 @@ test("TTS start activates speaking, the analyser follows the audio incl. pauses,
   await expect.poll(() => gateway.socket() !== undefined).toBe(true);
 
   // 7.2 s of TTS at 80 ms per frame: voiced for 1.1 s, a ~1 s pause, voiced again. The audio outlasts the
-  // 2.8 s analyser sample below by seconds, so a slow evaluate roundtrip cannot end the utterance early.
+  // in-page sampler below, which records the whole utterance independent of Playwright roundtrips.
   const pcm = (index: number): Int16Array => (index >= 14 && index < 26 ? new Int16Array(1280) : ttsFrame(index));
   // Sample inside the page from before the first frame: on a starved CI runner a Playwright roundtrip can take seconds,
   // and a sampler started after the "speaking" poll began after the pause and saw only loud audio.
@@ -39,18 +41,20 @@ test("TTS start activates speaking, the analyser follows the audio incl. pauses,
     return first < 0 ? [] : all.slice(first);
   };
   const pauseThenVoice = (series: readonly number[]): boolean => {
-    const quiet = series.findIndex((v) => v < maxOf(series) * 0.4);
+    // Look for the pause only after the first passage reached its plateau; the attack ramp is not a pause.
+    const loud = series.findIndex((v) => v > maxOf(series) * 0.6);
+    const quiet = loud < 0 ? -1 : series.findIndex((v, index) => index > loud && v < maxOf(series) * 0.4);
     return quiet > 0 && series.slice(quiet).some((v) => v > maxOf(series) * 0.6);
   };
   await expect.poll(async () => pauseThenVoice(await voicedSeries()),
-    { message: "the pause is visible (level falls back) and the second passage follows", timeout: 6000, intervals: [200] }).toBe(true);
+    { message: "the pause is visible (level falls back) and the second passage follows", timeout: 30_000, intervals: [200] }).toBe(true);
   const rms = await voicedSeries();
   await page.evaluate(() => window.clearInterval((window as unknown as { __ttsTimer: number }).__ttsTimer));
   test.info().annotations.push({ type: "tts", description: `output rms max ${maxOf(rms).toFixed(3)}, min ${Math.min(...rms).toFixed(3)}, samples ${rms.length}` });
   expect(maxOf(rms), "output level follows the loud passages").toBeGreaterThan(0.1);
   expect((await orbState(page)).primaryInteraction, "still speaking through the pause until the audio ended").toBe("speaking");
 
-  await expect.poll(async () => (await orbState(page)).primaryInteraction, { timeout: 15_000, intervals: [100] }).toBe("idle"); // after speaking the microphone is passive again
+  await expect.poll(async () => (await orbState(page)).primaryInteraction, { timeout: 45_000, intervals: [100] }).toBe("idle"); // after speaking the microphone is passive again
   const tail = await sampleAudio(page, "output", "rms", 1800, 40);
   expect(tail.slice(-8).every((v) => v < 0.03), `output level is gone after the end (tail ${tail.slice(-8).map((v) => v.toFixed(2)).join(" ")})`).toBe(true);
 });

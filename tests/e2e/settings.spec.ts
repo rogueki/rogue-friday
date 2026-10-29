@@ -28,7 +28,8 @@ test("renaming the assistant changes brand, orb label, title and bottom bar live
 
   await api.forceOrb("idle"); // a mode whose sentence names the assistant
   await page.getByRole("link", { name: "Übersicht" }).click(); // client-side navigation, still no reload
-  await expect(page.getByRole("group", { name: "Aria Orb" })).toBeVisible();
+  // The 3D orb chunk loads after client-side navigation; on a software-rendered CI runner that can exceed 15 s.
+  await expect(page.getByRole("group", { name: "Aria Orb" })).toBeVisible({ timeout: 45_000 });
   await expect(page.getByRole("group", { name: "Aria Orb" }).getByRole("status")).toContainText("Aria ist bereit.");
   expect(await stillSamePage(page), "no page reload happened").toBe(true);
 
