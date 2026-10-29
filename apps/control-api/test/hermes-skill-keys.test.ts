@@ -52,7 +52,7 @@ describe("Hermes skill key settings", () => {
       expect(args).toEqual(["update"]);
       expect(JSON.parse(input!)).toEqual({ key: "NOTION_API_KEY", value: "synthetic-private-value" });
       expect([script, distro, user, ...args].join(" ")).not.toContain("synthetic-private-value");
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally { rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
   });
 
   it("limits reads and mutations to the owner, applies CSRF, and never returns or logs values", async () => {

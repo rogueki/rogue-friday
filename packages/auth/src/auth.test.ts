@@ -40,7 +40,7 @@ import {
 
 const tempDirs: string[] = [];
 afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 function clock(start = 1_800_000_000_000) {

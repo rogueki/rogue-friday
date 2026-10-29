@@ -127,7 +127,8 @@ ${options.yamlExtra ?? ""}
     origin: `http://127.0.0.1:${port}`,
     async close() {
       await api.app.close();
-      if (!options.dir) rmSync(dir, { recursive: true, force: true });
+      // Windows scanners briefly hold freshly written key files open (EPERM/EBUSY); retry instead of failing a passed test.
+      if (!options.dir) rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     },
     client: () => new ApiClient(api),
   };
