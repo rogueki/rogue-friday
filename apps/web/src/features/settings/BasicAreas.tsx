@@ -19,6 +19,7 @@ import { DEFAULT_ASSISTANT_NAME } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { WakeEnrollment } from "./WakeEnrollment";
 import { SttModelsControl } from "./SttModelsControl";
+import { voiceDeviceOptions } from "./voiceDeviceOptions";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
 
@@ -275,11 +276,8 @@ export function VoiceArea() {
   const integration = useVoiceIntegrationStatus();
   const saved = useSettings();
   if (!value) return null;
-  const options = (kind: "input" | "output", current: string | null) => {
-    const list = (devices.data?.items ?? []).filter((device) => device.kind === kind).map((device) => ({ value: device.id, label: `${device.name} · ${(device.labels ?? []).join(", ")}${device.isDefault ? ` (${t("settings.voice.systemDefault")})` : ""}` }));
-    if (current && !list.some((option) => option.value === current)) list.push({ value: current, label: `Nicht verbunden (${current})` });
-    return [{ value: "", label: t("settings.voice.systemDefault") }, ...list];
-  };
+  const options = (kind: "input" | "output", current: string | null) => voiceDeviceOptions(devices.data?.items ?? [], kind, current,
+    { systemDefault: t("settings.voice.systemDefault"), missing: t("settings.voice.deviceMissing") });
   return (
     <>
       <Section title="Laufzeitstatus">

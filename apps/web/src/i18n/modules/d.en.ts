@@ -424,6 +424,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.voice.inputDevice": "Input device",
   "settings.voice.outputDevice": "Output device",
   "settings.voice.systemDefault": "System default",
+  "settings.voice.deviceMissing": "Selected device not connected",
 
   "settings.notifications.channels": "Channels",
   "settings.notifications.channelsDesc": "Which routes deliver messages from which priority.",
