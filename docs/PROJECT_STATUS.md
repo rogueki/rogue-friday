@@ -1157,6 +1157,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- INS-10 (2026-10-30, N-142): Auf der Live-Installation war der Hermes-Dashboard-Dienst nach einem SIGTERM 33 h aus, weil
+  Restart=on-failure danach nicht neu startet und der Watchdog Hermes nicht kannte; das Command Center lief dadurch mit
+  ausgefallenen Aufgaben-/Agenten-/Aktivitaetsadaptern. Die Unit startet jetzt immer neu, und der Watchdog startet einen
+  inaktiven Hermes-Dashboard-Dienst ueber systemctl --user neu (#102). Live-Abnahme steht aus.
 - REL-02/DASH-18.05/DASH-19.02 (2026-10-29, N-092, N-093, N-111, N-140): Aufgabenkarten-Fusszeile und Overview-Baseline
   per Sichtpruefung der ubuntu-24.04-Referenzbilder geschlossen. Alle E2E-Wiederholungen der letzten main-Laeufe lagen
   im SwiftShader-Projekt; der orb-freie Lastblock laeuft jetzt mit 2D-Fallback (#97). Der wiederholt rote TTS-Pausentest
