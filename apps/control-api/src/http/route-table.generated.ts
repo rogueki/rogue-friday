@@ -13734,6 +13734,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
