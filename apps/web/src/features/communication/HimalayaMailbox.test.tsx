@@ -139,6 +139,24 @@ describe("integrated mailbox", () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(clicked).toHaveBeenCalledTimes(1);
   });
+
+  it("shows the full folder id when nested folders share a display name", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch({
+      ...sessionRoute,
+      "GET /api/v1/integrations/mail/accounts": single({ accounts: [WORK], defaultAccountId: "work", revision: 1 }),
+      "GET /api/v1/integrations/mail/accounts/work/folders": single({ folders: [
+        { id: "INBOX", name: "Posteingang", role: null },
+        { id: "Projekte/Archiv", name: "Archiv", role: null },
+        { id: "Privat/Archiv", name: "Archiv", role: null }] }),
+    });
+    renderWithProviders(<HimalayaMailbox />, { fetchImpl: fake.fetch });
+    await openMailbox(user, "work");
+    const folder = await screen.findByLabelText("Ordner");
+    expect(within(folder).getByRole("option", { name: "Posteingang" })).toBeInTheDocument();
+    expect(within(folder).getByRole("option", { name: "Projekte/Archiv" })).toBeInTheDocument();
+    expect(within(folder).getByRole("option", { name: "Privat/Archiv" })).toBeInTheDocument();
+  });
 });
 
   it("lists the stored accounts again after a restart instead of keeping them in memory", async () => {

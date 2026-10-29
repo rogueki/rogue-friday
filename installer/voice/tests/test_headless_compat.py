@@ -53,3 +53,5 @@ class HeadlessCompatibilityTests(unittest.TestCase):
         self.assertEqual(status["phase"], "idle")
         self.assertIs(status["tts_active"], False)
         self.assertEqual(status["input_audio"], {"level": 0.0, "peak": 0.0, "low": 0.0, "mid": 0.0, "high": 0.0})
+        self.assertEqual(status["trusted_remaining_s"], 0.0)
+        self.assertIsNone(status["speaker_decision"])

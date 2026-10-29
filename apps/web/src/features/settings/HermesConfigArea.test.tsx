@@ -84,3 +84,14 @@ it("offers the base URL for the custom provider and explains the key binding", a
   expect(field).toHaveValue(baseUrl);
   expect(field).toHaveAccessibleDescription(/OPENAI_BASE_URL/);
 });
+
+it("keeps an unsupported stored log level visible as a disabled option", async () => {
+  const status = statusWith("openrouter", null);
+  status.fields.push({ key: "logging.level", type: "string", family: "operations", consumer: "x",
+    value: "TRACE", explicit: true, writable: true, verification: "unverified",
+    reasonCode: "runtime_receipt_unavailable" });
+  renderWithProviders(<HermesConfigArea />, { fetchImpl: routedFetch(routes(status)).fetch });
+  const select = await screen.findByLabelText("Hermes-Dateilogstufe");
+  expect(select).toHaveValue("TRACE");
+  expect(screen.getByRole("option", { name: "Nicht unterstützt (TRACE)" })).toBeDisabled();
+});
