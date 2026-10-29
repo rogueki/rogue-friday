@@ -236,11 +236,11 @@ function Get-WslBridgeSourcePaths {
 }
 function Get-VoiceSourcePaths {
     return @('installer/voice/audio_devices.py', 'installer/voice/audio_level.py', 'installer/voice/audio_output.py',
-        'installer/voice/browser_audio.py', 'installer/voice/build_personal_wake.py', 'installer/voice/negative_texts.py', 'installer/voice/calendar_voice.py',
+        'installer/voice/browser_audio.py', 'installer/voice/build_personal_wake.py', 'installer/voice/build_speaker_profile.py', 'installer/voice/negative_texts.py', 'installer/voice/calendar_voice.py',
         'installer/voice/cloudtalk_voice.py', 'installer/voice/coding_voice.py',
         'installer/voice/content_studio_voice.py', 'installer/voice/cuda_dlls.py',
         'installer/voice/elevenlabs_cloud.py', 'installer/voice/enroll_record.py', 'installer/voice/film_filter.py',
-        'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py', 'installer/voice/domain_task_voice.py',
+        'installer/voice/friday_voice.py', 'installer/voice/gui_interaction.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py', 'installer/voice/domain_task_voice.py',
         'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
         'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/runtime_settings.py', 'installer/voice/speech_redaction.py', 'installer/voice/stt_models.py', 'installer/voice/wake_enrollment.py',
