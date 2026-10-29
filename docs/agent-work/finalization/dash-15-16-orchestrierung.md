@@ -51,13 +51,29 @@ Hermes übernimmt dabei:
 | hängender Lauf (ohne Heartbeat seit 1 h) | `kanban.dispatch_stale_timeout_seconds` | dito | 14400 |
 | Laufzeit je Aufgabe | `--max-runtime` | je Aufgabe | 15 min im Test |
 | Laufbudget je Agent-Lauf | `agent.run_budget_seconds` | Hermes-Einstellungen → Agent | – |
+| Schritte je Agent-Lauf | `agent.max_turns` | Hermes-Einstellungen → Agent | – |
+| Tiefe von Unteragenten | `delegation.max_spawn_depth` (1–3, Default 1 = flach) | Hermes-Einstellungen → Agent | – |
+| gleichzeitige Unteragenten je Lauf | `delegation.max_concurrent_children` (1–16, Default 10) | dito | – |
+| Schrittbudget je Unteragent | `delegation.max_iterations` (10–1000, Default 250) | dito | – |
+| Unteragent ohne Fortschritt | `delegation.child_timeout_seconds` (0 = aus) | dito | – |
 
 **Wirksamkeit:** Der Dispatcher liest `kanban.*` nur beim Gateway-Start (`gateway/kanban_watchers.py:270`). Nach
 `config set kanban.max_in_progress 4` liefen ohne Neustart weiterhin sieben Aufgaben gleichzeitig. Das Dashboard nennt
 deshalb „next Hermes gateway start“ als Wirkungszeitpunkt.
 
-**Nicht in Hermes vorhanden (offen):** eine Grenze je Modellanbieter und eine maximale Kindtiefe. Laut
-`kanban_db_dispatch.py` begrenzt Hermes nur global, je Profil und je Board.
+Die `delegation.*`-Grenzen liest Hermes beim nächsten `delegate_task`-Aufruf, ein Gateway-Neustart ist nicht nötig.
+
+**Kindtiefe:** Unteragenten (`delegate_task`) begrenzt `delegation.max_spawn_depth`. Kanban-Unteraufgaben, die ein
+Worker selbst anlegt, haben in Hermes keine Tiefengrenze. Sie zählen aber gegen die Kanban-Grenzen oben, und der
+Abbruch liest höchstens 64 Nachkommen bis Tiefe 8.
+
+**Nicht in Hermes vorhanden:**
+
+- eine Grenze je Modellanbieter. Solange alle Profile denselben Anbieter nutzen (FRIDAY-2: ein Anbieter), wirkt
+  `kanban.max_in_progress` als Anbietergrenze.
+- ein Kostenlimit in Euro. Kosten begrenzen Schritt- und Zeitbudgets (`agent.max_turns`, `agent.run_budget_seconds`,
+  `delegation.max_iterations`) zusammen mit den Parallelitätsgrenzen. Ein echtes Geldlimit bräuchte die Abrechnungsdaten
+  des Anbieters.
 
 ## 4. Belege
 
