@@ -19,7 +19,7 @@ import {
   type ProviderStatus,
   type Tone,
 } from "@friday/ui";
-import { Activity, Cpu, FileText, HardDrive, Network, PlugZap, RefreshCw, RotateCcw, Server, ShieldCheck, Sparkles, Thermometer, Waypoints } from "lucide-react";
+import { Activity, Cpu, FileText, Fingerprint, HardDrive, Network, PlugZap, RefreshCw, RotateCcw, Server, ShieldCheck, Sparkles, Thermometer, Waypoints } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -36,6 +36,7 @@ import {
   useStorage,
   useSystemMetrics,
 } from "@/lib/api/domains/system";
+import { useSystemInstallation } from "@/lib/api/domains/system-installation";
 import { useCapability } from "@/lib/capabilities";
 import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
 import { AdapterLogsDialog } from "./AdapterLogs";
@@ -257,6 +258,51 @@ export function EventStreamPanel() {
           <p className="mc-note mc-note--muted">{t(status.state === "offline" ? "system.stream.offlineHint" : "system.stream.pollingHint")}</p>
         ) : null}
       </div>
+    </PanelFrame>
+  );
+}
+
+/* ── Installation (DASH-19.04) ────────────────────────────────────────── */
+
+export function InstallationPanel() {
+  const { t } = useT();
+  const formatters = useFormatters();
+  const query = useSystemInstallation();
+  const data = query.data?.data;
+  const state = useQueryPanelState(query, { module: "system", freshness: query.data?.freshness });
+  const host = data ? (data.controlApi.host.includes(":") ? `[${data.controlApi.host}]` : data.controlApi.host) : "";
+  return (
+    <PanelFrame
+      title={t("system.installation.title")}
+      icon={<Fingerprint {...ICON} />}
+      state={state}
+      skeletonRows={3}
+    >
+      {data ? (
+        <div className="mc-stack">
+          <dl className="mc-kvlist mc-kvlist--single" data-testid="installation-runtime">
+            <KeyValue label={t("system.installation.id")} mono>
+              {data.installationId}
+            </KeyValue>
+            <KeyValue label={t("system.installation.commit")} mono reason={t("system.installation.noCommit")}>
+              {data.dashboard.commit?.slice(0, 12) ?? null}
+            </KeyValue>
+            <KeyValue label={t("system.installation.installedAt")} reason={t("system.installation.noCommit")}>
+              {data.dashboard.installedAt ? formatters.dateTime(data.dashboard.installedAt) : null}
+            </KeyValue>
+            <KeyValue label={t("system.installation.port")} mono>
+              {`${host}:${data.controlApi.port} · PID ${data.controlApi.pid}`}
+            </KeyValue>
+            <KeyValue label={t("system.installation.startedAt")}>
+              {formatters.dateTime(data.controlApi.startedAt)}
+            </KeyValue>
+            <KeyValue label={t("system.installation.contract")} mono>
+              {data.controlApi.contractVersion}
+            </KeyValue>
+          </dl>
+          <p className="mc-note mc-note--muted">{t("system.installation.hint")}</p>
+        </div>
+      ) : null}
     </PanelFrame>
   );
 }
@@ -810,6 +856,7 @@ export function SystemPage() {
         <div className="mc-stack">
           <StoragePanel />
           <EventStreamPanel />
+          <InstallationPanel />
         </div>
       </div>
       <div className="mc-grid sy-mid">

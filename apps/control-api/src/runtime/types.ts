@@ -26,6 +26,7 @@ import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { DurableMemoryService } from "../services/durable-memory";
 import type { BackupJobsService } from "../services/backup-jobs";
+import type { InstallationInfoService } from "../services/installation-info";
 import type { RetentionService } from "../services/retention";
 import type { WikiPathService } from "../services/wiki-path";
 import type { HimalayaAccountService } from "../services/himalaya-account";
@@ -106,6 +107,7 @@ export interface Runtime {
   obsidianVault: ObsidianVaultService;
   durableMemory: DurableMemoryService;
   backupJobs: BackupJobsService;
+  installation: InstallationInfoService;
   retention: RetentionService;
   wikiPath: WikiPathService;
   himalayaAccount: HimalayaAccountService;
