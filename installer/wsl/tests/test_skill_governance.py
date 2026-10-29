@@ -65,7 +65,7 @@ CLI.chmod(CLI.stat().st_mode | stat.S_IEXEC)
 
 def run(request):
     sys.argv = ["hermes_config_bridge.py", "skill-governance"]
-    sys.stdin = io.StringIO(json.dumps(request))
+    sys.stdin = io.TextIOWrapper(io.BytesIO(json.dumps(request).encode("utf-8")), encoding="utf-8")
     buffer = io.StringIO()
     try:
         with redirect_stdout(buffer):
