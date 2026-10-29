@@ -69,4 +69,13 @@ describe("messaging gateway setup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kopplung abbrechen" }));
     await waitFor(() => expect(requests.filter((entry) => entry.method === "DELETE" && entry.path.endsWith("whatsapp-pairing"))).toHaveLength(1));
   });
+
+  it("renders the Discord runtime connection in readable German", async () => {
+    renderWithProviders(<MessagingGatewaySetup owner platform="discord" />, { fetchImpl: async () => jsonResponse(envelope({
+      setupUrl: "http://127.0.0.1:43791/channels", tokenConfigured: true, allowedUserIds: [], allowedChannelIds: [],
+      enabled: false, gatewayRunning: true, connectionState: "disconnected", applied: null, revision: 1 })) });
+    const status = await screen.findByText(/Laufzeitverbindung: getrennt\./);
+    expect(status.textContent).toContain("Laufzeitverbindung: getrennt.");
+    expect(status.textContent).not.toMatch(/\bdisconnected\b/);
+  });
 });
