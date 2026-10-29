@@ -165,6 +165,30 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "computer_use.capture_after_mode": [["som", "Screenshot und Elemente"], ["ax", "Nur Elemente"],
     ["vision", "Nur Bild"]],
 };
+const LOGGING_LEVEL_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["DEBUG", "Debug (sehr ausführlich)"],
+  ["INFO", "Info (Standard)"],
+  ["WARNING", "Warnung"],
+];
+const COMPRESSION_TAIL_MODE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["lean", "Kompakt"],
+  ["legacy", "Verbatim-Verlauf"],
+];
+const REASONING_EFFORT_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["", "Anbietervorgabe"], ["none", "Aus"], ["minimal", "Minimal"], ["low", "Niedrig"],
+  ["medium", "Mittel"], ["high", "Hoch"], ["xhigh", "Sehr hoch"], ["max", "Maximal"], ["ultra", "Ultra"],
+];
+
+// A native select would otherwise show the first option for a stored value it does not offer.
+function choices(current: string, options: ReadonlyArray<readonly [string, string]>) {
+  return (
+    <>
+      {options.map(([option, label]) => <option key={option} value={option}>{label}</option>)}
+      {options.some(([option]) => option === current) ? null :
+        <option value={current} disabled>{`Nicht unterstützt (${current})`}</option>}
+    </>
+  );
+}
 
 export function HermesConfigArea() {
   const observed = useHermesConfig();
@@ -300,12 +324,12 @@ export function HermesConfigArea() {
             {field.key === "logging.level" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "INFO")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                <option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARNING">WARNING</option>
+                {choices(String(value ?? "INFO"), LOGGING_LEVEL_OPTIONS)}
               </select>
             ) : field.key === "compression.tail_mode" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "lean")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                <option value="lean">Kompakt</option><option value="legacy">Verbatim-Verlauf</option>
+                {choices(String(value ?? "lean"), COMPRESSION_TAIL_MODE_OPTIONS)}
               </select>
             ) : field.type === "fallback" ? (
               <div>
@@ -344,8 +368,7 @@ export function HermesConfigArea() {
             ) : field.key === "agent.reasoning_effort" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                {["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"].map((effort) =>
-                  <option key={effort} value={effort}>{effort || "Anbietervorgabe"}</option>)}
+                {choices(String(value ?? ""), REASONING_EFFORT_OPTIONS)}
               </select>
             ) : field.type === "string" ? (
               <>

@@ -11,6 +11,11 @@ import { useSession } from "@/lib/session";
 
 const platforms = ["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
   "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"] as const;
+const PLATFORM_LABELS: Record<(typeof platforms)[number], string> = {
+  telegram: "Telegram", discord: "Discord", whatsapp: "WhatsApp", slack: "Slack", signal: "Signal", matrix: "Matrix",
+  mattermost: "Mattermost", sms: "SMS", irc: "IRC", line: "LINE", feishu: "Feishu", wecom: "WeCom", photon: "Photon",
+  buzz: "Buzz", ntfy: "ntfy",
+};
 
 export function MessengerCompose() {
   const { role } = useSession();
@@ -143,8 +148,9 @@ export function MessengerCompose() {
     <h2>Nachricht über den gewählten Kanal</h2>
     <p>Ausgehende Ziele werden hier ausdrücklich registriert. Hermes’ Listen erlaubter Absender gelten nur für eingehende Nachrichten. Eine Vorschau sendet noch nichts.</p>
     <label>Kanal <select value={platform} disabled={Boolean(notificationId)} onChange={(event) => change(() => setPlatform(event.target.value as typeof platform))}>
-      {platforms.map((item) => <option key={item} value={item}>{item}</option>)}
+      {platforms.map((item) => <option key={item} value={item}>{PLATFORM_LABELS[item]}</option>)}
     </select></label>
+    {notificationId ? <p role="note">Kanal und Empfänger stammen aus der Benachrichtigung und sind hier fest.</p> : null}
     <label>Empfänger-ID <input value={recipient} readOnly={Boolean(notificationId)} onChange={(event) => change(() => setRecipient(event.target.value))} /></label>
     <button type="button" disabled={busy || !recipient.trim()} onClick={() => void registerTarget()}>Empfänger-ID registrieren</button>
     {targets.data?.data.items.length ? <ul aria-label="Registrierte Empfänger">
