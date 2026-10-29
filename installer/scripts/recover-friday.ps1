@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param(
     [Parameter(Mandatory=$true)][string]$BackupPath,
     [Parameter(Mandatory=$true)][string]$TargetRoot,
