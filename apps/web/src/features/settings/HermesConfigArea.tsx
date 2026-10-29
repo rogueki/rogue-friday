@@ -533,7 +533,7 @@ export function HermesConfigArea() {
       ) : null}
       <section aria-label="Modellanbieter-Zugänge">
         <h3>Modellanbieter-Zugänge</h3>
-        <p>Schlüssel werden nur beim Speichern gesendet und nie zurückgegeben. „Hinterlegt“ bestätigt die lokale Speicherung; Anmeldung und Modellzugriff bleiben ungeprüft.</p>
+        <p>Schlüssel werden nur beim Speichern gesendet und nie zurückgegeben. Ein neuer Schlüssel wird vor dem Speichern beim Anbieter geprüft; einen abgelehnten oder nicht prüfbaren Schlüssel speichert Friday nicht, der bisherige bleibt aktiv.</p>
         {data.secretStates.filter((state) => state.key !== "model.api_key").map((state) => (
           <div key={state.key} className="st-field">
             <label htmlFor={`hermes-secret-${state.key}`}>{state.key}</label>
