@@ -258,6 +258,10 @@ test("pin and lock: both flags are stored, a locked entry cannot be edited or fo
 test("forget needs the staged server preview, removes the entry from list and API and leaves an audit entry", async ({ page, api }) => {
   const memory = await memoryByTitle(api, EDITABLE);
   const total = (await allMemories(api)).length;
+  const deletions = async () => ((await api.get("/audit/events?limit=200")).body.items as Array<{ id: string; action: string; before: { title?: string } | null; after: unknown }>)
+    .filter((event) => event.action === "memory.deleted");
+  // A CI retry rebuilds the memory world but keeps the audit log, so only deletions from this attempt count.
+  const earlier = new Set((await deletions()).map((event) => event.id));
   await disableTier2(api);
   const drawer = await openDetail(page, memory);
   await drawer.getByRole("button", { name: "Vergessen" }).click();
@@ -281,7 +285,7 @@ test("forget needs the staged server preview, removes the entry from list and AP
 
   expect((await api.get(`/memory/${memory.id}`)).status).toBe(404);
   expect((await allMemories(api)).map((entry) => entry.id)).not.toContain(memory.id);
-  const audit = ((await api.get("/audit/events?limit=200")).body.items as Array<{ action: string; before: { title?: string } | null; after: unknown }>).filter((event) => event.action === "memory.deleted");
+  const audit = (await deletions()).filter((event) => !earlier.has(event.id));
   expect(audit, "exactly one deletion audited").toHaveLength(1);
   expect(audit[0]!.before, "audit keeps what was forgotten (type/title, not the content)").toMatchObject({ title: memory.title });
   expect(audit[0]!.after).toBeNull();
