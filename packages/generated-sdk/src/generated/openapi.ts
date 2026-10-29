@@ -2707,7 +2707,8 @@ export interface paths {
         /** Create or update CloudTalk setup; omit both API keys to retain encrypted credentials */
         put: operations["putCloudTalk"];
         post?: never;
-        delete?: never;
+        /** Disconnect CloudTalk by deleting the stored API keys; revisions never go backwards */
+        delete: operations["deleteCloudTalk"];
         options?: never;
         head?: never;
         patch?: never;
@@ -17663,6 +17664,34 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    deleteCloudTalk: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudTalkStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     getContentStudioKeys: {

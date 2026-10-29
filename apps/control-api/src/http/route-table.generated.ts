@@ -15547,6 +15547,53 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "deleteCloudTalk",
+    "method": "DELETE",
+    "path": "/api/v1/settings/cloudtalk",
+    "tag": "settings",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "pathParamRules": {},
+    "query": [],
+    "acceptsIfMatch": true,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "CloudTalkStatusResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "previewCloudTalkCall",
     "method": "POST",
     "path": "/api/v1/telephony/cloudtalk/preview",

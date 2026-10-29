@@ -40,6 +40,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   getTelephony: "settings.update",
   getCloudTalk: "settings.update",
   putCloudTalk: "settings.update",
+  deleteCloudTalk: "settings.update",
   previewCloudTalkCall: "telephony.call",
   originateCloudTalkCall: "telephony.call",
   putTelephony: "settings.update",

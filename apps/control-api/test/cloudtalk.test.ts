@@ -223,4 +223,22 @@ describe("CloudTalk API call safeguards", () => {
     expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toMatchObject({ state: "requested" });
     db.close();
   });
+
+  it("disconnect deletes the keys, keeps revisions monotonic and invalidates earlier previews", async () => {
+    const db = openDatabase(":memory:");
+    const request = vi.fn(async () => new Response(null, { status: 202 }));
+    const service = new CloudTalkService(db, Buffer.alloc(32, 12), request as typeof fetch, undefined, undefined, verified);
+    expect(await service.configure(profile, 0)).toMatchObject({ configured: true, revision: 1 });
+    const preview = service.preview("+491701234567", "owner");
+    expect(() => service.disconnect(0)).toThrow("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
+    expect(service.disconnect(1)).toMatchObject({ configured: false, revision: 1 });
+    expect(db.prepare("SELECT value FROM kv WHERE key = ?").get("telephony.cloudtalk.profile")).toBeUndefined();
+    expect(await service.configure(profile, 1)).toMatchObject({ revision: 2 });
+    await expect(service.originate(preview.destination, preview.token, "owner", "cloudtalk-old-preview-123"))
+      .rejects.toMatchObject({ code: "CONFLICT" });
+    expect(request).not.toHaveBeenCalled();
+    db.prepare("UPDATE kv SET value = ? WHERE key = ?").run("v1:AAAA:BBBB:CCCC", "telephony.cloudtalk.profile");
+    expect(service.disconnect(99)).toMatchObject({ configured: false });
+    db.close();
+  });
 });

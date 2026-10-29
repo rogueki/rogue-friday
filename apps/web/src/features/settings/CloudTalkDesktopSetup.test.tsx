@@ -11,13 +11,50 @@ const status = (overrides: Record<string, unknown> = {}) => ({ contractVersion: 
     lastReminderState: "unknown", lastReminderAt: "2026-10-17T12:46:00.000Z", ...overrides },
   freshness: { state: "fresh", asOf: "2026-10-17T12:50:00Z" } });
 
-afterEach(() => setApiClient(null));
+afterEach(() => { setApiClient(null); vi.restoreAllMocks(); });
 
 describe("CloudTalk desktop setup", () => {
   it("names the last reminder state in German", async () => {
     renderWithProviders(<CloudTalkDesktopSetup owner />, { fetchImpl: async () => jsonResponse(status()) });
     await screen.findByText(/Letzte Erinnerung: Ausgang unklar am /);
     expect(screen.queryByText(/\bunknown\b/)).toBeNull();
+  });
+
+  it("asks before disconnecting and sends nothing on cancel", async () => {
+    const deletes: string[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      if (request.method === "DELETE") {
+        deletes.push(request.url);
+        return jsonResponse(status({ configured: false, revision: 3 }));
+      }
+      return jsonResponse(status({ revision: 3 }));
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    renderWithProviders(<CloudTalkDesktopSetup owner />, { fetchImpl });
+    await user.click(await screen.findByRole("button", { name: "CloudTalk trennen" }));
+    expect(deletes).toHaveLength(0);
+  });
+
+  it("disconnects at the current revision", async () => {
+    const deletes: { url: string; ifMatch: string | null }[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      if (request.method === "DELETE") {
+        deletes.push({ url: request.url, ifMatch: request.headers.get("If-Match") });
+        return jsonResponse(status({ configured: false, revision: 3 }));
+      }
+      return jsonResponse(status({ revision: 3 }));
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    renderWithProviders(<CloudTalkDesktopSetup owner />, { fetchImpl });
+    await user.click(await screen.findByRole("button", { name: "CloudTalk trennen" }));
+    await screen.findByText("CloudTalk getrennt. Die API-Schlüssel sind gelöscht.");
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]?.url.endsWith("/settings/cloudtalk")).toBe(true);
+    expect(deletes[0]?.ifMatch).toBe("3");
   });
 
   it("keeps one idempotency key per preview and blocks a new preview after an unclear outcome", async () => {

@@ -7957,6 +7957,20 @@ paths:
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
       x-capability: meta.read
       x-required-role: owner
+    delete:
+      operationId: deleteCloudTalk
+      tags: [settings]
+      summary: Disconnect CloudTalk by deleting the stored API keys; revisions never go backwards
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkStatusResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/telephony/cloudtalk/preview:
     post:
       operationId: previewCloudTalkCall
