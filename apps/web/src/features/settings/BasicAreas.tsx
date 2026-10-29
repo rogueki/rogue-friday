@@ -189,6 +189,13 @@ export function DashboardArea() {
 
 /* ── Models & routing ─────────────────────────────────────────────────── */
 
+const TASK_KIND_LABELS: Record<string, string> = {
+  "voice-routine": "Sprache – Routine",
+  "voice-complex": "Sprache – komplex",
+  "voice-critical": "Sprache – kritisch",
+  "agent-task": "Agentenaufgabe",
+};
+
 export function ModelsRoutingArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("modelsRouting");
@@ -230,7 +237,7 @@ export function ModelsRoutingArea() {
               <Select label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly}
                 options={[...taskKinds.filter((kind) => kind === route.taskKind || !value.routes.some((other) => other.taskKind === kind)),
                   ...(taskKinds.includes(route.taskKind) ? [] : [route.taskKind])].map((kind) =>
-                  ({ value: kind, label: taskKinds.includes(kind) ? kind : `${kind} (nicht unterstützt)` }))}
+                  ({ value: kind, label: taskKinds.includes(kind) ? TASK_KIND_LABELS[kind] ?? kind : `${kind} (nicht unterstützt)` }))}
                 onChange={(event) => setRoute(index, { taskKind: event.target.value, fallbackModel: event.target.value === "agent-task" ? null : route.fallbackModel })} />
               <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly}
                 list={route.taskKind === "agent-task" ? "agent-task-models" : undefined}
@@ -247,7 +254,7 @@ export function ModelsRoutingArea() {
                       : "Modellvorschläge sind kuratiert; Zugang und Modellzugriff bleiben ungeprüft."}</small>
               </> : null}
               <Select label="Denkstufe" value={route.reasoningLevel} disabled={readOnly}
-                options={["none", "low", "medium", "high", "max"].map((level) => ({ value: level, label: level }))}
+                options={([["none", "Aus"], ["low", "Niedrig"], ["medium", "Mittel"], ["high", "Hoch"], ["max", "Maximal"]] as const).map(([level, label]) => ({ value: level, label }))}
                 onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
               <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly || route.taskKind === "agent-task"}
                 onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
@@ -317,8 +324,8 @@ export function VoiceArea() {
             onChange={(event) => update({ sttLanguage: event.target.value as "de" | "en" })} />
           <Select label="Lokales Whisper-Modell" value={value.sttModel ?? ""} disabled={readOnly}
             options={[...(value.sttModel == null ? [{ value: "", label: "Installiertes Modell übernehmen" }] : []),
-              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Modell (${value.sttModel})` }] : []),
-              { value: "base", label: "base" }, { value: "small", label: "small" }, { value: "medium", label: "medium" }]}
+              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Nicht unterstütztes Modell (${value.sttModel})` }] : []),
+              { value: "base", label: "base – schnell, weniger genau" }, { value: "small", label: "small – ausgewogen" }, { value: "medium", label: "medium – genauer, langsamer" }]}
             onChange={(event) => update({ sttModel: event.target.value === "" ? null : event.target.value as "base" | "small" | "medium" })} />
         </FieldGrid>
         <SttModelsControl selected={value.sttModel ?? null} language={value.sttLanguage ?? "de"} readOnly={readOnly}

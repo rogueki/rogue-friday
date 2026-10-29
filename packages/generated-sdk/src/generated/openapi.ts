@@ -7163,6 +7163,22 @@ export interface components {
             value: number;
         } | {
             /** @constant */
+            key: "delegation.max_spawn_depth";
+            value: number;
+        } | {
+            /** @constant */
+            key: "delegation.max_concurrent_children";
+            value: number;
+        } | {
+            /** @constant */
+            key: "delegation.max_iterations";
+            value: number;
+        } | {
+            /** @constant */
+            key: "delegation.child_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
             key: "gateway.startup_watchdog_timeout_seconds";
             value: number;
         } | {
@@ -7242,7 +7258,7 @@ export interface components {
                 /** @enum {unknown} */
                 family: "agent" | "models" | "execution" | "extensions" | "operations";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "model.base_url" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.container_cpu" | "terminal.container_memory" | "terminal.container_disk" | "terminal.container_persistent" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.inactivity_timeout" | "browser.engine" | "browser.headed" | "browser.auto_local_for_private_urls" | "browser.dialog_policy" | "browser.dialog_timeout_s" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "code_execution.kernel_idle_timeout" | "code_execution.max_session_kernels" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "computer_use.max_image_dimension" | "computer_use.ax_max_elements" | "computer_use.capture_after_mode" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.denial_breaker_threshold" | "approvals.deny" | "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "kanban.max_in_progress" | "kanban.max_in_progress_per_profile" | "kanban.max_spawn" | "kanban.failure_limit" | "kanban.dispatch_stale_timeout_seconds" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
+                key: "model.provider" | "model.default" | "model.base_url" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.container_cpu" | "terminal.container_memory" | "terminal.container_disk" | "terminal.container_persistent" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.inactivity_timeout" | "browser.engine" | "browser.headed" | "browser.auto_local_for_private_urls" | "browser.dialog_policy" | "browser.dialog_timeout_s" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "code_execution.kernel_idle_timeout" | "code_execution.max_session_kernels" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "computer_use.max_image_dimension" | "computer_use.ax_max_elements" | "computer_use.capture_after_mode" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.denial_breaker_threshold" | "approvals.deny" | "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "kanban.max_in_progress" | "kanban.max_in_progress_per_profile" | "kanban.max_spawn" | "kanban.failure_limit" | "kanban.dispatch_stale_timeout_seconds" | "delegation.max_spawn_depth" | "delegation.max_concurrent_children" | "delegation.max_iterations" | "delegation.child_timeout_seconds" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
@@ -13089,6 +13105,7 @@ export interface operations {
                     "application/json": components["schemas"]["CalendarEventResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13124,6 +13141,7 @@ export interface operations {
                     "application/json": components["schemas"]["CalendarEventResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13340,6 +13358,7 @@ export interface operations {
                     "application/json": components["schemas"]["CodingRunResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13371,6 +13390,7 @@ export interface operations {
                     "application/json": components["schemas"]["CodingRunResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14247,6 +14267,7 @@ export interface operations {
                     "application/json": components["schemas"]["KieTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14375,6 +14396,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentProductionJobResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14404,6 +14426,7 @@ export interface operations {
                     "video/mp4": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14435,6 +14458,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentProductionJobResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15058,6 +15082,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAccountResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
         };
@@ -15087,6 +15112,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15115,6 +15141,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAttachmentResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15145,6 +15172,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15173,6 +15201,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailCheckResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15201,6 +15230,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15234,6 +15264,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailDraftResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15260,6 +15291,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailEnvelopesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15283,6 +15315,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailFolderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15310,6 +15343,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailMessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15340,6 +15374,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailOAuthResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15368,6 +15403,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAccountResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15394,6 +15430,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailOAuthStartResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15417,6 +15454,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15448,6 +15486,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15475,6 +15514,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15502,6 +15542,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailEnvelopesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15535,6 +15576,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailSendResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15640,6 +15682,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurableMemoryForgetResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15670,6 +15713,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurableMemoryCorrectResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -16341,6 +16385,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -16376,6 +16421,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -16412,6 +16458,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -16494,6 +16541,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerSenderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16524,6 +16572,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerSenderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16611,6 +16660,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerTargetResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -17987,6 +18037,7 @@ export interface operations {
                     "application/json": components["schemas"]["HermesSkillKeyCheckResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -18827,6 +18878,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -18853,6 +18905,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillMarkdownResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -18880,6 +18933,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18915,6 +18969,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18950,6 +19005,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18994,6 +19050,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillMutationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -19163,6 +19220,7 @@ export interface operations {
                     "application/vnd.openxmlformats-officedocument.presentationml.presentation": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20064,6 +20122,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelephonyCallResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20092,6 +20151,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelephonyCallResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20713,6 +20773,7 @@ export interface operations {
                     "application/json": components["schemas"]["VoiceDomainTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20745,6 +20806,7 @@ export interface operations {
                     "application/json": components["schemas"]["VoiceDomainTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

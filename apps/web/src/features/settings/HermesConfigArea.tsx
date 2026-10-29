@@ -87,6 +87,10 @@ const LABELS: Record<string, string> = {
   "kanban.max_spawn": "Gleichzeitige Aufgaben je Board",
   "kanban.failure_limit": "Fehlversuche bis zur Sperre einer Aufgabe",
   "kanban.dispatch_stale_timeout_seconds": "Hängende Aufgabe nach Sekunden zurückholen (0 = aus)",
+  "delegation.max_spawn_depth": "Maximale Tiefe von Unteragenten (1 = keine Verschachtelung)",
+  "delegation.max_concurrent_children": "Gleichzeitige Unteragenten je Lauf",
+  "delegation.max_iterations": "Schrittbudget je Unteragent",
+  "delegation.child_timeout_seconds": "Unteragent ohne Fortschritt nach Sekunden beenden (0 = aus)",
   "gateway.loop_watchdog": "Gateway-Ereignisschleife überwachen",
   "gateway.startup_watchdog": "Gateway-Start überwachen",
   "gateway.startup_watchdog_timeout_seconds": "Gateway-Startlimit (Sekunden)",
@@ -141,6 +145,10 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "kanban.max_spawn": [1, 64, 1],
   "kanban.failure_limit": [1, 20, 1],
   "kanban.dispatch_stale_timeout_seconds": [0, 86400, 1],
+  "delegation.max_spawn_depth": [1, 3, 1],
+  "delegation.max_concurrent_children": [1, 16, 1],
+  "delegation.max_iterations": [10, 1000, 1],
+  "delegation.child_timeout_seconds": [0, 86400, 1],
   "gateway.startup_watchdog_timeout_seconds": [30, 3600, 1],
   "gateway.restart_loop_guard.max_restarts": [0, 20, 1],
   "gateway.respawn_storm.max_starts": [0, 100, 1],
@@ -165,6 +173,30 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "computer_use.capture_after_mode": [["som", "Screenshot und Elemente"], ["ax", "Nur Elemente"],
     ["vision", "Nur Bild"]],
 };
+const LOGGING_LEVEL_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["DEBUG", "Debug (sehr ausführlich)"],
+  ["INFO", "Info (Standard)"],
+  ["WARNING", "Warnung"],
+];
+const COMPRESSION_TAIL_MODE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["lean", "Kompakt"],
+  ["legacy", "Verbatim-Verlauf"],
+];
+const REASONING_EFFORT_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["", "Anbietervorgabe"], ["none", "Aus"], ["minimal", "Minimal"], ["low", "Niedrig"],
+  ["medium", "Mittel"], ["high", "Hoch"], ["xhigh", "Sehr hoch"], ["max", "Maximal"], ["ultra", "Ultra"],
+];
+
+// A native select would otherwise show the first option for a stored value it does not offer.
+function choices(current: string, options: ReadonlyArray<readonly [string, string]>) {
+  return (
+    <>
+      {options.map(([option, label]) => <option key={option} value={option}>{label}</option>)}
+      {options.some(([option]) => option === current) ? null :
+        <option value={current} disabled>{`Nicht unterstützt (${current})`}</option>}
+    </>
+  );
+}
 
 export function HermesConfigArea() {
   const observed = useHermesConfig();
@@ -300,12 +332,12 @@ export function HermesConfigArea() {
             {field.key === "logging.level" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "INFO")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                <option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARNING">WARNING</option>
+                {choices(String(value ?? "INFO"), LOGGING_LEVEL_OPTIONS)}
               </select>
             ) : field.key === "compression.tail_mode" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "lean")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                <option value="lean">Kompakt</option><option value="legacy">Verbatim-Verlauf</option>
+                {choices(String(value ?? "lean"), COMPRESSION_TAIL_MODE_OPTIONS)}
               </select>
             ) : field.type === "fallback" ? (
               <div>
@@ -344,8 +376,7 @@ export function HermesConfigArea() {
             ) : field.key === "agent.reasoning_effort" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
-                {["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"].map((effort) =>
-                  <option key={effort} value={effort}>{effort || "Anbietervorgabe"}</option>)}
+                {choices(String(value ?? ""), REASONING_EFFORT_OPTIONS)}
               </select>
             ) : field.type === "string" ? (
               <>

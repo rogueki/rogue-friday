@@ -447,6 +447,8 @@ export const deC = {
   "voicePage.status.focusMode": "Fokus-Modus",
   "voicePage.status.noDevice": "Kein Gerät gewählt",
   "voicePage.status.selected": "Gewählt",
+  "voicePage.status.deviceMissing": "Gewähltes Gerät nicht gefunden",
+  "voicePage.status.unreachable": "Nicht erreichbar",
   "voicePage.status.noSpeaker": "Niemand erkannt",
   "voicePage.status.unknown": "Unbekannt",
   "voicePage.trusted.until": "gültig bis {time}",
