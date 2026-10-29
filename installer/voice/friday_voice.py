@@ -75,6 +75,8 @@ from memory_outbox import MemoryOutbox, private_intent  # noqa: E402
 SR = 16000
 STT_PREFLIGHT_TIMEOUT = 45
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
+# An input stream that delivers no block for this long has lost its device (unplugged endpoints stop the callback).
+AUDIO_STALL_S = 3.0
 VAD_FRAME = 512
 LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
 
@@ -771,6 +773,9 @@ class VoiceService:
 
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
+        self.last_audio_callback = time.monotonic()
+        if status:
+            self.audio_input_flags = str(status)
         self.input_level.update(indata[:, 0])
         block = indata[:, 0].copy()
         self.audio_q.put(block)
@@ -1015,7 +1020,7 @@ class VoiceService:
         if self.audio_transport != "device":
             raise ValueError("Browser-Audio wird im Browser ausgewaehlt")
         from audio_devices import resolve
-        selected_input, _ = resolve(sd, input_id, "input")
+        selected_input, input_info = resolve(sd, input_id, "input")
         selected_output, output_info = resolve(sd, output_id, "output")
         if output_info is None and sd.query_devices(selected_output, "output")["max_output_channels"] < 1:
             raise ValueError("Kein nutzbares Standard-Ausgabegeraet")
@@ -1037,11 +1042,12 @@ class VoiceService:
             self.control_cancel.set()
             stream = None
             try:
-                try:
-                    previous_stream.stop()
-                except sd.PortAudioError:
-                    pass  # A disconnected endpoint may already be stopped by PortAudio.
-                previous_stream.close()
+                if previous_stream is not None:
+                    for step in (previous_stream.stop, previous_stream.close):
+                        try:
+                            step()
+                        except sd.PortAudioError:
+                            pass  # A disconnected endpoint may already be stopped or closed by PortAudio.
                 stream = sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
                                         device=selected_input, callback=self._on_audio)
                 stream.start()
@@ -1054,6 +1060,8 @@ class VoiceService:
                 self.config_disk_hash = runtime_settings.file_hash(config_path)
                 self.audio_input_device_id = input_id
                 self.audio_output_device_id = output_id
+                self.audio_input_device_name = input_info.get("name") if input_info else None
+                self.audio_output_device_name = output_info.get("name") if output_info else None
                 self.audio_applied_revision += 1
                 self.audio_error = None
                 self.status["state"] = "wake_only"
@@ -1083,35 +1091,61 @@ class VoiceService:
                 self.audio_error = f"Auswahl nicht angewendet: {type(exc).__name__}"
                 raise
 
+    def _close_input_stream(self) -> None:
+        stream, self.input_stream = self.input_stream, None
+        if stream is None:
+            return
+        for step in (stream.stop, stream.close):
+            try:
+                step()
+            except sd.PortAudioError:
+                pass  # A disconnected endpoint may already be stopped or closed by PortAudio.
+
     def _audio_device_watcher(self) -> None:
-        from audio_devices import inventory
+        from audio_devices import inventory, refresh
         missing = False
         while True:
             time.sleep(2)
             if self.audio_transport != "device":
                 return
             try:
-                available = {item["id"] for item in inventory(sd)}
                 selected = (self.cfg.get("input_device_id"), self.cfg.get("output_device_id"))
+                if not missing:
+                    stream = self.input_stream
+                    quiet = time.monotonic() - getattr(self, "last_audio_callback", time.monotonic())
+                    if stream is not None and getattr(stream, "active", True) and quiet <= AUDIO_STALL_S:
+                        continue
+                    self._mark_audio_lost("stalled")
+                    missing = True
+                if self.processing or self.tts.speaking.is_set():
+                    continue
+                # The device list is frozen at PortAudio start: re-enumerate with every stream closed.
+                self._close_input_stream()
+                refresh(sd)
+                available = {item["id"] for item in inventory(sd)}
                 absent = [item for item in selected if item and item not in available]
                 if absent:
-                    if not missing:
-                        self.cancel_active_interaction()
-                    missing = True
-                    self.audio_error = "Ausgewaehltes Audiogeraet ist nicht verbunden"
                     self.audio_input_device_id = None if selected[0] in absent else self.audio_input_device_id
                     self.audio_output_device_id = None if selected[1] in absent else self.audio_output_device_id
-                    self.status["state"] = "waiting_audio"
                     continue
-                if missing and not self.processing and not self.tts.speaking.is_set():
-                    self.apply_audio(*selected)
-                    missing = False
+                self.apply_audio(*selected)
+                missing = False
+                log_event(event="audio_device_restored")
             except Exception as exc:
-                self.audio_error = f"Audiogeraetepruefung fehlgeschlagen: {type(exc).__name__}"
+                error = f"Audiogeraetepruefung fehlgeschlagen: {type(exc).__name__}"
+                if error != self.audio_error:
+                    log_event(event="audio_device_check_failed", error=type(exc).__name__)
                 if not missing:
                     self.cancel_active_interaction()
                 missing = True
+                self.audio_error = error
                 self.status["state"] = "waiting_audio"
+
+    def _mark_audio_lost(self, reason: str) -> None:
+        self.cancel_active_interaction()
+        self.audio_error = "Audiogeraet getrennt oder nicht verbunden; Friday wartet, bis es wieder da ist"
+        self.status["state"] = "waiting_audio"
+        log_event(event="audio_device_lost", reason=reason)
 
     def _drain(self) -> None:
         self.preroll.clear()
@@ -1698,12 +1732,15 @@ class VoiceService:
                 cfg["input_device_id"] = legacy_id(sd, cfg.get("input_device"), "input")
             if "output_device_id" not in cfg:
                 cfg["output_device_id"] = legacy_id(sd, cfg.get("output_device"), "output")
-            selected, _ = resolve(sd, cfg.get("input_device_id"), "input")
-            output, _ = resolve(sd, cfg.get("output_device_id"), "output")
+            selected, input_info = resolve(sd, cfg.get("input_device_id"), "input")
+            output, output_info = resolve(sd, cfg.get("output_device_id"), "output")
             output_rate = round(sd.query_devices(output, "output")["default_samplerate"])
             with sd.OutputStream(samplerate=output_rate, channels=1, dtype="float32", device=output):
                 pass
             self.tts.output_device = output
+            self.audio_input_device_name = input_info.get("name") if input_info else None
+            self.audio_output_device_name = output_info.get("name") if output_info else None
+            self.last_audio_callback = time.monotonic()
             audio_source = sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
                                           device=selected, callback=self._on_audio)
         with audio_source:
@@ -2018,6 +2055,10 @@ class VoiceService:
                 "output_device_id": getattr(self, "audio_output_device_id", None),
                 "audio_applied_revision": getattr(self, "audio_applied_revision", 0),
                 "audio_error": getattr(self, "audio_error", None),
+                "input_device_name": getattr(self, "audio_input_device_name", None),
+                "output_device_name": getattr(self, "audio_output_device_name", None),
+                "input_stream_active": bool(getattr(getattr(self, "input_stream", None), "active", False)),
+                "audio_input_flags": getattr(self, "audio_input_flags", None),
                 "memory_capture_error": getattr(self, "memory_capture_error", None),
                 "memory_pending": memory_pending,
                 "memory_search_error": getattr(self, "memory_search_error", None)}
