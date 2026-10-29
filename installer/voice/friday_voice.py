@@ -2011,6 +2011,7 @@ class VoiceService:
                 "input_audio": self.input_level.snapshot(),
                 "output_audio": self.tts.level.snapshot(),
                 "audio_transport": getattr(self, "audio_transport", self.cfg.get("audio_transport", "device")),
+                "host_platform": "windows" if sys.platform == "win32" else "linux",
                 "input_device_id": getattr(self, "audio_input_device_id", None),
                 "output_device_id": getattr(self, "audio_output_device_id", None),
                 "audio_applied_revision": getattr(self, "audio_applied_revision", 0),

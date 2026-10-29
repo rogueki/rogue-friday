@@ -149,6 +149,16 @@
       "type": ["string", "null"]
     },
     "ttsVoiceChoice": { "type": ["string", "null"] },
+    "audioPath": {
+      "type": "object",
+      "description": "Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.",
+      "properties": {
+        "transport": { "type": "string", "enum": ["device", "browser"] },
+        "host": { "anyOf": [{ "type": "null" }, { "type": "string", "enum": ["windows", "linux"] }] }
+      },
+      "required": ["transport", "host"],
+      "additionalProperties": false
+    },
     "serviceStartedAt": { "type": ["string", "null"], "format": "date-time" },
     "audioOutputDeviceId": {
       "type": ["string", "null"]

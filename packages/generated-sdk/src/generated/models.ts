@@ -5307,6 +5307,13 @@ export interface VoiceStatus {
   };
   audioInputDeviceId: string | null;
   ttsVoiceChoice?: string | null;
+  /**
+   * Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.
+   */
+  audioPath?: {
+    transport: "device" | "browser";
+    host: null | ("windows" | "linux");
+  };
   serviceStartedAt?: string | null;
   audioOutputDeviceId: string | null;
   pushToTalk: {
