@@ -105,7 +105,8 @@ describe("WebSocket /api/v1/events", () => {
       const probe = await connect(owner);
       await createTask("Leck-Test");
       await probe.waitFor((p) => p.events().length > 0, 3_000, "Ereignis");
-      const text = probe.frames.map((frame) => frame.raw).join("\n");
+      // Prefixed ULIDs (corr_01M6…CSRF3…) are random Crockford base32 and can spell CSRF or SECRET; blank them first.
+      const text = probe.frames.map((frame) => frame.raw).join("\n").replace(/\b[a-z]+_[0-9A-HJKMNP-TV-Z]{26}\b/g, "<id>");
       expect(text).not.toMatch(/friday_session|csrf|password|secret/i);
       for (const frame of probe.frames) expect(() => JSON.parse(frame.raw)).not.toThrow();
     });
