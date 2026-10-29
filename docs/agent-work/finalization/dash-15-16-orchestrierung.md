@@ -101,16 +101,16 @@ Gateway-Neustart um 22:31:55, danach sechs Aufgaben in einem Durchgang:
 
 ## 5. Offene Punkte
 
-- **Harte Bereichstrennung (DASH-15.04 „verbotene bereichsfremde Mutation auf Backendebene“):** Alle Worker laufen unter
-  demselben Linux-Benutzer. Profil-Home (`terminal.home_mode: auto`), Profil-`.env` (`agent/secret_scope.py`), eigene
-  Skill-Sets und Toolsets je Profil grenzen ab. Ein Profil mit `terminal` kann Zugangsdaten anderer Bereiche aber über
-  absolute Pfade lesen (z. B. `~/.config/friday/{mail,calendar}`). Eine harte Grenze verlangt eigene Linux-Benutzer je
-  Profil oder `terminal.backend: docker`. Das ist eine Architekturentscheidung für den Betreiber und nicht umgesetzt.
-- **DASH-16.02/16.05:** Sprache und Chat routen noch nicht in Domain-Aufgaben. `installer/voice/friday_voice.py`
-  `_ask_hermes` ruft synchron `/v1/chat/completions` auf (Timeout 900 s). Ein Rechercheauftrag per Sprache blockiert damit
-  das Gespräch.
+- **Harte Bereichstrennung (DASH-15.04):** Entschieden 2026-10-29: eigene Linux-Benutzer je Domain-Profil. Umsetzung
+  nach `n-094-profil-benutzer-entwurf.md`; bis dahin gelten die weichen Grenzen (Profil-Home, Profil-`.env`, Skill- und
+  Toolsets).
+- **DASH-16.02 Sprache -> Domain-Aufgabe:** Umgesetzt. Bei `background` legt `installer/voice/domain_task_voice.py`
+  ueber `POST /api/v1/voice/tasks` eine Aufgabe beim Profil an (Einordnung nach Stichworten: Pruefen -> audit,
+  Warnen/Ueberwachen -> alerts, Recherche -> research, sonst tasks), sagt "Ich gebe das an den ...-Agenten" und fragt
+  den Status alle 10 s ab (hoechstens 30 min). Das Ergebnis kommt aus `Task.resultSummary` (Hermes `latest_summary`).
+  Ohne erreichbare Control API bleibt der alte synchrone Weg. Chat (16.05) folgt.
 - **Abbruch an Kinder weitergeben (DASH-16.04):** Im Hermes-Adapter umgesetzt. Erst wird der ganze Baum gelesen
   (höchstens 64 Nachkommen, Tiefe 8), dann werden offene Nachkommen von unten nach oben archiviert, zuletzt die
   Elternaufgabe. Abgeschlossene Kinder bleiben `done`. Scheitert ein Kind, bleibt die Elternaufgabe offen und der Abbruch
   lässt sich wiederholen. Die Reihenfolge ist Pflicht: Hermes setzt Kinder eines archivierten Elternteils auf `ready`
-  (`hermes_cli/kanban_db.py` archive_task). Offen N-095: Vorschautext und Mock-Parität.
+  (`hermes_cli/kanban_db.py` archive_task). Die Abbruchvorschau nennt mitabgebrochene Unteraufgaben (N-095).

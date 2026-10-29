@@ -8,6 +8,7 @@ import type { OperationId } from "../http/route-types";
  */
 export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   createTask: "tasks.create",
+  createVoiceDomainTask: "tasks.create",
   updateTask: "tasks.update",
   cancelTask: "tasks.cancel",
   retryTask: "tasks.retry",

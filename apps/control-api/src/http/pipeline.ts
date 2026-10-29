@@ -30,6 +30,7 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",
   "listMailAccounts", "listMailFolders", "listMailEnvelopes", "getMailMessage",
   "captureDurableMemoryEvent", "searchDurableMemory",
+  "createVoiceDomainTask", "getVoiceDomainTask",
 ]);
 const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",

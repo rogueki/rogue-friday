@@ -8,6 +8,7 @@ import type { WireRun, WireTask, WireTaskDetail } from "./wire";
 
 const TITLE_MAX = 300;
 const TEXT_MAX = 300;
+const RESULT_MAX = 4000;
 
 export const isoFromSeconds = (seconds: number): string => new Date(Math.round(seconds * 1000)).toISOString();
 
@@ -176,6 +177,7 @@ export function createTaskMapper(deps: {
       source: context.source(`${board}/${raw.id}`),
       title: truncate(raw.title, TITLE_MAX) || raw.id,
       ...(raw.body ? { description: raw.body } : {}),
+      ...(raw.latestSummary ? { resultSummary: truncate(raw.latestSummary, RESULT_MAX) } : {}),
       status,
       priority: toPriority(raw.priority),
       agentId: raw.assignee ? agentIds.encode(raw.assignee) : null,

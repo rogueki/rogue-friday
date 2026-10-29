@@ -217,6 +217,28 @@ describe("tasks: read", () => {
     expect(Date.parse(data.lastActivityAt ?? "")).toBeGreaterThanOrEqual(Date.parse(data.updatedAt));
   });
 
+  it("maps the latest run summary into resultSummary", async () => {
+    const board = fake.state.board("default");
+    const withSummary = fake.state.addTask("default", { title: "Mit Zusammenfassung", assignee: "kira" });
+    fake.state.addRun(board, withSummary, {
+      status: "done",
+      outcome: "completed",
+      summary: "Rechnung geprüft, keine Abweichungen.",
+      ended_at: fake.state.tick(),
+    });
+    fake.state.addTask("default", { title: "Ohne Lauf" });
+    const h = await open({ boards: ["default"] });
+
+    const tasks = Object.fromEntries(
+      (await h.adapter.listTasks({}, h.call())).items.map((task) => [task.title, task]),
+    );
+    const withRun = await h.adapter.getTask({ id: tasks["Mit Zusammenfassung"]?.id ?? "" }, h.call());
+    const withoutRun = await h.adapter.getTask({ id: tasks["Ohne Lauf"]?.id ?? "" }, h.call());
+
+    expect(withRun.data.resultSummary).toBe("Rechnung geprüft, keine Abweichungen.");
+    expect(withoutRun.data.resultSummary).toBeUndefined();
+  });
+
   it("resolves hashed ids after a restart by re-reading the boards, and reports unknown ids as NOT_FOUND", async () => {
     const task = fake.state.addTask("business", { title: "Nach Neustart" });
     const first = await open();

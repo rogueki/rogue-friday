@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/tasks/voice-domain-task-request.schema.json",
+  "title": "VoiceDomainTaskRequest",
+  "description": "Spoken long-running request handed to one domain agent. Domains that send, book or change external data keep their own confirmed voice flows.",
+  "type": "object",
+  "properties": {
+    "text": { "type": "string", "minLength": 3, "maxLength": 2000 },
+    "domain": { "type": "string", "enum": ["research", "tasks", "alerts", "audit"] }
+  },
+  "required": ["text", "domain"],
+  "additionalProperties": false
+}

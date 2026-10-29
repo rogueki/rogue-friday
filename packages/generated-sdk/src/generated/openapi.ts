@@ -4135,6 +4135,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hand a long spoken request to one domain agent through the local voice bridge */
+        post: operations["createVoiceDomainTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Poll a domain task that the voice service created */
+        get: operations["getVoiceDomainTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/test": {
         parameters: {
             query?: never;
@@ -10284,6 +10318,8 @@ export interface components {
             priority: components["schemas"]["Priority"];
             progress: components["schemas"]["Progress"];
             reasoningLevel?: components["schemas"]["ReasoningLevel"];
+            /** @description Final summary the executing agent reported for its latest run; null while none exists. */
+            resultSummary?: string | null;
             runtimeMs: number | null;
             source: components["schemas"]["SourceDescriptor"];
             sourceRefs: components["schemas"]["EntityRef"][];
@@ -10764,6 +10800,37 @@ export interface components {
             items: components["schemas"]["VoiceDevice"][];
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * VoiceDomainTask
+         * @description Voice-scoped view of a domain task: only what the voice service needs to announce the outcome.
+         */
+        VoiceDomainTask: {
+            agentName: string | null;
+            /** @enum {string} */
+            domain: "research" | "tasks" | "alerts" | "audit";
+            error: string | null;
+            resultSummary: string | null;
+            status: components["schemas"]["TaskStatus"];
+            taskId: string;
+        };
+        /**
+         * VoiceDomainTaskRequest
+         * @description Spoken long-running request handed to one domain agent. Domains that send, book or change external data keep their own confirmed voice flows.
+         */
+        VoiceDomainTaskRequest: {
+            /** @enum {string} */
+            domain: "research" | "tasks" | "alerts" | "audit";
+            text: string;
+        };
+        /**
+         * VoiceDomainTaskResponse
+         * @description Single-resource envelope for VoiceDomainTask.
+         */
+        VoiceDomainTaskResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceDomainTask"];
+            freshness: components["schemas"]["Freshness"];
         };
         /**
          * VoiceEnrollment
@@ -20570,6 +20637,69 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    createVoiceDomainTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceDomainTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Domain task created or idempotently replayed */
+            201: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDomainTaskResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getVoiceDomainTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current state and outcome of the voice task */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDomainTaskResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     runVoiceTest: {
