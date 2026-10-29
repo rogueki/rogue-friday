@@ -1130,6 +1130,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch. Live-Lauf als root steht aus
   (`n-094-profil-benutzer-entwurf.md`).
 
+- N-052 (2026-10-29): Pfadparameter werden gegen Laenge, Muster und Enum aus dem Vertrag geprueft (vorher nur
+  128 Zeichen); Werte wie `-../` enden mit 400 VALIDATION_FAILED vor Handler und Adapter. 46 Operationen mit
+  Pfadparametern deklarieren 400 jetzt im Vertrag (additiv).
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.

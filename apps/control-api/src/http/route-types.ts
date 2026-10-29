@@ -18,6 +18,12 @@ export interface ResponseSpec {
   contentTypes: string[];
 }
 
+export interface PathParamRule {
+  maxLength?: number;
+  pattern?: string;
+  enum?: string[];
+}
+
 export interface RouteSpec {
   operationId: OperationId;
   method: HttpMethod;
@@ -31,6 +37,8 @@ export interface RouteSpec {
   /** False for operations declared with `security: []` (login). */
   requiresSession: boolean;
   pathParams: string[];
+  /** Contract constraints per path parameter (missing entry = only the 128-character default). */
+  pathParamRules: Record<string, PathParamRule>;
   query: QueryParamSpec[];
   /** Header parameters declared by the operation. */
   acceptsIfMatch: boolean;

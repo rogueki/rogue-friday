@@ -13089,6 +13089,7 @@ export interface operations {
                     "application/json": components["schemas"]["CalendarEventResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13124,6 +13125,7 @@ export interface operations {
                     "application/json": components["schemas"]["CalendarEventResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13340,6 +13342,7 @@ export interface operations {
                     "application/json": components["schemas"]["CodingRunResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13371,6 +13374,7 @@ export interface operations {
                     "application/json": components["schemas"]["CodingRunResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14247,6 +14251,7 @@ export interface operations {
                     "application/json": components["schemas"]["KieTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14375,6 +14380,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentProductionJobResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14404,6 +14410,7 @@ export interface operations {
                     "video/mp4": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14435,6 +14442,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentProductionJobResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15058,6 +15066,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAccountResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
         };
@@ -15087,6 +15096,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15115,6 +15125,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAttachmentResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15145,6 +15156,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15173,6 +15185,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailCheckResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15201,6 +15214,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15234,6 +15248,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailDraftResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15260,6 +15275,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailEnvelopesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15283,6 +15299,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailFolderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15310,6 +15327,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailMessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15340,6 +15358,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailOAuthResultResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15368,6 +15387,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailAccountResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15394,6 +15414,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailOAuthStartResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15417,6 +15438,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15448,6 +15470,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15475,6 +15498,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailReceiptResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15502,6 +15526,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailEnvelopesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15535,6 +15560,7 @@ export interface operations {
                     "application/json": components["schemas"]["MailSendResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15640,6 +15666,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurableMemoryForgetResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -15670,6 +15697,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurableMemoryCorrectResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -16341,6 +16369,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -16376,6 +16405,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -16412,6 +16442,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerProviderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -16494,6 +16525,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerSenderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16524,6 +16556,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerSenderResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16611,6 +16644,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessengerTargetResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -17987,6 +18021,7 @@ export interface operations {
                     "application/json": components["schemas"]["HermesSkillKeyCheckResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -18827,6 +18862,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -18853,6 +18889,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillMarkdownResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -18880,6 +18917,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18915,6 +18953,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18950,6 +18989,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillReportResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The CLI refused the report and its reason is passed on unchanged */
@@ -18994,6 +19034,7 @@ export interface operations {
                     "application/json": components["schemas"]["SkillMutationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -19163,6 +19204,7 @@ export interface operations {
                     "application/vnd.openxmlformats-officedocument.presentationml.presentation": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20064,6 +20106,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelephonyCallResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20092,6 +20135,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelephonyCallResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20713,6 +20757,7 @@ export interface operations {
                     "application/json": components["schemas"]["VoiceDomainTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -20745,6 +20790,7 @@ export interface operations {
                     "application/json": components["schemas"]["VoiceDomainTaskResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
