@@ -1218,6 +1218,9 @@ export interface FridayModelMap {
   VoiceConnectedCalendarRequest: VoiceConnectedCalendarRequest;
   VoiceDevice: VoiceDevice;
   VoiceDeviceListResponse: VoiceDeviceListResponse;
+  VoiceDomainTask: VoiceDomainTask;
+  VoiceDomainTaskRequest: VoiceDomainTaskRequest;
+  VoiceDomainTaskResponse: VoiceDomainTaskResponse;
   VoiceEnrollment: VoiceEnrollment;
   VoiceEnrollmentResponse: VoiceEnrollmentResponse;
   VoiceEnrollRequest: VoiceEnrollRequest;
@@ -5178,6 +5181,10 @@ export interface Task {
   source: SourceDescriptor;
   title: string;
   description?: string;
+  /**
+   * Final summary the executing agent reported for its latest run; null while none exists.
+   */
+  resultSummary?: string | null;
   status: TaskStatus;
   priority: Priority;
   agentId: string | null;
@@ -6466,6 +6473,32 @@ export interface VoiceDeviceListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+/**
+ * Voice-scoped view of a domain task: only what the voice service needs to announce the outcome.
+ */
+export interface VoiceDomainTask {
+  taskId: string;
+  domain: "research" | "tasks" | "alerts" | "audit";
+  agentName: string | null;
+  status: TaskStatus;
+  resultSummary: string | null;
+  error: string | null;
+}
+/**
+ * Spoken long-running request handed to one domain agent. Domains that send, book or change external data keep their own confirmed voice flows.
+ */
+export interface VoiceDomainTaskRequest {
+  text: string;
+  domain: "research" | "tasks" | "alerts" | "audit";
+}
+/**
+ * Single-resource envelope for VoiceDomainTask.
+ */
+export interface VoiceDomainTaskResponse {
+  contractVersion: ContractVersion;
+  data: VoiceDomainTask;
+  freshness: Freshness;
 }
 /**
  * Status of one enrollment job.

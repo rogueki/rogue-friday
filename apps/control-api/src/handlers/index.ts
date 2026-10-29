@@ -29,6 +29,7 @@ import { hermesConfigHandlers } from "./hermes-config";
 import { systemBackupHandlers } from "./system-backups";
 import { messengerInboundHandlers } from "./messenger-inbound";
 import { taskActionHandlers } from "./task-actions";
+import { voiceTaskHandlers } from "./voice-tasks";
 import { agentActionHandlers } from "./agent-actions";
 import { knowledgeActionHandlers } from "./knowledge-actions";
 import { automationActionHandlers } from "./automation-actions";
@@ -62,6 +63,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     systemBackupHandlers,
     messengerInboundHandlers,
     taskActionHandlers,
+    voiceTaskHandlers,
     localReads,
     localResearchReads,
     devHandlers,

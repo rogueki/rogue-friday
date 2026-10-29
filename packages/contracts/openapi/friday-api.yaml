@@ -4674,6 +4674,62 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       x-capability: memory.read
       x-required-role: owner
+  /api/v1/voice/tasks:
+    post:
+      operationId: createVoiceDomainTask
+      tags: [tasks]
+      summary: Hand a long spoken request to one domain agent through the local voice bridge
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceDomainTaskRequest"
+      responses:
+        "201":
+          description: Domain task created or idempotently replayed
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: tasks.create
+      x-required-role: owner
+  /api/v1/voice/tasks/{taskId}:
+    get:
+      operationId: getVoiceDomainTask
+      tags: [tasks]
+      summary: Poll a domain task that the voice service created
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^task_[0-9A-Za-z]{26}$'
+      responses:
+        "200":
+          description: Current state and outcome of the voice task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: tasks.read
+      x-required-role: owner
   /api/v1/voice/browser-audio-availability:
     get:
       operationId: getBrowserAudioAvailability
@@ -10247,6 +10303,12 @@ components:
       $ref: ../schemas/events/task-progress.schema.json
     TaskResponse:
       $ref: ../schemas/tasks/task-response.schema.json
+    VoiceDomainTask:
+      $ref: ../schemas/tasks/voice-domain-task.schema.json
+    VoiceDomainTaskRequest:
+      $ref: ../schemas/tasks/voice-domain-task-request.schema.json
+    VoiceDomainTaskResponse:
+      $ref: ../schemas/tasks/voice-domain-task-response.schema.json
     TaskStatus:
       $ref: ../schemas/tasks/task-status.schema.json
     TaskStep:

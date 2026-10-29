@@ -64,6 +64,7 @@ from mail_voice import MailVoice  # noqa: E402
 from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
+from domain_task_voice import AGENT_LABEL, DomainTaskVoice, classify_domain, result_text  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
@@ -648,6 +649,7 @@ class VoiceService:
         self.calendar_voice = CalendarVoice(INSTALL_ROOT, zone=cfg.get("calendar_time_zone", "Europe/Berlin"))
         self.mail_voice = MailVoice(INSTALL_ROOT, interpret=self._interpret_mail)
         self.research_voice = ResearchVoice(INSTALL_ROOT)
+        self.domain_tasks = DomainTaskVoice(INSTALL_ROOT)
         self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.cloudtalk_voice = CloudTalkVoice()
         self.skills_onboarding_voice = SkillsOnboardingVoice(
@@ -1564,6 +1566,21 @@ class VoiceService:
             return
 
         if decision.get("background"):
+            domain = classify_domain(text)
+            try:
+                job = self.domain_tasks.create(text, domain)
+            except (OSError, ValueError, KeyError, urllib.error.HTTPError) as exc:
+                log_event(event="domain_task_unavailable", task_id=task_id, domain=domain, error=type(exc).__name__)
+                job = None
+            if job:
+                log_event(event="domain_task_created", task_id=task_id, domain=domain, kanban_task=job["taskId"])
+                acknowledgement = with_first_use_offer(
+                    f"Ich gebe das an den {AGENT_LABEL[domain]} und melde mich, sobald es fertig ist.")
+                if not self._say_if_current(acknowledgement, generation):
+                    return
+                self.background_jobs.add(task_id)
+                threading.Thread(target=self._background_domain, args=(job["taskId"], task_id, generation), daemon=True).start()
+                return
             acknowledgement = with_first_use_offer(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
             if not self._say_if_current(acknowledgement, generation):
                 return
@@ -1603,6 +1620,25 @@ class VoiceService:
             answer = self._ask_hermes(text, decision, task_id)
             if self.control_cancel.is_set() or generation != self.control_generation:
                 return
+            print(f"< {answer}", flush=True)
+            if not self._say_if_current("Ergebnis zur Aufgabe: " + answer, generation):
+                return
+            self.history += [{"role": "assistant", "content": answer}]
+            while self.tts.speaking.is_set():
+                time.sleep(0.05)
+        finally:
+            self.background_jobs.discard(task_id)
+            if not self.control_cancel.is_set() and generation == self.control_generation:
+                self.background_reply_ready.set()
+
+    def _background_domain(self, kanban_task: str, task_id: str, generation: int) -> None:
+        # A spoken "Stopp" leaves the Kanban task running and visible in the dashboard.
+        try:
+            job = self.domain_tasks.wait(
+                kanban_task, lambda: self.control_cancel.is_set() or generation != self.control_generation)
+            if job is None or self.control_cancel.is_set() or generation != self.control_generation:
+                return
+            answer = result_text(job)
             print(f"< {answer}", flush=True)
             if not self._say_if_current("Ergebnis zur Aufgabe: " + answer, generation):
                 return

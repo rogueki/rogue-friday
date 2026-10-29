@@ -39,6 +39,11 @@
     "description": {
       "type": "string"
     },
+    "resultSummary": {
+      "type": ["string", "null"],
+      "maxLength": 4000,
+      "description": "Final summary the executing agent reported for its latest run; null while none exists."
+    },
     "status": {
       "$ref": "../tasks/task-status.schema.json"
     },

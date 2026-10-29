@@ -1111,6 +1111,14 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Grenzen belegt (Spitze 4, gleiches Profil seriell). Offen: N-094 harte Bereichstrennung, Sprache->Domain-Jobs (16.02),
   Abbruch an Kinder (16.04). Beleg docs/agent-work/finalization/dash-15-16-orchestrierung.md.
 
+- DASH-16.02 (2026-10-29): Lange Sprachauftraege gehen ohne Rueckfrage als Kanban-Aufgabe an den Domain-Agenten
+  (research/tasks/alerts/audit; senden/buchen/aendern bleiben in den bestaetigten Sprachablaeufen). Neue Routen
+  `POST/GET /api/v1/voice/tasks` nur fuer die Voice-Bridge, lesen nur Aufgaben mit Label `tenant:voice-<bereich>`.
+  `Task.resultSummary` kommt aus Hermes `latest_summary`; der Sprachdienst fragt alle 10 s ab und sagt das Ergebnis an,
+  "Stopp" beendet nur die Ansage. Ohne Control API greift der alte Thread-Weg. Abbruch an Kinder (16.04) und
+  Vorschautext (N-095) sind in PR #32 erledigt. N-094: Entscheidung eigene Linux-Benutzer je Profil, Entwurf
+  docs/agent-work/finalization/n-094-profil-benutzer-entwurf.md.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.

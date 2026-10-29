@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/tasks/voice-domain-task.schema.json",
+  "title": "VoiceDomainTask",
+  "description": "Voice-scoped view of a domain task: only what the voice service needs to announce the outcome.",
+  "type": "object",
+  "properties": {
+    "taskId": { "type": "string", "pattern": "^task_[0-9A-Za-z]{26}$" },
+    "domain": { "type": "string", "enum": ["research", "tasks", "alerts", "audit"] },
+    "agentName": { "type": ["string", "null"], "maxLength": 120 },
+    "status": { "$ref": "../tasks/task-status.schema.json" },
+    "resultSummary": { "type": ["string", "null"], "maxLength": 4000 },
+    "error": { "type": ["string", "null"], "maxLength": 500 }
+  },
+  "required": ["taskId", "domain", "agentName", "status", "resultSummary", "error"],
+  "additionalProperties": false
+}
