@@ -19,16 +19,35 @@ test("TTS start activates speaking, the analyser follows the audio incl. pauses,
   // 7.2 s of TTS at 80 ms per frame: voiced for 1.1 s, a ~1 s pause, voiced again. The audio outlasts the
   // 2.8 s analyser sample below by seconds, so a slow evaluate roundtrip cannot end the utterance early.
   const pcm = (index: number): Int16Array => (index >= 14 && index < 26 ? new Int16Array(1280) : ttsFrame(index));
+  // Sample inside the page from before the first frame: on a starved CI runner a Playwright roundtrip can take seconds,
+  // and a sampler started after the "speaking" poll began after the pause and saw only loud audio.
+  await page.evaluate(() => {
+    const w = window as unknown as { __FRIDAY_ORB__: { readAudio(): { output: { rms: number } } }; __ttsRms: number[]; __ttsTimer: number };
+    w.__ttsRms = [];
+    w.__ttsTimer = window.setInterval(() => w.__ttsRms.push(w.__FRIDAY_ORB__.readAudio().output.rms), 40);
+  });
   await gateway.speak({ frames: 90, pcm });
   await expect.poll(async () => (await orbState(page)).primaryInteraction, { timeout: 5000, intervals: [50] }).toBe("speaking");
   const reading = await readAudio(page);
   expect(reading.output.source, "real playback analysis, not the simulated envelope").toBe("analyser");
   expect(reading.speechEnvelopeActive).toBe(false);
 
-  const rms = await sampleAudio(page, "output", "rms", 2800, 40);
-  test.info().annotations.push({ type: "tts", description: `output rms max ${maxOf(rms).toFixed(3)}, min ${Math.min(...rms).toFixed(3)}` });
+  // From the first loud sample on, the level must fall back during the pause and rise again for the second passage.
+  const voicedSeries = async (): Promise<number[]> => {
+    const all = await page.evaluate(() => (window as unknown as { __ttsRms: number[] }).__ttsRms.slice());
+    const first = all.findIndex((v) => v > 0.1);
+    return first < 0 ? [] : all.slice(first);
+  };
+  const pauseThenVoice = (series: readonly number[]): boolean => {
+    const quiet = series.findIndex((v) => v < maxOf(series) * 0.4);
+    return quiet > 0 && series.slice(quiet).some((v) => v > maxOf(series) * 0.6);
+  };
+  await expect.poll(async () => pauseThenVoice(await voicedSeries()),
+    { message: "the pause is visible (level falls back) and the second passage follows", timeout: 6000, intervals: [200] }).toBe(true);
+  const rms = await voicedSeries();
+  await page.evaluate(() => window.clearInterval((window as unknown as { __ttsTimer: number }).__ttsTimer));
+  test.info().annotations.push({ type: "tts", description: `output rms max ${maxOf(rms).toFixed(3)}, min ${Math.min(...rms).toFixed(3)}, samples ${rms.length}` });
   expect(maxOf(rms), "output level follows the loud passages").toBeGreaterThan(0.1);
-  expect(Math.min(...rms), "the pause is visible (level falls back)").toBeLessThan(maxOf(rms) * 0.4);
   expect((await orbState(page)).primaryInteraction, "still speaking through the pause until the audio ended").toBe("speaking");
 
   await expect.poll(async () => (await orbState(page)).primaryInteraction, { timeout: 15_000, intervals: [100] }).toBe("idle"); // after speaking the microphone is passive again
