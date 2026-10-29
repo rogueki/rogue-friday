@@ -33,6 +33,16 @@ REQUIRED = {
     "installer/wsl/setup_searxng.sh",
     "installer/wsl/research_searxng_settings.py",
     "installer/wsl/research_hermes_synthesis.py",
+    "installer/wsl/telephony_runner.py",
+    "installer/wsl/configure_himalaya.py",
+    "installer/wsl/change_himalaya.py",
+    "installer/wsl/read_himalaya.py",
+    "installer/wsl/send_himalaya.py",
+    "installer/wsl/coding_runner.py",
+    "installer/wsl/powerpoint_runner.py",
+    "installer/wsl/configure_skill_keys.py",
+    "installer/wsl/configure_wiki_path.py",
+    "installer/wsl/hermes_provider_auth.py",
 }
 
 
@@ -50,6 +60,21 @@ class WslUpdateDependencyClosureTest(unittest.TestCase):
         self.assertTrue(source_paths <= memory_paths)
         for path in REQUIRED:
             self.assertTrue((INSTALLER.parent / path).is_file(), path)
+
+    def test_every_script_the_control_api_runs_is_shipped(self):
+        # The dashboard updater copies installer/wsl only through this list; a helper the API calls by path must be in it.
+        updater = (INSTALLER / "scripts" / "update-dashboard-github.ps1").read_text(encoding="utf-8-sig")
+        source = updater.split("function Get-WslBridgeSourcePaths {", 1)[1].split("function Get-VoiceSourcePaths", 1)[0]
+        shipped = {path for path in re.findall(r"'([^']+)'", source) if path.startswith("installer/wsl/")}
+        services = INSTALLER.parent / "apps" / "control-api" / "src"
+        called = set()
+        for file in services.rglob("*.ts"):
+            for name in re.findall(r"installer/wsl/([a-z_]+\.py)", file.read_text(encoding="utf-8")):
+                called.add("installer/wsl/" + name)
+        bridge = (INSTALLER / "wsl" / "hermes_config_bridge.py").read_text(encoding="utf-8")
+        for name in re.findall(r'with_name\("([a-z_]+\.py)"\)', bridge):
+            called.add("installer/wsl/" + name)
+        self.assertEqual(sorted(called - shipped), [])
 
 
 if __name__ == "__main__":

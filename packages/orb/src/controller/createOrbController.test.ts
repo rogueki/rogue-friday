@@ -249,6 +249,26 @@ describe("server truth", () => {
     expect(controller.getState().version).toBe(v);
   });
 
+  it("a late snapshot with an older since does not overwrite a newer server state", () => {
+    const { controller } = setup();
+    controller.applySnapshot(snapshot({ voice: "listening" }, { mode: "listening", since: "2026-10-17T10:00:01.000Z" }));
+    expect(mode(controller)).toBe("listening");
+    controller.applySnapshot(snapshot({}, { mode: "idle", since: "2026-10-17T10:00:09.000Z" }));
+    expect(mode(controller)).toBe("idle");
+    controller.applySnapshot(snapshot({ voice: "listening" }, { mode: "listening", since: "2026-10-17T10:00:01.000Z" }));
+    expect(mode(controller)).toBe("idle");
+    controller.applySnapshot(snapshot({ work: "working", activeAgentIds: ["agent_1"] }, { mode: "working", since: "2026-10-17T10:00:09.000Z" }));
+    expect(mode(controller)).toBe("working");
+  });
+
+  it("a client-made offline snapshot never blocks the next server snapshot", () => {
+    const { controller } = setup();
+    controller.applySnapshot(snapshot({ health: "offline" }, { mode: "offline", since: "2099-01-01T00:00:00.000Z" }));
+    expect(mode(controller)).toBe("offline");
+    controller.applySnapshot(snapshot({}, { mode: "idle", since: "2026-10-17T10:00:00.000Z" }));
+    expect(mode(controller)).toBe("idle");
+  });
+
   it("a newer snapshot without work retires stale local task facts", () => {
     const { controller, bridge, advance } = setup();
     bridge.onTaskStarted({ taskId: "t1" });
