@@ -1,5 +1,5 @@
 ﻿# F.R.I.D.A.Y. Service-Watchdog: prueft einmal pro Aufruf (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar ueber hidden.vbs),
-# ob die installierten Dienste (Sprachdienst 43694, Qwen 43692, Command Center aus dashboard.yaml/3100) antworten, und startet
+# ob die installierten Dienste (Sprachdienst 43694, Qwen 43692, Command Center aus dashboard.yaml/3100, Hermes-Dashboard in WSL) antworten, und startet
 # einen abgestuerzten Dienst ueber seine Aufgabe (Start-ScheduledTask) neu. Es wird nie ein Prozess beendet.
 # Neustart nur, wenn ALLES zutrifft: Port/Health antwortet nicht, kein Launcher-/Dienstprozess laeuft (Modellladen haelt den Port
 # geschlossen, der Prozess existiert aber), kein Stop-Flag C:\Friday\run\<launcher>.stop (gewollter Stopp), der Installer laeuft nicht
@@ -81,6 +81,14 @@ function Get-ConfiguredPort([string]$yamlFile, [int]$default) {
     }
     return $default
 }
+function Test-WslUnitActive([string]$unit) {
+    # Ein startender Dienst haelt den Port noch zu; nur ein inaktiver/fehlgeschlagener Dienst wird neu gestartet.
+    # Ist der Zustand nicht lesbar, gilt der Dienst als laufend: lieber kein Neustart als ein unbelegter.
+    try {
+        $out = & wsl.exe -d $script:Distro -u $script:LinuxUser --exec systemctl --user is-active $unit 2>$null
+        return @('active', 'activating', 'reloading') -contains "$out".Trim()
+    } catch { return $true }
+}
 function Test-InstallerActive {
     # Der Installer legt C:\Friday\run\installer.active (Inhalt: PID) an und entfernt sie am Ende. Verwaiste Markierungen
     # (Absturz, Neustart mitten in der Installation) zaehlen nicht: Prozess muss leben und ein PowerShell sein, Alter < 12 h.
@@ -145,11 +153,17 @@ try {
     $qwenPort = if ($installedState.ports.Qwen) { [int]$installedState.ports.Qwen } else { 43692 }
     $commandCenterPort = if ($installedState.ports.CommandCenter) { [int]$installedState.ports.CommandCenter } else { 3100 }
     $dashPort = Get-ConfiguredPort "$root\dashboard\config\dashboard.yaml" $commandCenterPort
+    # Hermes-Dashboard laeuft als systemd-Benutzerdienst in WSL; die Adapter fuer Aufgaben/Agenten/Aktivitaet lesen nur dort.
+    $hermesDashPort = if ($installedState.ports.Dashboard) { [int]$installedState.ports.Dashboard } else { 43691 }
+    $script:Distro = "$($installedState.distro_name)"
+    $script:LinuxUser = "$($installedState.linux_user)"
+    $wslReady = ($script:Distro -match '^[A-Za-z0-9_.-]+$') -and ($script:LinuxUser -match '^[a-z_][a-z0-9_-]*$')
     $services = @(
         @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'FRIDAY_Voice';     Launcher = 'start-friday-voice.ps1'; Child = '*friday_voice.py*';           Port = $voicePort;    Http = $null }
         @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'FRIDAY_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = "*llama-server*--port $qwenPort*"; Port = $qwenPort;    Http = $null }
         @{ Key = 'dashboard'; Name = 'Command Center'; Step = 'dashboard';    Task = 'FRIDAY_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*';  Port = $dashPort; Http = "http://127.0.0.1:$dashPort/api/v1/health" }
-    ) | Where-Object { $done -contains $_.Step -and ($_.Key -ne 'qwen' -or $installedState.voice_mode -ne 'elevenlabs') }
+        @{ Key = 'hermes-dashboard'; Name = 'Hermes-Dashboard'; Step = 'hermes'; Task = $null; Launcher = 'hermes-dashboard'; Child = $null; Unit = 'hermes-dashboard.service'; Port = $hermesDashPort; Http = $null }
+    ) | Where-Object { $done -contains $_.Step -and ($_.Key -ne 'qwen' -or $installedState.voice_mode -ne 'elevenlabs') -and ($_.Key -ne 'hermes-dashboard' -or $wslReady) }
     if (@($services).Count -eq 0) { exit 0 }
 
     $state = Read-WatchdogState
@@ -172,7 +186,9 @@ try {
 
         $portUp = Test-TcpPort $svc.Port
         if ($portUp -and $svc.Http) { $portUp = Test-HttpAnswer $svc.Http }
-        $running = @($procs | Where-Object { "$($_.CommandLine)" -like "*$($svc.Launcher)*" -or "$($_.CommandLine)" -like $svc.Child }).Count -gt 0
+        $running = if ($svc.Unit) { (-not $portUp) -and (Test-WslUnitActive $svc.Unit) }
+            else { @($procs | Where-Object { "$($_.CommandLine)" -like "*$($svc.Launcher)*" -or "$($_.CommandLine)" -like $svc.Child }).Count -gt 0 }
+        $target = if ($svc.Unit) { "WSL-Dienst $($svc.Unit)" } else { "Aufgabe $($svc.Task)" }
         $stopFlag = Test-Path "$root\run\$($svc.Launcher).stop"
 
         $d = Get-WatchdogDecision -PortUp $portUp -ProcessRunning $running -StopFlag $stopFlag -InstallerActive $installerActive -InGrace $inGrace `
@@ -187,10 +203,13 @@ try {
             'ok' { if ($changed -and @('restart', 'backoff', 'limit') -contains $st.lastAction) { Write-WatchdogLog 'INFO' "$($svc.Name): antwortet wieder (Port $($svc.Port))." } }
             'restart' {
                 try {
-                    Start-ScheduledTask -TaskName $svc.Task -ErrorAction Stop
-                    Write-WatchdogLog 'WARN' "$($svc.Name): Port $($svc.Port) antwortet nicht, kein Prozess - Aufgabe $($svc.Task) neu gestartet."
+                    if ($svc.Unit) {
+                        & wsl.exe -d $script:Distro -u $script:LinuxUser --exec systemctl --user restart $svc.Unit 2>$null
+                        if ($LASTEXITCODE -ne 0) { throw "systemctl --user restart $($svc.Unit) endete mit Exitcode $LASTEXITCODE" }
+                    } else { Start-ScheduledTask -TaskName $svc.Task -ErrorAction Stop }
+                    Write-WatchdogLog 'WARN' "$($svc.Name): Port $($svc.Port) antwortet nicht, kein Prozess - $target neu gestartet."
                 } catch {
-                    Write-WatchdogLog 'ERROR' "$($svc.Name): Neustart der Aufgabe $($svc.Task) fehlgeschlagen: $($_.Exception.Message)"
+                    Write-WatchdogLog 'ERROR' "$($svc.Name): Neustart ($target) fehlgeschlagen: $($_.Exception.Message)"
                 }
                 $st.restarts = @($st.restarts + $now)   # auch bei Fehlschlag zaehlen: Backoff verhindert Dauerfeuer
             }

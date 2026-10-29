@@ -177,6 +177,7 @@ systemctl --user enable hermes-gateway.service >/dev/null 2>&1 || true
 systemctl --user restart hermes-gateway.service
 
 step "Dashboard als Dienst (127.0.0.1:$DASH_PORT)"
+# Restart=always: on-failure startet nach einem SIGTERM von aussen nicht neu (N-142); systemctl stop bleibt wirksam.
 mkdir -p "$HOME/.config/systemd/user"
 cat > "$HOME/.config/systemd/user/hermes-dashboard.service" <<UNIT
 [Unit]
@@ -188,7 +189,7 @@ Type=simple
 Environment=PATH=$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WorkingDirectory=$HOME
 ExecStart=$HOME/.local/bin/hermes dashboard --host 127.0.0.1 --port $DASH_PORT --no-open --skip-build
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]
