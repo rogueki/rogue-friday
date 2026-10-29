@@ -58,6 +58,9 @@ export class HealthMonitor {
   }
 
   /** Contract-shaped snapshot of the last known health. */
+  /** Last upstream version a successful check reported; kept while the upstream is down so the page still names it. */
+  private remoteVersion: string | null | undefined;
+
   snapshot(): AdapterHealth {
     return {
       adapterId: this.options.adapterId,
@@ -69,6 +72,7 @@ export class HealthMonitor {
       checkedAt: this.checkedAt,
       consecutiveFailures: this.consecutiveFailures,
       circuit: this.options.breaker?.state ?? "closed",
+      ...(this.remoteVersion !== undefined ? { remoteVersion: this.remoteVersion } : {}),
     };
   }
 
@@ -132,6 +136,7 @@ export class HealthMonitor {
     if (success) {
       this.consecutiveFailures = 0;
       this.lastSuccessAt = this.checkedAt;
+      if (report.remoteVersion !== undefined) this.remoteVersion = report.remoteVersion;
       const degraded = report.status === "degraded" || slow;
       this.lastError = degraded
         ? {

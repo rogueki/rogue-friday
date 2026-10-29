@@ -17,6 +17,7 @@ import atexit
 import collections
 import datetime
 import http.server
+import hashlib
 import hmac
 import json
 import os
@@ -601,6 +602,9 @@ class VoiceService:
                        "assistant_name": self.name, "wake_phrase": self.phrase, "wake_engine": self.engine,
                        "wake_rejected": 0}
         self.service_started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        # Build-Kennung des laufenden Codes: zeigt im Dashboard, ob nach einem Update wirklich der neue Stand laeuft.
+        with open(__file__, "rb") as source:
+            self.service_version = hashlib.sha256(source.read()).hexdigest()[:12]
         self.preroll: list[np.ndarray] = []   # waehrend Stufe 2 aufgelaufenes Audio (Befehlsanfang)
         self.stage1_block_until = 0.0
         self.audio_q: queue.Queue[np.ndarray] = queue.Queue()
@@ -2040,6 +2044,7 @@ class VoiceService:
                 "ptt_active": self.ptt_active,
                 "native_ptt_available": getattr(self, "native_ptt_available", False),
                 "service_started_at": getattr(self, "service_started_at", None),
+                "service_version": getattr(self, "service_version", None),
                 "trusted": time.monotonic() < self.trusted_until,
                 "trusted_remaining_s": round(max(0.0, self.trusted_until - time.monotonic()), 1),
                 "speaker_decision": getattr(self, "speaker_decision", None),

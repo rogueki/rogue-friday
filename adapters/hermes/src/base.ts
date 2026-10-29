@@ -131,6 +131,7 @@ export abstract class HermesAdapterBase implements FridayAdapter {
         latencyMs: Math.max(0, Math.round(clock.now() - started)),
         ...(result.message ? { message: result.message } : {}),
         ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+        ...(this.remoteVersion !== undefined ? { remoteVersion: this.remoteVersion } : {}),
       };
     } catch (raw) {
       const error = normalizeError(raw, { operation: "healthCheck" });
@@ -224,9 +225,12 @@ export abstract class HermesAdapterBase implements FridayAdapter {
     return { context, settings, clients, kanban, feed, signal: this.abort.signal };
   }
 
+  /** Dashboard version from the last health probe (`displayVersion`, else the short commit); undefined until probed. */
+  private remoteVersion: string | null | undefined;
   /** Logs the dashboard version once (the installer does not pin Hermes; docs/MAPPING/hermes.md §1). */
   private versionLogged = false;
   protected logVersion(version: string | null, commit: string | null): void {
+    this.remoteVersion = version ?? commit?.slice(0, 12) ?? null;
     if (this.versionLogged || !this.context) return;
     this.versionLogged = true;
     this.context.logger.info("Hermes Dashboard erkannt", {

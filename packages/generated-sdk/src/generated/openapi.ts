@@ -4589,6 +4589,8 @@ export interface components {
             lastSuccessAt: string | null;
             latencyMs: number | null;
             lifecycle: components["schemas"]["AdapterLifecycle"];
+            /** @description Software version the connected upstream reports (e.g. Hermes dashboard version, voice service build). null: it reports none. Absent: the adapter does not query it. */
+            remoteVersion?: string | null;
             status: components["schemas"]["HealthStatus"];
         };
         /**

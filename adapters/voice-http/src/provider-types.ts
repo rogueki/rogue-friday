@@ -66,6 +66,8 @@ export interface RawVoiceStatus {
   audio_transport?: "device" | "browser";
   host_platform?: "windows" | "linux";
   service_started_at?: string;
+  /** Build id of the running service (hash of its source at start): tells which code actually runs after an update. */
+  service_version?: string;
   tts_voice_choice?: string | null;
   input_device_id?: string | null;
   output_device_id?: string | null;

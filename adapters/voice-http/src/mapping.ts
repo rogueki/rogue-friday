@@ -112,6 +112,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
     ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
+    ...(typeof raw.service_version === "string" ? { service_version: raw.service_version } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
     ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
     ...(typeof raw.output_device_id === "string" || raw.output_device_id === null ? { output_device_id: raw.output_device_id } : {}),
