@@ -55,10 +55,15 @@ export class TelephonyService {
   private async run(action: string, args: string[] = [], input?: unknown): Promise<Record<string, unknown>> {
     const target = this.target();
     try { return await this.invoke(target.script, target.distro, target.user, [action, ...args],
-      input === undefined ? undefined : JSON.stringify(input), action === "originate" ? 12000 : 8000); }
+      input === undefined ? undefined : JSON.stringify(input), action === "originate" ? 12000 : action === "configure" ? 20000 : 8000); }
     catch (error) {
       if (error instanceof Error && error.message.startsWith("runner_3:revision_conflict")) throw conflict("Telefonie-Konfiguration wurde geändert. Bitte neu laden.");
       if (error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Telefonie-Eingaben sind ungültig.");
+      const rejected = error instanceof Error ? /^runner_3:originate_(4\d\d)\b/.exec(error.message) : null;
+      // A 4xx from ARI is a definite refusal: the call was never placed, so it must not be recorded as "unknown".
+      if (rejected) throw Object.assign(unavailable("Asterisk hat den Anruf abgelehnt; er wurde nicht ausgeführt."), { originateRejected: Number(rejected[1]) });
+      if (action === "configure")
+        throw unavailable("Telefonie-Profil nicht bestätigt. Status neu laden, bevor erneut gespeichert wird.");
       throw unavailable("Asterisk-Telefonieadapter antwortet nicht oder der Ausgang des Anrufs ist unklar.");
     }
   }
@@ -149,7 +154,10 @@ export class TelephonyService {
       const result = await this.run("originate", [], { callId: id, number: destination });
       const state = result.accepted === true ? "requested" : "unknown";
       this.update(id, state, typeof result.adapterStatus === "number" ? result.adapterStatus : null);
-    } catch { this.update(id, "unknown", null); }
+    } catch (error) {
+      const refused = (error as { originateRejected?: number }).originateRejected;
+      this.update(id, refused ? "failed" : "unknown", refused ?? null);
+    }
     return this.getStored(id, actor);
   }
 

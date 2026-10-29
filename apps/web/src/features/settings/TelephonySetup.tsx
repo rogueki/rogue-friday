@@ -9,6 +9,12 @@ import { queryKeys } from "@/lib/api/queryKeys";
 
 type Mode = "trunk" | "local";
 
+const REGISTRATION_LABELS: Record<string, string> = { registered: "registriert", unregistered: "nicht registriert",
+  not_required: "nicht nötig (lokal)", unavailable: "nicht prüfbar", unknown: "unbekannt" };
+const ENDPOINT_LABELS: Record<string, string> = { online: "online", offline: "offline", unknown: "unbekannt" };
+const CALL_LABELS: Record<string, string> = { pending: "wird angefragt", requested: "angefragt", owner_answered: "Owner hat angenommen",
+  ended: "beendet", failed: "nicht ausgeführt (abgelehnt)", unknown: "Ausgang unklar" };
+
 export function TelephonySetup({ owner }: { owner: boolean }) {
   const queryClient = useQueryClient();
   const status = useQuery<TelephonyStatusResponse>({ queryKey: ["settings", "telephony"], enabled: owner,
@@ -97,7 +103,7 @@ export function TelephonySetup({ owner }: { owner: boolean }) {
     {!owner ? <p>Nur der Owner kann Telefonie einrichten.</p> : <>
       {status.isError && <p role="alert">Telefonie-Status nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p>}
       {current && <>
-        <p role="status">{current.configured ? "Profil gespeichert" : "Kein Profil"} · Asterisk-ARI {current.ariReachable ? "erreichbar" : "nicht erreichbar"} · SIP-Registrierung {current.registration} · Owner-Nebenstelle {current.ownerEndpoint} · Dateien {current.configurationApplied ? "angewendet" : "nicht angewendet"} · Dialplan {current.dialplanLoaded ? "geladen" : "nicht geladen"} · {current.ready ? "Rufpfad bereit" : "Rufpfad nicht bereit"}. Ein erfolgreiches Gespräch mit dem Ziel ist damit noch nicht bestätigt.</p>
+        <p role="status">{current.configured ? "Profil gespeichert" : "Kein Profil"} · Asterisk-ARI {current.ariReachable ? "erreichbar" : "nicht erreichbar"} · SIP-Registrierung {REGISTRATION_LABELS[current.registration] ?? current.registration} · Owner-Nebenstelle {ENDPOINT_LABELS[current.ownerEndpoint] ?? current.ownerEndpoint} · Dateien {current.configurationApplied ? "angewendet" : "nicht angewendet"} · Dialplan {current.dialplanLoaded ? "geladen" : "nicht geladen"} · {current.ready ? "Rufpfad bereit" : "Rufpfad nicht bereit"}. Ein erfolgreiches Gespräch mit dem Ziel ist damit noch nicht bestätigt.</p>
         <details><summary>SIP und Asterisk einrichten</summary>
           <p>Optional Asterisk in Friday-Ubuntu installieren und einen eigenen SIP-Softphone-Endpunkt für den Owner konfigurieren. Friday legt private Konfigurationsschnipsel unter <code>~/.config/friday/telephony/</code> an. Diese in Asterisks <code>ari.conf</code>, <code>http.conf</code>, <code>pjsip.conf</code> und <code>extensions.conf</code> einbinden; danach Asterisk neu laden. Nur ARI auf 127.0.0.1 freigeben. Die SIP-Registrierung muss danach tatsächlich „registered“ melden.</p>
           <label>Modus <select value={mode} onChange={(event) => setMode(event.target.value as Mode)}><option value="trunk">SIP-Trunk für externe Nummern</option><option value="local">Lokale SIP-Nebenstellen</option></select></label>
@@ -123,9 +129,9 @@ export function TelephonySetup({ owner }: { owner: boolean }) {
             <button type="button" onClick={() => setPreview(null)}>Abbrechen</button>
           </div>}
         </div>}
-        {activeCall && <div role="status"><p>Anruf {activeCall.id}: {activeCall.state}. „owner_answered“ bestätigt nur die Owner-Nebenstelle, nicht die Verbindung zur Zielnummer.</p>
+        {activeCall && <div role="status"><p>Anruf {activeCall.id}: {CALL_LABELS[activeCall.state] ?? activeCall.state}. „Owner hat angenommen“ bestätigt nur die Owner-Nebenstelle, nicht die Verbindung zur Zielnummer.</p>
           <button type="button" disabled={busy} onClick={() => void refreshCall()}>Anrufstatus prüfen</button>
-          <button type="button" disabled={busy || activeCall.state === "ended"} onClick={() => void hangup()}>Auflegen</button></div>}
+          <button type="button" disabled={busy || activeCall.state === "ended" || activeCall.state === "failed"} onClick={() => void hangup()}>Auflegen</button></div>}
       </>}
       {message && <p role="status">{message}</p>}
     </>}

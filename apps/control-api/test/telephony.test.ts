@@ -73,4 +73,25 @@ describe("Asterisk call contract", () => {
         { headers: { "Idempotency-Key": "call-key-12345678" } })).statusCode).toBe(403);
     } finally { await api.close(); }
   });
+
+  it("records a rejected originate as failed and a timeout as unknown", async () => {
+    const db = openDatabase(":memory:");
+    let originateError = new Error("runner_3:originate_400");
+    const invoke = vi.fn(async (_script: string, _distro: string, _user: string, args: string[]) => {
+      if (args[0] === "status") return { ...ready };
+      if (args[0] === "originate") throw originateError;
+      throw new Error("Unexpected runner action");
+    });
+    const service = new TelephonyService(db, "unused", Buffer.alloc(32, 11), invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/telephony_runner.py", distro: "Friday-Ubuntu", user: "friday" });
+    const refusedPreview = await service.preview("+491701234568", "owner");
+    const refused = await service.originate(refusedPreview.destination, refusedPreview.token, "owner", "call-key-refused123");
+    expect(refused.state).toBe("failed");
+    originateError = new Error("runner_timeout");
+    const unclearPreview = await service.preview("+491701234568", "owner");
+    const unclear = await service.originate(unclearPreview.destination, unclearPreview.token, "owner", "call-key-unclear123");
+    expect(unclear.state).toBe("unknown");
+    db.close();
+  });
 });
