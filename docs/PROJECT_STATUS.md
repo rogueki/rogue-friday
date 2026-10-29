@@ -1125,6 +1125,11 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   gesammelt und gemeinsam angesagt, ohne laufende Ansagen zu unterbrechen. Nach einem Neustart des Sprachdienstes
   werden offene Auftraege wieder beobachtet. Live-Abnahme auf FRIDAY-2 steht aus.
 
+- N-094 (2026-10-29): Harte Bereichstrennung ueber `installer/wsl/setup_profile_isolation.sh`: je Domain-Profil ein
+  Linux-Benutzer `friday-<p>`, Hermes `terminal.backend: ssh` auf 127.0.0.1:2222 (nur Schluessel), Terminal- und
+  Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch. Live-Lauf als root steht aus
+  (`n-094-profil-benutzer-entwurf.md`).
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.

@@ -1,54 +1,57 @@
-# N-094: eigene Linux-Benutzer je Domain-Profil (Entwurf)
+# N-094: eigene Linux-Benutzer je Domain-Profil
 
-Entscheidung ByteNinja, 2026-10-29: Jedes Domain-Profil bekommt einen eigenen Linux-Benutzer in `FRIDAY-2`. Zugangsdaten
-liegen nur dort, wo das zuständige Profil sie lesen darf.
+Entscheidung ByteNinja, 2026-10-29: Jedes Domain-Profil bekommt einen eigenen Linux-Benutzer in `FRIDAY-2`.
+Zugangsdaten liegen nur dort, wo das zuständige Profil sie lesen darf.
 
 ## Ausgangslage (Hermes v0.22.2, gelesen)
 
-- Der Dispatcher startet Worker als Gateway-Benutzer: `kanban_db_dispatch.py:_worker_argv`
-  (`hermes -p <profil> … chat -q "work kanban task <id>"`) und `subprocess.Popen(..., start_new_session=True)` um Zeile 2949.
-- Einen Mechanismus „als anderer Benutzer starten“ gibt es nicht, nur `docker_run_as_host_user` für Docker.
-- Der Dispatcher beendet Worker über ihre PID: Laufzeitgrenze, `detect_stale_running`, Abbruch per `archive_task`.
-- Das Gateway läuft im Multiplex-Modus und liest die `.env` aller Profile (`agent/secret_scope.py`). Es ist und bleibt die
-  vertrauenswürdige Instanz. Getrennt werden die Worker untereinander.
+- Der Dispatcher startet Worker als Gateway-Benutzer `ubuntu` (`kanban_db_dispatch.py:_worker_argv`, `subprocess.Popen`
+  über `systemd-run`). Er überwacht und beendet sie per `os.kill`, Fingerprint aus `/proc` und SQLite-Lease.
+- Ein Benutzerwechsel am Worker-Prozess selbst würde Kanban-DB, Logs, Sessions und alle Kill-Pfade berühren und
+  verlangt einen Hermes-Patch. Diesen Weg habe ich verworfen.
+- Hermes bringt das Terminal-Backend `ssh` mit. Terminal- **und** Datei-Tools laufen dann im Zielkonto
+  (`tools/file_tools.py` → `ShellFileOperations(terminal_env)`).
+- Zugangsdateien überträgt Hermes nur, wenn ein Skill oder die Profilkonfiguration sie ausdrücklich anmeldet
+  (`tools/credential_files.py:get_credential_file_mounts`).
 
-## Zielbild
+## Umsetzung (`installer/wsl/setup_profile_isolation.sh`)
 
-| Objekt | Besitzer:Gruppe | Modus |
-|---|---|---|
-| `~/.hermes/hermes-agent` (Code) | ubuntu:ubuntu | lesbar für alle |
-| `~/.hermes/profiles/<p>` inkl. `.env`, `home/` | ubuntu:friday-<p> | 0750 / Dateien 0640 |
-| `~/.hermes/kanban.db`, `kanban/` | ubuntu:friday-agents | 0660 / 0770 |
-| Zugangsdaten Mail | Profil-Home `communication` | 0640 ubuntu:friday-communication |
-| Zugangsdaten Kalender | Profil-Home `calendar` | 0640 ubuntu:friday-calendar |
+Aufruf als root in der Distribution: `status`, `apply`, `revert`, `render-sshd`.
 
-- Benutzer `friday-<p>`: Systembenutzer ohne Login. Sie sind Mitglied von `friday-<p>` und `friday-agents`, aber nicht von
-  `ubuntu`. Gruppen gibt es also je Profil plus `friday-agents`.
-- sudoers (`/etc/sudoers.d/friday-agents`, 0440, mit `visudo -c` geprüft): `ubuntu` darf ohne Passwort genau zwei Dinge:
-  den Hermes-Worker-Einstieg als `friday-*` starten und Signale an Prozesse dieser Benutzer senden. Beides läuft über ein
-  festes Wrapper-Skript; kein freies `sudo`.
+Ablauf von `apply`:
 
-## Umsetzung (Reihenfolge)
+1. Sichert `config.yaml` und `.env` jedes Profils nach `~/friday/backups/profile-isolation-<zeit>/`.
+2. Installiert `openssh-server`, falls er fehlt. Drop-in `/etc/ssh/sshd_config.d/friday-agents.conf`:
+   - nur `127.0.0.1:2222`, nur Schlüssel, kein root
+   - `AllowUsers` nur für die sieben `friday-*`-Konten
+   - keine Weiterleitungen
+   - Socket-Aktivierung wird abgeschaltet, damit Port und Adresse gelten.
+3. Je Profil `p`:
+   - Benutzer `friday-<p>`: gesperrtes Passwort, Home 0750, `workspace/`.
+   - Schlüssel in `~/.hermes/profiles/<p>/terminal-ssh/` (0700, Besitzer `ubuntu`).
+   - `authorized_keys` mit `from="127.0.0.1,::1"` und ohne Weiterleitungen.
+   - Hermes-Konfiguration des Profils: `terminal.backend ssh`, `ssh_host 127.0.0.1`, `ssh_port 2222`, `ssh_user friday-<p>`,
+     `ssh_key`, `cwd /home/friday-<p>/workspace`.
+4. Trägt den Host-Schlüssel aus `/etc/ssh/ssh_host_ed25519_key.pub` in `~ubuntu/.ssh/known_hosts` ein, ohne Netzabfrage.
+5. Setzt die Rechte der Gateway-Seite: `/home/ubuntu` 0750, `~/.hermes` 0700, `~/.config/friday/{mail,calendar}` 0700.
+   Die Agentenkonten sind nicht in der Gruppe `ubuntu`.
 
-1. **`installer/wsl/setup_profile_users.sh`** (idempotent): Benutzer und Gruppen anlegen, Rechte wie in der Tabelle
-   setzen, sudoers schreiben und prüfen, vorher eine Sicherung der Rechte (`getfacl -R`).
-2. **`installer/wsl/patch_hermes_worker_users.py`** (gepinnt wie `patch_hermes_run_stop.py`, mit Revisionsprüfung):
-   - `_worker_argv` setzt den Wrapper `friday-agent-run <profil>` davor.
-   - Signale an Worker gehen über `friday-agent-signal <pid> <sig>`.
-   - Die Prüfung „gehört die PID uns“ akzeptiert `friday-*`-UIDs.
-3. **Zugangsdaten verschieben:** Mail- und Kalenderablage unter das Profil-Home. Die Bridges der Control-API (laufen als
-   `ubuntu`) lesen weiter über die Gruppe.
-4. **Tests:**
-   - Pester/pytest für Setup und Patch, gegen eine Kopie des Hermes-Quellcodes.
-   - Live-Abnahme: Ein `research`-Worker versucht `cat` auf die Kalender-Zugangsdaten → `Permission denied`.
-   - Der `calendar`-Worker liest sie.
-   - Abbruch, Laufzeitgrenze und Hänger-Rückholung beenden Worker weiterhin (Lauf `stale`/`timed_out`).
-5. **Rückweg:** Patch zurücknehmen (Revisionssicherung), Rechte aus `getfacl`-Sicherung zurückspielen, sudoers-Datei
-   entfernen.
+`revert` setzt alle Profile auf `terminal.backend local` und ihr bisheriges `cwd` zurück, entfernt das Drop-in und
+stoppt sshd. Die Konten bleiben, damit nichts verloren geht, was ein Worker erzeugt hat.
 
-## Risiken
+## Grenzen
 
-- Hermes-Updates überschreiben den Patch. Abhilfe: Revisionsprüfung im Patch wie bei `patch_hermes_run_stop.py`; der
-  Update-Pfad wendet ihn erneut an.
-- Worker schreiben Logs und Workspaces. Diese Pfade brauchen Gruppenrechte, sonst scheitert der Start (`spawn_failed`).
-  Abfangen per Probelauf mit `--max-retries 1`.
+- Kanban-Tools, Modellaufrufe und das Gedächtnis-Plugin laufen weiter im Worker-Prozess als `ubuntu`. Getrennt wird,
+  was das Modell frei steuern kann: Shell und Dateien.
+- WSL leitet `localhost` je nach Einstellung auch von Windows weiter. Der Zugang bleibt schlüsselgebunden, und die
+  Schlüssel liegen nur in `~ubuntu/.hermes` (0700).
+- Braucht ein Profil Zugangsdaten (z. B. `communication` für Mail), meldet es sie per Skill oder Profilkonfiguration an.
+  Hermes überträgt sie dann nur in das Konto dieses Profils.
+
+## Abnahme (offen, braucht den Live-Lauf als root)
+
+1. `setup_profile_isolation.sh status`: alle sieben Profile `backend: ssh`, Benutzer vorhanden, sshd `active`.
+2. `research`-Testaufgabe führt `whoami` und `cat ~ubuntu/.config/friday/calendar/*` aus. Erwartet: `friday-research`
+   und `Permission denied`.
+3. `calendar`-Aufgabe und eine Statusabfrage laufen weiter. Abbruch, Laufzeitgrenze und Hänger-Rückholung beenden Worker
+   wie zuvor, denn der Worker-Prozess ist unverändert.
