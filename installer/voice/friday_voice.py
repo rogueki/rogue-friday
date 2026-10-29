@@ -1331,7 +1331,7 @@ class VoiceService:
             return
         if owner_required and score < self.cfg["speaker_threshold"]:
             self.status["rejected_speaker"] += 1
-            self.speaker_decision = {"decision": "rejected", "score": round(score, 3), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            self.speaker_decision = {"decision": "rejected", "score": round(score, 3), "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
             if hasattr(self, "mail_voice"):
                 self.mail_voice.clear_confirmation()
@@ -1342,7 +1342,7 @@ class VoiceService:
             return
         if owner_required:
             self.speaker_decision = {"decision": "verified", "score": round(score, 3),
-                                     "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+                                     "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
