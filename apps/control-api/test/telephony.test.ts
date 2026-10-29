@@ -94,4 +94,19 @@ describe("Asterisk call contract", () => {
     expect(unclear.state).toBe("unknown");
     db.close();
   });
+
+  it("issues distinct single-use previews within the same millisecond", async () => {
+    const db = openDatabase(":memory:");
+    const invoke = vi.fn(async (_script: string, _distro: string, _user: string, args: string[]) => {
+      if (args[0] === "status") return { ...ready };
+      throw new Error("Unexpected runner action");
+    });
+    const service = new TelephonyService(db, "unused", Buffer.alloc(32, 11), invoke, () => 1_800_000_000_000);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/telephony_runner.py", distro: "Friday-Ubuntu", user: "friday" });
+    const first = await service.preview("+491701234568", "owner");
+    const second = await service.preview("+491701234568", "owner");
+    expect(first.token).not.toBe(second.token);
+    db.close();
+  });
 });
