@@ -1160,7 +1160,8 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
 - REL-02/DASH-18.05/DASH-19.02 (2026-10-29, N-092, N-093, N-111, N-140): Aufgabenkarten-Fusszeile und Overview-Baseline
   per Sichtpruefung der ubuntu-24.04-Referenzbilder geschlossen. Alle E2E-Wiederholungen der letzten main-Laeufe lagen
   im SwiftShader-Projekt; der orb-freie Lastblock laeuft jetzt mit 2D-Fallback (#97). Der wiederholt rote TTS-Pausentest
-  misst jetzt in der Seite ab dem ersten Frame (#98).
+  misst jetzt in der Seite ab dem ersten Frame, sucht die Pause erst nach dem lauten Plateau und laeuft mit 2D-Fallback
+  (#98, #100; #98 allein reichte nicht). Der Umbenennungstest wartet auf den nachgeladenen Orb wie die Orb-Specs (N-141).
 - KEEP-05/DASH-07.06 (2026-10-29, N-138, N-139): I-047 geschlossen; die alte Integer-ID-Engine ist nicht mehr im
   Produkt, und Plaene im alten Format oder mit unbekannten Zielen werden vor jedem Schreiben abgewiesen (#93). Eine nicht
   unterstuetzte Hermes-Version stoppt jede Konfigurationsaenderung mit klarem Hinweis statt "nicht erreichbar" (#94).
