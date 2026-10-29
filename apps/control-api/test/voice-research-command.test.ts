@@ -2,11 +2,13 @@ import { expect, it, vi } from "vitest";
 import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { startTestApi } from "./helpers";
 import type { MailAccount } from "../src/services/mail-accounts";
 
 const execFileAsync = promisify(execFile);
+const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
 it("limits the voice key to typed research and preserves native preview, approval and outcome", async () => {
   const search = vi.fn(async () => new Response(JSON.stringify({ results: [
@@ -81,7 +83,7 @@ it("carries recorded PCM speech through transcription, voice dispatch, native pr
     const sent = vi.spyOn(api.runtime.mailAccounts, "send").mockResolvedValue({ state: "sent", archivePending: false });
     const probe = async (scenario: string) => {
       const executable = process.platform === "win32" ? "python" : "python3";
-      const script = join(process.cwd(), "installer", "voice", "tests", "audio_command_probe.py");
+      const script = join(REPO_ROOT, "installer", "voice", "tests", "audio_command_probe.py");
       const result = await execFileAsync(executable, [script, scenario, root], { timeout: 30_000, maxBuffer: 32_000,
         env: { ...process.env, FRIDAY_DASHBOARD_PORT: String(api.port), FRIDAY_DATA_DIR: join(root, "dashboard", "data") } });
       return JSON.parse(result.stdout) as { spoken: string[]; previewId: string | null;

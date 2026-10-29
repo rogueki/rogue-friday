@@ -1,6 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+
+const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
 /**
  * Die Paritaetsmatrix in `docs/agent-work/finalization/dash-18-01-voice-parity.md` wird aus dem Quellstand erzeugt. Dieser
@@ -9,15 +13,15 @@ import { describe, expect, it } from "vitest";
  */
 describe("voice parity inventory", () => {
   it("is generated from the current sources and stays in sync", () => {
-    const output = execFileSync(process.execPath, ["scripts/finalization/build-voice-parity.mjs", "--check"], {
+    const output = execFileSync(process.execPath, [join(REPO_ROOT, "scripts/finalization/build-voice-parity.mjs"), "--check"], {
       encoding: "utf8",
-      cwd: process.cwd(),
+      cwd: REPO_ROOT,
     });
     expect(output).toContain("Paritaetsmatrix aktuell");
   }, 30_000);
 
   it("names every area of the mandatory matrix exactly once", () => {
-    const matrix = readFileSync("docs/agent-work/finalization/dash-18-01-voice-parity.md", "utf8");
+    const matrix = readFileSync(join(REPO_ROOT, "docs/agent-work/finalization/dash-18-01-voice-parity.md"), "utf8");
     for (const label of [
       "Übersicht/Orb", "Kommunikation", "Kalender", "Memory", "Aufgaben", "Agenten", "Skills", "Automationen",
       "Recherche", "Dateien", "Studio", "Sprache", "Aktivität", "Benachrichtigungen", "Freigaben", "Audit", "System",
@@ -28,7 +32,7 @@ describe("voice parity inventory", () => {
   });
 
   it("separates the areas without a spoken path from the read-only ones", () => {
-    const matrix = readFileSync("docs/agent-work/finalization/dash-18-01-voice-parity.md", "utf8");
+    const matrix = readFileSync(join(REPO_ROOT, "docs/agent-work/finalization/dash-18-01-voice-parity.md"), "utf8");
     const noVoice = matrix.split("## 3. Bereiche ohne Sprachweg")[1]?.split("##")[0] ?? "";
     const readOnly = matrix.split("## 4. Nur lesbare Bereiche")[1]?.split("##")[0] ?? "";
     for (const label of ["Skills", "Studio", "System", "Onboarding", "Standort/Wetter"]) {
