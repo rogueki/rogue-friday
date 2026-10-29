@@ -68,6 +68,7 @@ from domain_task_voice import AGENT_LABEL, DomainTaskVoice, bundle_text, classif
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
+from speech_redaction import redact_secrets  # noqa: E402
 from voice_runtime_paths import dashboard_port  # noqa: E402
 from memory_outbox import MemoryOutbox, private_intent  # noqa: E402
 
@@ -160,7 +161,8 @@ def clock_answer(text: str) -> str | None:
 
 
 def clean_for_speech(text: str) -> str:
-    """Markdown, URLs und Emojis (z. B. Signaturen) nicht vorlesen."""
+    """Markdown, URLs, Emojis (z. B. Signaturen) und Geheimwerte nicht vorlesen."""
+    text = redact_secrets(text)
     text = re.sub(r"https?://\S+", "", text)
     text = re.sub(r"[*_`#>|~]+", " ", text)
     text = re.sub(r"[\U0001F000-\U0001FAFF☀-➿️]", "", text)
