@@ -75,9 +75,10 @@ describe("observability operations (PLAN §50.3)", () => {
     // approval dry run, 272 with the unsaved mailbox candidate test (DASH-05.03), 273 with the
     // Hermes access read (DASH-07.03), 274 with the SKILL.md detail (DASH-10.02), 276 with the skill
     // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
-    // diff reports, 283 with the content studio skill bridge (KEEP-05). Bump deliberately with the release note
-    // instead of fitting the number to a failure.
-    expect(operations).toHaveLength(283);
+    // diff reports, 283 with the content studio skill bridge (KEEP-05), 285 with the voice domain task
+    // routes (DASH-16.02). Bump deliberately with the release note instead of fitting the number to a
+    // failure.
+    expect(operations).toHaveLength(285);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

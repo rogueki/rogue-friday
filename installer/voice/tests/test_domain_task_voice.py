@@ -4,9 +4,16 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import domain_task_voice
 from domain_task_voice import DomainTaskVoice, classify_domain, result_text
+
+
+@pytest.fixture(autouse=True)
+def isolated_data_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("FRIDAY_DATA_DIR", str(tmp_path / "data"))
 
 
 class FakeResponse:
