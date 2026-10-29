@@ -77,6 +77,13 @@ describe("voice status (PLAN §38.1)", () => {
     expect(screen.getAllByText("Kein Gerät gewählt").length).toBeGreaterThan(0);
   });
 
+  it("names the voice path that owns audio", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ audioPath: { transport: "device", host: "linux" } })) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
+    expect((await screen.findAllByText("Linux-Sprachdienst (lokale Geräte)")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Sprachpfad").length).toBeGreaterThan(0);
+  });
+
   it("keeps the microphone activity visible and flips to active when the microphone records", async () => {
     const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ mode: "listening", microphone: { state: "listening", active: true, deviceId: null, inputLevel: 0.4 } })) }));
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });

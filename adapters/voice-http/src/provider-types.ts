@@ -62,6 +62,7 @@ export interface RawVoiceStatus {
   output_audio?: RawAudioLevels;
   /** `device` (host microphone/speaker) or `browser` (Linux: audio travels through the dashboard WebSocket). */
   audio_transport?: "device" | "browser";
+  host_platform?: "windows" | "linux";
   service_started_at?: string;
   tts_voice_choice?: string | null;
   input_device_id?: string | null;

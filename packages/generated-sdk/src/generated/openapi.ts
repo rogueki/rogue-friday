@@ -11061,6 +11061,12 @@ export interface components {
         VoiceStatus: {
             audioInputDeviceId: string | null;
             audioOutputDeviceId: string | null;
+            /** @description Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser. */
+            audioPath?: {
+                host: null | ("windows" | "linux");
+                /** @enum {string} */
+                transport: "device" | "browser";
+            };
             focusMode: boolean;
             localModel: {
                 latencyMs: number | null;

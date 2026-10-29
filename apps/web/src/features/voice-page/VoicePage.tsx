@@ -26,6 +26,7 @@ import {
   Mic,
   MicOff,
   Radio,
+  Route,
   ShieldCheck,
   Speaker,
   Square,
@@ -166,6 +167,14 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       value: deviceName(devices, status.audioOutputDeviceId, noDevice),
       tone: status.audioOutputDeviceId ? "green" : "muted",
       stateLabel: status.audioOutputDeviceId ? t("voicePage.status.selected") : t("voicePage.status.noDevice"),
+    },
+    {
+      id: "audioPath",
+      icon: Route,
+      title: t("voicePage.status.audioPath"),
+      value: status.audioPath ? t(`voicePage.audioPath.${status.audioPath.transport === "browser" ? "browser" : status.audioPath.host ?? "device"}` as MessageKey) : t("voicePage.status.unknown"),
+      tone: status.audioPath ? "cyan" : "muted",
+      stateLabel: status.audioPath ? t("voicePage.audioPath.active") : t("voicePage.status.unknown"),
     },
     {
       id: "pushToTalk",

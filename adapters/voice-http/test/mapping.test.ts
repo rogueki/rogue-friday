@@ -269,6 +269,26 @@ describe("voiceStatusMapper", () => {
     expect(status.audioOutputDeviceId).toBeNull();
   });
 
+  it("reports the audio path and the host that owns it", () => {
+    expect(
+      map(parseRawVoiceStatus(makeVoiceStatus({ audio_transport: "device", host_platform: "linux" }))).audioPath,
+    ).toEqual({
+      transport: "device",
+      host: "linux",
+    });
+    expect(map(makeVoiceStatus({ audio_transport: "browser" })).audioPath).toEqual({
+      transport: "browser",
+      host: null,
+    });
+    expect(
+      map(parseRawVoiceStatus({ ...makeVoiceStatus({ audio_transport: "device" }), host_platform: "macos" })).audioPath,
+    ).toEqual({
+      transport: "device",
+      host: null,
+    });
+    expect(map(makeVoiceStatus()).audioPath).toBeUndefined();
+  });
+
   it("leaks no provider keys", () => {
     const status = map(makeVoiceStatus({ game_mode: "x", last_event: "2026-10-14T09:13:00" }));
     expect(

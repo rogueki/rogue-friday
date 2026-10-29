@@ -100,6 +100,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(input ? { input_audio: input } : {}),
     ...(output ? { output_audio: output } : {}),
     ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
+    ...(raw.host_platform === "windows" || raw.host_platform === "linux" ? { host_platform: raw.host_platform } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
     ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
@@ -204,6 +205,10 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       audioOutputDeviceId: raw.output_device_id ?? null,
       serviceStartedAt: raw.service_started_at ?? null,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
+      ...(raw.audio_transport === "device" || raw.audio_transport === "browser"
+        ? { audioPath: { transport: raw.audio_transport,
+            host: raw.host_platform === "windows" || raw.host_platform === "linux" ? raw.host_platform : null } }
+        : {}),
       pushToTalk: { enabled: (raw.audio_transport === "browser" || raw.native_ptt_available === true) && raw.runtime_settings !== undefined,
         active: raw.ptt_active === true },
       focusMode,
