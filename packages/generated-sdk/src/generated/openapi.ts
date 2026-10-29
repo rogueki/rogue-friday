@@ -10630,6 +10630,7 @@ export interface components {
         };
         /** TelegramGateway */
         TelegramGateway: {
+            allowedChatIds: string[];
             allowedUserIds: string[];
             applied: boolean | null;
             /** @enum {string} */
@@ -10647,9 +10648,11 @@ export interface components {
         };
         /** TelegramGatewayPatch */
         TelegramGatewayPatch: {
+            allowedChatIds: string[];
             allowedUserIds: string[];
             clearToken: boolean;
             enabled: boolean;
+            removeWebhook: boolean;
             token: string;
         };
         /** TelegramGatewayResponse */

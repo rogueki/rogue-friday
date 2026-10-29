@@ -10,12 +10,13 @@
     "botUsername": { "type": ["string", "null"] },
     "receiveMode": { "type": "string", "enum": ["polling", "webhook", "unknown"] },
     "allowedUserIds": { "type": "array", "items": { "type": "string" } },
+    "allowedChatIds": { "type": "array", "items": { "type": "string", "pattern": "^-[1-9][0-9]{0,19}$" } },
     "enabled": { "type": ["boolean", "null"] },
     "gatewayRunning": { "type": ["boolean", "null"] },
     "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] },
     "applied": { "type": ["boolean", "null"] },
     "revision": { "type": "integer", "minimum": 0 }
   },
-  "required": ["tokenConfigured", "botAuthentication", "botId", "botUsername", "receiveMode", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "required": ["tokenConfigured", "botAuthentication", "botId", "botUsername", "receiveMode", "allowedUserIds", "allowedChatIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
   "additionalProperties": false
 }

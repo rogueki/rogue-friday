@@ -434,7 +434,8 @@ export class SkillsService {
       if (detail.id === "hermes_himalaya" || detail.id === "imap_smtp_mail") return { ...detail,
         configured: himalaya ? himalaya.readyForLocalUse : null };
       if (detail.id === "telegram_gateway") return { ...detail,
-        configured: telegram ? telegram.tokenConfigured && telegram.allowedUserIds.length > 0 && telegram.enabled === true : null };
+        // Access may come from Hermes pairing approvals, which these flags cannot see; enabling already requires a verified bot.
+        configured: telegram ? telegram.tokenConfigured && telegram.enabled === true : null };
       if (detail.id === "discord_gateway") return { ...detail,
         configured: discord ? Boolean(discord.tokenConfigured) && discord.allowedUserIds.length > 0 && discord.enabled === true : null };
       if (detail.id === "whatsapp_gateway") return { ...detail,

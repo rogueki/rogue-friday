@@ -160,7 +160,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "settings.telegram_gateway_updated";
     ctx.audit.severity = "warning";
     ctx.audit.after = { tokenConfigured: status.tokenConfigured, allowedUserCount: status.allowedUserIds.length,
-      enabled: status.enabled, applied: status.applied };
+      allowedChatCount: status.allowedChatIds.length, enabled: status.enabled, applied: status.applied };
     return { status: 200, body: single(status) };
   },
   async sendHimalayaMessage(ctx) {
