@@ -97,7 +97,13 @@ export class MessagingGatewayService {
     const script = configScript.replace(/configure_messaging_gateway\.py$/, "messaging_pairing.py");
     let data: Record<string, unknown>;
     try { data = await this.invoke(script, distro, user, [action, ...(mode ? [mode] : [])], undefined, 10000); }
-    catch { throw unavailable(); }
+    catch (error) {
+      if ((action === "start" || action === "refresh") && error instanceof Error && error.message.startsWith("runner_4:"))
+        throw conflict("WhatsApp ist bereits gekoppelt oder verbunden. Zum Neukoppeln zuerst abmelden.");
+      if (action === "reconnect" && error instanceof Error && error.message.startsWith("runner_4:"))
+        throw conflict("Es gibt keine gekoppelte WhatsApp-Sitzung, die neu verbunden werden kann.");
+      throw unavailable();
+    }
     const states = ["idle", "starting", "waiting", "qr_expired", "connected", "unverified", "expired", "cancelled", "error"];
     if (!states.includes(String(data.state)) ||
       !(data.id === null || typeof data.id === "string" && /^[A-Za-z0-9_-]{20,64}$/.test(data.id)) ||

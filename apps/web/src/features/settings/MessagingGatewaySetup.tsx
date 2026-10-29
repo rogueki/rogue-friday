@@ -113,13 +113,15 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
             {pairing.data?.data.linkedIdentity ? ` · Verknüpft: ${pairing.data.data.linkedIdentity}` : ""}</p>
           {qrImage && pairing.data?.data.state === "waiting" && <div><img src={qrImage} width={320} height={320} alt="WhatsApp-Kopplungs-QR-Code" />
             <p>Der QR-Code läuft nach kurzer Zeit ab. Danach neuen Code anfordern.</p></div>}
+          {pairing.data?.data.state === "qr_expired" && <p role="status">Der QR-Code ist abgelaufen. Neuen Code anfordern oder die Kopplung abbrechen.</p>}
           {!(current as WhatsappGatewayResponse["data"]).sessionPresent &&
             <button type="button" disabled={busy} onClick={() => void changePairing("start")}>Kopplung starten / QR erneuern</button>}
           {(current as WhatsappGatewayResponse["data"]).sessionPresent && <>
+            <p>Zum Neukoppeln zuerst abmelden; die bestehende Kopplung bleibt bis dahin unverändert.</p>
             <button type="button" disabled={busy} onClick={() => void changePairing("reconnect")}>Verbindung neu starten</button>
             <button type="button" disabled={busy} onClick={() => void changePairing("logout")}>WhatsApp abmelden</button>
           </>}
-          {pairing.data?.data.state === "starting" || pairing.data?.data.state === "waiting" ?
+          {pairing.data?.data.state === "starting" || pairing.data?.data.state === "waiting" || pairing.data?.data.state === "qr_expired" ?
             <button type="button" disabled={busy} onClick={() => void changePairing("cancel")}>Kopplung abbrechen</button> : null}
           <label>WhatsApp-Modus <select value={mode} onChange={(event) => setMode(event.target.value as "bot" | "self-chat")}><option value="bot">Bot</option><option value="self-chat">Eigener Chat</option></select></label>
           <label>Erlaubte Telefonnummern (Ländervorwahl, ohne +) <input type="text" value={ids} onChange={(event) => setIds(event.target.value)} placeholder="491701234567" /></label>

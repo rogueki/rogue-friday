@@ -74,6 +74,20 @@ class PairingBridgeTest(unittest.TestCase):
         self.assertEqual(cancelled["state"], "cancelled")
         self.assertIsNone(cancelled["qr"])
 
+    def test_pairing_never_starts_over_a_linked_session(self):
+        session = Path(self.tmp.name) / ".hermes/platforms/whatsapp/session"
+        session.mkdir(parents=True)
+        creds = session / "creds.json"
+        original = '{"me":{"id":"491701234567@s.whatsapp.net"}}'
+        creds.write_text(original)
+        for action, mode in (("start", "bot"), ("refresh", "self-chat")):
+            code, result = self.call(action, mode)
+            self.assertEqual((code, result), (4, {"error": "linked_session_present"}))
+        _, status = self.call("status")
+        self.assertEqual(status["state"], "idle")
+        self.assertEqual(status["linkedIdentity"], "491701234567@s.whatsapp.net")
+        self.assertEqual(creds.read_text(), original)
+
     def test_logout_only_after_fake_remote_confirmation(self):
         session = Path(self.tmp.name) / ".hermes/platforms/whatsapp/session"
         session.mkdir(parents=True)
