@@ -455,6 +455,8 @@ export const enC: Record<keyof typeof deC, string> = {
   "voicePage.status.focusMode": "Focus mode",
   "voicePage.status.noDevice": "No device selected",
   "voicePage.status.selected": "Selected",
+  "voicePage.status.deviceMissing": "Selected device not found",
+  "voicePage.status.unreachable": "Unreachable",
   "voicePage.status.noSpeaker": "Nobody recognized",
   "voicePage.status.unknown": "Unknown",
   "voicePage.trusted.until": "valid until {time}",

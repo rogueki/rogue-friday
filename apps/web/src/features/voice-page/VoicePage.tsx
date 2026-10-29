@@ -65,9 +65,14 @@ interface StatusRow {
   stateLabel: string;
 }
 
-function deviceName(devices: VoiceDevice[] | undefined, id: string | null, none: string): string {
+function deviceName(devices: VoiceDevice[] | undefined, id: string | null, none: string, missing: string): string {
   if (id === null) return none;
+  if (devices !== undefined && !devices.some((device) => device.id === id)) return missing;
   return devices?.find((device) => device.id === id)?.name ?? id;
+}
+
+function deviceMissing(devices: VoiceDevice[] | undefined, id: string | null): boolean {
+  return id !== null && devices !== undefined && !devices.some((device) => device.id === id);
 }
 
 /* ── Status (§38.1) ───────────────────────────────────────────────────── */
@@ -85,7 +90,7 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       icon: mic.active ? Mic : MicOff,
       title: t("voicePage.status.microphone"),
       value: t(`voicePage.mic.${mic.state}` as MessageKey),
-      detail: deviceName(devices, mic.deviceId, noDevice),
+      detail: deviceName(devices, mic.deviceId, noDevice, t("voicePage.status.deviceMissing")),
       tone: mic.state === "listening" ? "cyan" : mic.state === "idle" ? "green" : "muted",
       stateLabel: mic.active ? t("voicePage.mic.activeNow") : t("voicePage.mic.inactive"),
     },
@@ -156,17 +161,17 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       id: "input",
       icon: Headphones,
       title: t("voicePage.status.audioInput"),
-      value: deviceName(devices, status.audioInputDeviceId, noDevice),
-      tone: status.audioInputDeviceId ? "green" : "muted",
-      stateLabel: status.audioInputDeviceId ? t("voicePage.status.selected") : t("voicePage.status.noDevice"),
+      value: deviceName(devices, status.audioInputDeviceId, noDevice, t("voicePage.status.deviceMissing")),
+      tone: deviceMissing(devices, status.audioInputDeviceId) ? "amber" : status.audioInputDeviceId ? "green" : "muted",
+      stateLabel: deviceMissing(devices, status.audioInputDeviceId) ? t("voicePage.status.unreachable") : status.audioInputDeviceId ? t("voicePage.status.selected") : t("voicePage.status.noDevice"),
     },
     {
       id: "output",
       icon: Speaker,
       title: t("voicePage.status.audioOutput"),
-      value: deviceName(devices, status.audioOutputDeviceId, noDevice),
-      tone: status.audioOutputDeviceId ? "green" : "muted",
-      stateLabel: status.audioOutputDeviceId ? t("voicePage.status.selected") : t("voicePage.status.noDevice"),
+      value: deviceName(devices, status.audioOutputDeviceId, noDevice, t("voicePage.status.deviceMissing")),
+      tone: deviceMissing(devices, status.audioOutputDeviceId) ? "amber" : status.audioOutputDeviceId ? "green" : "muted",
+      stateLabel: deviceMissing(devices, status.audioOutputDeviceId) ? t("voicePage.status.unreachable") : status.audioOutputDeviceId ? t("voicePage.status.selected") : t("voicePage.status.noDevice"),
     },
     {
       id: "audioPath",
