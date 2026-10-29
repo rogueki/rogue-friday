@@ -71,6 +71,15 @@ describe("HealthMonitor", () => {
     expect(events.map((e) => e.type)).toEqual(["friday.adapter.health_changed"]);
   });
 
+  it("carries the upstream version a successful check reports and keeps it while the upstream is down", async () => {
+    const { monitor, state } = setup();
+    expect("remoteVersion" in (await monitor.checkNow())).toBe(false);
+    state.report = { status: "online", latencyMs: 12, remoteVersion: "git.0e427d7" };
+    expect((await monitor.checkNow()).remoteVersion).toBe("git.0e427d7");
+    state.report = { status: "offline", latencyMs: null, message: "weg" };
+    expect((await monitor.checkNow()).remoteVersion).toBe("git.0e427d7");
+  });
+
   it("goes ONLINE -> DEGRADED on the first failure and OFFLINE at the failure threshold", async () => {
     const { monitor, lifecycle, state } = setup({ failureThreshold: 3 });
     await monitor.checkNow();

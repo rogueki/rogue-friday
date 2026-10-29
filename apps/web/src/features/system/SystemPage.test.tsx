@@ -107,6 +107,23 @@ describe("adapter matrix (PLAN §40.3)", () => {
     expect(within(dialog).getByText("IMAP nicht erreichbar", { exact: false })).toBeInTheDocument();
   });
 
+  it("names the upstream version in the adapter detail (DASH-19.04)", async () => {
+    params = new URLSearchParams("adapter=mock-tasks");
+    const fake = routedFetch({ ...routes(), "GET /api/v1/adapters": listOf([adapter("mock-tasks", "Aufgaben", "online", { remoteVersion: "git.0e427d7" }), adapter("mock-mail", "Mail", "offline")]) });
+    renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true } }) });
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Version der Gegenstelle")).toBeInTheDocument();
+    expect(within(dialog).getByText("git.0e427d7")).toBeInTheDocument();
+  });
+
+  it("says the upstream reports no version when the adapter did not get one", async () => {
+    params = new URLSearchParams("adapter=mock-mail");
+    const fake = routedFetch(routes());
+    renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true } }) });
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTitle("Gegenstelle meldet keine Version")).toBeInTheDocument();
+  });
+
   it("asks for confirmation before restarting and only then calls the restart operation", async () => {
     params = new URLSearchParams("adapter=mock-mail");
     const user = userEvent.setup();

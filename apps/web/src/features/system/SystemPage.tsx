@@ -614,6 +614,9 @@ function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
               <KeyValue label={t("system.adapters.col.version")} mono>
                 {adapter.manifest.adapterVersion}
               </KeyValue>
+              <KeyValue label={t("system.adapters.remoteVersion")} mono reason={t("system.adapters.noRemoteVersion")}>
+                {adapter.health.remoteVersion ?? null}
+              </KeyValue>
               <KeyValue label={t("system.adapters.category")}>{adapter.manifest.category}</KeyValue>
               <KeyValue label={t("system.adapters.provider")} mono>
                 {adapter.provider}

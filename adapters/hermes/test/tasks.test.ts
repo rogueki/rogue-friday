@@ -700,6 +700,7 @@ describe("tasks: health", () => {
     const online = await h.adapter.healthCheck();
     await h.adapter.healthCheck();
     expect(online.status).toBe("online");
+    expect(online.remoteVersion).toBe("git.0e427d7");
     expect(h.logs.filter((record) => record.message === "Hermes Dashboard erkannt")).toHaveLength(1);
     expect(h.logs.find((record) => record.message === "Hermes Dashboard erkannt")?.fields).toMatchObject({
       version: "git.0e427d7",

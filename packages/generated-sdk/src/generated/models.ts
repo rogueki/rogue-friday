@@ -1485,6 +1485,10 @@ export interface AdapterHealth {
   checkedAt: string;
   consecutiveFailures: number;
   circuit: "closed" | "open" | "half_open";
+  /**
+   * Software version the connected upstream reports (e.g. Hermes dashboard version, voice service build). null: it reports none. Absent: the adapter does not query it.
+   */
+  remoteVersion?: string | null;
 }
 /**
  * Single-resource envelope for AdapterHealth.

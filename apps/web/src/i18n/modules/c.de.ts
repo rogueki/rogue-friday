@@ -394,6 +394,8 @@ export const deC = {
   "system.adapters.checkedAt": "Zuletzt geprüft",
   "system.adapters.noSuccess": "Noch kein erfolgreicher Aufruf",
   "system.adapters.contract": "Contract",
+  "system.adapters.remoteVersion": "Version der Gegenstelle",
+  "system.adapters.noRemoteVersion": "Gegenstelle meldet keine Version",
   "system.adapters.lastError": "Letzter Fehler",
   "system.adapters.mock": "Mock",
   "system.adapters.live": "Live",

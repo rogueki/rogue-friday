@@ -49,6 +49,11 @@
     "circuit": {
       "type": "string",
       "enum": ["closed", "open", "half_open"]
+    },
+    "remoteVersion": {
+      "type": ["string", "null"],
+      "maxLength": 128,
+      "description": "Software version the connected upstream reports (e.g. Hermes dashboard version, voice service build). null: it reports none. Absent: the adapter does not query it."
     }
   },
   "required": [

@@ -158,9 +158,10 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
           latencyMs,
           message: "Voice-Dienst startet (Mikrofon noch nicht geöffnet)",
           errorCode: "STARTING",
+          remoteVersion: raw.service_version ?? null,
         };
       }
-      return { status: "online", latencyMs };
+      return { status: "online", latencyMs, remoteVersion: raw.service_version ?? null };
     } catch (raw) {
       const error = normalizeError(raw, { operation: "healthCheck" });
       switch (error.code) {

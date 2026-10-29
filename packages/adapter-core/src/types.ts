@@ -53,6 +53,8 @@ export interface AdapterHealthReport {
   message?: string;
   /** Machine-readable reason shown as `lastError.code`, e.g. `NOT_CONFIGURED`, `ADAPTER_TIMEOUT`. */
   errorCode?: string;
+  /** Software version the upstream reports; `null` if it reports none. Omitted when the adapter does not query it. */
+  remoteVersion?: string | null;
 }
 
 export interface CapabilitySet {
