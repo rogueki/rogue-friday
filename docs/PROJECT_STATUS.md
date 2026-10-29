@@ -1134,6 +1134,9 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Wake-Modell und Meta des zuvor funktionierenden Profils. Jetzt werden sie vor dem Training gesichert (`*.prev`), bei
   Fehlschlag samt `active`-Marker wiederhergestellt und erst nach Erfolg verworfen (`linux-voice-enrollment.test.ts` 4/4,
   Gegenprobe gegen den alten Code rot).
+- N-052 (2026-10-29): Pfadparameter werden gegen Laenge, Muster und Enum aus dem Vertrag geprueft (vorher nur
+  128 Zeichen); Werte wie `-../` enden mit 400 VALIDATION_FAILED vor Handler und Adapter. 46 Operationen mit
+  Pfadparametern deklarieren 400 jetzt im Vertrag (additiv).
 - DASH-16.03 (2026-10-29): Grenzen fuer Unteragenten im Dashboard einstellbar (`delegation.max_spawn_depth`,
   `max_concurrent_children`, `max_iterations`, `child_timeout_seconds`; Hermes-Einstellungen -> Agent, wirken beim
   naechsten delegate_task). Anbietergrenze und Geldlimit gibt es in Hermes nicht; Ersatz und Begruendung in

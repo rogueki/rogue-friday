@@ -87,6 +87,10 @@ export function HimalayaMailbox() {
       await client.invalidateQueries({ queryKey: [...KEY, accountId, mailbox] });
     } catch (error) { setActionStatus(error instanceof Error ? error.message : "Änderung nicht bestätigt."); }
   }
+  const folderItems = folders.data?.data.folders ?? [];
+  // Nested IMAP folders may share a display name; the full folder id tells them apart.
+  const folderLabel = (folder: (typeof folderItems)[number]) =>
+    folderItems.filter((other) => other.name === folder.name).length > 1 ? folder.id : folder.name;
   return <section className="com-live-mail" aria-label="E-Mail Postfach">
     <h2>E-Mail Postfach</h2>
     <p>Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen.</p>
@@ -109,8 +113,12 @@ export function HimalayaMailbox() {
         </ul></section>}
       {accountId && folders.isError && <p role="alert">IMAP oder Ordnerliste nicht erreichbar.</p>}
       {folders.data && <label>Ordner<select value={mailbox ?? ""} onChange={(event) => chooseFolder(event.target.value || null)}>
-        <option value="">Ordner auswählen</option>{folders.data.data.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+        <option value="">Ordner auswählen</option>
+        {mailbox && !folderItems.some((folder) => folder.id === mailbox) &&
+          <option value={mailbox} disabled>Ordner nicht mehr vorhanden</option>}
+        {folderItems.map((folder) => <option key={folder.id} value={folder.id}>{folderLabel(folder)}</option>)}
       </select></label>}
+      {folders.data && folderItems.length === 0 && <p>Keine Ordner gefunden.</p>}
       {mailbox && envelopes.isError && <p role="alert">Nachrichten konnten nicht gelesen werden.</p>}
       {mailbox && <form onSubmit={(event) => { event.preventDefault(); setSearchTerm(searchInput.trim()); setPage(1); setUid(null); }}>
         <label>Nachrichten in diesem Ordner suchen<input value={searchInput} maxLength={100}
@@ -138,7 +146,7 @@ export function HimalayaMailbox() {
         <button type="button" onClick={() => setCompose("forward")}>Weiterleiten</button>
         <button type="button" onClick={() => void change("flag")}>Markieren</button>
         <label>Verschieben nach<select defaultValue="" onChange={(event) => { if (event.target.value) void change("move", event.target.value); }}><option value="">Ordner wählen</option>
-          {folders.data?.data.folders.filter((item) => item.id !== mailbox).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          {folderItems.filter((item) => item.id !== mailbox).map((item) => <option key={item.id} value={item.id}>{folderLabel(item)}</option>)}
         </select></label>
       </article>}
       {selectedAccount && compose && <MailCompose account={selectedAccount} original={compose === "new" ? undefined : message.data?.data} mode={compose} onClose={() => setCompose(null)} />}
