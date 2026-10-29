@@ -11,7 +11,7 @@ import types
 import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from calendar_voice import CalendarVoice
+from calendar_voice import CalendarVoice, REMINDER
 
 
 def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
@@ -171,3 +171,74 @@ def test_confirmation_before_finished_preview_is_rejected(tmp_path):
     calendar.handle("Erstelle Termin Team am 20.10.2026 um 14 Uhr")
     assert "unterbrochen" in calendar.handle("ja")
     assert calls == ["preview"]
+
+
+def test_spoken_correction_requests_a_new_preview_and_needs_a_new_yes(tmp_path):
+    calendar = CalendarVoice(str(tmp_path), zone="UTC")
+    calls = []
+
+    def request(path, body, request_key=None):
+        calls.append((path, body, request_key))
+        if path == "preview":
+            return {"token": "signed-token", "expiresAt": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=90)).isoformat(),
+                    "targetId": "", "version": 0, "event": body}, None
+        return {"id": "cal-one"}, None
+
+    calendar._safe_request = request
+    calendar.handle("Erstelle Termin Zahnarzt am 20.10.2026 um 14 Uhr für 30 Minuten")
+    calendar.arm_confirmation()
+    assert calendar.handle("nein, um 16 Uhr").startswith("Korrigiert.")
+    assert [call[0] for call in calls] == ["preview", "preview"]
+    assert calls[1][1]["start"] == "2026-10-20T16:00:00Z"
+    assert calls[1][1]["end"] == "2026-10-20T16:30:00Z"
+    assert "unterbrochen" in calendar.handle("ja")
+    assert [call[0] for call in calls] == ["preview", "preview"]
+
+    calendar.handle("Erstelle Termin Zahnarzt am 20.10.2026 um 14 Uhr für 30 Minuten")
+    assert calendar.handle("lieber am 21.10.2026 für 45 Minuten").startswith("Korrigiert.")
+    assert calls[3][1]["start"] == "2026-10-21T14:00:00Z"
+    assert calls[3][1]["end"] == "2026-10-21T14:45:00Z"
+    calendar.arm_confirmation()
+    assert "angelegt" in calendar.handle("ja")
+    assert calls[-1][0] == "confirm"
+    assert calls[-1][1]["request"]["start"] == "2026-10-21T14:00:00Z"
+
+
+def test_unrelated_reply_keeps_preview_and_asks_again(tmp_path):
+    calendar = CalendarVoice(str(tmp_path), zone="UTC")
+
+    def request(path, body, request_key=None):
+        return {"token": "signed-token", "expiresAt": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=90)).isoformat(),
+                "targetId": "", "version": 0, "event": body}, None
+
+    calendar._safe_request = request
+    calendar.handle("Erstelle Termin Team am 20.10.2026 um 14 Uhr")
+    assert calendar.handle("Wie wird das Wetter?") == REMINDER
+    assert calendar.pending is not None
+    calendar.arm_confirmation()
+    assert "angelegt" in calendar.handle("ja")
+
+
+def test_correction_of_delete_is_refused(tmp_path):
+    calendar = CalendarVoice(str(tmp_path), zone="UTC")
+    calls = []
+
+    def request(path, body, request_key=None):
+        calls.append((path, body, request_key))
+        return {"token": "signed-token", "expiresAt": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=90)).isoformat(),
+                "targetId": "cal-from-server", "version": 1,
+                "event": {"title": "Team", "start": "2026-10-20T14:00:00Z", "end": "2026-10-20T15:00:00Z", "timeZone": "UTC"}}, None
+
+    calendar._safe_request = request
+    calendar.handle("Lösche Termin Team")
+    assert "nicht korrigieren" in calendar.handle("nein, um 16 Uhr")
+    assert calendar.pending is not None
+    assert [call[0] for call in calls] == ["preview"]
+
+
+def test_reply_without_open_preview_is_not_claimed(tmp_path):
+    calendar = CalendarVoice(str(tmp_path), zone="UTC")
+    calls = []
+    calendar._safe_request = lambda path, body, request_key=None: calls.append(path)
+    assert calendar.handle("Wie wird das Wetter?") is None
+    assert calls == []
