@@ -50,6 +50,11 @@ export class TelegramGatewayService {
     try { data = await this.invoke(script, distro, user, [action], input ? JSON.stringify(input) : undefined, action === "update" ? 50000 : 20000); }
     catch (error) {
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_3:")) throw conflict("Die Telegram-Konfiguration wurde inzwischen geändert. Bitte neu laden.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:bot_token_rejected"))
+        throw validationFailed("Telegram hat das neue Bot-Token abgelehnt. Das bisher gespeicherte Token bleibt unverändert.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:bot_unverified"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Telegram war nicht erreichbar, das Bot-Token konnte nicht geprüft werden. Es wurde nichts geändert." });
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren werden ein gültiges Bot-Token, eine numerische Owner-ID und ein freier Polling-Modus ohne Webhook benötigt.");
       throw unavailable();
     }

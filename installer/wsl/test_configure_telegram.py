@@ -105,6 +105,49 @@ class TelegramSetupTests(unittest.TestCase):
         self.assertEqual((code, result["error"]), (4, "invalid_bot_or_webhook_conflict"))
         self.assertEqual(self.restarts, 0)
 
+    def _store_working_token(self):
+        working = "111111111:" + "w" * 35
+        self.env.write_text(f'OTHER_KEY="keep"\nTELEGRAM_BOT_TOKEN="{working}"\nTELEGRAM_ALLOWED_USERS="123456789"\n', encoding="utf-8")
+        return working
+
+    def test_rejected_new_token_keeps_the_working_one_even_when_disabled(self):
+        working = self._store_working_token()
+        request = {"token": "222222222:" + "x" * 35, "clearToken": False, "allowedUserIds": ["123456789"],
+                   "enabled": False, "revision": module.snapshot()["revision"]}
+        with mock.patch.object(module, "bot_probe", return_value={"botAuthentication": "invalid",
+                "botId": None, "botUsername": None, "receiveMode": "unknown"}):
+            code, result = self.submit(request)
+        self.assertEqual((code, result["error"]), (4, "bot_token_rejected"))
+        self.assertIn(working, self.env.read_text(encoding="utf-8"))
+        self.assertEqual(self.restarts, 0)
+
+    def test_unreachable_telegram_changes_nothing(self):
+        working = self._store_working_token()
+        unknown = {"botAuthentication": "unknown", "botId": None, "botUsername": None, "receiveMode": "unknown"}
+        for token, enabled in (("222222222:" + "x" * 35, False), ("", True)):
+            request = {"token": token, "clearToken": False, "allowedUserIds": ["123456789"],
+                       "enabled": enabled, "revision": module.snapshot()["revision"]}
+            with mock.patch.object(module, "bot_probe", return_value=unknown):
+                code, result = self.submit(request)
+            self.assertEqual((code, result["error"]), (4, "bot_unverified"))
+        self.assertIn(working, self.env.read_text(encoding="utf-8"))
+        self.assertFalse(self.flags)
+        self.assertEqual(self.restarts, 0)
+
+    def test_refused_flag_switch_leaves_env_untouched(self):
+        before = self.env.read_text(encoding="utf-8")
+        original = self.command
+        def refuse(*args):
+            if args[1:4] == ("config", "set", "platforms.telegram.enabled"):
+                return mock.Mock(returncode=1, stdout="")
+            return original(*args)
+        request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": ["123456789"],
+                   "enabled": True, "revision": module.snapshot()["revision"]}
+        with mock.patch.object(module, "command", side_effect=refuse):
+            code, result = self.submit(request)
+        self.assertEqual((code, result["error"]), (5, "config_unavailable"))
+        self.assertEqual(self.env.read_text(encoding="utf-8"), before)
+
 
 if __name__ == "__main__":
     unittest.main()

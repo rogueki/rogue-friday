@@ -7,6 +7,9 @@ import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
 
+const BOT_AUTH_LABELS: Record<string, string> = { verified: "bestätigt", invalid: "von Telegram abgelehnt", missing: "kein Token", unknown: "nicht prüfbar" };
+const RECEIVE_MODE_LABELS: Record<string, string> = { polling: "Polling", webhook: "Webhook", unknown: "unbekannt" };
+
 export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState("");
@@ -38,9 +41,12 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
       setClearToken(false);
       await status.refetch();
       await queryClient.invalidateQueries({ queryKey: queryKeys.skills });
-      setMessage(response.data.applied === true ? "Gespeichert und Hermes-Gateway neu gestartet. Bot-Verbindung und Owner-ID noch nicht geprüft."
+      setMessage(response.data.applied === true
+        ? response.data.botAuthentication === "verified"
+          ? `Gespeichert, Bot @${response.data.botUsername ?? response.data.botId} von Telegram bestätigt und Hermes-Gateway neu gestartet.`
+          : "Gespeichert und Hermes-Gateway neu gestartet."
         : response.data.applied === false ? "Gespeichert, Gateway-Neustart nicht bestätigt. Dienst prüfen."
-        : "Konfiguration unverändert. Bot-Verbindung und Owner-ID nicht geprüft.");
+        : "Konfiguration unverändert.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Telegram-Konfiguration konnte nicht gespeichert werden.");
     } finally { setBusy(false); }
@@ -48,13 +54,18 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
 
   return <section aria-labelledby="telegram-gateway-setup-title">
     <h3 id="telegram-gateway-setup-title">Telegram-Bot für Hermes</h3>
-    <p>Erstelle einen Bot bei BotFather und ermittle deine numerische Telegram-User-ID. Friday erlaubt nur die eingetragenen IDs. Das Bot-Token bleibt im lokalen Hermes-Profil; eine gespeicherte Konfiguration bestätigt noch keine erfolgreiche Telegram-Verbindung.</p>
+    <ol>
+      <li>In Telegram den Chat mit @BotFather öffnen, <code>/newbot</code> senden und Namen sowie Benutzernamen (endet auf „bot“) wählen.</li>
+      <li>Das angezeigte Token unten einfügen. Friday prüft es vor dem Speichern bei Telegram; ein abgelehntes Token ersetzt das bisherige nicht.</li>
+      <li>Deine numerische Telegram-User-ID ermitteln (z. B. mit einem ID-Bot wie @userinfobot) und unten eintragen. Nur eingetragene IDs dürfen Friday schreiben.</li>
+    </ol>
+    <p>Das Bot-Token bleibt im lokalen Hermes-Profil. Ob die User-ID stimmt, zeigt sich erst bei deiner ersten Nachricht an den Bot.</p>
     {!owner ? <p>Nur der Owner kann den Telegram-Bot einrichten.</p> : <>
       {status.isPending && <p role="status">Telegram-Konfiguration wird gelesen.</p>}
       {status.isError && <p role="alert">Telegram-Status nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p>}
       {current && <>
         <p role="status">{current.tokenConfigured ? "Bot-Token hinterlegt" : "Kein Bot-Token hinterlegt"} · {current.enabled ? "Gateway aktiviert" : current.enabled === false ? "Gateway deaktiviert" : "Aktivierung unbekannt"} · {current.gatewayRunning ? "Gateway-Dienst läuft" : "Gateway-Dienst nicht bestätigt"} · Laufzeitverbindung: {current.connectionState}.</p>
-        <p role="status">Bot-Authentisierung: {current.botAuthentication === "verified" ? `bestätigt (${current.botUsername ?? current.botId})` : current.botAuthentication} · Empfangsmodus: {current.receiveMode}.
+        <p role="status">Bot-Authentisierung: {current.botAuthentication === "verified" ? `bestätigt (@${current.botUsername ?? current.botId})` : BOT_AUTH_LABELS[current.botAuthentication] ?? current.botAuthentication} · Empfangsmodus: {RECEIVE_MODE_LABELS[current.receiveMode] ?? current.receiveMode}.
           {current.receiveMode === "webhook" ? " Ein vorhandener Webhook muss vor Hermes-Polling entfernt werden." : ""}</p>
         <label>Bot-Token <input type="password" autoComplete="off" value={token} disabled={clearToken || busy} onChange={(event) => setToken(event.target.value)} placeholder="Neues BotFather-Token" /></label>
         <label>Erlaubte numerische User-IDs <input type="text" value={ids} onChange={(event) => setIds(event.target.value)} placeholder={current.allowedUserIds.join(", ") || "123456789"} /></label>

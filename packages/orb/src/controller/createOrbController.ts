@@ -593,6 +593,11 @@ export function createOrbController(options: CreateOrbControllerOptions = {}): O
   };
 
   function applySnapshotInternal(snapshot: OrbSnapshot): void {
+    // Snapshots arrive on two unordered paths (realtime events and REST refetches). The server moves `since` forward on
+    // every mode change, so an older one is a late answer that must not overwrite newer truth. A client-made offline
+    // snapshot carries the browser clock and is always replaceable.
+    const appliedSince = server && server.snapshot.status.mode !== "offline" ? Date.parse(server.snapshot.status.since) : Number.NaN;
+    if (Date.parse(snapshot.status.since) < appliedSince) return;
     const t = now();
     const internal = toInternalLayers(snapshot);
     const prevFlash = server?.snapshot.status.mode === "success" || server?.snapshot.layers.attention === "success";

@@ -228,15 +228,19 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/hermes_mcp_oauth_transport.py', 'installer/wsl/hermes_mcp_oauth_worker.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh',
         'installer/wsl/setup_searxng.sh', 'installer/wsl/research_searxng_settings.py', 'installer/wsl/research_hermes_synthesis.py',
+        'installer/wsl/telephony_runner.py', 'installer/wsl/configure_himalaya.py', 'installer/wsl/change_himalaya.py',
+        'installer/wsl/read_himalaya.py', 'installer/wsl/send_himalaya.py', 'installer/wsl/coding_runner.py',
+        'installer/wsl/powerpoint_runner.py', 'installer/wsl/configure_skill_keys.py', 'installer/wsl/configure_wiki_path.py',
+        'installer/wsl/hermes_provider_auth.py',
         'installer/scripts/recover-friday.ps1')
 }
 function Get-VoiceSourcePaths {
     return @('installer/voice/audio_devices.py', 'installer/voice/audio_level.py', 'installer/voice/audio_output.py',
-        'installer/voice/browser_audio.py', 'installer/voice/build_personal_wake.py', 'installer/voice/negative_texts.py', 'installer/voice/calendar_voice.py',
+        'installer/voice/browser_audio.py', 'installer/voice/build_personal_wake.py', 'installer/voice/build_speaker_profile.py', 'installer/voice/negative_texts.py', 'installer/voice/calendar_voice.py',
         'installer/voice/cloudtalk_voice.py', 'installer/voice/coding_voice.py',
         'installer/voice/content_studio_voice.py', 'installer/voice/cuda_dlls.py',
         'installer/voice/elevenlabs_cloud.py', 'installer/voice/enroll_record.py', 'installer/voice/film_filter.py',
-        'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py', 'installer/voice/domain_task_voice.py',
+        'installer/voice/friday_voice.py', 'installer/voice/gui_interaction.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py', 'installer/voice/domain_task_voice.py',
         'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
         'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/runtime_settings.py', 'installer/voice/speech_redaction.py', 'installer/voice/stt_models.py', 'installer/voice/wake_enrollment.py',
