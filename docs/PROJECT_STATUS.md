@@ -1157,6 +1157,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- DASH-13.05/DASH-19.04/INS-04 (2026-10-29, N-133 bis N-137): Die Voice-Seite zeigt "Wartet auf Audiogeraet" (#84).
+  Das Dashboard-Update akzeptiert nur noch das eigene Dashboard auf dem Port (#86). Die Systemseite nennt die Version
+  von Hermes und Voice-Dienst je Adapter (#91). Der Installer-Assistent bietet die eigene Stimme wieder als dritte Wahl
+  mit eigenem Platz und zeigt "&" in Titeln (#87). Regressionstests schliessen I-033/I-034 (#89), I-052 (#85) und I-048
+  (friday-skills #6); I-049 (friday-skills #5) ist im Code behoben, I-021 durch Wiederholung beim Aufraeumen gemildert (#90).
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
