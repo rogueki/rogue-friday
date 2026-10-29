@@ -1,4 +1,4 @@
-# Data-mode migration for the FRIDAY dashboard configuration.
+﻿# Data-mode migration for the FRIDAY dashboard configuration.
 #
 # The product must not fabricate data in a normal installation: `dataMode: mock` and `dataMode: hybrid`
 # create mock adapters (or placeholder world state) for every category that has no real provider. Earlier

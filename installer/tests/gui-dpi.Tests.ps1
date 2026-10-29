@@ -1,4 +1,4 @@
-# Anzeigeskalierung: 125, 150 und 200 Prozent muessen ohne Ueberlauf, mit lesbarem Kontrast und mit
+﻿# Anzeigeskalierung: 125, 150 und 200 Prozent muessen ohne Ueberlauf, mit lesbarem Kontrast und mit
 # vollstaendig sichtbaren Aktionen funktionieren. Gemessen wird am gezeichneten Fenster jeder Stufe.
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
