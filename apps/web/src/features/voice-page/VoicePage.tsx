@@ -87,15 +87,16 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
   const noDevice = t("voicePage.status.noDevice");
   const pipelineLabel = (state: PipelineState): string => t(`voicePage.pipeline.${state}` as MessageKey);
   const latency = (ms: number | null): string => (ms === null ? t("voicePage.noSource") : formatMs(ms, locale));
+  const waitingDevice = status.audioDeviceWaiting === true;
   const rows: StatusRow[] = [
     {
       id: "microphone",
       icon: mic.active ? Mic : MicOff,
       title: t("voicePage.status.microphone"),
-      value: t(`voicePage.mic.${mic.state}` as MessageKey),
-      detail: deviceName(devices, mic.deviceId, noDevice, t("voicePage.status.deviceMissing")),
-      tone: mic.state === "listening" ? "cyan" : mic.state === "idle" ? "green" : "muted",
-      stateLabel: mic.active ? t("voicePage.mic.activeNow") : t("voicePage.mic.inactive"),
+      value: waitingDevice ? t("voicePage.mic.waitingDevice") : t(`voicePage.mic.${mic.state}` as MessageKey),
+      detail: waitingDevice ? t("voicePage.mic.waitingDeviceDetail") : deviceName(devices, mic.deviceId, noDevice, t("voicePage.status.deviceMissing")),
+      tone: waitingDevice ? "amber" : mic.state === "listening" ? "cyan" : mic.state === "idle" ? "green" : "muted",
+      stateLabel: waitingDevice ? t("voicePage.status.unreachable") : mic.active ? t("voicePage.mic.activeNow") : t("voicePage.mic.inactive"),
     },
     {
       id: "wakeWord",

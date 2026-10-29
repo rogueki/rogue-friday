@@ -226,6 +226,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       audioInputDeviceId: raw.input_device_id ?? null,
       audioOutputDeviceId: raw.output_device_id ?? null,
       serviceStartedAt: raw.service_started_at ?? null,
+      audioDeviceWaiting: waiting,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
       ...(raw.audio_transport === "device" || raw.audio_transport === "browser"
         ? { audioPath: { transport: raw.audio_transport,

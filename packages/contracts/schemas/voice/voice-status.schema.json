@@ -160,6 +160,10 @@
       "additionalProperties": false
     },
     "serviceStartedAt": { "type": ["string", "null"], "format": "date-time" },
+    "audioDeviceWaiting": {
+      "type": "boolean",
+      "description": "True while the voice service waits for its selected audio device (disconnected or not yet available); it resumes on its own when the device returns."
+    },
     "audioOutputDeviceId": {
       "type": ["string", "null"]
     },
