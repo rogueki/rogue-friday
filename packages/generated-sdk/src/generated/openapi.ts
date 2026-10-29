@@ -1336,6 +1336,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Installed and latest dashboard commit, update progress and last result (no envelope, stable during an update) */
+        get: operations["getDashboardUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-update/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the verified dashboard update to the given GitHub commit */
+        post: operations["installDashboardUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/data-retention": {
         parameters: {
             query?: never;
@@ -6216,6 +6250,48 @@ export interface components {
                 longitude: number;
             };
             soundEffects: boolean;
+        };
+        /** DashboardUpdateInstallRequest */
+        DashboardUpdateInstallRequest: {
+            commit: string;
+        };
+        /** DashboardUpdateInstallResponse */
+        DashboardUpdateInstallResponse: {
+            /** @constant */
+            accepted: true;
+            commit: string;
+        };
+        /** DashboardUpdateStatus */
+        DashboardUpdateStatus: {
+            available: boolean;
+            checking: boolean;
+            error: null | string;
+            installed: null | string;
+            installing: boolean;
+            lastResult: null | {
+                commit: string;
+                message?: string;
+                /** @enum {string} */
+                status: "success" | "failed";
+                time: string;
+            };
+            latest: null | string;
+            progress: null | {
+                message: string;
+                /** @enum {string} */
+                phase: "starting" | "download" | "verify" | "dependencies" | "build" | "backup" | "install" | "health" | "rollback" | "success" | "failed";
+                runId: string;
+                /** Format: date-time */
+                startedAt: string;
+                /** @enum {string} */
+                state: "running" | "success" | "failed";
+                step: number;
+                targetCommit: string;
+                /** @constant */
+                totalSteps: 8;
+                /** Format: date-time */
+                updatedAt: string;
+            };
         };
         /** DataRetentionActionRequest */
         DataRetentionActionRequest: {
@@ -14628,6 +14704,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContentProductionJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getDashboardUpdateStatus: {
+        parameters: {
+            query?: {
+                /** @description 1 asks GitHub for the latest commit instead of using the cached poll result */
+                refresh?: "1";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard update status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardUpdateStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    installDashboardUpdate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardUpdateInstallRequest"];
+            };
+        };
+        responses: {
+            /** @description Update started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardUpdateInstallResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

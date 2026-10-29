@@ -218,7 +218,7 @@ describe("REST route coverage", () => {
       "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
       "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
-      "getSystemInstallation", "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
+      "getSystemInstallation", "getDashboardUpdateStatus", "installDashboardUpdate", "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
       "probeHermesMcp", "manageHermesMcpOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",

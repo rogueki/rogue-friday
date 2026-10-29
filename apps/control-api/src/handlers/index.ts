@@ -27,6 +27,7 @@ import { dataRetentionHandlers } from "./data-retention";
 import { messengerSendHandlers } from "./messenger-send";
 import { hermesConfigHandlers } from "./hermes-config";
 import { systemBackupHandlers } from "./system-backups";
+import { dashboardUpdateHandlers } from "./dashboard-update";
 import { messengerInboundHandlers } from "./messenger-inbound";
 import { taskActionHandlers } from "./task-actions";
 import { voiceTaskHandlers } from "./voice-tasks";
@@ -61,6 +62,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     messengerSendHandlers,
     hermesConfigHandlers,
     systemBackupHandlers,
+    dashboardUpdateHandlers,
     messengerInboundHandlers,
     taskActionHandlers,
     voiceTaskHandlers,

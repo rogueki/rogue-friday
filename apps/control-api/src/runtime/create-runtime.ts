@@ -43,6 +43,7 @@ import { DurableMemoryService } from "../services/durable-memory";
 import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
+import { DashboardUpdateService } from "../services/dashboard-update";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
@@ -301,6 +302,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const systemBackup = new SystemBackupService(config.paths.dataDir, db, durableMemory);
   const backupJobs = new BackupJobsService(db, settings, systemBackup);
   const installation = new InstallationInfoService(config);
+  const dashboardUpdates = new DashboardUpdateService(config);
   const retention = new RetentionService(db, settings, audit, auditArchive, systemBackup, notifications);
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
@@ -569,6 +571,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     durableMemory,
     backupJobs,
     installation,
+    dashboardUpdates,
     retention,
     wikiPath,
     himalayaAccount,

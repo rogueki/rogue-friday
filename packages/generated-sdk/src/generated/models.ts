@@ -907,6 +907,9 @@ export interface FridayModelMap {
   ControlFrame: ControlFrame;
   CurrentWeatherResponse: CurrentWeatherResponse;
   DashboardSettings: DashboardSettings;
+  DashboardUpdateInstallRequest: DashboardUpdateInstallRequest;
+  DashboardUpdateInstallResponse: DashboardUpdateInstallResponse;
+  DashboardUpdateStatus: DashboardUpdateStatus;
   DataRetentionActionRequest: DataRetentionActionRequest;
   DataRetentionActionResponse: DataRetentionActionResponse;
   DataRetentionSettings: DataRetentionSettings;
@@ -2944,6 +2947,49 @@ export interface DashboardSettings {
     latitude: number;
     longitude: number;
     countryCode?: string;
+  };
+}
+export interface DashboardUpdateInstallRequest {
+  commit: string;
+}
+export interface DashboardUpdateInstallResponse {
+  accepted: true;
+  commit: string;
+}
+export interface DashboardUpdateStatus {
+  installed: null | string;
+  latest: null | string;
+  available: boolean;
+  checking: boolean;
+  installing: boolean;
+  error: null | string;
+  progress: null | {
+    runId: string;
+    targetCommit: string;
+    state: "running" | "success" | "failed";
+    phase:
+      | "starting"
+      | "download"
+      | "verify"
+      | "dependencies"
+      | "build"
+      | "backup"
+      | "install"
+      | "health"
+      | "rollback"
+      | "success"
+      | "failed";
+    step: number;
+    totalSteps: 8;
+    message: string;
+    startedAt: string;
+    updatedAt: string;
+  };
+  lastResult: null | {
+    commit: string;
+    status: "success" | "failed";
+    time: string;
+    message?: string;
   };
 }
 export interface DataRetentionActionRequest {
