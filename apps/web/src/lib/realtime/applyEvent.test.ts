@@ -220,6 +220,8 @@ describe("applyEvent: agents, system, resync", () => {
     const keys = invalidate.mock.calls.map((call) => JSON.stringify(call[0]?.queryKey));
     expect(keys).toContain(JSON.stringify(queryKeys.health));
     expect(keys).toContain(JSON.stringify(queryKeys.capabilities));
+    // I-034: a voice service that comes back must not stay offline on the voice page until the next poll.
+    expect(keys).toContain(JSON.stringify(queryKeys.voice.status));
   });
 
   it("refetches all snapshots on resync_required", () => {

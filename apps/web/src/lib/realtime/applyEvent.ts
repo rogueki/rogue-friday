@@ -352,6 +352,8 @@ export function applyEvent(queryClient: QueryClient, event: FridayEvent): void {
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.health });
       void queryClient.invalidateQueries({ queryKey: queryKeys.capabilities });
+      // The voice page reads its own status endpoint; without this it shows a recovered voice service as offline until the next poll.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voice.status });
       scheduleOverviewRefresh(queryClient);
       return;
     }
