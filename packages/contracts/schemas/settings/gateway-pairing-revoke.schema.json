@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/gateway-pairing-revoke.schema.json",
+  "title": "GatewayPairingRevoke",
+  "type": "object",
+  "properties": {
+    "platform": { "type": "string", "enum": ["telegram", "discord", "whatsapp"] },
+    "userId": { "type": "string", "pattern": "^[A-Za-z0-9@._:+-]{1,128}$" }
+  },
+  "required": ["platform", "userId"],
+  "additionalProperties": false
+}

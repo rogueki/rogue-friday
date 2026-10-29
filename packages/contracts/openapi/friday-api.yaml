@@ -8230,6 +8230,56 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/gateway-pairing:
+    get:
+      operationId: getGatewayPairing
+      tags: [settings]
+      summary: Read pending and approved Hermes gateway pairings (codes are never exposed)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/gateway-pairing/approve:
+    post:
+      operationId: approveGatewayPairing
+      tags: [settings]
+      summary: Approve one pending Hermes gateway pairing request
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayPairingApprove" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/gateway-pairing/revoke:
+    post:
+      operationId: revokeGatewayPairing
+      tags: [settings]
+      summary: Revoke an approved Hermes gateway pairing
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayPairingRevoke" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/GatewayPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/telegram-gateway:
     get:
       operationId: getTelegramGateway
@@ -9772,6 +9822,14 @@ components:
       $ref: ../schemas/settings/whatsapp-pairing.schema.json
     WhatsappPairingResponse:
       $ref: ../schemas/settings/whatsapp-pairing-response.schema.json
+    GatewayPairing:
+      $ref: ../schemas/settings/gateway-pairing.schema.json
+    GatewayPairingResponse:
+      $ref: ../schemas/settings/gateway-pairing-response.schema.json
+    GatewayPairingApprove:
+      $ref: ../schemas/settings/gateway-pairing-approve.schema.json
+    GatewayPairingRevoke:
+      $ref: ../schemas/settings/gateway-pairing-revoke.schema.json
     WhatsappPairingStart:
       $ref: ../schemas/settings/whatsapp-pairing-start.schema.json
     TelegramGatewayPatch:

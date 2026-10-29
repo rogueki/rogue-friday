@@ -960,6 +960,10 @@ export interface FridayModelMap {
   FrontendTelemetryBatch: FrontendTelemetryBatch;
   FrontendTelemetryReceipt: FrontendTelemetryReceipt;
   FrontendTelemetryReceiptResponse: FrontendTelemetryReceiptResponse;
+  GatewayPairing: GatewayPairing;
+  GatewayPairingApprove: GatewayPairingApprove;
+  GatewayPairingResponse: GatewayPairingResponse;
+  GatewayPairingRevoke: GatewayPairingRevoke;
   Health: Health;
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
@@ -3440,6 +3444,35 @@ export interface FrontendTelemetryReceiptResponse {
   contractVersion: ContractVersion;
   data: FrontendTelemetryReceipt;
   freshness: Freshness;
+}
+export interface GatewayPairing {
+  platforms: {
+    platform: "telegram" | "discord" | "whatsapp";
+    pending: {
+      requestId: string;
+      userId: string;
+      userName: string;
+      ageMinutes: number;
+    }[];
+    approved: {
+      userId: string;
+      userName: string;
+      approvedAt: string | null;
+    }[];
+  }[];
+}
+export interface GatewayPairingApprove {
+  platform: "telegram" | "discord" | "whatsapp";
+  requestId: string;
+}
+export interface GatewayPairingResponse {
+  contractVersion: ContractVersion;
+  data: GatewayPairing;
+  freshness: Freshness;
+}
+export interface GatewayPairingRevoke {
+  platform: "telegram" | "discord" | "whatsapp";
+  userId: string;
 }
 /**
  * Liveness/readiness summary of the control API and its components.
