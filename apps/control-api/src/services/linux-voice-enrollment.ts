@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, chmodSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, chmodSync, statSync, copyFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 
 const REQUIRED = { wake: 12, short: 8, negatives: 8, speech: 8 } as const;
@@ -109,6 +109,9 @@ export function startEnrollmentTraining() {
   const status = enrollmentStatus();
   for (const kind of Object.keys(REQUIRED) as Kind[]) if (status.counts[kind] < status.required[kind]) throw new Error(`Es fehlen Proben: ${kind}.`);
   busy = true; state = "training"; error = null;
+  // Keep the last working profile until the new one is complete; a failed retrain restores it (DASH-12.05).
+  const kept = [p.profile, p.model, p.meta, p.active].filter((file) => existsSync(file));
+  for (const file of kept) copyFileSync(file, `${file}.prev`);
   rmSync(p.active, { force: true });
   const python = join(p.stateRoot, "voice/.venv/bin/python");
   const source = join(p.installRoot, "installer/voice");
@@ -120,10 +123,18 @@ export function startEnrollmentTraining() {
       state = "activating";
       mkdirSync(join(p.stateRoot, "voice/enrollment"), { recursive: true, mode: 0o700 });
       writeFileSync(p.marker, "ready\n", { flag: "w", mode: 0o600 });
+      for (const file of kept) rmSync(`${file}.prev`, { force: true });
       for (const block of Object.values(p.blocks)) if (block) rmSync(join(p.raw, block), { recursive: true, force: true });
       state = "activating";
-    } catch { state = "failed"; error = "Training fehlgeschlagen. Bitte Proben erneut aufnehmen.";
-      for (const file of [p.profile, p.model, p.meta]) rmSync(file, { force: true });
+    } catch {
+      state = "failed";
+      for (const file of [p.profile, p.model, p.meta, p.active]) {
+        if (kept.includes(file)) renameSync(`${file}.prev`, file);
+        else rmSync(file, { force: true });
+      }
+      error = kept.length > 0
+        ? "Training fehlgeschlagen; das bisherige Profil bleibt aktiv. Bitte Proben erneut aufnehmen."
+        : "Training fehlgeschlagen. Bitte Proben erneut aufnehmen.";
       for (const block of Object.values(p.blocks)) if (block) rmSync(join(p.raw, block), { recursive: true, force: true });
     } finally { busy = false; }
   })();
