@@ -1194,6 +1194,7 @@ export interface FridayModelMap {
   SystemBackupActionRequest: SystemBackupActionRequest;
   SystemBackupActionResponse: SystemBackupActionResponse;
   SystemBackupStatusResponse: SystemBackupStatusResponse;
+  SystemInstallationResponse: SystemInstallationResponse;
   SystemMetrics: SystemMetrics;
   SystemMetricsResponse: SystemMetricsResponse;
   Task: Task;
@@ -5306,6 +5307,13 @@ export interface VoiceStatus {
   };
   audioInputDeviceId: string | null;
   ttsVoiceChoice?: string | null;
+  /**
+   * Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.
+   */
+  audioPath?: {
+    transport: "device" | "browser";
+    host: null | ("windows" | "linux");
+  };
   serviceStartedAt?: string | null;
   audioOutputDeviceId: string | null;
   pushToTalk: {
@@ -6148,6 +6156,24 @@ export interface SystemBackupStatusResponse {
       status: "success" | "failed";
       path: string | null;
       error: string | null;
+    };
+  };
+  freshness: Freshness;
+}
+export interface SystemInstallationResponse {
+  contractVersion: string;
+  data: {
+    installationId: string;
+    dashboard: {
+      commit: null | string;
+      installedAt: null | string;
+    };
+    controlApi: {
+      contractVersion: string;
+      host: string;
+      port: number;
+      pid: number;
+      startedAt: string;
     };
   };
   freshness: Freshness;

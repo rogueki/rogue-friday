@@ -6,7 +6,7 @@ import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
 import { errorBody, listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
 import { validateSampleTarget } from "./EnrollmentFlow";
-import { VoicePage } from "./VoicePage";
+import { buildStatusRows, VoicePage } from "./VoicePage";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/voice", useSearchParams: () => new URLSearchParams() }));
@@ -77,6 +77,13 @@ describe("voice status (PLAN §38.1)", () => {
     expect(screen.getAllByText("Kein Gerät gewählt").length).toBeGreaterThan(0);
   });
 
+  it("names the voice path that owns audio", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ audioPath: { transport: "device", host: "linux" } })) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
+    expect((await screen.findAllByText("Linux-Sprachdienst (lokale Geräte)")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Sprachpfad").length).toBeGreaterThan(0);
+  });
+
   it("marks a selected device that is no longer connected as unreachable instead of showing its id", async () => {
     const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ audioInputDeviceId: "vdev_gone" })) }));
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
@@ -109,6 +116,26 @@ describe("voice status (PLAN §38.1)", () => {
     await waitFor(() => expect(stop).toBeEnabled());
     await user.click(stop);
     await waitFor(() => expect(fake.calls.some((call) => call.method === "POST" && call.path === "/api/v1/voice/stop")).toBe(true));
+  });
+});
+
+describe("status rows without fresh data (DASH-11.05)", () => {
+  const t = ((key: string) => key) as never;
+
+  it("claims neither a speaker decision nor a trusted session from cached data", () => {
+    const rows = buildStatusRows(status(), [], t, "de-DE", "x", false);
+    for (const id of ["speaker", "recognizedSpeaker", "trustedSession"]) {
+      const row = rows.find((entry) => entry.id === id);
+      expect(row?.value).toBe("voicePage.status.unknown");
+      expect(row?.detail).toBe("voicePage.status.notCurrent");
+      expect(row?.tone).toBe("muted");
+    }
+    expect(rows.find((entry) => entry.id === "stt")?.value).toBe("faster-whisper");
+  });
+
+  it("keeps the recognized speaker while the data is live", () => {
+    const rows = buildStatusRows(status(), [], t, "de-DE", "x");
+    expect(rows.find((entry) => entry.id === "recognizedSpeaker")?.value).toBe("Erik Brandt");
   });
 });
 

@@ -42,6 +42,7 @@ import { portHandler } from "./ports";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 
 const executeBase = portHandler("commands", "executeCommand", PORT_SPEC.commands.executeCommand);
+const stopVoiceBase = portHandler("voice", "stopVoice", PORT_SPEC.voice.stopVoice);
 
 async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRequest,
   body: NonNullable<ReturnType<typeof parseTaskCreateIntent>>): Promise<Awaited<ReturnType<Handler>>> {
@@ -1349,5 +1350,16 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
   async resumeCommand(ctx) {
     ctx.audit.action = "command.resumed";
     return controlCommand(ctx, "resume");
+  },
+
+  // friday-voice-http has no control channel of its own; the Control API holds the bridge key for /control/stop.
+  async stopVoice(ctx) {
+    if (ctx.runtime.config.adapters.voice.provider !== "friday-voice-http") return stopVoiceBase(ctx);
+    ctx.audit.action = "voice.stopped";
+    const voiceError = await controlLiveVoice(ctx, "stop");
+    const body: ActionResult = { contractVersion: CONTRACT_VERSION, accepted: voiceError === null,
+      status: voiceError === null ? "completed" : "rejected", correlationId: ctx.correlationId,
+      message: voiceError ?? "Zuhören und Sprachausgabe gestoppt. F.R.I.D.A.Y. wartet auf das Aktivierungswort." };
+    return { status: 200, body };
   },
 };

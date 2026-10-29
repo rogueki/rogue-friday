@@ -9,6 +9,8 @@ import re
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from messaging_runtime import platform_state
 
 HERMES = Path.home() / ".hermes"
@@ -115,6 +117,26 @@ def write_env(lines, platform, updates):
             os.unlink(path)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    # urllib would forward the Authorization header to a redirect target; the token may only reach discord.com.
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def discord_probe(token):
+    """Returns "verified", "rejected" or "unverified" for a bot token without ever echoing it."""
+    request = urllib.request.Request("https://discord.com/api/v10/users/@me", headers={
+        "Authorization": f"Bot {token}", "User-Agent": "DiscordBot (https://github.com/rogueki/rogue-friday, 1.0)"})
+    try:
+        with urllib.request.build_opener(_NoRedirect()).open(request, timeout=6) as response:
+            data = json.loads(response.read(4096))
+        return "verified" if response.status == 200 and isinstance(data, dict) and data.get("bot") is True else "rejected"
+    except urllib.error.HTTPError as error:
+        return "rejected" if error.code == 401 else "unverified"
+    except (urllib.error.URLError, OSError, ValueError):
+        return "unverified"
+
+
 def update(platform, lines):
     data = json.load(sys.stdin)
     expected = {"allowedUserIds", "enabled", "revision"}
@@ -138,6 +160,12 @@ def update(platform, lines):
         if flag and (not token or not ids):
             print(json.dumps({"error": "token_and_owner_required"}))
             return 4
+        if token and token != current["DISCORD_BOT_TOKEN"]:
+            # A new token only replaces the stored one after Discord confirmed it; an unreachable API proves nothing.
+            verdict = discord_probe(token)
+            if verdict != "verified":
+                print(json.dumps({"error": "bot_token_rejected" if verdict == "rejected" else "bot_unverified"}))
+                return 4
         updates = {"DISCORD_BOT_TOKEN": token, "DISCORD_ALLOWED_USERS": ",".join(ids), "DISCORD_ALLOWED_CHANNELS": ",".join(channels)}
     else:
         mode = data["mode"]
@@ -152,12 +180,19 @@ def update(platform, lines):
         updates = {"WHATSAPP_MODE": mode, "WHATSAPP_ALLOWED_USERS": ",".join(ids), "WHATSAPP_ENABLED": "true" if flag else "false"}
     changed_env = any(updates[key] != current[key] for key in updates)
     changed_flag = flag != before["enabled"]
-    if changed_env:
-        write_env(lines, platform, updates)
+    # Switch the flag first: if Hermes refuses it, nothing has been written yet.
     if changed_flag:
         result = command(str(CLI), "config", "set", f"platforms.{platform}.enabled", "true" if flag else "false")
         if result.returncode != 0:
             print(json.dumps({"error": "config_unavailable"}))
+            return 5
+    if changed_env:
+        try:
+            write_env(lines, platform, updates)
+        except OSError:
+            if changed_flag:
+                command(str(CLI), "config", "set", f"platforms.{platform}.enabled", "true" if before["enabled"] else "false")
+            print(json.dumps({"error": "env_write_failed"}))
             return 5
     applied = None
     if changed_env or changed_flag:

@@ -190,15 +190,36 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   options: readonly SelectOption[];
   hint?: string;
   error?: string;
+  /** Label for a value that is not offered in `options` (e.g. stored by an older version or a deleted account). */
+  unknownLabel?: (value: string) => string;
+  /** Text shown when `options` is empty. */
+  emptyLabel?: string;
 }
 
 /** Native <select>: best a11y and mobile behaviour; styled for the HUD and `color-scheme: dark`. */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, hideLabel, options, hint, error, className, id, disabled, ...rest },
+  {
+    label,
+    hideLabel,
+    options,
+    hint,
+    error,
+    unknownLabel = (value) => (value === '' ? 'Nicht gewählt' : `Nicht verfügbar (${value})`),
+    emptyLabel = 'Keine Auswahl verfügbar',
+    className,
+    id,
+    disabled,
+    ...rest
+  },
   ref,
 ) {
   const autoId = useStableId('jv-select');
   const selectId = id ?? autoId;
+  const seen = new Set<string>();
+  const unique = options.filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)));
+  const current = typeof rest.value === 'string' ? rest.value : typeof rest.value === 'number' ? String(rest.value) : undefined;
+  // A stored value that is not offered any more must stay visible; the browser would otherwise show the first option as if chosen.
+  const missing = current !== undefined && !seen.has(current);
   return (
     <div className={cx('jv-field jv-select', error && 'jv-field--invalid', disabled && 'jv-field--disabled', className)}>
       <label htmlFor={selectId} className={cx('jv-field__label', hideLabel && 'jv-sr-only')}>
@@ -214,11 +235,21 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           aria-describedby={error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined}
           {...rest}
         >
-          {options.map((o) => (
+          {unique.map((o) => (
             <option key={o.value} value={o.value} disabled={o.disabled}>
               {o.label}
             </option>
           ))}
+          {missing && current !== undefined ? (
+            <option value={current} disabled>
+              {unknownLabel(current)}
+            </option>
+          ) : null}
+          {unique.length === 0 && !missing ? (
+            <option value="" disabled>
+              {emptyLabel}
+            </option>
+          ) : null}
         </select>
         <ChevronDown size={14} strokeWidth={1.75} className="jv-select__chevron" aria-hidden="true" />
       </div>

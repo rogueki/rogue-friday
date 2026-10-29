@@ -48,3 +48,10 @@ def legacy_id(sd, selection, direction):
     if len(candidates) != 1:
         raise ValueError(f"Alte {direction}-Auswahl kann nicht eindeutig zugeordnet werden: {selection}")
     return candidates[0]["id"]
+
+
+def refresh(sd):
+    # PortAudio enumerates devices only when it initializes; a plugged or removed headset becomes visible only after a
+    # re-initialization, which also invalidates every open stream, so callers must close their streams first.
+    sd._terminate()
+    sd._initialize()

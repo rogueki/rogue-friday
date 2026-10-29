@@ -5,6 +5,7 @@ import { LocalCalendarService } from "../src/services/local-calendar";
 import { startTestApi } from "./helpers";
 
 const profile = { agentId: 1234, accessKeyId: "test-key-id", accessKeySecret: "synthetic-secret-123" };
+const verified = async () => "verified" as const;
 
 describe("CloudTalk API call safeguards", () => {
   it("calls the owner VoiceAgent once for a due local event and journals before POST", async () => {
@@ -24,10 +25,10 @@ describe("CloudTalk API call safeguards", () => {
           appointment_time: "Samstag, 17. Oktober 2026 um 15:00 (Zahnarzt)" } } } });
       return new Response(null, { status: 202 });
     });
-    const service = new CloudTalkService(db, Buffer.alloc(32, 8), request as typeof fetch, () => clock, () => "Alex");
+    const service = new CloudTalkService(db, Buffer.alloc(32, 8), request as typeof fetch, () => clock, () => "Alex", verified);
     await service.tickReminders();
     expect(request).not.toHaveBeenCalled();
-    service.configure({ accessKeyId: profile.accessKeyId, accessKeySecret: profile.accessKeySecret,
+    await service.configure({ accessKeyId: profile.accessKeyId, accessKeySecret: profile.accessKeySecret,
       ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
       remindersEnabled: true, reminderMinutes: 15 }, 0, "owner");
     await service.tickReminders();
@@ -50,8 +51,8 @@ describe("CloudTalk API call safeguards", () => {
       end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
     calendar.delete(removed.id, "owner", removed.version);
     const request = vi.fn(async () => { throw new Error("timeout after send"); });
-    const service = new CloudTalkService(db, Buffer.alloc(32, 9), request as typeof fetch, () => clock);
-    service.configure({ ...profile, ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
+    const service = new CloudTalkService(db, Buffer.alloc(32, 9), request as typeof fetch, () => clock, undefined, verified);
+    await service.configure({ ...profile, ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
       remindersEnabled: true, reminderMinutes: 15 }, 0, "owner");
     await service.tickReminders();
     await service.tickReminders();
@@ -63,15 +64,15 @@ describe("CloudTalk API call safeguards", () => {
   it("encrypts credentials and journals before a single external POST", async () => {
     const db = openDatabase(":memory:");
     const request = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      expect(_url).toBe("https://api.cloudtalk.io/api/calls/create.json");
+      expect(_url).toBe("https://my.cloudtalk.io/api/calls/create.json");
       expect(db.prepare("SELECT state FROM cloudtalk_calls").get()).toMatchObject({ state: "pending" });
       expect(init?.method).toBe("POST");
       expect(init?.redirect).toBe("error");
       expect(JSON.parse(String(init?.body))).toEqual({ agent_id: 1234, callee_number: "+491701234567" });
       return new Response(JSON.stringify({ responseData: { status: 200 } }), { status: 200 });
     });
-    const service = new CloudTalkService(db, Buffer.alloc(32, 3), request as typeof fetch);
-    expect(service.configure(profile, 0).configured).toBe(true);
+    const service = new CloudTalkService(db, Buffer.alloc(32, 3), request as typeof fetch, undefined, undefined, verified);
+    expect((await service.configure(profile, 0)).configured).toBe(true);
     expect(JSON.stringify(db.prepare("SELECT value FROM kv WHERE key = 'telephony.cloudtalk.profile'").get())).not.toContain(profile.accessKeySecret);
     const preview = service.preview("+491701234567", "owner");
     const first = await service.originate(preview.destination, preview.token, "owner", "cloudtalk-key-123");
@@ -85,8 +86,8 @@ describe("CloudTalk API call safeguards", () => {
   it("keeps an uncertain API outcome without retrying", async () => {
     const db = openDatabase(":memory:");
     const request = vi.fn(async () => { throw new Error("timeout after send"); });
-    const service = new CloudTalkService(db, Buffer.alloc(32, 4), request as typeof fetch);
-    service.configure(profile, 0);
+    const service = new CloudTalkService(db, Buffer.alloc(32, 4), request as typeof fetch, undefined, undefined, verified);
+    await service.configure(profile, 0);
     const preview = service.preview("+491701234567", "owner");
     expect((await service.originate(preview.destination, preview.token, "owner", "cloudtalk-key-456")).state).toBe("unknown");
     expect((await service.originate(preview.destination, preview.token, "owner", "cloudtalk-key-456")).replayed).toBe(true);
@@ -97,8 +98,8 @@ describe("CloudTalk API call safeguards", () => {
   it("records an HTTP 4xx rejection even when the provider body is not JSON", async () => {
     const db = openDatabase(":memory:");
     const request = vi.fn(async () => new Response("Forbidden", { status: 403 }));
-    const service = new CloudTalkService(db, Buffer.alloc(32, 5), request as typeof fetch);
-    service.configure(profile, 0);
+    const service = new CloudTalkService(db, Buffer.alloc(32, 5), request as typeof fetch, undefined, undefined, verified);
+    await service.configure(profile, 0);
     const preview = service.preview("+491701234567", "owner");
     const result = await service.originate(preview.destination, preview.token, "owner", "cloudtalk-key-789");
     expect(result.state).toBe("rejected");
@@ -107,30 +108,35 @@ describe("CloudTalk API call safeguards", () => {
     db.close();
   });
 
-  it("keeps encrypted credentials and the classical agent on nonsecret edits, and rotates only a complete pair", () => {
+  it("keeps encrypted credentials and the classical agent on nonsecret edits, and rotates only a complete pair", async () => {
     const db = openDatabase(":memory:");
-    const service = new CloudTalkService(db, Buffer.alloc(32, 6));
-    expect(() => service.configure({ remindersEnabled: false }, 0, "owner")).toThrow();
-    expect(() => service.configure({ accessKeyId: "new-key" }, 0, "owner")).toThrow();
-    const first = service.configure({ ...profile, ownerPhone: "+491701234567",
+    const service = new CloudTalkService(db, Buffer.alloc(32, 6), undefined, undefined, undefined, verified);
+    await expect(service.configure({ remindersEnabled: false }, 0, "owner")).rejects.toThrow();
+    await expect(service.configure({ accessKeyId: "new-key" }, 0, "owner")).rejects.toThrow();
+    const first = await service.configure({ ...profile, ownerPhone: "+491701234567",
       ownerPhoneConfirmed: true, voiceAgentId: "friday-agent", remindersEnabled: true }, 0, "owner");
     expect(first).toMatchObject({ revision: 1, agentId: 1234, ownerPhoneConfirmed: true });
-    expect(() => service.configure({ ownerPhone: "+491701234568", reminderMinutes: 30 }, 1, "owner")).toThrow();
-    const changed = service.configure({ ownerPhone: "+491701234568", ownerPhoneConfirmed: true, reminderMinutes: 30 }, 1, "owner");
+    await expect(service.configure({ ownerPhone: "+491701234568", reminderMinutes: 30 }, 1, "owner")).rejects.toThrow();
+    const changed = await service.configure({ ownerPhone: "+491701234568", ownerPhoneConfirmed: true, reminderMinutes: 30 }, 1, "owner");
     expect(changed).toMatchObject({ revision: 2, agentId: 1234, remindersEnabled: true,
       ownerPhone: "+491701234568", ownerPhoneConfirmed: true, reminderMinutes: 30 });
     expect(JSON.stringify(changed)).not.toContain(profile.accessKeySecret);
-    expect(() => service.configure({ accessKeyId: "new-key" }, 2, "owner")).toThrow();
-    expect(() => service.configure({ accessKeyId: "", accessKeySecret: "", ownerPhoneConfirmed: false }, 2, "owner")).toThrow();
-    expect(() => service.configure({ remindersEnabled: false }, 1, "owner")).toThrow();
-    expect(service.configure({ remindersEnabled: false, accessKeyId: "rotated-key",
+    await expect(service.configure({ accessKeyId: "new-key" }, 2, "owner")).rejects.toThrow();
+    await expect(service.configure({ accessKeyId: "", accessKeySecret: "", ownerPhoneConfirmed: false }, 2, "owner")).rejects.toThrow();
+    await expect(service.configure({ remindersEnabled: false }, 1, "owner")).rejects.toThrow();
+    expect(await service.configure({ remindersEnabled: false, accessKeyId: "rotated-key",
       accessKeySecret: "rotated-secret-123" }, 2, "owner")).toMatchObject({ revision: 3, agentId: 1234 });
     expect(JSON.stringify(db.prepare("SELECT value FROM kv WHERE key = 'telephony.cloudtalk.profile'").get())).not.toContain("rotated-secret-123");
     db.close();
   });
 
   it("requires owner session and CSRF for setup and preview", async () => {
-    const api = await startTestApi({ responseValidation: "throw" });
+    const providerFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(String(url)).toBe("https://my.cloudtalk.io/api/agents/index.json?limit=1");
+      const sent = String((init?.headers as Record<string, string>).Authorization);
+      return new Response("{}", { status: sent === `Basic ${Buffer.from("bad-key:bad-secret-123").toString("base64")}` ? 401 : 200 });
+    });
+    const api = await startTestApi({ responseValidation: "throw", providerFetch: providerFetch as typeof fetch });
     try {
       const guest = api.client();
       const viewer = api.client(); await viewer.loginDev("viewer");
@@ -155,6 +161,11 @@ describe("CloudTalk API call safeguards", () => {
       expect(edited.statusCode).toBe(200);
       expect(edited.json()).toMatchObject({ data: { revision: 2, reminderMinutes: 30,
         ownerPhone: "+491701234568", voiceAgentId: "friday-agent", remindersEnabled: true } });
+      const refused = await owner.request("PUT", "/api/v1/settings/cloudtalk", { headers: { "if-match": "2" },
+        body: { accessKeyId: "bad-key", accessKeySecret: "bad-secret-123" } });
+      expect(refused.statusCode).toBe(422);
+      expect(JSON.stringify(refused.json())).toContain("bleibt unverändert");
+      expect((await owner.get("/api/v1/settings/cloudtalk")).json()).toMatchObject({ data: { revision: 2 } });
       expect((await owner.request("PUT", "/api/v1/settings/cloudtalk", { headers: { "if-match": "2" },
         body: { accessKeyId: "replacement-key" } })).statusCode).toBe(422);
       expect((await owner.request("PUT", "/api/v1/settings/cloudtalk", { headers: { "if-match": "1" },
@@ -163,5 +174,53 @@ describe("CloudTalk API call safeguards", () => {
       expect((await owner.post("/api/v1/telephony/cloudtalk/preview", { destination: "+491701234567" })).statusCode).toBe(503);
       expect((await viewer.post("/api/v1/telephony/cloudtalk/preview", { destination: "+491701234567" })).statusCode).toBe(403);
     } finally { await api.close(); }
+  });
+
+  it("keeps the working key pair when CloudTalk rejects or cannot check a new one", async () => {
+    const db = openDatabase(":memory:");
+    const request = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(String(url)).toBe("https://my.cloudtalk.io/api/agents/index.json?limit=1");
+      expect(init?.method).toBe("GET");
+      expect(init?.redirect).toBe("error");
+      const sent = String((init?.headers as Record<string, string>).Authorization);
+      if (sent.endsWith(Buffer.from("good-key:good-secret-123").toString("base64"))) return new Response("{}", { status: 200 });
+      if (sent.endsWith(Buffer.from("typo-key:typo-secret-123").toString("base64"))) return new Response("{}", { status: 401 });
+      return new Response("{}", { status: 503 });
+    });
+    const service = new CloudTalkService(db, Buffer.alloc(32, 7), request as typeof fetch);
+    expect(await service.configure({ agentId: 1234, accessKeyId: "good-key", accessKeySecret: "good-secret-123" }, 0)).toMatchObject({ revision: 1 });
+    await expect(service.configure({ accessKeyId: "typo-key", accessKeySecret: "typo-secret-123" }, 1))
+      .rejects.toMatchObject({ code: "VALIDATION_FAILED", message: expect.stringContaining("bleibt unverändert") });
+    await expect(service.configure({ accessKeyId: "down-key", accessKeySecret: "down-secret-123" }, 1))
+      .rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    expect(service.status()).toMatchObject({ revision: 1, agentId: 1234 });
+    const calls = request.mock.calls.length;
+    expect(await service.configure({ agentId: 4321 }, 1)).toMatchObject({ revision: 2, agentId: 4321 });
+    expect(request.mock.calls.length).toBe(calls);
+    db.close();
+  });
+
+  it("drops a reminder reservation that Friday abandoned before sending", async () => {
+    const db = openDatabase(":memory:");
+    const clock = Date.parse("2026-10-17T12:45:00.000Z");
+    const calendar = new LocalCalendarService(db);
+    const due = calendar.create({ title: "Zahnarzt", start: "2026-10-17T13:00:00.000Z",
+      end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    const request = vi.fn(async () => new Response(null, { status: 204 }));
+    const service = new CloudTalkService(db, Buffer.alloc(32, 10), request as typeof fetch, () => clock, () => "Alex", verified);
+    await service.configure({ ...profile, ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
+      remindersEnabled: true, reminderMinutes: 15 }, 0, "owner");
+    const original = service["readProfile"].bind(service);
+    let reads = 0;
+    // The second read happens after the reservation: simulate a settings change in between.
+    service["readProfile"] = () => { const value = original(); reads += 1; return reads === 2 && value ? { ...value, revision: value.revision + 1 } : value; };
+    await service.tickReminders();
+    expect(request).not.toHaveBeenCalled();
+    expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toBeUndefined();
+    service["readProfile"] = original;
+    await service.tickReminders();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toMatchObject({ state: "requested" });
+    db.close();
   });
 });

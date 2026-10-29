@@ -107,7 +107,7 @@ export const manifest: AdapterManifest = {
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",
   category: "voice",
-  // The manual-start command is handled by the Control API. There is no voice.test / voice.stop / voice.enroll.
+  // Manual start and voice.stop are handled by the Control API (authenticated /control/*); there is no voice.test / voice.enroll.
   capabilities: ["voice.read"],
   configSchemaRef: CONFIG_SCHEMA_ID,
   secretFields: [],

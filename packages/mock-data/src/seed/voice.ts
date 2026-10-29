@@ -52,6 +52,7 @@ export function buildVoice(ctx: SeedContext): VoiceSeed {
     localModel: { name: "Qwen Local", state: "ready", latencyMs: 310 },
     audioInputDeviceId: input.id,
     audioOutputDeviceId: output.id,
+    audioPath: { transport: "device", host: "windows" },
     pushToTalk: { enabled: true, active: false },
     focusMode: false,
     rawRecordingEnabled: false,

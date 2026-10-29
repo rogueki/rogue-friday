@@ -210,6 +210,8 @@ async function auditSelect(
     return;
   }
 
+  // A disabled placeholder ("Nicht gewählt") cannot be chosen again by design; the control keeps the last tested value.
+  const restorable = !info.options.some((option) => option.value === info.value && option.disabled);
   const targets = info.options.filter((option) => !option.disabled && option.value !== info.value).slice(0, MAX_OPTIONS);
   let dialogCaptured = false;
   for (const option of targets) {
@@ -291,11 +293,13 @@ async function auditSelect(
     } catch {
       // the select disappeared after the change, the interaction itself is already reported
     }
-    try {
-      await stable.selectOption(info.value, { timeout: 2000 });
-      await page.waitForTimeout(200);
-    } catch (error) {
-      findings.push({ page: label, context, control, rule: "restore-failed", detail: message(error) });
+    if (restorable) {
+      try {
+        await stable.selectOption(info.value, { timeout: 2000 });
+        await page.waitForTimeout(200);
+      } catch (error) {
+        findings.push({ page: label, context, control, rule: "restore-failed", detail: message(error) });
+      }
     }
   }
 }

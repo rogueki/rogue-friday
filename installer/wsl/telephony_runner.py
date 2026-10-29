@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Owner-only Asterisk bridge. JSON on stdin/stdout; never print credentials."""
 import base64
+import fcntl
 import hashlib
 import json
 import os
@@ -173,16 +174,31 @@ retry_interval=60
 
 
 def configure(data):
-    previous = read_profile()
-    if data.get("revision") != (previous or {}).get("revision", 0):
-        raise RuntimeError("revision_conflict")
-    profile = data.get("profile")
-    validate(profile)
     ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(ROOT, 0o700)
-    profile["revision"] = (previous or {}).get("revision", 0) + 1
-    provision_files(profile)
-    write_private("profile.json", json.dumps(profile, separators=(",", ":")))
+    # One writer at a time: the revision check below is only a compare-and-set while this lock is held.
+    with open(ROOT / ".configure.lock", "a+") as lock:
+        os.chmod(ROOT / ".configure.lock", 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        previous = read_profile()
+        if data.get("revision") != (previous or {}).get("revision", 0):
+            raise RuntimeError("revision_conflict")
+        profile = data.get("profile")
+        validate(profile)
+        profile["revision"] = (previous or {}).get("revision", 0) + 1
+        names = (*CONFIG_FILES, "profile.json")
+        saved = {name: (ROOT / name).read_bytes() if (ROOT / name).exists() else None for name in names}
+        try:
+            provision_files(profile)
+            write_private("profile.json", json.dumps(profile, separators=(",", ":")))
+        except OSError:
+            # A half-written set would pair new trunk files with the old profile; put the previous set back.
+            for name, content in saved.items():
+                if content is None:
+                    (ROOT / name).unlink(missing_ok=True)
+                else:
+                    write_private(name, content.decode("utf-8"))
+            raise RuntimeError("profile_write_failed")
     # Provisioning remains explicit: never edit an unrelated Asterisk instance's global config.
     return status()
 

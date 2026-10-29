@@ -3535,6 +3535,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/installation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Identify this installation, its dashboard commit and the process that owns the API port */
+        get: operations["getSystemInstallation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/metrics": {
         parameters: {
             query?: never;
@@ -10274,6 +10291,27 @@ export interface components {
             restartAdapter: boolean;
             sources: string[];
         };
+        /** SystemInstallationResponse */
+        SystemInstallationResponse: {
+            contractVersion: string;
+            data: {
+                controlApi: {
+                    contractVersion: string;
+                    host: string;
+                    pid: number;
+                    port: number;
+                    /** Format: date-time */
+                    startedAt: string;
+                };
+                dashboard: {
+                    commit: null | string;
+                    installedAt: null | string;
+                };
+                /** Format: uuid */
+                installationId: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /**
          * SystemMetrics
          * @description Hardware snapshot (PLAN §40.1). Optional sensors are null when unavailable.
@@ -11077,6 +11115,12 @@ export interface components {
         VoiceStatus: {
             audioInputDeviceId: string | null;
             audioOutputDeviceId: string | null;
+            /** @description Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser. */
+            audioPath?: {
+                host: null | ("windows" | "linux");
+                /** @enum {string} */
+                transport: "device" | "browser";
+            };
             focusMode: boolean;
             localModel: {
                 latencyMs: number | null;
@@ -19367,6 +19411,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemBackupActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getSystemInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Installation identity and port ownership */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemInstallationResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

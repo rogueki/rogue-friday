@@ -321,6 +321,11 @@ def main():
             if bridge_connection() == "connected":
                 print(json.dumps({"error": "gateway_already_connected"}))
                 return 4
+            # The bridge pairs into the live session directory; a failed or abandoned pairing must not overwrite working
+            # credentials, so re-pairing requires an explicit logout first.
+            if linked_identity():
+                print(json.dumps({"error": "linked_session_present"}))
+                return 4
             if record:
                 stop_worker(record)
             pairing_id = secrets.token_urlsafe(24)

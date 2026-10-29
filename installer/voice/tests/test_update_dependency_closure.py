@@ -12,9 +12,9 @@ REPO = Path(__file__).resolve().parents[3]
 VOICE = REPO / "installer" / "voice"
 
 
-def local_import_closure() -> set[str]:
+def local_import_closure(roots=("friday_voice",)) -> set[str]:
     sources = {path.stem: path for path in VOICE.glob("*.py")}
-    pending = collections.deque(["friday_voice"])
+    pending = collections.deque(roots)
     found: set[str] = set()
     while pending:
         name = pending.popleft()
@@ -34,7 +34,10 @@ def local_import_closure() -> set[str]:
 
 class VoiceUpdateDependencyClosureTest(unittest.TestCase):
     def test_old_install_with_missing_mail_module_gets_complete_pinned_payload(self):
-        expected = local_import_closure() | {"prepare_voice_pairs", "build_personal_wake", "enroll_record", "negative_texts"}
+        # Every shipped entry point brings its own imports: enroll_record loads gui_interaction, and the Control API runs
+        # build_speaker_profile during Linux speaker enrollment.
+        expected = local_import_closure(("friday_voice", "prepare_voice_pairs", "build_personal_wake", "enroll_record",
+                                         "negative_texts", "build_speaker_profile"))
         updater = (REPO / "installer" / "scripts" / "update-dashboard-github.ps1").read_text(encoding="utf-8-sig")
         helper = (REPO / "installer" / "scripts" / "update-voice-personas.ps1").read_text(encoding="utf-8-sig")
         source_function = updater.split("function Get-VoiceSourcePaths {", 1)[1].split("function Assert-VerifiedVoiceSources", 1)[0]

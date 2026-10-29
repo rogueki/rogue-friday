@@ -62,6 +62,11 @@ export class MessagingGatewayService {
     try { data = await this.invoke(script, distro, user, [this.platform, action], input ? JSON.stringify(input) : undefined, action === "update" ? 50000 : 20000); }
     catch (error) {
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_3:")) throw conflict("Die Gateway-Konfiguration wurde inzwischen geändert. Bitte neu laden.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:bot_token_rejected"))
+        throw validationFailed("Discord hat das neue Bot-Token abgelehnt. Das bisher gespeicherte Token bleibt unverändert.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:bot_unverified"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Discord war nicht erreichbar, das Bot-Token konnte nicht geprüft werden. Es wurde nichts geändert." });
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren fehlen Bot-Token oder QR-Kopplung und erlaubte Nutzer.");
       throw unavailable();
     }
@@ -97,7 +102,13 @@ export class MessagingGatewayService {
     const script = configScript.replace(/configure_messaging_gateway\.py$/, "messaging_pairing.py");
     let data: Record<string, unknown>;
     try { data = await this.invoke(script, distro, user, [action, ...(mode ? [mode] : [])], undefined, 10000); }
-    catch { throw unavailable(); }
+    catch (error) {
+      if ((action === "start" || action === "refresh") && error instanceof Error && error.message.startsWith("runner_4:"))
+        throw conflict("WhatsApp ist bereits gekoppelt oder verbunden. Zum Neukoppeln zuerst abmelden.");
+      if (action === "reconnect" && error instanceof Error && error.message.startsWith("runner_4:"))
+        throw conflict("Es gibt keine gekoppelte WhatsApp-Sitzung, die neu verbunden werden kann.");
+      throw unavailable();
+    }
     const states = ["idle", "starting", "waiting", "qr_expired", "connected", "unverified", "expired", "cancelled", "error"];
     if (!states.includes(String(data.state)) ||
       !(data.id === null || typeof data.id === "string" && /^[A-Za-z0-9_-]{20,64}$/.test(data.id)) ||

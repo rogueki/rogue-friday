@@ -1,4 +1,6 @@
 import importlib.util
+import io
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -56,6 +58,49 @@ class MessagingGatewayTests(unittest.TestCase):
             (session / "creds.json").write_text('{"me":{"id":"491701234567:5@s.whatsapp.net"}}')
             with patch.object(gateway, "HERMES", root):
                 self.assertEqual(gateway.linked_phone(), "491701234567")
+
+    def _discord_update(self, root, request, probe="verified", refuse_flag=False):
+        calls = []
+        def fake_command(*args):
+            calls.append(args)
+            if args[1:4] == ("config", "set", "platforms.discord.enabled"):
+                return type("Result", (), {"returncode": 1 if refuse_flag else 0, "stdout": ""})()
+            return type("Result", (), {"returncode": 0, "stdout": "false"})()
+        with patch.object(gateway, "HERMES", root), patch.object(gateway, "ENV", root / ".env"), \
+                patch.object(gateway, "command", side_effect=fake_command), \
+                patch.object(gateway, "running", return_value=False), \
+                patch.object(gateway, "platform_state", return_value="unknown"), \
+                patch.object(gateway, "enabled", return_value=False), \
+                patch.object(gateway, "discord_probe", return_value=probe) as probed:
+            request = {**request, "revision": gateway.snapshot("discord", gateway.read_lines())["revision"]}
+            output = io.StringIO()
+            with patch.object(gateway.sys, "stdin", io.StringIO(json.dumps(request))), patch("sys.stdout", output):
+                code = gateway.update("discord", gateway.read_lines())
+        return code, json.loads(output.getvalue()) if output.getvalue() else None, calls, probed
+
+    def test_new_discord_token_needs_discord_confirmation(self):
+        working = "W" * 59
+        for probe, error in (("rejected", "bot_token_rejected"), ("unverified", "bot_unverified")):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / ".env").write_text(f'DISCORD_BOT_TOKEN="{working}"\nDISCORD_ALLOWED_USERS="123456789012345678"\n')
+                code, result, calls, _ = self._discord_update(root, {"token": "N" * 59, "clearToken": False,
+                    "allowedUserIds": ["123456789012345678"], "allowedChannelIds": [], "enabled": False}, probe=probe)
+                self.assertEqual((code, result), (4, {"error": error}))
+                self.assertIn(working, (root / ".env").read_text())
+                self.assertFalse(any(call[:2] == ("systemctl", "--user") for call in calls))
+
+    def test_unchanged_token_is_not_probed_and_refused_flag_leaves_env_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = 'DISCORD_BOT_TOKEN="' + "W" * 59 + '"\nDISCORD_ALLOWED_USERS="123456789012345678"\n'
+            (root / ".env").write_text(original)
+            code, result, _, probed = self._discord_update(root, {"token": "", "clearToken": False,
+                "allowedUserIds": ["123456789012345678", "223456789012345678"], "allowedChannelIds": [], "enabled": True},
+                refuse_flag=True)
+            self.assertEqual((code, result), (5, {"error": "config_unavailable"}))
+            self.assertEqual((root / ".env").read_text(), original)
+            probed.assert_not_called()
 
 
 if __name__ == "__main__":

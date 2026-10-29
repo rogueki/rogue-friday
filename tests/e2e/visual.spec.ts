@@ -31,6 +31,8 @@ const MASK_LIVE = (page: Page) => [
   page.getByText(/^\d+ Ereignisse geladen$/),
   page.getByText(/^\d+ von \d+ Ereignissen$/),
   page.getByTestId("audit-integrity"),
+  // Installation id, PID and start time come from the running test process and differ on every run.
+  page.getByTestId("installation-runtime"),
   page.locator(".mc-strip"),
 ];
 

@@ -415,10 +415,13 @@ def apply_env_value(home, source, key, value):
         command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
         result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
         try:
-            saved = json.loads(result.stdout).get("saved") is True
+            reply = json.loads(result.stdout)
         except (ValueError, TypeError):
-            saved = False
-        if result.returncode or not saved:
+            reply = {}
+        reply = reply if isinstance(reply, dict) else {}
+        if reply.get("error") in ("credential_rejected", "credential_unverified"):
+            raise ValueError(reply["error"])
+        if result.returncode or reply.get("saved") is not True:
             raise ValueError("credential_readback_failed")
     finally:
         fcntl.flock(env_lock, fcntl.LOCK_UN)

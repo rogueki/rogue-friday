@@ -56,8 +56,11 @@ afterEach(() => {
   useRealtimeStore.setState({ state: "connecting", roundtripMs: null, lastEventAt: null, sequence: null });
 });
 
+const INSTALLATION = { installationId: "6f1c2a9e-3b7d-4c11-9a5e-0d2f8b7c6e41", dashboard: { commit: "0123456789abcdef0123456789abcdef01234567", installedAt: NOW }, controlApi: { contractVersion: "2.0.0", host: "127.0.0.1", port: 8787, pid: 4242, startedAt: NOW } };
+
 const routes = () => ({
   "GET /api/v1/adapters": listOf(ADAPTERS),
+  "GET /api/v1/system/installation": single(INSTALLATION),
   "GET /api/v1/system/metrics": single(metrics()),
   "GET /api/v1/system/services": listOf([]),
   "GET /api/v1/system/storage": listOf([]),
@@ -281,6 +284,16 @@ describe("event stream (PLAN §12.6)", () => {
     renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
     expect(await screen.findByText("Event Stream: verbindet …")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("installation (DASH-19.04)", () => {
+  it("shows installation id, dashboard revision and the process that owns the API port", async () => {
+    const fake = routedFetch(routes());
+    renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
+    expect(await screen.findByText("6f1c2a9e-3b7d-4c11-9a5e-0d2f8b7c6e41")).toBeInTheDocument();
+    expect(screen.getByText("0123456789ab")).toBeInTheDocument();
+    expect(screen.getByText("127.0.0.1:8787 · PID 4242")).toBeInTheDocument();
   });
 });
 

@@ -1130,6 +1130,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch. Live-Lauf als root steht aus
   (`n-094-profil-benutzer-entwurf.md`).
 
+- DASH-12.04/12.05 (2026-10-29): Ein fehlgeschlagenes Neutraining der Linux-Sprecheranmeldung loeschte bisher Profil,
+  Wake-Modell und Meta des zuvor funktionierenden Profils. Jetzt werden sie vor dem Training gesichert (`*.prev`), bei
+  Fehlschlag samt `active`-Marker wiederhergestellt und erst nach Erfolg verworfen (`linux-voice-enrollment.test.ts` 4/4,
+  Gegenprobe gegen den alten Code rot).
 - N-052 (2026-10-29): Pfadparameter werden gegen Laenge, Muster und Enum aus dem Vertrag geprueft (vorher nur
   128 Zeichen); Werte wie `-../` enden mit 400 VALIDATION_FAILED vor Handler und Adapter. 46 Operationen mit
   Pfadparametern deklarieren 400 jetzt im Vertrag (additiv).

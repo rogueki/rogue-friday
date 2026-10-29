@@ -7083,6 +7083,22 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/system/installation:
+    get:
+      operationId: getSystemInstallation
+      tags: [system]
+      summary: Identify this installation, its dashboard commit and the process that owns the API port
+      responses:
+        "200":
+          description: Installation identity and port ownership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInstallationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/system-backups:
     get:
       operationId: getSystemBackupStatus
@@ -10362,6 +10378,8 @@ components:
       $ref: ../schemas/system/system-backup-action-response.schema.json
     SystemBackupStatusResponse:
       $ref: ../schemas/system/system-backup-status-response.schema.json
+    SystemInstallationResponse:
+      $ref: ../schemas/system/system-installation-response.schema.json
     Task:
       $ref: ../schemas/tasks/task.schema.json
     TaskActionRequest:
