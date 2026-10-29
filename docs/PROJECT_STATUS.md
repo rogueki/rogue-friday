@@ -1157,6 +1157,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- REL-02/DASH-18.05/DASH-19.02 (2026-10-29, N-092, N-093, N-111, N-140): Aufgabenkarten-Fusszeile und Overview-Baseline
+  per Sichtpruefung der ubuntu-24.04-Referenzbilder geschlossen. Alle E2E-Wiederholungen der letzten main-Laeufe lagen
+  im SwiftShader-Projekt; der orb-freie Lastblock laeuft jetzt mit 2D-Fallback (#97). Der wiederholt rote TTS-Pausentest
+  misst jetzt in der Seite ab dem ersten Frame (#98).
 - KEEP-05/DASH-07.06 (2026-10-29, N-138, N-139): I-047 geschlossen; die alte Integer-ID-Engine ist nicht mehr im
   Produkt, und Plaene im alten Format oder mit unbekannten Zielen werden vor jedem Schreiben abgewiesen (#93). Eine nicht
   unterstuetzte Hermes-Version stoppt jede Konfigurationsaenderung mit klarem Hinweis statt "nicht erreichbar" (#94).
