@@ -51,4 +51,22 @@ describe("messaging gateway setup", () => {
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
     expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ mode: "bot", allowedUserIds: ["491701234567"], enabled: false });
   });
+
+  it("offers a cancel action for an expired WhatsApp QR code", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    renderWithProviders(<MessagingGatewaySetup owner platform="whatsapp" />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const path = new URL(request.url).pathname;
+      if (path.endsWith("whatsapp-pairing")) {
+        requests.push({ method: request.method, path });
+        return jsonResponse(envelope({ id: "abcdefghijklmnopqrstuvwx", state: "qr_expired", qr: null,
+          expiresAt: Date.now() + 300000, linkedIdentity: null, connectionState: "unknown", mode: "bot" }));
+      }
+      return jsonResponse(envelope({ setupUrl: "http://127.0.0.1:43791/channels", mode: null, sessionPresent: false, allowedUserIds: [],
+        enabled: false, gatewayRunning: true, connectionState: "unknown", applied: null, revision: 2 }));
+    } });
+    expect(await screen.findByText("Der QR-Code ist abgelaufen. Neuen Code anfordern oder die Kopplung abbrechen.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Kopplung abbrechen" }));
+    await waitFor(() => expect(requests.filter((entry) => entry.method === "DELETE" && entry.path.endsWith("whatsapp-pairing"))).toHaveLength(1));
+  });
 });
