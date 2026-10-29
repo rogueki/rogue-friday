@@ -81,6 +81,7 @@ function OverviewTab({ task, assignable }: { task: Task; assignable: boolean }) 
                 value={task.agentId ?? ""}
                 disabled={!canAssign}
                 title={!canAssign ? (states.assign.blockedReason ?? t("tasks.kit.reason.readOnly")) : undefined}
+                hint={!canAssign ? (states.assign.blockedReason ?? t("tasks.kit.reason.readOnly")) : undefined}
                 options={[
                   { value: "", label: t("tasks.card.unassigned") },
                   ...(task.agentId && !agents.data?.items.some((agent) => agent.id === task.agentId) ? [{ value: task.agentId, label: task.agentName ?? task.agentId }] : []),

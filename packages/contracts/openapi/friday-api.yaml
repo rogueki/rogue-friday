@@ -2736,6 +2736,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CalendarEventResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -2757,6 +2758,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CalendarEventResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -3951,6 +3953,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailAccountResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
@@ -3975,6 +3978,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailResultResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -3998,6 +4002,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailResultResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4024,6 +4029,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailCheckResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4046,6 +4052,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailOAuthStartResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4074,6 +4081,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailOAuthResultResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4097,6 +4105,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailAccountResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4143,6 +4152,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailFolderResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4172,6 +4182,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailEnvelopesResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4205,6 +4216,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailEnvelopesResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4238,6 +4250,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailMessageResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4275,6 +4288,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailAttachmentResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4303,6 +4317,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailResultResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4335,6 +4350,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailSendResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4367,6 +4383,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailDraftResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4388,6 +4405,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailReceiptsResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4414,6 +4432,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailReceiptResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4446,6 +4465,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MailReceiptResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: communication.read
@@ -4589,6 +4609,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DurableMemoryCorrectResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: memory.read
@@ -4610,6 +4631,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DurableMemoryForgetResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
       x-capability: memory.read
@@ -4724,6 +4746,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -4754,6 +4777,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6009,6 +6033,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContentProductionJobResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6034,6 +6059,7 @@ paths:
               schema:
                 type: string
                 contentMediaType: video/mp4
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6059,6 +6085,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContentProductionJobResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6106,6 +6133,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillMarkdownResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6150,6 +6178,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillMutationResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6278,6 +6307,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillReportResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6314,6 +6344,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillReportResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6350,6 +6381,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillReportResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6524,6 +6556,7 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6558,6 +6591,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6704,6 +6738,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CodingRunResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6729,6 +6764,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CodingRunResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6901,6 +6937,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KieTaskResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -7549,6 +7586,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HermesSkillKeyCheckResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -8012,6 +8050,7 @@ paths:
           schema: { type: string }
       responses:
         "200": { description: Journal state, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -8030,6 +8069,7 @@ paths:
           schema: { type: string }
       responses:
         "200": { description: Journal state, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -8272,6 +8312,7 @@ paths:
       summary: Explicitly link one observed authenticated sender to the owner identity
       responses:
         "200": { description: Linked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -8283,6 +8324,7 @@ paths:
       summary: Revoke one sender-to-owner identity link
       responses:
         "200": { description: Unlinked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -8318,6 +8360,7 @@ paths:
       summary: Read pinned Hermes provider configuration revision
       responses:
         "200": { description: Provider revision, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
@@ -8335,6 +8378,7 @@ paths:
         content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderUpdate" } } }
       responses:
         "200": { description: Provider save outcome, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -8359,6 +8403,7 @@ paths:
         content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderApply" } } }
       responses:
         "200": { description: Observed gateway restart, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -8408,6 +8453,7 @@ paths:
           schema: { type: string, pattern: "^[a-f0-9]{64}$" }
       responses:
         "200": { description: Removed target, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }

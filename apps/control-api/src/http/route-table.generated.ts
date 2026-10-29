@@ -12,6 +12,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": false,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -58,6 +59,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": false,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -104,6 +106,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -164,6 +167,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -244,6 +248,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -313,6 +322,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -389,6 +403,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "limit",
@@ -479,6 +498,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -539,6 +559,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -599,6 +620,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -659,6 +681,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "none",
     "requiresSession": false,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -729,6 +752,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -789,6 +813,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -849,6 +874,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": false,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -909,6 +935,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -979,6 +1006,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "status",
@@ -1127,6 +1155,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -1211,6 +1240,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -1280,6 +1314,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -1371,6 +1410,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1462,6 +1506,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1553,6 +1602,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1639,6 +1693,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1725,6 +1784,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1811,6 +1875,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -1895,6 +1964,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "sinceSequence",
@@ -2075,6 +2145,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -2142,6 +2217,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "type",
@@ -2268,6 +2344,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -2345,6 +2422,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -2407,6 +2485,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -2476,6 +2559,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -2562,6 +2650,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -2639,6 +2732,14 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "id",
       "conflictId"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      },
+      "conflictId": {
+        "pattern": "^mem_[0-9A-Za-z]{26}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -2723,6 +2824,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -2793,6 +2895,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "status",
@@ -2890,6 +2993,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -2959,6 +3067,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -3035,6 +3148,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -3111,6 +3229,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -3185,6 +3308,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "status",
@@ -3309,6 +3433,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -3378,6 +3507,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -3464,6 +3598,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -3550,6 +3689,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -3634,6 +3778,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -3712,6 +3857,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "channelId",
@@ -3846,6 +3992,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -3913,6 +4064,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "threadId",
@@ -4009,6 +4161,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -4088,6 +4241,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -4174,6 +4332,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -4258,6 +4421,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "from",
@@ -4361,6 +4525,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -4428,6 +4597,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "from",
@@ -4522,6 +4692,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "eventId",
@@ -4607,6 +4778,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -4649,6 +4821,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -4691,6 +4864,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -4747,6 +4921,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -4810,6 +4985,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -4868,6 +5044,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -4881,6 +5062,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "CalendarEventResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -4933,6 +5121,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -4943,6 +5136,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "CalendarEventResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -4993,6 +5193,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -5049,6 +5250,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -5112,6 +5314,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -5189,6 +5392,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "enabled",
@@ -5281,6 +5485,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -5358,6 +5563,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -5430,6 +5636,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -5499,6 +5710,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -5585,6 +5801,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -5664,6 +5885,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -5740,6 +5966,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -5816,6 +6047,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "cursor",
@@ -5903,6 +6139,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "cursor",
@@ -5988,6 +6229,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "q",
@@ -6073,6 +6315,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -6150,6 +6393,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -6189,6 +6433,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -6247,6 +6492,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -6316,6 +6566,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "cursor",
@@ -6403,6 +6658,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "cursor",
@@ -6490,6 +6750,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "cursor",
@@ -6575,6 +6840,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "category",
@@ -6686,6 +6952,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -6755,6 +7026,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -6841,6 +7117,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -6924,6 +7205,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -6993,6 +7279,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [
       {
         "name": "version",
@@ -7069,6 +7360,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7129,6 +7421,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7168,6 +7461,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7200,6 +7494,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -7242,6 +7537,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7274,6 +7570,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7311,6 +7608,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -7324,6 +7626,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailAccountResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7355,6 +7664,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -7365,6 +7679,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailResultResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7389,6 +7710,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -7399,6 +7725,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailResultResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7423,6 +7756,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [
       {
         "name": "protocol",
@@ -7450,6 +7788,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 401,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -7469,6 +7814,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7479,6 +7829,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailOAuthStartResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7503,6 +7860,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7516,6 +7878,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailOAuthResultResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7540,6 +7909,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -7550,6 +7924,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailAccountResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7572,6 +7953,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "none",
     "requiresSession": false,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "state",
@@ -7625,6 +8007,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7635,6 +8022,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailFolderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7659,6 +8053,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [
       {
         "name": "mailbox",
@@ -7693,6 +8092,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 401,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -7712,6 +8118,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [
       {
         "name": "mailbox",
@@ -7755,6 +8166,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 401,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -7774,6 +8192,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [
       {
         "name": "mailbox",
@@ -7815,6 +8238,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 401,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -7834,6 +8264,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [
       {
         "name": "mailbox",
@@ -7884,6 +8319,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 401,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -7903,6 +8345,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -7916,6 +8363,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailResultResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7940,6 +8394,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -7953,6 +8412,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailSendResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -7977,6 +8443,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -7990,6 +8461,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailDraftResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8014,6 +8492,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "accountId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8024,6 +8507,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailReceiptsResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8049,6 +8539,14 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "accountId",
       "receiptId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      },
+      "receiptId": {
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8059,6 +8557,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailReceiptResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8084,6 +8589,14 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "accountId",
       "receiptId"
     ],
+    "pathParamRules": {
+      "accountId": {
+        "maxLength": 64
+      },
+      "receiptId": {
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8097,6 +8610,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MailReceiptResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8119,6 +8639,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8151,6 +8672,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8186,6 +8708,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8218,6 +8741,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -8253,6 +8777,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "query",
@@ -8316,6 +8841,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "eventId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8329,6 +8855,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "DurableMemoryCorrectResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8353,6 +8886,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "eventId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8363,6 +8897,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "DurableMemoryForgetResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8385,6 +8926,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8417,6 +8959,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8452,6 +8995,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8484,6 +9028,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -8542,6 +9087,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "taskId"
     ],
+    "pathParamRules": {
+      "taskId": {
+        "pattern": "^task_[0-9A-Za-z]{26}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8552,6 +9102,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "VoiceDomainTaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8597,6 +9154,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "taskId"
     ],
+    "pathParamRules": {
+      "taskId": {
+        "pattern": "^task_[0-9A-Za-z]{26}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -8607,6 +9169,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "VoiceDomainTaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -8657,6 +9226,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8696,6 +9266,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8735,6 +9306,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8774,6 +9346,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8816,6 +9389,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8858,6 +9432,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8897,6 +9472,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8946,6 +9522,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -8995,6 +9572,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9044,6 +9622,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9093,6 +9672,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9142,6 +9722,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9188,6 +9769,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -9266,6 +9848,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9326,6 +9909,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -9404,6 +9988,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9474,6 +10059,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -9543,6 +10129,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -9629,6 +10220,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -9696,6 +10292,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "confirm",
@@ -9786,6 +10383,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "priority",
@@ -9899,6 +10497,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -9985,6 +10588,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -10071,6 +10679,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": true,
@@ -10155,6 +10768,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -10215,6 +10829,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -10293,6 +10908,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -10371,6 +10987,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -10451,6 +11068,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -10518,6 +11140,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "from",
@@ -10700,6 +11323,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -10767,6 +11395,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "from",
@@ -10859,6 +11488,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -10922,6 +11552,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -10980,6 +11611,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -10990,6 +11626,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "ContentProductionJobResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11028,6 +11671,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11040,6 +11688,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         "schema": null,
         "contentTypes": [
           "video/mp4"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
         ]
       },
       {
@@ -11076,6 +11731,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11086,6 +11746,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "ContentProductionJobResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11122,6 +11789,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11163,6 +11831,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11173,6 +11846,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillMarkdownResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11225,6 +11905,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "name"
     ],
+    "pathParamRules": {
+      "name": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11238,6 +11923,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillMutationResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11281,6 +11973,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11344,6 +12037,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "command",
@@ -11446,6 +12140,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "name"
     ],
+    "pathParamRules": {
+      "name": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11456,6 +12155,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillReportResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11508,6 +12214,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "name"
     ],
+    "pathParamRules": {
+      "name": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11518,6 +12229,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillReportResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11570,6 +12288,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "name"
     ],
+    "pathParamRules": {
+      "name": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9][A-Za-z0-9._-]{0,119}){0,2}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11580,6 +12303,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillReportResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -11630,6 +12360,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "query",
@@ -11711,6 +12442,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11757,6 +12489,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11796,6 +12529,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11843,6 +12577,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -11901,6 +12636,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11913,6 +12649,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         "schema": null,
         "contentTypes": [
           "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
         ]
       },
       {
@@ -11949,6 +12692,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -11962,6 +12706,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "SkillResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -12005,6 +12756,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -12061,6 +12813,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12107,6 +12860,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12146,6 +12900,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -12195,6 +12950,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -12246,6 +13002,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "runId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12256,6 +13013,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "CodingRunResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -12301,6 +13065,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "runId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12311,6 +13076,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "CodingRunResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -12354,6 +13126,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12393,6 +13166,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -12449,6 +13223,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12488,6 +13263,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -12551,6 +13327,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -12630,6 +13407,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12640,6 +13422,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "KieTaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -12683,6 +13472,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -12753,6 +13543,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "q",
@@ -12827,6 +13618,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12873,6 +13665,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12905,6 +13698,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12940,6 +13734,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -12972,6 +13767,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13007,6 +13803,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13067,6 +13864,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -13144,6 +13942,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13183,6 +13982,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -13246,6 +14046,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13285,6 +14086,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -13353,6 +14155,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -13416,6 +14219,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -13479,6 +14283,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -13542,6 +14347,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13588,6 +14394,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "providerId",
@@ -13650,6 +14457,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13689,6 +14497,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13745,6 +14554,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13791,6 +14601,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13849,6 +14660,14 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "key"
     ],
+    "pathParamRules": {
+      "key": {
+        "enum": [
+          "AIRTABLE_API_KEY",
+          "NOTION_API_KEY"
+        ]
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13859,6 +14678,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "HermesSkillKeyCheckResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -13902,6 +14728,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -13948,6 +14775,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -14011,6 +14839,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14057,6 +14886,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14113,6 +14943,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -14176,6 +15007,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14222,6 +15054,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "mailbox",
@@ -14295,6 +15128,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "mailbox",
@@ -14366,6 +15200,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14422,6 +15257,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -14478,6 +15314,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14524,6 +15361,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -14587,6 +15425,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14626,6 +15465,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -14682,6 +15522,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14738,6 +15579,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -14801,6 +15643,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14847,6 +15690,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -14910,6 +15754,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -14966,6 +15811,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -15031,6 +15877,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "callId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15041,6 +15888,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "TelephonyCallResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -15079,6 +15933,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "callId"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15089,6 +15944,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "TelephonyCallResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -15132,6 +15994,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15178,6 +16041,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -15241,6 +16105,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15287,6 +16152,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -15350,6 +16216,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15396,6 +16263,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15452,6 +16320,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15498,6 +16367,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15544,6 +16414,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15590,6 +16461,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15636,6 +16508,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -15699,6 +16572,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15745,6 +16619,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15786,6 +16661,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15796,6 +16676,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerSenderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -15834,6 +16721,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15844,6 +16736,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerSenderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -15880,6 +16779,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15931,6 +16831,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "platform"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15941,6 +16842,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerProviderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -15986,6 +16894,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "platform"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -15999,6 +16908,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerProviderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -16051,6 +16967,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "platform"
     ],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16064,6 +16981,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerProviderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -16114,6 +17038,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16153,6 +17078,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16204,6 +17130,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16214,6 +17145,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "MessengerTargetResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -16250,6 +17188,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16306,6 +17245,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -16369,6 +17309,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16408,6 +17349,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16454,6 +17396,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -16517,6 +17460,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16577,6 +17521,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -16657,6 +17602,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": true,
     "acceptsIdempotencyKey": false,
@@ -16743,6 +17693,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16810,6 +17765,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -16888,6 +17844,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -16958,6 +17915,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -17036,6 +17994,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17106,6 +18065,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17166,6 +18126,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17236,6 +18197,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -17313,6 +18275,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -17390,6 +18353,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -17467,6 +18431,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": true,
@@ -17544,6 +18509,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "viewer",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -17622,6 +18588,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17682,6 +18649,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "operator",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17759,6 +18727,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [
       {
         "name": "cursor",
@@ -17839,6 +18808,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "pathParams": [
       "id"
     ],
+    "pathParamRules": {
+      "id": {
+        "maxLength": 128
+      }
+    },
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17906,6 +18880,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
@@ -17976,6 +18951,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "role": "owner",
     "requiresSession": true,
     "pathParams": [],
+    "pathParamRules": {},
     "query": [],
     "acceptsIfMatch": false,
     "acceptsIdempotencyKey": false,
