@@ -6,6 +6,20 @@ import { ApiError, conflict, validationFailed } from "../util/errors";
 const PROFILE_KEY = "telephony.cloudtalk.profile";
 const E164 = /^\+[1-9]\d{7,14}$/;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+export type CloudTalkKeyVerdict = "verified" | "rejected" | "unverified";
+
+/** Read-only check of a key pair against the core API; never places a call and never echoes the secret. */
+export async function probeCloudTalkKeys(request: typeof fetch, accessKeyId: string, accessKeySecret: string): Promise<CloudTalkKeyVerdict> {
+  try {
+    const basic = Buffer.from(`${accessKeyId}:${accessKeySecret}`).toString("base64");
+    const response = await request("https://my.cloudtalk.io/api/agents/index.json?limit=1", {
+      method: "GET", redirect: "error", signal: AbortSignal.timeout(8000),
+      headers: { Authorization: `Basic ${basic}`, Accept: "application/json", "User-Agent": "Friday/1.0" },
+    });
+    if (response.status === 200) return "verified";
+    return response.status === 401 || response.status === 403 ? "rejected" : "unverified";
+  } catch { return "unverified"; }
+}
 type Profile = { revision: number; agentId?: number; accessKeyId: string; accessKeySecret: string;
   ownerId?: string; ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number };
 type ConfigureInput = { agentId?: number; accessKeyId?: string; accessKeySecret?: string;
@@ -18,7 +32,8 @@ export class CloudTalkService {
   private remindersRunning = false;
   constructor(private readonly db: Db, private readonly key: Buffer,
     private readonly request: typeof fetch = fetch, private readonly now: () => number = Date.now,
-    private readonly ownerName: () => string = () => "Owner") {
+    private readonly ownerName: () => string = () => "Owner",
+    private readonly verifyKeys: (accessKeyId: string, accessKeySecret: string) => Promise<CloudTalkKeyVerdict> = (id, secret) => probeCloudTalkKeys(request, id, secret)) {
     if (key.length !== 32) throw new Error("CloudTalk encryption key is invalid");
     this.readProfile();
     this.db.prepare("UPDATE cloudtalk_calls SET state = 'unknown', updated_at = ? WHERE state = 'pending'")
@@ -58,7 +73,7 @@ export class CloudTalkService {
       note: "API-Zugang gespeichert; Agentenstatus, Rufnummer und tatsächlicher Anruf sind nicht geprüft." };
   }
 
-  configure(input: ConfigureInput, revision: number, ownerId?: string) {
+  async configure(input: ConfigureInput, revision: number, ownerId?: string) {
     const current = this.readProfile();
     if (revision !== (current?.revision ?? 0)) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
     const accessKeyId = input.accessKeyId?.trim() || undefined;
@@ -81,6 +96,15 @@ export class CloudTalkService {
       !Number.isSafeInteger(reminderMinutes) || reminderMinutes < 1 || reminderMinutes > 120 ||
       (remindersEnabled && (!ownerId || !ownerPhone || !voiceAgentId || ownerPhoneConfirmed !== true))) {
       throw validationFailed("Fuer Erinnerungsanrufe sind Owner, E.164-Rufnummer, VoiceAgent-ID und 1-120 Minuten Vorlauf erforderlich.");
+    }
+    if (accessKeyId !== undefined && accessKeySecret !== undefined &&
+      (accessKeyId !== current?.accessKeyId || accessKeySecret !== current?.accessKeySecret)) {
+      // A new pair only replaces the stored one after CloudTalk accepted it; an unreachable API proves nothing.
+      const verdict = await this.verifyKeys(accessKeyId, accessKeySecret);
+      if (verdict === "rejected") throw validationFailed("CloudTalk hat den neuen API-Schlüssel abgelehnt. Der bisher gespeicherte Zugang bleibt unverändert.");
+      if (verdict !== "verified") throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+        message: "CloudTalk war nicht erreichbar, der API-Schlüssel konnte nicht geprüft werden. Es wurde nichts geändert." });
+      if ((this.readProfile()?.revision ?? 0) !== revision) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
     }
     const profile: Profile = { revision: revision + 1, agentId: input.agentId ?? current?.agentId,
       accessKeyId: accessKeyId ?? current!.accessKeyId, accessKeySecret: accessKeySecret ?? current!.accessKeySecret,
@@ -125,11 +149,12 @@ export class CloudTalkService {
         } catch (error) { this.db.exec("ROLLBACK"); throw error; }
         if (!reserved) continue;
         let state: "requested" | "rejected" | "unknown" = "unknown";
+        let abandoned = false;
         let providerStatus: number | null = null;
         try {
           const current = this.db.prepare("SELECT 1 FROM local_calendar_events WHERE id = ? AND owner_id = ? AND version = ? AND starts_at = ?")
             .get(row.id, row.owner_id, row.version, row.starts_at);
-          if (!current || Date.parse(row.starts_at) <= this.now() || this.readProfile()?.revision !== profile.revision) state = "rejected";
+          if (!current || Date.parse(row.starts_at) <= this.now() || this.readProfile()?.revision !== profile.revision) abandoned = true;
           else {
             const appointmentTime = new Intl.DateTimeFormat("de-DE", { timeZone: row.time_zone,
               dateStyle: "full", timeStyle: "short" }).format(new Date(row.starts_at));
@@ -146,6 +171,11 @@ export class CloudTalkService {
             else if (response.status >= 400 && response.status < 500) state = "rejected";
           }
         } catch { /* The provider may have accepted the request; never retry an unknown outcome. */ }
+        if (abandoned) {
+          // Nothing was sent: drop the reservation instead of recording a provider rejection.
+          this.db.prepare("DELETE FROM cloudtalk_reminder_calls WHERE event_id = ? AND event_version = ? AND state = 'pending'").run(row.id, row.version);
+          continue;
+        }
         this.db.prepare("UPDATE cloudtalk_reminder_calls SET state = ?, provider_status = ?, updated_at = ? WHERE event_id = ? AND event_version = ?")
           .run(state, providerStatus, new Date(this.now()).toISOString(), row.id, row.version);
       }
@@ -208,7 +238,7 @@ export class CloudTalkService {
     let providerStatus: number | null = null;
     try {
       const basic = Buffer.from(`${profile.accessKeyId}:${profile.accessKeySecret}`).toString("base64");
-      const response = await this.request("https://api.cloudtalk.io/api/calls/create.json", {
+      const response = await this.request("https://my.cloudtalk.io/api/calls/create.json", {
         method: "POST", headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/json", Accept: "application/json", "User-Agent": "Friday/1.0" },
         body: JSON.stringify({ agent_id: profile.agentId, callee_number: destination }), signal: AbortSignal.timeout(12000), redirect: "error",
       });

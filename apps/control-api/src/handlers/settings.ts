@@ -53,7 +53,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   },
   async getCloudTalk(ctx) { return { status: 200, body: single(ctx.runtime.cloudtalk.status()) }; },
   async putCloudTalk(ctx) {
-    const result = ctx.runtime.cloudtalk.configure(ctx.body as { agentId?: number; accessKeyId?: string; accessKeySecret?: string;
+    const result = await ctx.runtime.cloudtalk.configure(ctx.body as { agentId?: number; accessKeyId?: string; accessKeySecret?: string;
       ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number },
       ctx.mutation.ifMatchVersion ?? -1, ctx.principal!.userId);
     ctx.audit.action = "settings.cloudtalk_updated";

@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 
+const CALL_STATE_LABELS: Record<string, string> = { pending: "wird angefragt", requested: "von CloudTalk angenommen",
+  rejected: "von CloudTalk abgewiesen", unknown: "Ausgang unklar" };
+
 export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
   const status = useQuery<CloudTalkStatusResponse>({ queryKey: ["settings", "cloudtalk"], enabled: owner,
     queryFn: () => call(getApiClient().GET("/api/v1/settings/cloudtalk")) });
@@ -19,6 +22,8 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [destination, setDestination] = useState("");
   const [preview, setPreview] = useState<CloudTalkPreviewResponse["data"] | null>(null);
+  const [previewKey, setPreviewKey] = useState("");
+  const [reconciled, setReconciled] = useState(false);
   const [result, setResult] = useState<CloudTalkCallResponse["data"] | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,9 +52,10 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
           ownerPhone, ownerPhoneConfirmed, voiceAgentId,
           reminderMinutes: Number(reminderMinutes), remindersEnabled },
       }));
+      const rotated = Boolean(accessKeyId.trim() && accessKeySecret.trim());
       setAccessKeyId(""); setAccessKeySecret("");
       await status.refetch();
-      setMessage("CloudTalk-Zugang verschlüsselt gespeichert. API-Berechtigung und Agentenstatus sind noch nicht geprüft.");
+      setMessage(rotated ? "CloudTalk hat den API-Schlüssel bestätigt; er ist verschlüsselt gespeichert. Agentenstatus und Rufnummer sind damit nicht geprüft." : "CloudTalk-Einstellungen gespeichert.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "CloudTalk-Konfiguration konnte nicht gespeichert werden."); }
     finally { setBusy(false); }
   }
@@ -59,6 +65,7 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
     try {
       const response: CloudTalkPreviewResponse = await call(getApiClient().POST("/api/v1/telephony/cloudtalk/preview", { body: { destination } }));
       setPreview(response.data);
+      setPreviewKey(crypto.randomUUID()); setReconciled(false);
     } catch (error) { setMessage(error instanceof Error ? error.message : "CloudTalk-Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   }
@@ -68,7 +75,7 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
     setBusy(true); setMessage("");
     try {
       const response: CloudTalkCallResponse = await call(getApiClient().POST("/api/v1/telephony/cloudtalk/calls", {
-        params: { header: { "Idempotency-Key": crypto.randomUUID() } },
+        params: { header: { "Idempotency-Key": previewKey } },
         body: { destination: preview.destination, previewToken: preview.token },
       }));
       setResult(response.data); setPreview(null);
@@ -80,6 +87,8 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
     } catch (error) { setMessage(error instanceof Error ? error.message : "CloudTalk-Anfrage konnte nicht sicher bestätigt werden."); }
     finally { setBusy(false); }
   }
+
+  const unresolved = result?.state === "unknown" && !reconciled;
 
   return <section aria-labelledby="cloudtalk-setup-title">
     <h3 id="cloudtalk-setup-title">CloudTalk Desktop und API</h3>
@@ -95,7 +104,7 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
       {status.isError && <p role="alert">CloudTalk-Status nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p>}
       {status.data && <p role="status">{status.data.data.configured ? "API-Zugang gespeichert" : "Kein API-Zugang gespeichert"} · Agent-ID {status.data.data.agentId ?? "unbekannt"}. Gespeicherte Werte belegen weder API-Freischaltung noch einen möglichen Anruf.</p>}
       {status.data && <p>Erinnerungsanrufe: {status.data.data.remindersEnabled ? "aktiv" : "aus"}. Owner-Nummer {status.data.data.ownerPhone ?? "nicht hinterlegt"}, VoiceAgent-ID {status.data.data.voiceAgentId ?? "nicht hinterlegt"}, Vorlauf {status.data.data.reminderMinutes} Minuten.</p>}
-      {status.data?.data.lastReminderState && <p>Letzte Anfrage: {status.data.data.lastReminderState} am {status.data.data.lastReminderAt}. „requested“ bedeutet nur, dass CloudTalk die Anfrage angenommen hat.</p>}
+      {status.data?.data.lastReminderState && <p>Letzte Erinnerung: {CALL_STATE_LABELS[status.data.data.lastReminderState] ?? status.data.data.lastReminderState}{status.data.data.lastReminderAt ? ` am ${new Date(status.data.data.lastReminderAt).toLocaleString("de-DE")}` : ""}. „Von CloudTalk angenommen“ heißt nur, dass CloudTalk die Anfrage angenommen hat.</p>}
       <details><summary>CloudTalk-Verbindung und Erinnerungsanrufe einstellen</summary>
         <p>Admin: CloudTalk → Account → Settings → API Keys. Gib bei der ersten Einrichtung beide Schlüssel ein. Bei späteren Änderungen bleiben die verschlüsselt gespeicherten Schlüssel erhalten, wenn beide Felder leer bleiben. Für einen Schlüsselwechsel müssen wieder beide eingetragen werden.</p>
         <label>Agent-ID (nur für klassische API-Rufe) <input type="number" min="1" step="1" value={agentId} onChange={(event) => setAgentId(event.target.value)} /></label>
@@ -111,15 +120,16 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
           (remindersEnabled && (!/^\+[1-9]\d{7,14}$/.test(ownerPhone) || !voiceAgentId || !ownerPhoneConfirmed))} onClick={() => void save()}>CloudTalk-Zugang speichern</button>
       </details>
       {status.data?.data.configured && status.data.data.agentId && <>
-        <label>Zielnummer (E.164, z. B. +491701234567) <input type="tel" autoComplete="off" value={destination} onChange={(event) => { setDestination(event.target.value); setPreview(null); }} /></label>
-        <button type="button" disabled={busy || !/^\+[1-9]\d{7,14}$/.test(destination)} onClick={() => void prepare()}>Rufvorschau erstellen</button>
+        <label>Zielnummer (E.164, z. B. +491701234567) <input type="tel" autoComplete="off" disabled={unresolved} value={destination} onChange={(event) => { setDestination(event.target.value); setPreview(null); }} /></label>
+        <button type="button" disabled={busy || unresolved || !/^\+[1-9]\d{7,14}$/.test(destination)} onClick={() => void prepare()}>Rufvorschau erstellen</button>
         {preview && <div role="group" aria-label="CloudTalk-Ruf bestätigen">
           <p>CloudTalk-Agent {preview.agentId}, Ziel <strong>{preview.destination}</strong>. Zuerst klingelt der Agent; nach seinem Abheben wird das Ziel gewählt. Es können Kosten entstehen. Vorschau gültig bis {new Date(preview.expiresAt).toLocaleTimeString()}.</p>
           <button type="button" disabled={busy} onClick={() => void dial()}>Diesen CloudTalk-Ruf anfragen</button>{" "}
           <button type="button" onClick={() => setPreview(null)}>Abbrechen</button>
         </div>}
       </>}
-      {result && <p role="status">Anfrage {result.id}: {result.state}. Ein Zielgespräch ist damit nicht bestätigt.</p>}
+      {result && <p role="status">Anfrage {result.id}: {CALL_STATE_LABELS[result.state] ?? result.state}. Ein Zielgespräch ist damit nicht bestätigt.</p>}
+      {result?.state === "unknown" && <label><input type="checkbox" checked={reconciled} onChange={(event) => setReconciled(event.target.checked)} /> Ich habe im CloudTalk-Dashboard geprüft, ob dieser Ruf stattgefunden hat.</label>}
       {message && <p role="status">{message}</p>}
     </> : <p>Nur der Owner kann den CloudTalk-Zugang einrichten oder einen Ruf bestätigen.</p>}
   </section>;
