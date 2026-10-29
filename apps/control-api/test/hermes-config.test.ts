@@ -445,6 +445,15 @@ it("does not report a timed-out credential write as failed or safe to retry", as
       message: expect.stringContaining("Status neu laden") });
 });
 
+it("stops a change on an unsupported Hermes version with a clear reason instead of an outage or unconfirmed write", async () => {
+  const drifted = vi.fn(async () => { throw new Error("bridge_exit_5: unsupported_source_revision"); }) as unknown as RunnerInvoker;
+  const service = fixture(drifted);
+  const expected = { code: "CONFLICT", message: expect.stringContaining("nicht ausgeführt") };
+  await expect(service.update({ key: "model.default", value: "gpt-5" } as never, 123)).rejects.toMatchObject(expected);
+  await expect(service.updateCredential({ key: "OPENAI_API_KEY", value: "CANARY" }, 123)).rejects.toMatchObject(expected);
+  await expect(service.updatePlugin({ key: "plugin.activation", pluginId: "kanban", enabled: true }, 123)).rejects.toMatchObject(expected);
+});
+
 it("explains a provider-rejected or unverifiable key and keeps the stored one", async () => {
   const rejected = vi.fn(async () => { throw new Error("bridge_exit_1: credential_rejected"); }) as unknown as RunnerInvoker;
   await expect(fixture(rejected).updateCredential({ key: "OPENAI_API_KEY", value: "CANARY" }, 123))
