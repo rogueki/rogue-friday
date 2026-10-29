@@ -1142,6 +1142,15 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   naechsten delegate_task). Anbietergrenze und Geldlimit gibt es in Hermes nicht; Ersatz und Begruendung in
   `dash-15-16-orchestrierung.md` Abschnitt 3.
 
+- DASH-08/09/KEEP/REL (2026-10-29, N-114 bis N-126): Gateways uebernehmen neue Zugangsdaten nur nach Bestaetigung durch
+  den Anbieter und schreiben erst nach erfolgreichem Umschalten (Telegram #67, Discord #70, Modell-Schluessel #66,
+  CloudTalk #72; WhatsApp-Neukopplung #64). CloudTalk rief bisher einen falschen Host auf. Das Dashboard-Update liefert
+  jetzt alle von der Control API aufgerufenen Laufzeit-Skripte aus; Closure-Tests sichern das (#71). Die CI fuehrt
+  29 bisher ausgelassene WSL-Tests aus (#68). Der Orb verwirft verspaetete Server-Snapshots (#73, E2E-Shard 4).
+  Telegram: Kopplungsanfragen im Dashboard freigeben/entziehen (#74), Gruppenchats ueber `TELEGRAM_GROUP_ALLOWED_CHATS`,
+  Kopplungsmodus ohne IDs und Webhook-Entfernen nur auf ausdruecklichen Wunsch (#75); Hermes kennt keine Topic-Allowlist.
+  Telefonie-Vorschauen kollidieren nicht mehr bei gleicher Millisekunde (#76). Offen: Live-Tests mit echten Konten.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
