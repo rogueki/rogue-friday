@@ -99,10 +99,51 @@ jobs:
             installer/wsl/test_configure_messenger_inbound_bridge.py \
             installer/wsl/test_messenger_inbound_plugin.py \
             installer/wsl/test_system_backup.py \
+            installer/wsl/test_change_himalaya.py \
+            installer/wsl/test_coding_cli_status.py \
+            installer/wsl/test_configure_himalaya.py \
+            installer/wsl/test_configure_memory_bridge.py \
+            installer/wsl/test_configure_messaging_gateway.py \
+            installer/wsl/test_configure_skill_keys.py \
+            installer/wsl/test_configure_telegram.py \
+            installer/wsl/test_configure_wiki_path.py \
+            installer/wsl/test_hermes_cron_read.py \
+            installer/wsl/test_hermes_provider_auth.py \
+            installer/wsl/test_p7f_coverage.py \
+            installer/wsl/test_research_hermes_synthesis.py \
+            installer/wsl/test_research_searxng_settings.py \
+            installer/wsl/test_skill_key_checks.py \
+            installer/wsl/test_telephony_runner.py \
+            installer/wsl/tests/test_patch_hermes_official_runtime.py \
             scripts/test_wsl_system_restore.py \
             scripts/test_wsl_recovery_bridge_health.py \
             installer/wsl/tests/test_mail_bridge_setup.py \
             installer/wsl/tests/test_calendar_bridge_setup.py
+
+      - name: Script-style bridge and runner tests
+        env:
+          HOME: ${{ runner.temp }}/friday-script-tests-home
+        run: |
+          mkdir -p "$HOME"
+          # These files are plain scripts (top-level checks, exit code 1 on failure); pytest collects nothing from them.
+          for test in \
+            installer/wsl/test_coding_runner.py \
+            installer/wsl/tests/test_bridge_error_detail.py \
+            installer/wsl/tests/test_hermes_auth_list.py \
+            installer/wsl/tests/test_hub_search.py \
+            installer/wsl/tests/test_mail_accounts_bridge.py \
+            installer/wsl/tests/test_mail_accounts_candidate.py \
+            installer/wsl/tests/test_skill_command.py \
+            installer/wsl/tests/test_skill_governance.py \
+            installer/wsl/tests/test_skill_markdown.py \
+            installer/wsl/tests/test_skill_mutate.py \
+            installer/wsl/tests/test_skill_report.py \
+            installer/wsl/tests/test_skill_roots.py \
+            installer/wsl/tests/test_skills_list.py; do
+            echo "::group::$test"
+            PYTHONPATH=installer/voice:installer/wsl python "$test"
+            echo "::endgroup::"
+          done
 
       - name: Patched pinned Hermes lifecycle integration
         env:

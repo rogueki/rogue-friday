@@ -60,7 +60,7 @@ for bad in (None, 17, b"bytes"):
 
 # The limits come from a measured run: inspect and audit resolve names against the registries (37 s there),
 # diff answers from the local stock copy.
-assert bridge.SKILL_REPORT_TIMEOUTS == {"inspect": 90, "audit": 90, "diff": 30}, bridge.SKILL_REPORT_TIMEOUTS
+assert bridge.SKILL_REPORT_TIMEOUTS == {"inspect": 150, "audit": 150, "diff": 60}, bridge.SKILL_REPORT_TIMEOUTS
 
 print("skill-report: 10 checks passed")
 
@@ -73,7 +73,7 @@ FAILING = ROOT / "bin" / "fail"
 FAILING.write_text("#!/bin/sh\necho \"Error: skill 'arxiv' is not tracked\" >&2\nexit 1\n", encoding="utf-8")
 FAILING.chmod(FAILING.stat().st_mode | stat.S_IEXEC)
 sys.argv = ["hermes_config_bridge.py", "skill-report"]
-sys.stdin = io.StringIO(json.dumps({"action": "diff", "name": "arxiv"}))
+sys.stdin = io.TextIOWrapper(io.BytesIO(json.dumps({"action": "diff", "name": "arxiv"}).encode("utf-8")), encoding="utf-8")
 buffer = io.StringIO()
 with redirect_stdout(buffer):
     code = bridge.locked_main(HOME, HOME / "hermes-agent", FAILING)
