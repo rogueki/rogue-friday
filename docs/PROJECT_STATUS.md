@@ -1157,6 +1157,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- KEEP-05/DASH-07.06 (2026-10-29, N-138, N-139): I-047 geschlossen; die alte Integer-ID-Engine ist nicht mehr im
+  Produkt, und Plaene im alten Format oder mit unbekannten Zielen werden vor jedem Schreiben abgewiesen (#93). Eine nicht
+  unterstuetzte Hermes-Version stoppt jede Konfigurationsaenderung mit klarem Hinweis statt "nicht erreichbar" (#94).
+  Ein zufaellig roter Leck-Test im Event-Stream ist stabil (#95). FP-04 bleibt BLOCKED_EXTERNAL (echte Anbieter-Logins).
 - DASH-13.05/DASH-19.04/INS-04 (2026-10-29, N-133 bis N-137): Die Voice-Seite zeigt "Wartet auf Audiogeraet" (#84).
   Das Dashboard-Update akzeptiert nur noch das eigene Dashboard auf dem Port (#86). Die Systemseite nennt die Version
   von Hermes und Voice-Dienst je Adapter (#91). Der Installer-Assistent bietet die eigene Stimme wieder als dritte Wahl
