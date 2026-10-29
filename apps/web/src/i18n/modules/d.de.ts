@@ -433,6 +433,7 @@ export const deD = {
   "settings.voice.inputDevice": "Eingabegerät",
   "settings.voice.outputDevice": "Ausgabegerät",
   "settings.voice.systemDefault": "Systemstandard",
+  "settings.voice.deviceMissing": "Gewähltes Gerät nicht verbunden",
 
   // ── Benachrichtigungen ──────────────────────────────────────────────────
   "settings.notifications.channels": "Kanäle",

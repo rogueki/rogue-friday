@@ -180,6 +180,9 @@ class OAuthWorkerTest(TestCase):
             return
         timeout = shutil.which("timeout")
         self.assertIsNotNone(timeout)
+        version = subprocess.run([timeout, "--version"], capture_output=True, text=True, timeout=3).stdout
+        if "GNU coreutils" not in version:
+            self.skipTest("only GNU timeout kills the process group; the worker watchdog covers other implementations")
         marker = self.home / "late-publication"
         grandchild = "import pathlib,time;time.sleep(0.8);pathlib.Path(__import__('sys').argv[1]).touch()"
         parent = ("import subprocess,sys,time;"
@@ -188,6 +191,21 @@ class OAuthWorkerTest(TestCase):
                                  parent, grandchild, str(marker)], start_new_session=True,
                                 capture_output=True, timeout=3)
         self.assertNotEqual(result.returncode, 0)
+        time.sleep(0.9)
+        self.assertFalse(marker.exists())
+
+    def test_worker_watchdog_kills_its_process_group_without_timeout_binary(self):
+        if os.name != "posix":
+            return
+        marker = self.home / "late-publication"
+        grandchild = "import pathlib,time;time.sleep(0.8);pathlib.Path(__import__('sys').argv[1]).touch()"
+        worker_dir = str(Path(__file__).resolve().parent)
+        parent = ("import subprocess,sys,time;sys.path.insert(0,sys.argv[3]);"
+                  "from hermes_mcp_oauth_worker import arm_hard_deadline;arm_hard_deadline(0.2);"
+                  "subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[2]]);time.sleep(5)")
+        result = subprocess.run([sys.executable, "-c", parent, grandchild, str(marker), worker_dir],
+                                start_new_session=True, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, -9, result.stderr)
         time.sleep(0.9)
         self.assertFalse(marker.exists())
 

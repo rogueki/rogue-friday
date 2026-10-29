@@ -6,7 +6,9 @@ import fcntl
 import json
 import os
 import re
+import signal
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from hermes_mcp_oauth_transport import OAuthTransportFailure, endpoint_parts, pu
 
 PINNED_SOURCE = "d923a5eb487a17c0a68801bba9ef0f56c81040a8"
 FLOW_SECONDS = 300
+HARD_DEADLINE_SECONDS = 330
 
 
 def write_state(flow_dir, status, **fields):
@@ -196,7 +199,17 @@ async def login(flow_dir, name, url, config_path, expected_revision):
     publish(flow_dir, config_path, name, url, expected_revision, storage)
 
 
+def arm_hard_deadline(seconds=HARD_DEADLINE_SECONDS):
+    # The worker runs in its own session; killing that process group also ends SDK threads and helpers stuck in DNS or
+    # slow-drip sockets. This does not rely on the timeout binary: uutils timeout (Ubuntu 26.04+) leaves the group alive.
+    timer = threading.Timer(seconds, os.killpg, args=(os.getpgrp(), signal.SIGKILL))
+    timer.daemon = True
+    timer.start()
+    return timer
+
+
 def main():
+    arm_hard_deadline()
     request = json.load(sys.stdin)
     if not isinstance(request, dict) or set(request) != {"flowDir", "name", "url", "revision", "configPath", "source"}:
         return 2
