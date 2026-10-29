@@ -57,4 +57,26 @@ describe("Content Studio authoritative plan", () => {
     expect((await first.request("PUT", ENDPOINT, { body: { ...plan, content: [{ ...plan.content[0], beschreibung: "x".repeat(2_000_000) }] }, headers: { "if-match": "2" } })).statusCode).toBe(413);
     expect((await first.get(ENDPOINT)).json().data.revision).toBe(2);
   });
+
+  it("rejects legacy integer ids, unknown targets and unknown plan versions before storing anything (I-047)", async () => {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const before = (await owner.get(ENDPOINT)).json().data as { revision: number; plan: unknown };
+    const ifMatch = { "if-match": String(before.revision) };
+    const idea = plan.content[0];
+    const rejected = [
+      { ...plan, content: [{ ...idea, id: 1 }] },
+      { ...plan, content: [{ ...idea, ziele: ["Mastodon"] }] },
+      { ...plan, content: [{ ...idea, plattform: "Mastodon" }] },
+      { ...plan, version: 2 },
+      { ...plan, version: 0 },
+    ];
+    for (const body of rejected) {
+      const response = await owner.request("PUT", ENDPOINT, { body, headers: ifMatch });
+      expect(response.statusCode, JSON.stringify(body)).toBe(422);
+    }
+    const after = (await owner.get(ENDPOINT)).json().data as { revision: number; plan: unknown };
+    expect(after.revision).toBe(before.revision);
+    expect(after.plan).toEqual(before.plan);
+  });
 });
