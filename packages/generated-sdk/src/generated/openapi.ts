@@ -11281,6 +11281,8 @@ export interface components {
          * @description Live voice pipeline status (PLAN §38.1). Microphone activity is always visible.
          */
         VoiceStatus: {
+            /** @description True while the voice service waits for its selected audio device (disconnected or not yet available); it resumes on its own when the device returns. */
+            audioDeviceWaiting?: boolean;
             audioInputDeviceId: string | null;
             audioOutputDeviceId: string | null;
             /** @description Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser. */

@@ -92,6 +92,13 @@ describe("voice status (PLAN §38.1)", () => {
     expect(screen.queryByText("vdev_gone")).toBeNull();
   });
 
+  it("says the voice service waits for its audio device instead of showing the microphone as off", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ audioDeviceWaiting: true, microphone: { state: "off", active: false, deviceId: null, inputLevel: 0 } })) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
+    expect((await screen.findAllByText("Wartet auf Audiogerät")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Friday nimmt es automatisch wieder auf/).length).toBeGreaterThan(0);
+  });
+
   it("keeps the microphone activity visible and flips to active when the microphone records", async () => {
     const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ mode: "listening", microphone: { state: "listening", active: true, deviceId: null, inputLevel: 0.4 } })) }));
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });

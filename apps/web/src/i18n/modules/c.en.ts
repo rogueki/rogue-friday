@@ -476,6 +476,8 @@ export const enC: Record<keyof typeof deC, string> = {
   "voicePage.mode.speaking": "Speaking",
   "voicePage.mode.error": "Error",
   "voicePage.mic.off": "Off",
+  "voicePage.mic.waitingDevice": "Waiting for audio device",
+  "voicePage.mic.waitingDeviceDetail": "The selected device is disconnected or not connected. Friday picks it up again automatically as soon as it is back; the selection is kept.",
   "voicePage.mic.muted": "Muted",
   "voicePage.mic.idle": "Idle",
   "voicePage.mic.listening": "Listening",

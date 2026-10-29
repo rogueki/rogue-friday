@@ -474,6 +474,8 @@ export const deC = {
   "voicePage.mode.speaking": "Spricht",
   "voicePage.mode.error": "Fehler",
   "voicePage.mic.off": "Aus",
+  "voicePage.mic.waitingDevice": "Wartet auf Audiogerät",
+  "voicePage.mic.waitingDeviceDetail": "Das gewählte Gerät ist getrennt oder nicht verbunden. Friday nimmt es automatisch wieder auf, sobald es da ist; die Auswahl bleibt erhalten.",
   "voicePage.mic.muted": "Stummgeschaltet",
   "voicePage.mic.idle": "Bereit",
   "voicePage.mic.listening": "Hört zu",

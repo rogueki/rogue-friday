@@ -158,6 +158,8 @@ describe("toVoiceMode (docs/MAPPING/voice.md §2)", () => {
     expect(status.microphone).toMatchObject({ state: "off", active: false });
     expect(status.wakeWord).toMatchObject({ enabled: false, state: "disabled" });
     expect(status.mode).toBe("idle");
+    expect(status.audioDeviceWaiting).toBe(true);
+    expect(map(makeVoiceStatus({ state: "listening" })).audioDeviceWaiting).toBe(false);
   });
 
   it("parses the additive phase / band keys leniently and clamps them", () => {

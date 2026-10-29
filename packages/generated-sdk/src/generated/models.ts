@@ -5394,6 +5394,10 @@ export interface VoiceStatus {
     host: null | ("windows" | "linux");
   };
   serviceStartedAt?: string | null;
+  /**
+   * True while the voice service waits for its selected audio device (disconnected or not yet available); it resumes on its own when the device returns.
+   */
+  audioDeviceWaiting?: boolean;
   audioOutputDeviceId: string | null;
   pushToTalk: {
     enabled: boolean;
