@@ -109,6 +109,11 @@ Gateway-Neustart um 22:31:55, danach sechs Aufgaben in einem Durchgang:
   Warnen/Ueberwachen -> alerts, Recherche -> research, sonst tasks), sagt "Ich gebe das an den ...-Agenten" und fragt
   den Status alle 10 s ab (hoechstens 30 min). Das Ergebnis kommt aus `Task.resultSummary` (Hermes `latest_summary`).
   Ohne erreichbare Control API bleibt der alte synchrone Weg. Chat (16.05) folgt.
+- **DASH-16.04-16.06 im Sprachdienst:** Benannter Abbruch ("brich die Recherche ab") ueber
+  `POST /api/v1/voice/tasks/{taskId}/cancel`; bei mehreren passenden Auftraegen fragt Friday nach. "Stopp" beendet
+  nur Dialog und Audio, die Aufgabe laeuft weiter. Statusfragen werden aus dem lokalen Stand beantwortet (kein Netz,
+  kein Modell). Ergebnisse werden 3 s gebuendelt und erst nach einer laufenden Ansage gesprochen. Offene Auftraege
+  stehen in `<data>/voice-bridge/domain-tasks.json` und werden nach einem Neustart weiter beobachtet.
 - **Abbruch an Kinder weitergeben (DASH-16.04):** Im Hermes-Adapter umgesetzt. Erst wird der ganze Baum gelesen
   (höchstens 64 Nachkommen, Tiefe 8), dann werden offene Nachkommen von unten nach oben archiviert, zuletzt die
   Elternaufgabe. Abgeschlossene Kinder bleiben `done`. Scheitert ein Kind, bleibt die Elternaufgabe offen und der Abbruch

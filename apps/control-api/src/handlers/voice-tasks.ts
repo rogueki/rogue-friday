@@ -82,4 +82,19 @@ export const voiceTaskHandlers: Partial<Record<OperationId, Handler>> = {
     if (!domain) throw new ApiError({ code: "NOT_FOUND", message: "Diese Aufgabe stammt nicht aus einem Sprachauftrag." });
     return { status: 200, body: single(voiceTaskView(task, domain)) };
   },
+  async cancelVoiceDomainTask(ctx) {
+    requireVoiceBridge(ctx);
+    const task = (await ctx.runtime.registry.getPort("tasks").getTask({ id: ctx.pathParams.taskId as string }, ctx.call)).data;
+    const domain = domainOf(task);
+    if (!domain) throw new ApiError({ code: "NOT_FOUND", message: "Diese Aufgabe stammt nicht aus einem Sprachauftrag." });
+    if (task.status === "done" || task.status === "failed" || task.status === "cancelled") {
+      return { status: 200, body: single(voiceTaskView(task, domain)) };
+    }
+    const cancel = ctx.runtime.registry.getPort("tasks").cancelTask;
+    if (!cancel) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht abgebrochen werden." });
+    const cancelled = await cancel({ id: task.id, body: { reason: "Per Sprache abgebrochen." } }, ctx.mutation);
+    ctx.audit.action = "tasks.voice_domain_task_cancelled";
+    ctx.audit.after = { taskId: task.id, domain };
+    return { status: 200, body: single(voiceTaskView(cancelled.data, domain)) };
+  },
 };

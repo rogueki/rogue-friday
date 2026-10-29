@@ -4730,6 +4730,37 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: tasks.read
       x-required-role: owner
+  /api/v1/voice/tasks/{taskId}/cancel:
+    post:
+      operationId: cancelVoiceDomainTask
+      tags: [tasks]
+      summary: Cancel a domain task that the voice service created; open subtasks are cancelled too
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^task_[0-9A-Za-z]{26}$'
+      responses:
+        "200":
+          description: Task cancelled, or already finished and returned unchanged
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: tasks.cancel
+      x-required-role: owner
   /api/v1/voice/browser-audio-availability:
     get:
       operationId: getBrowserAudioAvailability

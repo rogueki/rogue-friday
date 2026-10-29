@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import urllib.error
 
 import pytest
 
@@ -29,12 +30,13 @@ class FakeResponse:
 
 class FakeOpener:
     def __init__(self, payload):
-        self.payload = payload
+        self.payloads = list(payload) if isinstance(payload, list) else [payload]
         self.requests = []
 
     def open(self, request, timeout=None):
         self.requests.append(request)
-        return FakeResponse(self.payload)
+        payload = self.payloads.pop(0) if len(self.payloads) > 1 else self.payloads[0]
+        return FakeResponse(payload)
 
 
 def write_key(root):
@@ -110,3 +112,134 @@ def test_wait_gives_up_after_three_errors(tmp_path):
 
     voice.status = failing
     assert voice.wait("11111111-1111-4111-8111-111111111111", lambda: False) is None
+
+
+TASK = {"taskId": "11111111-1111-4111-8111-111111111111", "domain": "research", "agentName": "Recherche-Agent",
+        "status": "running", "resultSummary": None, "error": None}
+
+
+def fresh_voice(root, **kwargs):
+    voice = DomainTaskVoice(str(root), **kwargs)
+    for job in voice.pending():
+        voice.forget(job["taskId"])
+    return voice
+
+
+def test_jobs_persist_across_instances(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    voice = fresh_voice(tmp_path, opener=FakeOpener({"data": dict(TASK)}), wall=lambda: 1000.0)
+    voice.create("Recherchiere Strompreise", "research")
+    assert os.path.exists(voice.jobs_path)
+    again = DomainTaskVoice(str(tmp_path))
+    assert [job["taskId"] for job in again.pending()] == [TASK["taskId"]]
+    again.forget(TASK["taskId"])
+    assert DomainTaskVoice(str(tmp_path)).pending() == []
+
+
+def test_status_question_uses_cache_only(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    voice = fresh_voice(tmp_path, opener=FakeOpener({"data": dict(TASK)}), wall=lambda: 1000.0)
+    voice.create("Recherchiere Strompreise", "research")
+    voice.wall = lambda: 1300.0
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("status question must not use the network")
+
+    voice._request = forbidden
+    answer = voice.handle("Wie weit ist die Recherche?")
+    assert "Recherche-Agent" in answer
+    assert "arbeitet" in answer
+    assert "5 Minuten" in answer
+
+
+def test_named_cancel_stops_only_the_research_task(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    opener = FakeOpener([
+        {"data": {**TASK, "taskId": "research-1"}},
+        {"data": {**TASK, "taskId": "audit-1", "domain": "audit", "agentName": "Pruef-Agent"}},
+    ])
+    voice = fresh_voice(tmp_path, opener=opener, wall=lambda: 1000.0)
+    voice.create("Recherchiere Strompreise", "research")
+    voice.create("Pruefe die Backups", "audit")
+    calls = []
+
+    def fake_request(method, path, body=None, key=None, timeout=12):
+        calls.append((method, path))
+        return {"taskId": "research-1", "status": "cancelled"}
+
+    voice._request = fake_request
+    answer = voice.handle("Brich die Recherche ab")
+    assert calls == [("POST", "/api/v1/voice/tasks/research-1/cancel")]
+    assert "abgebrochen" in answer
+    assert "bleiben bestehen" in answer
+    assert [job["taskId"] for job in voice.pending()] == ["audit-1"]
+
+
+def test_named_cancel_asks_when_two_tasks_match(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    opener = FakeOpener([
+        {"data": {**TASK, "taskId": "research-1"}},
+        {"data": {**TASK, "taskId": "research-2"}},
+    ])
+    voice = fresh_voice(tmp_path, opener=opener, wall=lambda: 1000.0)
+    voice.create("Recherchiere Strompreise", "research")
+    voice.create("Recherchiere Wettbewerber", "research")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("ambiguous cancel must ask first")
+
+    voice._request = forbidden
+    answer = voice.handle("Brich die Recherche ab")
+    assert answer.startswith("Welchen Auftrag soll ich abbrechen:")
+    assert " oder " in answer
+
+
+def test_failed_cancel_keeps_the_task(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    voice = fresh_voice(tmp_path, opener=FakeOpener({"data": dict(TASK)}), wall=lambda: 1000.0)
+    voice.create("Recherchiere Strompreise", "research")
+
+    def failing(method, path, body=None, key=None, timeout=12):
+        raise urllib.error.HTTPError(path, 500, "boom", None, None)
+
+    voice._request = failing
+    answer = voice.handle("Brich die Recherche ab")
+    assert "laeuft weiter" in answer
+    assert [job["taskId"] for job in voice.pending()] == [TASK["taskId"]]
+
+
+def test_handles_text_needs_a_running_task(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    voice = fresh_voice(tmp_path, opener=FakeOpener({"data": dict(TASK)}), wall=lambda: 1000.0)
+    assert voice.handles_text("Wie weit ist die Recherche?") is False
+    voice.create("Recherchiere Strompreise", "research")
+    assert voice.handles_text("Wie weit ist die Recherche?") is True
+    assert voice.handles_text("Brich die Recherche ab") is True
+    assert voice.handles_text("Wie spaet ist es?") is False
+
+
+def test_bundle_text_single_and_multiple():
+    single = domain_task_voice.bundle_text([{"domain": "research", "status": "done", "resultSummary": "21 Cent."}])
+    assert single == "Ergebnis zur Aufgabe: 21 Cent."
+    bundled = domain_task_voice.bundle_text([
+        {"domain": "research", "status": "done", "resultSummary": "21 Cent."},
+        {"domain": "audit", "status": "done", "resultSummary": "Alles gruen."}])
+    assert bundled == "2 Ergebnisse. Recherche: 21 Cent. Pruefung: Alles gruen."
+
+
+def test_take_bundle_returns_collected_jobs(tmp_path):
+    voice = DomainTaskVoice(str(tmp_path), sleep=lambda seconds: None)
+    voice.collect({"taskId": "a", "domain": "research", "status": "done"})
+    voice.collect({"taskId": "b", "domain": "audit", "status": "done"})
+    assert [job["taskId"] for job in voice.take_bundle(lambda: False, window_s=1.0)] == ["a", "b"]
+
+
+def test_take_bundle_returns_empty_when_cancelled(tmp_path):
+    voice = DomainTaskVoice(str(tmp_path), sleep=lambda seconds: None)
+    assert voice.take_bundle(lambda: True) == []
