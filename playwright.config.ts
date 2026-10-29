@@ -6,6 +6,9 @@ import { API_ORIGIN } from "./tests/e2e/support/constants";
 // avoids the SwiftShader GPU-process stalls that caused most CI retries (N-093).
 const WEBGL_SPECS = [/orb-[^/]*\.spec\.ts$/, /visual\.spec\.ts$/, /mobile\.spec\.ts$/, /a11y\.spec\.ts$/,
   /performance\.spec\.ts$/, /settings\.spec\.ts$/, /fallback-2d\.spec\.ts$/];
+// The high-load block of performance.spec.ts measures the activity feed, kanban and reconnect, never the orb; under
+// SwiftShader it hit the same context-setup stalls, so it runs with the 2D fallback like the other non-orb specs.
+const HIGH_LOAD = /high load \(profile highLoad/;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -34,7 +37,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "webgl", testMatch: WEBGL_SPECS, use: { launchOptions: launchOptions() } },
+    { name: "webgl", testMatch: WEBGL_SPECS, grepInvert: HIGH_LOAD, use: { launchOptions: launchOptions() } },
+    { name: "2d-load", testMatch: /performance\.spec\.ts$/, grep: HIGH_LOAD, use: { launchOptions: launchOptions(NO_GL_ARGS) } },
     { name: "2d", testMatch: "**/*.spec.ts", testIgnore: WEBGL_SPECS, use: { launchOptions: launchOptions(NO_GL_ARGS) } },
   ],
   // Built Control API (mock mode, dev login, snapshot of apps/web/out). Needs `pnpm build:app` once; see tests/e2e/README.md.
