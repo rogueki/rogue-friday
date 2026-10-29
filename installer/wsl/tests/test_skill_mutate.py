@@ -86,7 +86,7 @@ def build_home():
 def run(home, cli, request, mode="ok"):
     os.environ["FAKE_MODE"] = mode
     sys.argv = ["hermes_config_bridge.py", "skill-mutate"]
-    sys.stdin = io.StringIO(json.dumps(request))
+    sys.stdin = io.TextIOWrapper(io.BytesIO(json.dumps(request).encode("utf-8")), encoding="utf-8")
     buffer = io.StringIO()
     with redirect_stdout(buffer):
         code = bridge.locked_main(home, home / "hermes-agent", cli)
