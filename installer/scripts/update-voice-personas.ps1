@@ -15,7 +15,7 @@ $backupDir = Join-Path $run 'backup'
 $pairs = @('friday-female','classic','custom')
 $files = @(
     'voice\audio_devices.py', 'voice\audio_level.py', 'voice\audio_output.py', 'voice\browser_audio.py',
-    'voice\build_personal_wake.py', 'voice\negative_texts.py',
+    'voice\build_personal_wake.py', 'voice\build_speaker_profile.py', 'voice\gui_interaction.py', 'voice\negative_texts.py',
     'voice\memory_outbox.py',
     'voice\calendar_voice.py', 'voice\cloudtalk_voice.py', 'voice\coding_voice.py',
     'voice\content_studio_voice.py', 'voice\cuda_dlls.py', 'voice\elevenlabs_cloud.py', 'voice\enroll_record.py',
