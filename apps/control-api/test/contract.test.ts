@@ -548,7 +548,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers mock-platform operations with contract-valid success responses", () => {
-    expect(ROUTE_TABLE).toHaveLength(286);
+    expect(ROUTE_TABLE).toHaveLength(287);
     // Hermes-backed Skills/Onboarding routes have focused API tests instead of mock-platform success fixtures.
     const focusedRoutes = new Set(["createSkillContentProductionJob", "searchLocations", "getCurrentWeather", "getBrowserAudioAvailability", "getLinuxVoiceEnrollment", "addLinuxVoiceSample", "startLinuxVoiceTraining", "listSkills", "setSkillActivation", "searchSkillHub", "listModifiedSkills", "getSkillInspection", "getSkillAudit", "getSkillDiff", "getSkillCommandReport", "mutateSkill", "mutateSkillGovernance", "createPowerPointDeck", "createVoicePowerPointDeck", "listPowerPointDecks", "downloadPowerPointDeck", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "getWikiPath", "putWikiPath", "getHimalayaAccount", "putHimalayaAccount", "checkHimalayaSmtp", "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage", "sendHimalayaMessage", "previewVoiceMail", "confirmVoiceMail", "previewCalDavEvent", "createCalendarEvent", "createLocalCalendarEvent", "updateLocalCalendarEvent", "deleteLocalCalendarEvent", "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar", "getHermesSkillKeys", "updateHermesSkillKey", "checkHermesSkillKey", "createCodingRun", "getCodingRun", "stopCodingRun", "getCodingCliStatus", "getCodingVoiceRepository", "putCodingVoiceRepository", "createVoiceCodingRun", "getTelegramGateway", "putTelegramGateway", "getDiscordGateway", "putDiscordGateway", "getWhatsappGateway", "putWhatsappGateway", "getCloudTalk", "putCloudTalk", "previewCloudTalkCall", "originateCloudTalkCall", "getTelephony", "putTelephony", "previewTelephonyCall", "originateTelephonyCall", "getTelephonyCall", "hangupTelephonyCall", "createVoiceDomainTask", "getVoiceDomainTask", "cancelVoiceDomainTask"]);
     // Native/provider integration operations have dedicated route, protocol and auth tests with synthetic providers.
@@ -564,13 +564,13 @@ describe("contract: all operations", () => {
       "setDefaultMailAccount", "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
       "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
-      "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
+      "getSystemInstallation", "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
       "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
       "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload"]);
-    expect(integrationFocusedRoutes.size).toBe(81);
+    expect(integrationFocusedRoutes.size).toBe(82);
     for (const operationId of integrationFocusedRoutes) expect(ROUTE_TABLE.some((spec) => spec.operationId === operationId), operationId).toBe(true);
     expect(probe.uncovered().filter((id) => !focusedRoutes.has(id) && !integrationFocusedRoutes.has(id)), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);

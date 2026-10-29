@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/system-installation-response.schema.json",
+  "title": "SystemInstallationResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "type": "string" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "installationId": { "type": "string", "format": "uuid" },
+        "dashboard": {
+          "type": "object",
+          "properties": {
+            "commit": {
+              "anyOf": [
+                { "type": "null" },
+                { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+              ]
+            },
+            "installedAt": {
+              "anyOf": [
+                { "type": "null" },
+                { "type": "string", "format": "date-time" }
+              ]
+            }
+          },
+          "required": ["commit", "installedAt"],
+          "additionalProperties": false
+        },
+        "controlApi": {
+          "type": "object",
+          "properties": {
+            "contractVersion": { "type": "string" },
+            "host": { "type": "string" },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "pid": { "type": "integer", "minimum": 1 },
+            "startedAt": { "type": "string", "format": "date-time" }
+          },
+          "required": ["contractVersion", "host", "port", "pid", "startedAt"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["installationId", "dashboard", "controlApi"],
+      "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

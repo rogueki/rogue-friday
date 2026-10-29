@@ -7,6 +7,9 @@ const envelope = (data: unknown) => ({ contractVersion: CONTRACT_VERSION, data,
   freshness: { state: "fresh", asOf: new Date().toISOString() } });
 
 export const systemBackupHandlers: Partial<Record<OperationId, Handler>> = {
+  async getSystemInstallation(ctx) {
+    return { status: 200, body: envelope(ctx.runtime.installation.info()) };
+  },
   async getSystemBackupStatus(ctx) {
     return { status: 200, body: envelope(ctx.runtime.backupJobs.status()) };
   },
