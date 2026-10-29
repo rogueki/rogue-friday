@@ -51,8 +51,8 @@ class TelegramSetupTests(unittest.TestCase):
 
     def test_private_idempotent_update_clear_and_unrelated_values(self):
         request = {"token": "123456789:" + "a" * 35, "clearToken": False,
-                   "allowedUserIds": ["123456789"], "enabled": True,
-                   "revision": module.snapshot()["revision"]}
+                   "allowedUserIds": ["123456789"], "allowedChatIds": [], "removeWebhook": False,
+                   "enabled": True, "revision": module.snapshot()["revision"]}
         code, result = self.submit(request)
         self.assertEqual(code, 0)
         self.assertTrue(result["tokenConfigured"])
@@ -72,12 +72,19 @@ class TelegramSetupTests(unittest.TestCase):
 
     def test_rejects_bad_owner_and_stale_revision(self):
         request = {"token": "123456789:" + "a" * 35, "clearToken": False,
-                   "allowedUserIds": ["@name"], "enabled": True,
-                   "revision": module.snapshot()["revision"]}
+                   "allowedUserIds": ["@name"], "allowedChatIds": [], "removeWebhook": False,
+                   "enabled": True, "revision": module.snapshot()["revision"]}
         self.assertEqual(self.submit(request)[0], 2)
         request["allowedUserIds"] = ["123456789"]
         request["revision"] = 1
         self.assertEqual(self.submit(request)[0], 3)
+        self.assertEqual(self.restarts, 0)
+
+    def test_activation_without_token_requires_token(self):
+        request = {"token": "", "clearToken": False, "allowedUserIds": [], "allowedChatIds": [],
+                   "removeWebhook": False, "enabled": True, "revision": module.snapshot()["revision"]}
+        code, result = self.submit(request)
+        self.assertEqual((code, result["error"]), (4, "token_required"))
         self.assertEqual(self.restarts, 0)
 
     def test_getme_and_webhook_probe_uses_fixed_telegram_methods(self):
@@ -98,7 +105,8 @@ class TelegramSetupTests(unittest.TestCase):
     def test_known_webhook_conflict_blocks_polling_activation(self):
         token = "123456789:" + "a" * 35
         request = {"token": token, "clearToken": False, "allowedUserIds": ["123456789"],
-                   "enabled": True, "revision": module.snapshot()["revision"]}
+                   "allowedChatIds": [], "removeWebhook": False, "enabled": True,
+                   "revision": module.snapshot()["revision"]}
         with mock.patch.object(module, "bot_probe", return_value={"botAuthentication": "verified",
                 "botId": "123456789", "botUsername": "fake_bot", "receiveMode": "webhook"}):
             code, result = self.submit(request)
@@ -113,7 +121,8 @@ class TelegramSetupTests(unittest.TestCase):
     def test_rejected_new_token_keeps_the_working_one_even_when_disabled(self):
         working = self._store_working_token()
         request = {"token": "222222222:" + "x" * 35, "clearToken": False, "allowedUserIds": ["123456789"],
-                   "enabled": False, "revision": module.snapshot()["revision"]}
+                   "allowedChatIds": [], "removeWebhook": False, "enabled": False,
+                   "revision": module.snapshot()["revision"]}
         with mock.patch.object(module, "bot_probe", return_value={"botAuthentication": "invalid",
                 "botId": None, "botUsername": None, "receiveMode": "unknown"}):
             code, result = self.submit(request)
@@ -126,7 +135,8 @@ class TelegramSetupTests(unittest.TestCase):
         unknown = {"botAuthentication": "unknown", "botId": None, "botUsername": None, "receiveMode": "unknown"}
         for token, enabled in (("222222222:" + "x" * 35, False), ("", True)):
             request = {"token": token, "clearToken": False, "allowedUserIds": ["123456789"],
-                       "enabled": enabled, "revision": module.snapshot()["revision"]}
+                       "allowedChatIds": [], "removeWebhook": False, "enabled": enabled,
+                       "revision": module.snapshot()["revision"]}
             with mock.patch.object(module, "bot_probe", return_value=unknown):
                 code, result = self.submit(request)
             self.assertEqual((code, result["error"]), (4, "bot_unverified"))
@@ -142,11 +152,83 @@ class TelegramSetupTests(unittest.TestCase):
                 return mock.Mock(returncode=1, stdout="")
             return original(*args)
         request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": ["123456789"],
-                   "enabled": True, "revision": module.snapshot()["revision"]}
+                   "allowedChatIds": [], "removeWebhook": False, "enabled": True,
+                   "revision": module.snapshot()["revision"]}
         with mock.patch.object(module, "command", side_effect=refuse):
             code, result = self.submit(request)
         self.assertEqual((code, result["error"]), (5, "config_unavailable"))
         self.assertEqual(self.env.read_text(encoding="utf-8"), before)
+
+    def test_group_chats_are_stored_and_enable_works_without_user_ids(self):
+        request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": [],
+                   "allowedChatIds": ["-1001234567890"], "removeWebhook": False, "enabled": True,
+                   "revision": module.snapshot()["revision"]}
+        code, result = self.submit(request)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["allowedChatIds"], ["-1001234567890"])
+        text = self.env.read_text(encoding="utf-8")
+        self.assertIn('TELEGRAM_GROUP_ALLOWED_CHATS="-1001234567890"', text)
+        self.assertNotIn("TELEGRAM_ALLOWED_USERS", text)
+        self.assertEqual(self.restarts, 1)
+
+    def test_positive_or_duplicate_chat_ids_are_refused(self):
+        before = self.env.read_text(encoding="utf-8")
+        for chats in (["123"], ["-5", "-5"]):
+            request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": [],
+                       "allowedChatIds": chats, "removeWebhook": False, "enabled": True,
+                       "revision": module.snapshot()["revision"]}
+            self.assertEqual(self.submit(request)[0], 2)
+        self.assertEqual(self.env.read_text(encoding="utf-8"), before)
+        self.assertEqual(self.restarts, 0)
+
+    def _telegram_fake_open(self, calls, state, delete_ok=True):
+        def fake_open(url, data=None, timeout=4):
+            method = url.rsplit("/", 1)[-1]
+            calls.append(method)
+            if method == "getMe":
+                body = {"ok": True, "result": {"id": 123456789, "is_bot": True, "username": "fake_bot"}}
+            elif method == "getWebhookInfo":
+                body = {"ok": True, "result": {"url": "https://example.test/hook" if state["webhook"] else ""}}
+            elif delete_ok:
+                state["webhook"] = False
+                body = {"ok": True, "result": True}
+            else:
+                body = {"ok": False}
+            return mock.MagicMock(__enter__=lambda self: io.BytesIO(json.dumps(body).encode()), __exit__=lambda *args: None)
+        return fake_open
+
+    def test_webhook_is_removed_only_on_request(self):
+        state, calls = {"webhook": True}, []
+        request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": [],
+                   "allowedChatIds": [], "removeWebhook": False, "enabled": True,
+                   "revision": module.snapshot()["revision"]}
+        with mock.patch.object(module, "urlopen", side_effect=self._telegram_fake_open(calls, state)), \
+                mock.patch.object(module, "bot_probe", side_effect=REAL_BOT_PROBE):
+            code, result = self.submit(request)
+            self.assertEqual((code, result["error"]), (4, "invalid_bot_or_webhook_conflict"))
+            self.assertNotIn("deleteWebhook", calls)
+            self.assertEqual(self.restarts, 0)
+            request.update(removeWebhook=True, revision=module.snapshot()["revision"])
+            code, result = self.submit(request)
+        self.assertEqual(code, 0)
+        self.assertFalse(state["webhook"])
+        self.assertEqual(calls.count("deleteWebhook"), 1)
+        self.assertEqual(self.restarts, 1)
+
+    def test_failed_webhook_removal_writes_nothing(self):
+        state, calls = {"webhook": True}, []
+        before = self.env.read_text(encoding="utf-8")
+        request = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": [],
+                   "allowedChatIds": [], "removeWebhook": True, "enabled": True,
+                   "revision": module.snapshot()["revision"]}
+        with mock.patch.object(module, "urlopen", side_effect=self._telegram_fake_open(calls, state, delete_ok=False)), \
+                mock.patch.object(module, "bot_probe", side_effect=REAL_BOT_PROBE):
+            code, result = self.submit(request)
+        self.assertEqual((code, result["error"]), (4, "webhook_remove_failed"))
+        self.assertIn("deleteWebhook", calls)
+        self.assertEqual(self.env.read_text(encoding="utf-8"), before)
+        self.assertFalse(self.flags)
+        self.assertEqual(self.restarts, 0)
 
 
 if __name__ == "__main__":

@@ -6302,6 +6302,7 @@ export interface TelegramGateway {
   botUsername: string | null;
   receiveMode: "polling" | "webhook" | "unknown";
   allowedUserIds: string[];
+  allowedChatIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
   connectionState: "connected" | "disconnected" | "unknown";
@@ -6312,6 +6313,8 @@ export interface TelegramGatewayPatch {
   token: string;
   clearToken: boolean;
   allowedUserIds: string[];
+  allowedChatIds: string[];
+  removeWebhook: boolean;
   enabled: boolean;
 }
 export interface TelegramGatewayResponse {

@@ -19,7 +19,8 @@ ENV = HERMES / ".env"
 LOCK = HERMES / ".obsidian-vault.lock"
 TOKEN = re.compile(r"^[0-9]{5,20}:[A-Za-z0-9_-]{30,100}$")
 USER = re.compile(r"^[1-9][0-9]{0,19}$")
-KEYS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS")
+CHAT = re.compile(r"^-[1-9][0-9]{0,19}$")
+KEYS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS", "TELEGRAM_GROUP_ALLOWED_CHATS")
 
 
 def command(*args):
@@ -85,18 +86,28 @@ def bot_probe(token):
                 "receiveMode": "unknown"}
 
 
+def delete_webhook(token):
+    try:
+        with urlopen(f"https://api.telegram.org/bot{token}/deleteWebhook", data=b"", timeout=4) as response:
+            data = json.loads(response.read(4096))
+        return data.get("ok") is True and data.get("result") is True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def snapshot(lines=None, applied=None):
     current = values(read_lines() if lines is None else lines)
     ids = [part.strip() for part in current["TELEGRAM_ALLOWED_USERS"].split(",") if part.strip()]
+    chats = [part.strip() for part in current["TELEGRAM_GROUP_ALLOWED_CHATS"].split(",") if part.strip()]
     flag = enabled()
-    revision_source = json.dumps([current["TELEGRAM_BOT_TOKEN"], ids, flag], separators=(",", ":"))
-    return {"tokenConfigured": bool(current["TELEGRAM_BOT_TOKEN"]), "allowedUserIds": ids,
+    revision_source = json.dumps([current["TELEGRAM_BOT_TOKEN"], ids, chats, flag], separators=(",", ":"))
+    return {"tokenConfigured": bool(current["TELEGRAM_BOT_TOKEN"]), "allowedUserIds": ids, "allowedChatIds": chats,
             "enabled": flag, "gatewayRunning": gateway_running(), "connectionState": platform_state(HERMES, "telegram"),
             "applied": applied, "revision": int(hashlib.sha256(revision_source.encode()).hexdigest()[:12], 16),
             **bot_probe(current["TELEGRAM_BOT_TOKEN"])}
 
 
-def write_env(lines, token, ids):
+def write_env(lines, token, ids, chats):
     other = [line for line in lines if not any(line.startswith(key + "=") for key in KEYS)]
     if other and not other[-1].endswith("\n"):
         other[-1] += "\n"
@@ -104,6 +115,8 @@ def write_env(lines, token, ids):
         other.append(f'TELEGRAM_BOT_TOKEN="{token}"\n')
     if ids:
         other.append(f'TELEGRAM_ALLOWED_USERS="{",".join(ids)}"\n')
+    if chats:
+        other.append(f'TELEGRAM_GROUP_ALLOWED_CHATS="{",".join(chats)}"\n')
     fd, path = tempfile.mkstemp(prefix=".env.telegram.", dir=HERMES)
     try:
         os.fchmod(fd, 0o600)
@@ -119,14 +132,16 @@ def write_env(lines, token, ids):
 
 def update(lines):
     data = json.load(sys.stdin)
-    if not isinstance(data, dict) or set(data) != {"token", "clearToken", "allowedUserIds", "enabled", "revision"}:
+    if not isinstance(data, dict) or set(data) != {"token", "clearToken", "allowedUserIds", "allowedChatIds", "removeWebhook", "enabled", "revision"}:
         return 2
-    token, clear, ids, flag, expected = (data[key] for key in ("token", "clearToken", "allowedUserIds", "enabled", "revision"))
-    if not isinstance(token, str) or not isinstance(clear, bool) or not isinstance(flag, bool) or not isinstance(ids, list) or not isinstance(expected, int):
+    token, clear, ids, chats, remove, flag, expected = (data[key] for key in ("token", "clearToken", "allowedUserIds", "allowedChatIds", "removeWebhook", "enabled", "revision"))
+    if not isinstance(token, str) or not isinstance(clear, bool) or not isinstance(flag, bool) or not isinstance(ids, list) or not isinstance(chats, list) or not isinstance(remove, bool) or not isinstance(expected, int):
         return 2
     if token and (clear or not TOKEN.fullmatch(token)):
         return 2
     if len(ids) > 10 or any(not isinstance(item, str) or not USER.fullmatch(item) for item in ids) or len(set(ids)) != len(ids):
+        return 2
+    if len(chats) > 20 or any(not isinstance(item, str) or not CHAT.fullmatch(item) for item in chats) or len(set(chats)) != len(chats):
         return 2
     before = snapshot(lines)
     if expected != before["revision"]:
@@ -134,11 +149,11 @@ def update(lines):
         return 3
     current = values(lines)
     new_token = "" if clear else token or current["TELEGRAM_BOT_TOKEN"]
-    if flag and (not new_token or not ids):
-        print(json.dumps({"error": "token_and_owner_required"}))
+    if (flag or remove) and not new_token:
+        print(json.dumps({"error": "token_required"}))
         return 4
     token_changed = bool(new_token) and new_token != current["TELEGRAM_BOT_TOKEN"]
-    if flag or token_changed:
+    if flag or token_changed or remove:
         probe = bot_probe(new_token)
         # A new token only replaces the stored one after Telegram confirmed it; an unreachable API proves nothing.
         if token_changed and probe["botAuthentication"] == "invalid":
@@ -147,10 +162,17 @@ def update(lines):
         if probe["botAuthentication"] == "unknown":
             print(json.dumps({"error": "bot_unverified"}))
             return 4
+        if remove and probe["botAuthentication"] == "verified" and probe["receiveMode"] == "webhook":
+            # Only on the owner's explicit request: another service using this bot's webhook stops receiving updates.
+            if not delete_webhook(new_token):
+                print(json.dumps({"error": "webhook_remove_failed"}))
+                return 4
+            probe = bot_probe(new_token)
         if flag and (probe["botAuthentication"] != "verified" or probe["receiveMode"] == "webhook"):
             print(json.dumps({"error": "invalid_bot_or_webhook_conflict"}))
             return 4
-    changed_env = new_token != current["TELEGRAM_BOT_TOKEN"] or ",".join(ids) != current["TELEGRAM_ALLOWED_USERS"]
+    changed_env = (new_token != current["TELEGRAM_BOT_TOKEN"] or ",".join(ids) != current["TELEGRAM_ALLOWED_USERS"]
+                   or ",".join(chats) != current["TELEGRAM_GROUP_ALLOWED_CHATS"])
     changed_flag = flag != before["enabled"]
     # Switch the flag first: if Hermes refuses it, nothing has been written yet.
     if changed_flag:
@@ -160,7 +182,7 @@ def update(lines):
             return 5
     if changed_env:
         try:
-            write_env(lines, new_token, ids)
+            write_env(lines, new_token, ids, chats)
         except OSError:
             if changed_flag:
                 command(str(HERMES_CLI), "config", "set", "platforms.telegram.enabled", "true" if before["enabled"] else "false")

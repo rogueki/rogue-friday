@@ -10,6 +10,7 @@ export interface TelegramGatewayStatus {
   botUsername: string | null;
   receiveMode: "polling" | "webhook" | "unknown";
   allowedUserIds: string[];
+  allowedChatIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
   connectionState: "connected" | "disconnected" | "unknown";
@@ -21,12 +22,15 @@ export interface TelegramGatewayPatch {
   token: string;
   clearToken: boolean;
   allowedUserIds: string[];
+  allowedChatIds: string[];
+  removeWebhook: boolean;
   enabled: boolean;
 }
 
 const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Telegram-Einrichtung in Friday-Ubuntu ist nicht erreichbar." });
 const TOKEN = /^[0-9]{5,20}:[A-Za-z0-9_-]{30,100}$/;
 const USER = /^[1-9][0-9]{0,19}$/;
+const CHAT = /^-[1-9][0-9]{0,19}$/;
 
 export class TelegramGatewayService {
   constructor(private readonly dataDir: string, private readonly invoke: RunnerInvoker = invokeCodingRunner) {}
@@ -55,7 +59,9 @@ export class TelegramGatewayService {
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:bot_unverified"))
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Telegram war nicht erreichbar, das Bot-Token konnte nicht geprüft werden. Es wurde nichts geändert." });
-      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren werden ein gültiges Bot-Token, eine numerische Owner-ID und ein freier Polling-Modus ohne Webhook benötigt.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:webhook_remove_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Telegram hat das Entfernen des Webhooks nicht bestätigt. Es wurde nichts gespeichert." });
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren oder Webhook-Entfernen werden ein von Telegram bestätigtes Bot-Token und ein freier Polling-Modus ohne Webhook benötigt.");
       throw unavailable();
     }
     if (typeof data.tokenConfigured !== "boolean" || !["missing", "verified", "invalid", "unknown"].includes(String(data.botAuthentication)) ||
@@ -63,6 +69,7 @@ export class TelegramGatewayService {
         !(data.botUsername === null || typeof data.botUsername === "string" && /^[A-Za-z0-9_]{5,32}$/.test(data.botUsername)) ||
         !["polling", "webhook", "unknown"].includes(String(data.receiveMode)) || !Array.isArray(data.allowedUserIds) ||
         !data.allowedUserIds.every((id) => typeof id === "string" && USER.test(id)) ||
+        !Array.isArray(data.allowedChatIds) || !data.allowedChatIds.every((id) => typeof id === "string" && CHAT.test(id)) ||
         !(data.enabled === null || typeof data.enabled === "boolean") ||
         !(data.gatewayRunning === null || typeof data.gatewayRunning === "boolean") ||
         !["connected", "disconnected", "unknown"].includes(String(data.connectionState)) || !(data.applied === null || typeof data.applied === "boolean") ||
@@ -77,8 +84,12 @@ export class TelegramGatewayService {
         (input.token !== "" && !TOKEN.test(input.token)) || typeof input.clearToken !== "boolean" ||
         (input.clearToken && !!input.token) || !Array.isArray(input.allowedUserIds) ||
         input.allowedUserIds.length > 10 || input.allowedUserIds.some((id) => typeof id !== "string" || !USER.test(id)) ||
-        new Set(input.allowedUserIds).size !== input.allowedUserIds.length || typeof input.enabled !== "boolean") {
-      throw validationFailed("Telegram-Bot-Token oder erlaubte Telegram-User-IDs sind ungültig.");
+        new Set(input.allowedUserIds).size !== input.allowedUserIds.length ||
+        !Array.isArray(input.allowedChatIds) || input.allowedChatIds.length > 20 ||
+        input.allowedChatIds.some((id) => typeof id !== "string" || !CHAT.test(id)) ||
+        new Set(input.allowedChatIds).size !== input.allowedChatIds.length || typeof input.removeWebhook !== "boolean" ||
+        typeof input.enabled !== "boolean") {
+      throw validationFailed("Telegram-Bot-Token, erlaubte User-IDs oder Gruppen-Chat-IDs sind ungültig.");
     }
     return this.run("update", { ...input, revision });
   }

@@ -4,7 +4,7 @@ import { setApiClient } from "@/lib/api/client";
 import { jsonResponse, renderWithProviders } from "@/test/render";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 
-const status = { contractVersion: "2.0.0", data: { tokenConfigured: false, botAuthentication: "missing", botId: null, botUsername: null, receiveMode: "unknown", allowedUserIds: [],
+const status = { contractVersion: "2.0.0", data: { tokenConfigured: false, botAuthentication: "missing", botId: null, botUsername: null, receiveMode: "unknown", allowedUserIds: [], allowedChatIds: [],
   enabled: false, gatewayRunning: false, connectionState: "unknown", applied: null, revision: 42 },
   freshness: { state: "fresh", asOf: "2026-10-16T10:00:00Z" } };
 
@@ -29,7 +29,7 @@ describe("Telegram gateway setup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
     expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ token,
-      clearToken: false, allowedUserIds: ["123456789"], enabled: true });
+      clearToken: false, allowedUserIds: ["123456789"], allowedChatIds: [], removeWebhook: false, enabled: true });
     expect(screen.queryByText(token)).toBeNull();
   });
 
@@ -44,5 +44,44 @@ describe("Telegram gateway setup", () => {
       data: { ...status.data, botAuthentication: "invalid", receiveMode: "polling" } }) });
     await screen.findByText(/Bot-Authentisierung: von Telegram abgelehnt · Empfangsmodus: Polling\./);
     expect(screen.queryByText(/\binvalid\b/)).toBeNull();
+  });
+
+  it("sends group chat ids", async () => {
+    const requests: Array<{ method: string; body: unknown }> = [];
+    renderWithProviders(<TelegramGatewaySetup owner />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const method = request.method;
+      const body = method === "PUT" ? await request.json() : null;
+      requests.push({ method, body });
+      return jsonResponse(status);
+    } });
+    await screen.findByRole("button", { name: "Telegram-Konfiguration speichern" });
+    fireEvent.change(screen.getByLabelText("Erlaubte Gruppen-Chat-IDs (beginnen mit „-“)"), { target: { value: "-1001, -1002" } });
+    fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
+    await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ token: "",
+      clearToken: false, allowedUserIds: [], allowedChatIds: ["-1001", "-1002"], removeWebhook: false, enabled: false });
+  });
+
+  it("offers webhook removal only in webhook mode and sends it explicitly", async () => {
+    const polling = renderWithProviders(<TelegramGatewaySetup owner />, { fetchImpl: async () => jsonResponse({ ...status,
+      data: { ...status.data, receiveMode: "polling" } }) });
+    await screen.findByRole("button", { name: "Telegram-Konfiguration speichern" });
+    expect(screen.queryByLabelText("Webhook bei Telegram entfernen, damit Hermes per Polling empfängt")).toBeNull();
+    polling.unmount();
+
+    const requests: Array<{ method: string; body: unknown }> = [];
+    renderWithProviders(<TelegramGatewaySetup owner />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const method = request.method;
+      const body = method === "PUT" ? await request.json() : null;
+      requests.push({ method, body });
+      return jsonResponse({ ...status, data: { ...status.data, receiveMode: "webhook" } });
+    } });
+    await screen.findByRole("button", { name: "Telegram-Konfiguration speichern" });
+    fireEvent.click(screen.getByLabelText("Webhook bei Telegram entfernen, damit Hermes per Polling empfängt"));
+    fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
+    await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toMatchObject({ removeWebhook: true });
   });
 });
