@@ -18,6 +18,8 @@ const CORRELATION_HEADER = "x-correlation-id";
 const CORRELATION_PATTERN = /^corr_[0-9A-Za-z]{26}$/;
 const ROLE_RANK = { none: 0, viewer: 1, operator: 2, owner: 3 } as const;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/** Compiled contract patterns per pattern string, so per-request validation does not recompile them. */
+const PATH_PATTERN_CACHE = new Map<string, RegExp>();
 const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "executeCommand", // Handler accepts only typed research intent from the local voice bridge.
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
@@ -236,7 +238,10 @@ export class ApiPipeline {
   private validateInput(ctx: RequestContext, spec: RouteSpec, rawBody: string | undefined): void {
     for (const name of spec.pathParams) {
       const value = ctx.pathParams[name];
-      if (!value || value.length > 128) throw new ApiError({ code: "VALIDATION_FAILED", status: 400, message: `Der Pfadparameter ${name} ist ungültig.` });
+      const rule = spec.pathParamRules?.[name];
+      if (!value || value.length > (rule?.maxLength ?? 128)) throw invalidPathParam(name);
+      if (rule?.pattern !== undefined && !pathPattern(rule.pattern).test(value)) throw invalidPathParam(name);
+      if (rule?.enum !== undefined && !rule.enum.includes(value)) throw invalidPathParam(name);
     }
     ctx.query = this.queries.parse(spec, ctx.rawQuery);
     if (!spec.requestBody) return;
@@ -424,6 +429,18 @@ function verifyVoiceBridgeKey(authorization: string | undefined, expected: Buffe
 
 function requestPath(ctx: RequestContext): string {
   return ctx.spec.path.replace(/\{(\w+)\}/g, (_match, name: string) => ctx.pathParams[name] ?? name);
+}
+
+function invalidPathParam(name: string): ApiError {
+  return new ApiError({ code: "VALIDATION_FAILED", status: 400, message: `Der Pfadparameter ${name} ist ungültig.` });
+}
+
+function pathPattern(pattern: string): RegExp {
+  const cached = PATH_PATTERN_CACHE.get(pattern);
+  if (cached) return cached;
+  const compiled = new RegExp(pattern, "u");
+  PATH_PATTERN_CACHE.set(pattern, compiled);
+  return compiled;
 }
 
 function sanitizeUsername(value: unknown): string | undefined {

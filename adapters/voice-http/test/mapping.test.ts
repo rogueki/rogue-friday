@@ -304,6 +304,65 @@ describe("voiceStatusMapper", () => {
   });
 });
 
+describe("speaker verification from the service (DASH-11.03)", () => {
+  const T = context().syncedAt;
+  const at = (offsetSeconds: number) => new Date(Date.parse(T) + offsetSeconds * 1000).toISOString();
+  const raw = (patch: Record<string, unknown>): RawVoiceStatus =>
+    parseRawVoiceStatus({ ...makeVoiceStatus(), ...patch });
+  const runtimeSettings = (speakerVerificationRequired: boolean) => ({
+    wakeWordEnabled: true,
+    wakeWord: "Hey Jarvis",
+    pushToTalkKey: "Ctrl+Space",
+    speakerVerificationRequired,
+    storeRawRecordings: false,
+    voiceHistoryEnabled: true,
+    sttLanguage: "de",
+    sttModel: null,
+    ttsRate: 1,
+  });
+
+  it("verified session reports the score and an expiry derived from the remaining time", () => {
+    const status = map(raw({
+      trusted: true,
+      trusted_remaining_s: 90,
+      speaker_decision: { decision: "verified", score: 0.82, at: at(0) },
+    }));
+    expect(status.speakerVerification).toMatchObject({ state: "verified", confidence: 0.82 });
+    expect(status.trustedSession.active).toBe(true);
+    expect(status.trustedSession.expiresAt).toBe(new Date(Date.parse(status.updatedAt) + 90_000).toISOString());
+  });
+
+  it("current rejection: state rejected with its confidence", () => {
+    const status = map(raw({ speaker_decision: { decision: "rejected", score: 0.31, at: at(-10) } }));
+    expect(status.speakerVerification).toMatchObject({ state: "rejected", confidence: 0.31 });
+    expect(status.trustedSession).toEqual({ active: false, expiresAt: null });
+  });
+
+  it("an old rejection is not shown as the present state", () => {
+    const status = map(raw({ speaker_decision: { decision: "rejected", score: 0.31, at: at(-120) } }));
+    expect(status.speakerVerification).toMatchObject({ state: "idle", confidence: null });
+  });
+
+  it("disabled verification wins over a verified service flag", () => {
+    const status = map(raw({
+      trusted: true,
+      runtime_settings: runtimeSettings(false),
+      speaker_decision: { decision: "verified", score: 0.82, at: at(0) },
+    }));
+    expect(status.speakerVerification).toMatchObject({ enabled: false, state: "disabled" });
+  });
+
+  it("clamps a negative score to zero", () => {
+    const status = map(raw({ speaker_decision: { decision: "rejected", score: -0.2, at: at(0) } }));
+    expect(status.speakerVerification).toMatchObject({ state: "rejected", confidence: 0 });
+  });
+
+  it("drops a malformed decision", () => {
+    const status = map(raw({ speaker_decision: { decision: "maybe" } }));
+    expect(status.speakerVerification).toMatchObject({ state: "idle", confidence: null });
+  });
+});
+
 describe("emptyVoiceMetricsMapper", () => {
   it("returns empty statistics for every latency (keine Datenquelle)", () => {
     const metrics = emptyVoiceMetricsMapper.map(null, context());

@@ -40,6 +40,8 @@ export interface RawVoiceStatus {
   commands: number;
   speaking: boolean;
   trusted: boolean;
+  trusted_remaining_s?: number;
+  speaker_decision?: { decision: "verified" | "rejected"; score: number; at: string } | null;
   game_mode?: string | null;
   /** Additive fields of the personalized installer (assistant name / wake phrase chosen at install time). */
   assistant_name?: string;
