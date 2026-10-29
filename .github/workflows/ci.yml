@@ -69,6 +69,7 @@ jobs:
             installer/voice/tests/test_update_dependency_closure.py \
             installer/wsl/test_update_wsl_dependency_closure.py \
             installer/wsl/test_setup_hermes_base_url.py \
+            installer/wsl/test_setup_profile_isolation.py \
             installer/wsl/test_friday_memory_plugin.py \
             installer/wsl/test_mail_accounts.py \
             installer/wsl/test_calendar_accounts.py \
