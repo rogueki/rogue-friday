@@ -59,13 +59,13 @@ export function SkillRegistryPanel() {
     <p className="sk-muted">Installieren oder Aktualisieren ist hier bewusst nicht angeboten: beide Schritte brauchen
       den Bestätigungs- und Wiederherstellungsweg aus DASH-10.07.</p>
     <section aria-labelledby="sk-modified-title">
-      <h3 id="sk-modified-title">Lokal geänderte Skills</h3>
-      {modified.isError ? <p role="alert" className="sk-warning">Die Liste lokal geänderter Skills ist nicht lesbar.</p>
+      <h3 id="sk-modified-title">Lokal geänderte mitgelieferte Skills</h3>
+      <p className="sk-muted">Lokale Änderungen an Hub-Skills erscheinen hier nicht; Hermes erkennt sie erst beim Update und überschreibt sie dann nicht ohne ausdrückliche Bestätigung.</p>
+      {modified.isError ? <p role="alert" className="sk-warning">Die Liste lokal geänderter mitgelieferter Skills ist nicht lesbar.</p>
         : modified.isPending ? <p className="sk-muted" role="status">Liste wird gelesen …</p>
         : names.length === 0 ? <p className="sk-muted" role="status">Keine mitgelieferten Skills wurden lokal geändert.</p>
         : <><p className="sk-warning" role="status">{names.length} mitgelieferte Skills weichen lokal ab; ein Update
-          überspringt sie, bis sie zurückgesetzt oder bewusst überschrieben werden. Lokale Änderungen an
-          Hub-Skills erscheinen hier nicht, sie werden aber beim Update ebenso erkannt.</p><ul className="sk-diff-list">{names.map((name) => <li key={name}>
+          überspringt sie, bis sie zurückgesetzt oder bewusst überschrieben werden.</p><ul className="sk-diff-list">{names.map((name) => <li key={name}>
             <code>{name}</code>
             <Button type="button" variant="ghost" aria-expanded={diffName === name}
               onClick={() => setDiffName(diffName === name ? null : name)}>

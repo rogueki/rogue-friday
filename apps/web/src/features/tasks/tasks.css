@@ -38,10 +38,13 @@
 .tk-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--jv-fs-xs); font-weight: 500; color: var(--tone); white-space: nowrap; }
 .tk-card__agent { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-size: var(--jv-fs-xs); color: var(--friday-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tk-card__facts, .tk-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: var(--jv-fs-xs); color: var(--friday-muted); min-width: 0; }
+/* The foot stays on one line: a wrapped source badge made cards taller with long date formats. */
+.tk-card__foot { flex-wrap: nowrap; }
+.tk-card__foot > span:not(.tk-card__source) { flex: none; white-space: nowrap; }
 .tk-card__facts > span, .tk-card__foot > span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .tk-card__model { font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .tk-card__blocker { margin: 0; }
-.tk-card__source { font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); }
+.tk-card__source { font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); margin-left: auto; min-width: 0; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* The status select is the keyboard/touch alternative to dragging: it stays in the tab order but only takes room while the
    card is hovered or focused (always visible on touch devices). */
 .tk-card__move { margin-top: 2px; }
