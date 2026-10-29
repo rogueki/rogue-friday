@@ -506,6 +506,17 @@ export function pendingMigrations(db: Db): number[] {
   return MIGRATIONS.filter((migration) => !applied.has(migration.id)).map((migration) => migration.id);
 }
 
+/** Migrationen in dieser Datenbank, die der laufende Code nicht kennt (Datenbank einer neueren Friday-Version). */
+export function unknownMigrations(db: Db): number[] {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
+  );
+  const known = new Set(MIGRATIONS.map((migration) => migration.id));
+  return (db.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: number }>)
+    .map((row) => row.id)
+    .filter((id) => !known.has(id));
+}
+
 export interface MigrationBackup {
   file: string;
   migrations: number[];
@@ -565,8 +576,12 @@ export function restoreMigrationBackup(backup: MigrationBackup | string, target:
     integrity = String((probe.prepare("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check);
     const tables = probe.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();
     if (!tables) throw new Error(`Sicherung ${file} enthaelt keine Migrationsmarke.`);
+    const ids = (probe.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id);
+    const known = new Set(MIGRATIONS.map((migration) => migration.id));
+    const newer = ids.filter((id) => !known.has(id));
+    if (newer.length > 0) throw new Error(`Sicherung ${file} stammt von einer neueren Friday-Version (Migrationen ${newer.join(", ")}).`);
   } catch (error) {
-    if (error instanceof Error && error.message.includes("keine Migrationsmarke")) throw error;
+    if (error instanceof Error && (error.message.includes("keine Migrationsmarke") || error.message.includes("neueren Friday-Version"))) throw error;
     throw new Error(`Sicherung ${file} ist keine lesbare Datenbank: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   } finally {
     probe.close();
@@ -581,6 +596,11 @@ export function migrate(db: Db): number[] {
   db.exec(
     "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
   );
+  const newer = unknownMigrations(db);
+  // An older build must not run on a schema written by a newer build: it would silently ignore or corrupt new data.
+  if (newer.length > 0)
+    throw new Error(`Datenbank stammt von einer neueren Friday-Version (unbekannte Migrationen ${newer.join(", ")}); ` +
+      "zuerst eine passende Version installieren oder eine Sicherung dieser Version zurueckspielen.");
   const applied = new Set(
     (db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id),
   );
