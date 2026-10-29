@@ -48,3 +48,16 @@ describe("Telegram gateway settings", () => {
     } finally { await api.close(); }
   });
 });
+
+describe("Telegram token verification errors", () => {
+  it("explains a rejected or unverifiable token and keeps the stored one", async () => {
+    const invoke = vi.fn(async () => { throw new Error("runner_4:bot_token_rejected"); });
+    const service = new TelegramGatewayService("unused", invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_telegram.py", distro: "Friday-Ubuntu", user: "friday" });
+    const patch = { token: TOKEN, clearToken: false, allowedUserIds: ["123456789"], enabled: false };
+    await expect(service.update(patch, 42)).rejects.toMatchObject({ code: "VALIDATION_FAILED", message: expect.stringContaining("bleibt unverändert") });
+    invoke.mockImplementationOnce(async () => { throw new Error("runner_4:bot_unverified"); });
+    await expect(service.update(patch, 42)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+});
