@@ -228,6 +228,10 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/hermes_mcp_oauth_transport.py', 'installer/wsl/hermes_mcp_oauth_worker.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh',
         'installer/wsl/setup_searxng.sh', 'installer/wsl/research_searxng_settings.py', 'installer/wsl/research_hermes_synthesis.py',
+        'installer/wsl/telephony_runner.py', 'installer/wsl/configure_himalaya.py', 'installer/wsl/change_himalaya.py',
+        'installer/wsl/read_himalaya.py', 'installer/wsl/send_himalaya.py', 'installer/wsl/coding_runner.py',
+        'installer/wsl/powerpoint_runner.py', 'installer/wsl/configure_skill_keys.py', 'installer/wsl/configure_wiki_path.py',
+        'installer/wsl/hermes_provider_auth.py',
         'installer/scripts/recover-friday.ps1')
 }
 function Get-VoiceSourcePaths {
