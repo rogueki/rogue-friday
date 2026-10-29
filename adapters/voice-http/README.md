@@ -36,7 +36,7 @@ Registry-Eintrag (Beispiel): `adapters.voice: { provider: friday-voice-http, ena
 |                |            | `listVoiceProfiles`  | **keine Datenquelle** -> leere Seite, Freshness `unknown`                              |
 |                |            | `getVoiceMetrics`    | **keine Datenquelle** -> alle Statistiken `null`/`sampleCount: 0`, Freshness `unknown` |
 | `voice.test`   |    nein    | `runVoiceTest` fehlt | Der Dienst hat keine Steuerschnittstelle (kein `do_POST`)                              |
-| `voice.stop`   |    nein    | `stopVoice` fehlt    | wie oben; Stoppwörter erkennt der Dienst intern                                        |
+| `voice.stop`   |    nein    | `stopVoice` fehlt    | Die Control API meldet `voice.stop` und ruft für `stopVoice` den authentifizierten Endpunkt `/control/stop` des Dienstes auf; Stoppwörter erkennt der Dienst intern |
 | `voice.enroll` |    nein    | -                    | Enrollment läuft in `voice_setup.py`, nicht über HTTP                                  |
 
 Keine Events: der Status-Server hat keinen Eventstrom, daher kein `pollEvents()`. `voice.jsonl` wird nicht gelesen (Datei-Tail wäre ein eigener Schritt).

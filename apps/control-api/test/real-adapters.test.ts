@@ -61,6 +61,8 @@ describe("real adapters behind the Control API (hybrid)", () => {
       expect(byCategory[category]?.manifest.id, category).toBe(`mock-${category}`);
     }
     for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
+    const capabilities = (await owner.get("/api/v1/capabilities")).json() as { modules: { voice: Record<string, unknown> } };
+    expect(capabilities.modules.voice.stop).toBe(true);
   });
 
   it("serves Hermes tasks and agents, voice status and system data through the contract", async () => {
