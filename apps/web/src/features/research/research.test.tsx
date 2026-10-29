@@ -366,7 +366,7 @@ describe("research page", () => {
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
 
-  it("exports Markdown and JSON when the capability is granted and keeps PDF/DOCX/PPTX at later", async () => {
+  it("exports Markdown and JSON when the capability is granted and offers no dead export formats", async () => {
     const user = userEvent.setup();
     const fake = routedFetch(routes());
     renderWithProviders(<ResearchPage />, {
@@ -383,9 +383,9 @@ describe("research page", () => {
     await user.click(screen.getByRole("button", { name: "JSON exportieren" }));
     expect(saveText.mock.calls[1]?.[1]).toBe("recherche-bueromoebel-anbieter.json");
     for (const format of ["PDF", "DOCX", "PPTX"]) {
-      expect(screen.getByRole("button", { name: new RegExp(format) })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: new RegExp(`^${format}`) })).toBeNull();
     }
-    expect(screen.getAllByText("später")).toHaveLength(3);
+    expect(screen.queryByText("später")).toBeNull();
   });
 
   it("disables the export without the capability", async () => {

@@ -60,6 +60,7 @@ export const deC = {
   "audit.empty.filtered": "Keine Treffer",
   "audit.empty.filteredDescription": "Für diese Filter gibt es keine Ereignisse. Passe Zeitraum oder Filter an.",
   "audit.export.label": "Export",
+  "audit.export.scope": "Der Export umfasst alle Einträge im gewählten Zeitraum; Filter der Tabelle gelten nicht.",
   "audit.export.done": "Audit-Export ({format}) gespeichert",
   "audit.export.unavailable": "Export ist nicht verfügbar (Capability audit.export fehlt).",
   "audit.integrity.ok": "Hash-Kette lückenlos verknüpft ({count} Verknüpfungen geprüft)",
@@ -310,8 +311,6 @@ export const deC = {
   "research.export.title": "Export",
   "research.export.markdown": "Markdown exportieren",
   "research.export.json": "JSON exportieren",
-  "research.export.later": "Dieses Format folgt später.",
-  "research.export.laterShort": "später",
   "research.export.unavailable": "Export ist für diese Quelle nicht verfügbar (Capability research.export fehlt).",
   "research.export.notReady": "Der Export ist möglich, sobald Quellen, Findings und Artefakte geladen sind.",
   // system

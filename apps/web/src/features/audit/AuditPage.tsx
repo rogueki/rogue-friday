@@ -507,7 +507,7 @@ function AuditContent() {
               </Button>
             ))}
           </div>
-          {canExport ? null : <p className="mc-note mc-note--muted">{t("audit.export.unavailable")}</p>}
+          <p className="mc-note mc-note--muted">{canExport ? t("audit.export.scope") : t("audit.export.unavailable")}</p>
           <DataTable<AuditEvent>
             label={t("audit.list.title")}
             columns={columns}

@@ -55,12 +55,14 @@ function Invoke-Simulation([string]$voiceChoice) {
     try {
         $env:FRIDAY_GUI_TEST = '1'
         # Ein abgelehnter Transport schreibt auf stderr; das ist hier ein erwartetes Ergebnis.
+        $previousEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
         $previous = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
         try {
             $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $backend -GuiConfigPath $path -GuiSimulation 2>&1 | Out-String
             $code = $LASTEXITCODE
-        } finally { $ErrorActionPreference = $previous }
+        } finally { $ErrorActionPreference = $previous; [Console]::OutputEncoding = $previousEncoding }
         return @{ Output = $output; Code = $code }
     } finally { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue; Remove-Item Env:FRIDAY_GUI_TEST -ErrorAction SilentlyContinue }
 }

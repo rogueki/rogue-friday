@@ -319,3 +319,30 @@ jobs:
           path: tests/e2e/__screenshots__
           if-no-files-found: error
           retention-days: 7
+
+  installer-windows:
+    name: Installer (Windows PowerShell 5.1)
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse every PowerShell file with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $failed = 0
+          Get-ChildItem -Recurse -Include *.ps1,*.psm1 -Path installer,scripts | Where-Object { $_.FullName -notlike '*node_modules*' } | ForEach-Object {
+            $tokens = $null; $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { $failed++; Write-Host "::error file=$($_.FullName)::$($errors[0].Message)" }
+          }
+          if ($failed) { exit 1 }
+      - name: Run installer tests
+        shell: powershell
+        run: |
+          $failed = @()
+          foreach ($test in Get-ChildItem installer/tests/*.Tests.ps1) {
+            Write-Host "=== $($test.Name)"
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $test.FullName
+            if ($LASTEXITCODE -ne 0) { $failed += $test.Name }
+          }
+          if ($failed.Count) { Write-Host "::error::Failed: $($failed -join ', ')"; exit 1 }
