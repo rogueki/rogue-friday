@@ -151,7 +151,9 @@ test("system: services online, real host metrics, models", async () => {
   expect(text).toMatch(/Hermes \(API-Server\)[\s\S]*Verbunden/);
 
   const services = (await api("/system/services")).body.items as Array<{ name: string; status: string }>;
-  expect(services.filter((service) => service.name !== "Control API").map((service) => service.status)).toEqual(["online", "online", "online", "online"]);
+  // WSL reflects the real host (wsl.exe), which the fakes do not cover; its status depends on the machine, so only its presence is checked.
+  expect(services.map((service) => service.name)).toContain("WSL");
+  expect(services.filter((service) => service.name !== "Control API" && service.name !== "WSL").map((service) => service.status)).toEqual(["online", "online", "online", "online"]);
   const providers = (await api("/system/models")).body.items as Array<{ models: string[] }>;
   expect(providers.flatMap((provider) => provider.models).sort()).toEqual(["friday", "qwen3-router"]);
   const metrics = (await api("/system/metrics")).body.data;
@@ -211,7 +213,7 @@ test("outage and recovery: stopping the voice service marks exactly the voice mo
   await shot("11-system-recovered");
 });
 
-test("outage and recovery: stopping Hermes marks tasks, activity and agents offline while voice and system keep working", async () => {
+test("outage and recovery: stopping Hermes marks tasks, activity, agents and automations offline while voice and system keep working", async () => {
   await control("/services/hermes/stop");
   try {
     const tasks = await openUntil("/tasks", OUTAGE_TEXT);
@@ -228,10 +230,10 @@ test("outage and recovery: stopping Hermes marks tasks, activity and agents offl
     await shot("13-agents-hermes-offline");
 
     const system = await openUntil("/system", /Hermes API[\s\S]*Offline/);
-    expect(system).toMatch(/3 offline/);
+    expect(system).toMatch(/4 offline/);
     expect(system).toMatch(/Qwen lokal \(llama-server\)[\s\S]{0,200}Online/);
     const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
-    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id).sort()).toEqual(["hermes-activity", "hermes-agents", "hermes-tasks"]);
+    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id).sort()).toEqual(["hermes-activity", "hermes-agents", "hermes-automations", "hermes-tasks"]);
     await shot("14-system-hermes-offline");
 
     expect((await api("/voice/status")).status).toBe(200);
