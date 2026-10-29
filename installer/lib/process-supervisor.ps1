@@ -24,6 +24,13 @@ function ConvertTo-WindowsArgument([string]$Value) {
     return $builder.ToString()
 }
 
+function Stop-ProcessTree([int]$ProcessId) {
+    # Beendet den Prozess samt aller noch lebenden Nachkommen ueber die Eltern-Kind-Kette. Das greift auch dort,
+    # wo ein Kind dem Job entkommen ist oder Windows die Job-Zuordnung verweigert hat.
+    try { & taskkill.exe /T /F /PID $ProcessId 2>&1 | Out-Null } catch { }
+    try { Stop-Process -Id $ProcessId -Force -ErrorAction Stop } catch { }
+}
+
 function Invoke-SupervisedProcess {
     param(
         [Parameter(Mandatory)][string]$FilePath,
@@ -59,14 +66,16 @@ function Invoke-SupervisedProcess {
     $result.Pid = $process.Id
     # Der Job haelt den gesamten Aufruf zusammen; ohne Job-Bibliothek bleibt es beim gezielten Beenden.
     $job = [IntPtr]::Zero
+    $inJob = $false
     $jobApi = [bool](Get-Command New-ProcessJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Add-ProcessToJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Stop-ProcessJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Close-ProcessJob -ErrorAction SilentlyContinue)
     if ($jobApi) {
         $job = New-ProcessJob
-        if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $process) }
-    }    $deadline = if ($TimeoutSeconds -gt 0) { $started.AddSeconds($TimeoutSeconds) } else { [datetime]::MaxValue }
+        if ($job -ne [IntPtr]::Zero) { $inJob = [bool](Add-ProcessToJob $job $process) }
+    }
+    $deadline = if ($TimeoutSeconds -gt 0) { $started.AddSeconds($TimeoutSeconds) } else { [datetime]::MaxValue }
     while (-not $process.HasExited) {
         if ($CancelCheck -and (& $CancelCheck)) { $result.Cancelled = $true; break }
         if ((Get-Date) -ge $deadline) { $result.TimedOut = $true; break }
@@ -77,9 +86,10 @@ function Invoke-SupervisedProcess {
         # Ein Zeitlimit oder eine Abbruchbitte gilt fuer den ganzen Aufruf: Werkzeuge wie pip starten
         # eigene Kinder (python), die ein Beenden nur des direkten Prozesses als Waise zurueckliesse.
         # Der Job enthaelt ausschliesslich Prozesse dieses Aufrufs - fremde bleiben unberuehrt.
-        if (-not $jobApi -or -not (Stop-ProcessJob $job)) {
-            try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
-        }
+        # Zuerst ueber die Eltern-Kind-Kette, solange der direkte Prozess noch lebt; der Job raeumt danach nur auf,
+        # wenn Windows die Zuordnung angenommen hat (ein leerer Job meldet sonst Erfolg, ohne etwas zu beenden).
+        Stop-ProcessTree $process.Id
+        if ($inJob) { [void](Stop-ProcessJob $job) }
         try { $process.WaitForExit(5000) | Out-Null } catch { }
     }
     if ($process.HasExited) {
@@ -94,8 +104,8 @@ function Invoke-SupervisedProcess {
 }
 function Invoke-CapturedProcess {
     # Fuer Aufrufe, deren Ausgabe der Installer selbst braucht (wsl.exe, wslpath): Ausgabe und Eingabe
-    # werden umgeleitet, das Zeitlimit gilt fuer den gesamten Aufruf, und bei Ablauf wird nur der
-    # gestartete Prozess beendet.
+    # werden umgeleitet, das Zeitlimit gilt fuer den gesamten Aufruf, und bei Ablauf wird der
+    # gestartete Prozess samt Nachkommen beendet.
     param(
         [Parameter(Mandatory)][string]$FilePath,
         [string[]]$Arguments = @(),
@@ -132,14 +142,16 @@ function Invoke-CapturedProcess {
     $result.Pid = $process.Id
     # Der Job haelt den gesamten Aufruf zusammen; ohne Job-Bibliothek bleibt es beim gezielten Beenden.
     $job = [IntPtr]::Zero
+    $inJob = $false
     $jobApi = [bool](Get-Command New-ProcessJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Add-ProcessToJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Stop-ProcessJob -ErrorAction SilentlyContinue) -and
         [bool](Get-Command Close-ProcessJob -ErrorAction SilentlyContinue)
     if ($jobApi) {
         $job = New-ProcessJob
-        if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $process) }
-    }    # Asynchron lesen, sonst blockiert ein voller Pipe-Puffer den Kindprozess.
+        if ($job -ne [IntPtr]::Zero) { $inJob = [bool](Add-ProcessToJob $job $process) }
+    }
+    # Asynchron lesen, sonst blockiert ein voller Pipe-Puffer den Kindprozess.
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
     if ($startInfo.RedirectStandardInput) {
@@ -155,10 +167,10 @@ function Invoke-CapturedProcess {
         Start-Sleep -Milliseconds ([math]::Max(50, $PollMilliseconds))
     }
     if ($result.Cancelled -or $result.TimedOut) {
-        # Auch hier gilt das Zeitlimit fuer den ganzen Aufruf; ohne Job bleibt es beim direkten Prozess.
-        if (-not $jobApi -or -not (Stop-ProcessJob $job)) {
-            try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
-        }
+        # Zuerst ueber die Eltern-Kind-Kette, solange der direkte Prozess noch lebt; der Job raeumt danach nur auf,
+        # wenn Windows die Zuordnung angenommen hat (ein leerer Job meldet sonst Erfolg, ohne etwas zu beenden).
+        Stop-ProcessTree $process.Id
+        if ($inJob) { [void](Stop-ProcessJob $job) }
         try { $process.WaitForExit(5000) | Out-Null } catch { }
     }
     if ($process.HasExited) {

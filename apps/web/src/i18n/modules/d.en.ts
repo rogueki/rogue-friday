@@ -493,7 +493,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.approvals.tier2": "Confirm tier 2",
   "settings.approvals.tier2Desc": "Actions of medium risk need a confirmation.",
   "settings.approvals.tier3": "Tier 3 with re-authentication",
-  "settings.approvals.tier3Desc": "Critical actions ask for the password again.",
+  "settings.approvals.tier3Desc": "Always on: critical actions ask for the password again.",
   "settings.approvals.tier3Warning": "Without re-authentication a single click is enough for critical actions. This is not recommended.",
   "settings.approvals.notify": "Notify on new request",
   "settings.approvals.notifyDesc": "Triggers a notification through the configured channels.",

@@ -22,7 +22,7 @@ async function request(path: string, body?: object): Promise<Status> {
 }
 
 export function SttModelsControl({ selected, language, readOnly, onSelect }: {
-  selected: string | null; language: "de" | "en"; readOnly: boolean; onSelect: (model: string) => void;
+  selected: string | null; language: "de" | "en"; readOnly: boolean; onSelect: (model: string | null) => void;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +46,12 @@ export function SttModelsControl({ selected, language, readOnly, onSelect }: {
     {error ? <p role="alert">{error}</p> : null}
     {!status ? <p role="status">Modellbestand wird geprüft…</p> : !status.localMode ?
       <p role="status">Cloud-Erkennung ist aktiv. Lokale Whisper-Modelle können in diesem Modus nicht gewechselt werden.</p> : <>
+        <p>{selected ? <>Gewählt: <strong>{selected}</strong>{" "}
+          <Button type="button" size="sm" variant="ghost" disabled={readOnly || busy}
+            onClick={() => onSelect(null)}>Installiertes Modell übernehmen</Button></> : "Gewählt: installiertes Modell (vom Installer festgelegt)."}</p>
         <ul>{status.models.map((model) => <li key={model.id}>
           {model.id}: {model.cached ? "lokal vorhanden" : "nicht lokal vorhanden"}
+          {model.cached && selected === model.id ? <strong>{" · ausgewählt"}</strong> : null}
           {model.cached && selected !== model.id ? <Button type="button" size="sm" variant="ghost"
             disabled={readOnly || busy || status.job?.state === "downloading" || status.job?.state === "cancelling" || model.id.endsWith(".en") && language !== "en"}
             onClick={() => onSelect(model.id)}>Auswählen</Button> : null}

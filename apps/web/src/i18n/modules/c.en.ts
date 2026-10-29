@@ -62,6 +62,7 @@ export const enC: Record<keyof typeof deC, string> = {
   "audit.empty.filtered": "No matches",
   "audit.empty.filteredDescription": "No events match these filters. Adjust the time range or filters.",
   "audit.export.label": "Export",
+  "audit.export.scope": "The export contains every entry in the selected period; table filters do not apply.",
   "audit.export.done": "Audit export ({format}) saved",
   "audit.export.unavailable": "Export is not available (capability audit.export missing).",
   "audit.integrity.ok": "Hash chain intact ({count} links checked)",
@@ -312,8 +313,6 @@ export const enC: Record<keyof typeof deC, string> = {
   "research.export.title": "Export",
   "research.export.markdown": "Export Markdown",
   "research.export.json": "Export JSON",
-  "research.export.later": "This format follows later.",
-  "research.export.laterShort": "later",
   "research.export.unavailable": "Export is not available for this source (capability research.export missing).",
   "research.export.notReady": "Export is possible once sources, findings and artifacts are loaded.",
   // system

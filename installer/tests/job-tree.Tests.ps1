@@ -82,6 +82,22 @@ Start-Sleep -Seconds 60
     }
     Stop-Quietly $grandchild3
 
+    # 3b) Verweigerte Job-Zuordnung (Installer laeuft selbst in einem fremden Job): das Zeitlimit muss den Baum
+    # trotzdem beenden. Simuliert, indem die Zuordnung hier scheitert.
+    function Add-ProcessToJob([IntPtr]$Job, $Process) { return $false }
+    $pidFile4 = Join-Path $fixture 'child-nojob.pid'
+    $run4 = Invoke-SupervisedProcess -FilePath 'powershell.exe' -TimeoutSeconds 4 -PollMilliseconds 200 `
+        -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $parentScript, $pidFile4)
+    if (-not $run4.TimedOut) { throw 'Das Zeitlimit griff ohne Job-Zuordnung nicht.' }
+    [void]$leftovers.Add($run4.Pid)
+    $grandchild4 = Wait-PidFile $pidFile4
+    if (-not $grandchild4) { throw 'Der Enkelprozess ohne Job hat seine PID nicht geschrieben.' }
+    [void]$leftovers.Add($grandchild4)
+    Start-Sleep -Seconds 2
+    if (Test-Alive $run4.Pid) { throw "Der direkte Prozess (PID $($run4.Pid)) laeuft ohne Job-Zuordnung nach dem Zeitlimit weiter." }
+    if (Test-Alive $grandchild4) { throw "Der Enkelprozess (PID $grandchild4) laeuft ohne Job-Zuordnung nach dem Zeitlimit weiter." }
+    . (Join-Path $lib 'job-object.ps1')
+
     # 4) Die Bibliothek selbst: Handle, Zuordnung, Beenden, Schliessen.
     $job = New-ProcessJob
     if ($job -eq [IntPtr]::Zero) { throw 'New-ProcessJob lieferte kein Handle.' }

@@ -80,12 +80,12 @@ try {
     $resumeOutput = Get-Content -LiteralPath $resumeOut -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
     if ($resumeCode -ne 1) { throw "resume.bat endete mit Code $resumeCode statt 1. Ausgabe: $resumeOutput $(Get-Content -LiteralPath $resumeErr -Raw -ErrorAction SilentlyContinue)" }
     # Entscheidend: der Befehl findet den Zustand wieder (sonst kaeme der Hinweis auf eine frische
-    # Installation) und stoppt an einer der beiden bekannten sicheren Pruefungen - je nachdem, ob auf
-    # diesem Host bereits eine fremde Installation mit eigenen Aufgaben existiert.
+    # Installation) und stoppt an einer bekannten sicheren Pruefung: fremde Installation mit eigenen
+    # Aufgaben, unvollstaendiger Zustand oder (ohne NVIDIA-GPU) die GPU-Pruefung fuer lokale Sprache.
     if ($resumeOutput -match 'Frische Installation|Keine bestehende Installation') {
         throw "resume.bat hat den gespeicherten Zustand nicht gefunden: $resumeOutput"
     }
-    if ($resumeOutput -notmatch 'unvollstaendig|gehoert zu einem anderen Installationspfad') {
+    if ($resumeOutput -notmatch 'unvollstaendig|gehoert zu einem anderen Installationspfad|Lokale Sprache erfordert eine NVIDIA-GPU') {
         throw "resume.bat erreichte keine erwartete Pruefung: $resumeOutput"
     }
 

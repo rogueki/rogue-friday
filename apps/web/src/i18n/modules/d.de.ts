@@ -505,7 +505,7 @@ export const deD = {
   "settings.approvals.tier2": "Stufe 2 bestätigen",
   "settings.approvals.tier2Desc": "Aktionen mittleren Risikos brauchen eine Bestätigung.",
   "settings.approvals.tier3": "Stufe 3 mit erneuter Anmeldung",
-  "settings.approvals.tier3Desc": "Kritische Aktionen verlangen das Passwort erneut.",
+  "settings.approvals.tier3Desc": "Immer aktiv: Kritische Aktionen verlangen das Passwort erneut.",
   "settings.approvals.tier3Warning": "Ohne erneute Anmeldung genügt für kritische Aktionen ein Klick. Das wird nicht empfohlen.",
   "settings.approvals.notify": "Bei neuer Anfrage benachrichtigen",
   "settings.approvals.notifyDesc": "Löst eine Benachrichtigung über die konfigurierten Kanäle aus.",

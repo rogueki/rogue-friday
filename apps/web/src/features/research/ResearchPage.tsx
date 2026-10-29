@@ -593,11 +593,6 @@ function ExportBar({ bundle, ready }: { bundle: ResearchBundle | null; ready: bo
         >
           {t("research.export.json")}
         </Button>
-        {(["PDF", "DOCX", "PPTX"] as const).map((format) => (
-          <Button key={format} size="sm" variant="ghost" disabled title={t("research.export.later")}>
-            {format} <span className="rs-later">{t("research.export.laterShort")}</span>
-          </Button>
-        ))}
       </div>
       {reason ? <p className="mc-note mc-note--muted">{reason}</p> : null}
     </div>

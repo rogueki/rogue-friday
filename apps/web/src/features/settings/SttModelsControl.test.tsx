@@ -26,3 +26,15 @@ it("lists cached models and downloads only on an explicit click without applying
   expect(calls.some((call) => call.url.includes("/settings"))).toBe(false);
   view.unmount();
 });
+
+it("shows the chosen model and can return to the installed model", async () => {
+  const models = [{ id: "small", cached: true, downloadable: true }, { id: "medium", cached: false, downloadable: true }];
+  const onSelect = vi.fn();
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ localMode: true, models, job: null }) })));
+  const view = render(<SttModelsControl selected="small" language="de" readOnly={false} onSelect={onSelect} />);
+  expect(await screen.findByText(/ausgewählt/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Installiertes Modell übernehmen" }));
+  expect(onSelect).toHaveBeenCalledWith(null);
+  expect(screen.queryByRole("button", { name: "Auswählen" })).toBeNull();
+  view.unmount();
+});
