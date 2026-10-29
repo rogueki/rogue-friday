@@ -64,6 +64,9 @@ interface StatusRow {
   stateLabel: string;
 }
 
+/** Speaker decision and trusted session describe a moment; without fresh data they must not claim anything. */
+const MOMENTARY_ROWS = new Set(["speaker", "recognizedSpeaker", "trustedSession"]);
+
 function deviceName(devices: VoiceDevice[] | undefined, id: string | null, none: string, missing: string): string {
   if (id === null) return none;
   if (devices !== undefined && !devices.some((device) => device.id === id)) return missing;
@@ -76,14 +79,14 @@ function deviceMissing(devices: VoiceDevice[] | undefined, id: string | null): b
 
 /* ── Status (§38.1) ───────────────────────────────────────────────────── */
 
-export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string, expires: string): StatusRow[] {
+export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string, expires: string, live = true): StatusRow[] {
   const mic = status.microphone;
   const wake = status.wakeWord;
   const speaker = status.speakerVerification;
   const noDevice = t("voicePage.status.noDevice");
   const pipelineLabel = (state: PipelineState): string => t(`voicePage.pipeline.${state}` as MessageKey);
   const latency = (ms: number | null): string => (ms === null ? t("voicePage.noSource") : formatMs(ms, locale));
-  return [
+  const rows: StatusRow[] = [
     {
       id: "microphone",
       icon: mic.active ? Mic : MicOff,
@@ -189,6 +192,18 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       stateLabel: status.focusMode ? t("voicePage.active") : t("voicePage.inactive"),
     },
   ];
+  if (live) return rows;
+  return rows.map((row): StatusRow =>
+    MOMENTARY_ROWS.has(row.id)
+      ? {
+          ...row,
+          value: t("voicePage.status.unknown"),
+          detail: t("voicePage.status.notCurrent"),
+          tone: "muted",
+          stateLabel: t("voicePage.status.unknown"),
+        }
+      : row,
+  );
 }
 
 /** Microphone activity is always visible on this page (PLAN §38.4), independent of every panel state. */
@@ -224,7 +239,8 @@ function StatusPanel() {
   const canStop = useCapability("voice", "stop");
   const status = query.data?.data;
   const state = useQueryPanelState(query, { module: "voice", freshness: query.data?.freshness });
-  const rows = status ? buildStatusRows(status, devicesQuery.data?.items, t, locale, formatters.dateTime(status.trustedSession.expiresAt)) : [];
+  const live = state.kind === "ready" && !("outage" in state && state.outage) && state.freshness?.state !== "stale" && state.freshness?.state !== "offline-cache";
+  const rows = status ? buildStatusRows(status, devicesQuery.data?.items, t, locale, formatters.dateTime(status.trustedSession.expiresAt), live) : [];
   const speaking = status?.mode === "speaking";
   return (
     <PanelFrame

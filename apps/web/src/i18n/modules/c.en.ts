@@ -453,6 +453,7 @@ export const enC: Record<keyof typeof deC, string> = {
   "voicePage.status.unreachable": "Unreachable",
   "voicePage.status.noSpeaker": "Nobody recognized",
   "voicePage.status.unknown": "Unknown",
+  "voicePage.status.notCurrent": "No current data from the voice service",
   "voicePage.trusted.until": "valid until {time}",
   "voicePage.mode.idle": "Idle",
   "voicePage.mode.listening": "Listening",

@@ -451,6 +451,7 @@ export const deC = {
   "voicePage.status.unreachable": "Nicht erreichbar",
   "voicePage.status.noSpeaker": "Niemand erkannt",
   "voicePage.status.unknown": "Unbekannt",
+  "voicePage.status.notCurrent": "Keine aktuellen Daten vom Sprachdienst",
   "voicePage.trusted.until": "gültig bis {time}",
   "voicePage.mode.idle": "Bereit",
   "voicePage.mode.listening": "Hört zu",
