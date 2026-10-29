@@ -7,7 +7,7 @@ import { startTestApi, type TestApi } from "./helpers";
 const PATH = "/api/v1/settings/content-studio-keys";
 const removeTestDir = (dir: string): void => {
   if (!resolve(dir).startsWith(`${resolve(tmpdir())}${sep}`)) throw new Error("Unsafe test directory");
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 };
 
 describe("Content Studio provider credentials", () => {
