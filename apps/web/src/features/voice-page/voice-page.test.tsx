@@ -173,6 +173,19 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     expect(screen.getByText("Nicht getestet")).toBeInTheDocument();
   });
 
+  it("shows the speaker profile's samples, quality and threshold as stored (I-033)", async () => {
+    const fake = routedFetch(routes());
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: false }) });
+    await screen.findByTestId("enrollment-readonly");
+    const card = document.querySelector(".vp-profile") as HTMLElement | null;
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByText("Erik Brandt")).toBeInTheDocument();
+    const text = (card as HTMLElement).textContent ?? "";
+    expect(text).toMatch(/Samples\s*24/);
+    expect(text).toMatch(/Qualität\s*93\s*%/);
+    expect(text).toMatch(/Threshold\s*72\s*%/);
+  });
+
   const job = (partial: Partial<VoiceEnrollment> = {}): VoiceEnrollment => ({
     id: "venr_01JAAAAAAAAAAAAAAAAAAAAAAA",
     profileId: "vprof_1",
