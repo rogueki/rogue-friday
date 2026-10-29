@@ -2,7 +2,9 @@
 
 import base64
 import json
+import os
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -20,6 +22,16 @@ DOMAIN_PATTERNS = [
 ]
 AGENT_LABEL = {"research": "Recherche-Agenten", "tasks": "Aufgaben-Agenten", "alerts": "Warn-Agenten",
                "audit": "Pruef-Agenten"}
+AGENT_LABEL_SHORT = {"research": "Recherche", "tasks": "Aufgaben", "alerts": "Warnungen", "audit": "Pruefung"}
+# Status and named cancellation are answered from the local task cache; a plain "Stopp" stays dialog-only.
+STATUS_QUESTION = re.compile(r"\b(wie weit|was macht|status|stand)\b.*\b(auftrag|auftr(ae|ä)ge|aufgabe|recherche|agent|pr(ue|ü)fung|ueberwachung|überwachung)", re.I)
+CANCEL_COMMAND = re.compile(r"^\s*(?:brich|breche)\s+(.+?)\s+ab[.!?\s]*$|^\s*(?:stoppe|beende)\s+(?:die|den|das)\s+(.+?)[.!?\s]*$", re.I)
+DOMAIN_WORDS = {"research": re.compile(r"recherch", re.I), "audit": re.compile(r"pr(ue|ü)f", re.I),
+                "alerts": re.compile(r"warn|(ue|ü)berwach", re.I), "tasks": re.compile(r"aufgabe|auftrag", re.I)}
+AGENT_NAME = {"research": "Der Recherche-Agent", "tasks": "Der Aufgaben-Agent", "alerts": "Der Warn-Agent",
+              "audit": "Der Pruef-Agent"}
+STATUS_LABEL = {"triage": "wird eingeordnet", "todo": "wartet", "ready": "wartet auf einen freien Platz",
+                "running": "arbeitet", "waiting": "wartet auf eine Eingabe", "review": "wartet auf Pruefung"}
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -46,11 +58,39 @@ def result_text(job: dict) -> str:
 
 
 class DomainTaskVoice:
-    def __init__(self, root, opener=None, now=time.monotonic, sleep=time.sleep):
+    def __init__(self, root, opener=None, now=time.monotonic, sleep=time.sleep, wall=time.time):
         self.root = root
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
         self.now = now
         self.sleep = sleep
+        self.wall = wall
+        self.lock = threading.Lock()
+        self.jobs_path = os.path.join(os.path.dirname(voice_bridge_key_path(root)), "domain-tasks.json")
+        self.jobs = self._load()
+        self.finished = []
+        self.finished_ready = threading.Condition(self.lock)
+
+    def _load(self) -> dict:
+        try:
+            with open(self.jobs_path, encoding="utf-8") as source:
+                loaded = json.load(source)
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(loaded, dict):
+            return {}
+        return {task_id: job for task_id, job in loaded.items() if isinstance(job, dict)}
+
+    def _save(self) -> bool:
+        # The spoken flow must not fail when the state file is not writable; the task itself is durable in Hermes.
+        try:
+            os.makedirs(os.path.dirname(self.jobs_path), exist_ok=True)
+            temporary = self.jobs_path + ".tmp"
+            with open(temporary, "w", encoding="utf-8") as target:
+                json.dump(self.jobs, target, ensure_ascii=False)
+            os.replace(temporary, self.jobs_path)
+            return True
+        except OSError:
+            return False
 
     def _request(self, method, path, body=None, key=None, timeout=12):
         with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
@@ -70,11 +110,110 @@ class DomainTaskVoice:
             return json.load(response)["data"]
 
     def create(self, text, domain) -> dict:
-        return self._request("POST", "/api/v1/voice/tasks", {"text": text, "domain": domain},
-                             key="voice-task-" + uuid.uuid4().hex)
+        job = self._request("POST", "/api/v1/voice/tasks", {"text": text, "domain": domain},
+                            key="voice-task-" + uuid.uuid4().hex)
+        with self.lock:
+            self.jobs[job["taskId"]] = {"taskId": job["taskId"], "domain": domain, "title": text[:80],
+                                        "createdAt": self.wall(), "status": job.get("status")}
+        self._save()
+        return job
 
     def status(self, task_id) -> dict:
-        return self._request("GET", f"/api/v1/voice/tasks/{task_id}")
+        job = self._request("GET", f"/api/v1/voice/tasks/{task_id}")
+        with self.lock:
+            entry = self.jobs.get(task_id)
+            if entry is not None:
+                entry["status"] = job.get("status")
+        return job
+
+    def cancel(self, task_id) -> dict:
+        job = self._request("POST", f"/api/v1/voice/tasks/{task_id}/cancel", None,
+                            key="voice-cancel-" + uuid.uuid4().hex)
+        with self.lock:
+            entry = self.jobs.get(task_id)
+            if entry is not None:
+                entry["status"] = job.get("status")
+        return job
+
+    def pending(self) -> list[dict]:
+        with self.lock:
+            return [dict(entry) for entry in self.jobs.values()]
+
+    def forget(self, task_id) -> None:
+        with self.lock:
+            self.jobs.pop(task_id, None)
+        self._save()
+
+    def handles_text(self, text) -> bool:
+        if not self.jobs:
+            return False
+        return bool(STATUS_QUESTION.search(text) or CANCEL_COMMAND.match(text))
+
+    def handle(self, text) -> str | None:
+        if STATUS_QUESTION.search(text):
+            return self._status_answer()
+        match = CANCEL_COMMAND.match(text)
+        if match:
+            return self._cancel_answer((match.group(1) or match.group(2) or "").strip().lower())
+        return None
+
+    def _status_answer(self) -> str:
+        sentences = []
+        for entry in self.pending():
+            agent = AGENT_NAME.get(entry.get("domain"), "Der Agent")
+            label = STATUS_LABEL.get(entry.get("status"), "arbeitet")
+            minutes = max(1, int((self.wall() - entry.get("createdAt", self.wall())) // 60))
+            sentences.append(f"{agent} {label} an „{entry.get('title', '')}“, seit {minutes} Minuten.")
+        return " ".join(sentences) if sentences else "Dazu laeuft gerade kein Auftrag."
+
+    def _cancel_candidates(self, target: str) -> list[dict]:
+        entries = self.pending()
+        candidates = [entry for entry in entries if self._is_named(entry, target)]
+        if not candidates and len(entries) == 1 and re.search(r"auftrag|aufgabe", target):
+            return entries  # "brich den Auftrag ab" with exactly one running task
+        return candidates
+
+    @staticmethod
+    def _is_named(entry: dict, target: str) -> bool:
+        pattern = DOMAIN_WORDS.get(entry.get("domain"))
+        title = str(entry.get("title") or "").lower()
+        return bool((pattern is not None and pattern.search(target)) or (title and title[:20] in target))
+
+    def _cancel_answer(self, target: str) -> str:
+        candidates = self._cancel_candidates(target)
+        if not candidates:
+            return "Dazu laeuft gerade kein Auftrag."
+        if len(candidates) > 1:
+            return "Welchen Auftrag soll ich abbrechen: " + " oder ".join(entry["title"] for entry in candidates) + "?"
+        job = candidates[0]
+        try:
+            self.cancel(job["taskId"])
+        except (OSError, ValueError, KeyError, urllib.error.HTTPError):
+            return "Der Abbruch hat nicht geklappt; der Auftrag laeuft weiter."
+        self.forget(job["taskId"])
+        return f"Ich habe „{job['title']}“ abgebrochen. Bereits erledigte Schritte bleiben bestehen."
+
+    def collect(self, job: dict) -> None:
+        with self.finished_ready:
+            self.finished.append(job)
+            self.finished_ready.notify_all()
+
+    def take_bundle(self, cancelled, window_s=3.0) -> list[dict]:
+        """Wait for at least one result, then give follow-up results window_s seconds to join the same bundle."""
+        with self.finished_ready:
+            while not self.finished:
+                if cancelled():
+                    return []
+                self.finished_ready.wait(0.5)
+        remaining = window_s
+        while remaining > 0 and not cancelled():
+            step = min(0.5, remaining)
+            self.sleep(step)
+            remaining -= step
+        with self.finished_ready:
+            jobs = list(self.finished)
+            self.finished.clear()
+        return jobs
 
     def wait(self, task_id, cancelled, poll_s=10.0, timeout_s=1800.0) -> dict | None:
         deadline = self.now() + timeout_s
@@ -100,3 +239,10 @@ class DomainTaskVoice:
                 step = min(0.5, poll_s - slept)
                 self.sleep(step)
                 slept += step
+
+
+def bundle_text(jobs) -> str:
+    if len(jobs) == 1:
+        return "Ergebnis zur Aufgabe: " + result_text(jobs[0])
+    return f"{len(jobs)} Ergebnisse. " + " ".join(
+        f"{AGENT_LABEL_SHORT.get(job['domain'], job['domain'])}: {result_text(job)}" for job in jobs)

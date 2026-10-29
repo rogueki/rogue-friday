@@ -1119,6 +1119,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Vorschautext (N-095) sind in PR #32 erledigt. N-094: Entscheidung eigene Linux-Benutzer je Profil, Entwurf
   docs/agent-work/finalization/n-094-profil-benutzer-entwurf.md.
 
+- DASH-16.04/05/06 (2026-10-29, N-097): Sprachaufgaben lassen sich per Name abbrechen ("brich die Recherche ab",
+  `POST /api/v1/voice/tasks/{taskId}/cancel`, offene Kinder mit); "Stopp" beendet nur Dialog und Audio. Statusfragen
+  beantwortet der Sprachdienst lokal aus `domain-tasks.json` ohne Netz und Modell. Fertige Ergebnisse werden 3 s
+  gesammelt und gemeinsam angesagt, ohne laufende Ansagen zu unterbrechen. Nach einem Neustart des Sprachdienstes
+  werden offene Auftraege wieder beobachtet. Live-Abnahme auf FRIDAY-2 steht aus.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.

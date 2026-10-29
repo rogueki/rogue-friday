@@ -11,6 +11,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   createVoiceDomainTask: "tasks.create",
   updateTask: "tasks.update",
   cancelTask: "tasks.cancel",
+  cancelVoiceDomainTask: "tasks.cancel",
   retryTask: "tasks.retry",
   pauseTask: "tasks.pause",
   resumeTask: "tasks.resume",

@@ -64,7 +64,7 @@ from mail_voice import MailVoice  # noqa: E402
 from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
-from domain_task_voice import AGENT_LABEL, DomainTaskVoice, classify_domain, result_text  # noqa: E402
+from domain_task_voice import AGENT_LABEL, DomainTaskVoice, bundle_text, classify_domain  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
@@ -1388,6 +1388,15 @@ class VoiceService:
             offer = self.skills_onboarding_voice.offer_first_use()
             return answer if not offer else answer + " " + offer
 
+        domain_tasks = getattr(self, "domain_tasks", None)
+        if domain_tasks is not None and domain_tasks.handles_text(text):
+            domain_answer = domain_tasks.handle(text)
+            if domain_answer is not None:
+                self.status["commands"] += 1
+                log_event(event="domain_task_voice_command", speaker_score=round(score, 3))
+                self._say_if_current(domain_answer, generation)
+                self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": domain_answer}]
+                return
         research = getattr(self, "research_voice", None)
         research_answer = research.handle(text) if research is not None else None
         if self.control_cancel.is_set() or generation != self.control_generation:
@@ -1632,28 +1641,45 @@ class VoiceService:
                 self.background_reply_ready.set()
 
     def _background_domain(self, kanban_task: str, task_id: str, generation: int) -> None:
-        # A spoken "Stopp" leaves the Kanban task running and visible in the dashboard.
+        # "Stopp" ends dialog and audio only; the Kanban task keeps running and its result is still announced.
         try:
-            job = self.domain_tasks.wait(
-                kanban_task, lambda: self.control_cancel.is_set() or generation != self.control_generation)
-            if job is None or self.control_cancel.is_set() or generation != self.control_generation:
+            job = self.domain_tasks.wait(kanban_task, lambda: False)
+            if job is None:
                 return
-            answer = result_text(job)
-            print(f"< {answer}", flush=True)
-            if not self._say_if_current("Ergebnis zur Aufgabe: " + answer, generation):
-                return
-            self.history += [{"role": "assistant", "content": answer}]
-            while self.tts.speaking.is_set():
-                time.sleep(0.05)
+            # The announce thread bundles several results into one reply so the voice does not interrupt itself.
+            self.domain_tasks.collect(job)
         finally:
             self.background_jobs.discard(task_id)
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _announce_domain_results(self) -> None:
+        while True:
+            try:
+                jobs = self.domain_tasks.take_bundle(lambda: False)
+                if not jobs:
+                    continue
+                while self.tts.speaking.is_set():
+                    time.sleep(0.05)  # never cut off a running announcement
+                text = bundle_text(jobs)
+                print(f"< {text}", flush=True)
+                self._say_if_current(text, self.control_generation)
+                self.history += [{"role": "assistant", "content": text}]
+                for job in jobs:
+                    self.domain_tasks.forget(job["taskId"])
+            except Exception as exc:
+                log_event(event="domain_announce_error", error=type(exc).__name__)
+
     # ---------- Hauptschleife ----------
     def run(self) -> None:
         cfg = self.cfg
         self._start_health()
+        threading.Thread(target=self._announce_domain_results, daemon=True).start()
+        # Tasks survive a voice-service restart in Hermes; resume watching them so their result is still announced.
+        for job in self.domain_tasks.pending():
+            resumed = uuid.uuid4().hex[:8]
+            self.background_jobs.add(resumed)
+            threading.Thread(target=self._background_domain, args=(job["taskId"], resumed, self.control_generation), daemon=True).start()
         threading.Thread(target=self._stop_listener, daemon=True).start()
         if self.browser_audio is not None:
             self.browser_audio.start()
