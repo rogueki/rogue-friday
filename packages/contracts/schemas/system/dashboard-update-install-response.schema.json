@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/dashboard-update-install-response.schema.json",
+  "title": "DashboardUpdateInstallResponse",
+  "type": "object",
+  "properties": {
+    "accepted": { "const": true },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "required": ["accepted", "commit"],
+  "additionalProperties": false
+}

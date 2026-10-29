@@ -22,12 +22,16 @@ it("requires owner and CSRF before starting a dashboard update", async () => {
     const owner = api.client(); await owner.loginDev("owner");
     const path = "/api/v1/dashboard-update/install";
     const body = { commit: "invalid" };
-    expect((await anonymous.get("/api/v1/dashboard-update")).statusCode).toBe(403);
+    expect((await anonymous.get("/api/v1/dashboard-update")).statusCode).toBe(401);
     expect((await viewer.get("/api/v1/dashboard-update")).statusCode).toBe(403);
-    expect((await anonymous.request("POST", path, { body })).statusCode).toBe(403);
+    expect((await anonymous.request("POST", path, { body })).statusCode).toBe(401);
     expect((await viewer.request("POST", path, { body })).statusCode).toBe(403);
     expect((await owner.request("POST", path, { body, csrf: false })).statusCode).toBe(403);
-    expect((await owner.request("POST", path, { body })).statusCode).toBe(409);
+    expect((await owner.request("POST", path, { body })).statusCode).toBe(422);
+    const install = vi.spyOn(DashboardUpdateService.prototype, "install")
+      .mockRejectedValueOnce(new Error("Ein Update läuft bereits."));
+    expect((await owner.request("POST", path, { body: { commit: "a".repeat(40) } })).statusCode).toBe(409);
+    install.mockRestore();
   } finally { await api.close(); }
 });
 
@@ -39,6 +43,8 @@ it("passes a valid JSON commit through the owner and CSRF gate to the update ser
     const commit = "a".repeat(40);
     const response = await owner.request("POST", "/api/v1/dashboard-update/install", { body: { commit } });
     expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({ accepted: true, commit });
+    expect(response.headers["cache-control"]).toBe("no-store");
     expect(install).toHaveBeenCalledWith(commit);
   } finally { install.mockRestore(); await api.close(); }
 });
@@ -46,14 +52,26 @@ it("passes a valid JSON commit through the owner and CSRF gate to the update ser
 it("uses cached status for polling and forces GitHub only for an owner's explicit refresh", async () => {
   const status = vi.spyOn(DashboardUpdateService.prototype, "status").mockResolvedValue({
     installed: "a".repeat(40), latest: "a".repeat(40), available: false,
-    checking: false, installing: false, error: null, progress: null, lastResult: null,
+    checking: false, installing: false, error: null,
+    progress: {
+      runId: "b".repeat(32), targetCommit: "a".repeat(40), state: "running", phase: "build", step: 5,
+      totalSteps: 8, message: "Build", startedAt: "2026-10-29T10:00:00.000Z", updatedAt: "2026-10-29T10:01:00.000Z",
+      pid: 4242, processStartedAt: "x",
+    } as never,
+    lastResult: null,
   });
   const api = await startTestApi();
   try {
     const owner = api.client(); await owner.loginDev("owner");
     const viewer = api.client(); await viewer.loginDev("viewer");
     expect((await viewer.get("/api/v1/dashboard-update?refresh=1")).statusCode).toBe(403);
-    expect((await owner.get("/api/v1/dashboard-update")).statusCode).toBe(200);
+    const cached = await owner.get("/api/v1/dashboard-update");
+    expect(cached.statusCode).toBe(200);
+    const body = cached.json();
+    expect(body.progress.phase).toBe("build");
+    expect(body.progress).not.toHaveProperty("pid");
+    expect(body.progress).not.toHaveProperty("processStartedAt");
+    expect(body.contractVersion).toBeUndefined();
     expect((await owner.get("/api/v1/dashboard-update?refresh=1")).statusCode).toBe(200);
     expect(status).toHaveBeenNthCalledWith(1, false);
     expect(status).toHaveBeenNthCalledWith(2, true);

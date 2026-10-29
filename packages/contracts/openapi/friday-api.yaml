@@ -7099,6 +7099,43 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/dashboard-update:
+    get:
+      operationId: getDashboardUpdateStatus
+      tags: [system]
+      summary: Installed and latest dashboard commit, update progress and last result (no envelope, stable during an update)
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          description: "1 asks GitHub for the latest commit instead of using the cached poll result"
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200": { description: Dashboard update status, content: { application/json: { schema: { $ref: "#/components/schemas/DashboardUpdateStatus" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/dashboard-update/install:
+    post:
+      operationId: installDashboardUpdate
+      tags: [system]
+      summary: Start the verified dashboard update to the given GitHub commit
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardUpdateInstallRequest" }
+      responses:
+        "202": { description: Update started, content: { application/json: { schema: { $ref: "#/components/schemas/DashboardUpdateInstallResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/system-backups:
     get:
       operationId: getSystemBackupStatus
@@ -10444,6 +10481,12 @@ components:
       $ref: "../schemas/system/data-retention-action-response.schema.json"
     DataRetentionStatusResponse:
       $ref: "../schemas/system/data-retention-status-response.schema.json"
+    DashboardUpdateInstallRequest:
+      $ref: ../schemas/system/dashboard-update-install-request.schema.json
+    DashboardUpdateInstallResponse:
+      $ref: ../schemas/system/dashboard-update-install-response.schema.json
+    DashboardUpdateStatus:
+      $ref: ../schemas/system/dashboard-update-status.schema.json
     SystemBackupActionRequest:
       $ref: ../schemas/system/system-backup-action-request.schema.json
     SystemBackupActionResponse:

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/dashboard-update-status.schema.json",
+  "title": "DashboardUpdateStatus",
+  "type": "object",
+  "properties": {
+    "installed": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      ]
+    },
+    "latest": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      ]
+    },
+    "available": { "type": "boolean" },
+    "checking": { "type": "boolean" },
+    "installing": { "type": "boolean" },
+    "error": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string" }
+      ]
+    },
+    "progress": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "runId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+            "targetCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "state": { "type": "string", "enum": ["running", "success", "failed"] },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "starting",
+                "download",
+                "verify",
+                "dependencies",
+                "build",
+                "backup",
+                "install",
+                "health",
+                "rollback",
+                "success",
+                "failed"
+              ]
+            },
+            "step": { "type": "integer", "minimum": 0, "maximum": 8 },
+            "totalSteps": { "const": 8 },
+            "message": { "type": "string" },
+            "startedAt": { "type": "string", "format": "date-time" },
+            "updatedAt": { "type": "string", "format": "date-time" }
+          },
+          "required": [
+            "runId",
+            "targetCommit",
+            "state",
+            "phase",
+            "step",
+            "totalSteps",
+            "message",
+            "startedAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "lastResult": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "commit": { "type": "string" },
+            "status": { "type": "string", "enum": ["success", "failed"] },
+            "time": { "type": "string" },
+            "message": { "type": "string" }
+          },
+          "required": ["commit", "status", "time"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "installed",
+    "latest",
+    "available",
+    "checking",
+    "installing",
+    "error",
+    "progress",
+    "lastResult"
+  ],
+  "additionalProperties": false
+}

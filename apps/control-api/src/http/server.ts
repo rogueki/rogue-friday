@@ -7,7 +7,6 @@ import { createCorrelationId } from "../util/ids";
 import type { ApiPipeline } from "./pipeline";
 import { ROUTE_TABLE } from "./route-table.generated";
 import { StaticWeb } from "./static";
-import { DashboardUpdateService } from "../services/dashboard-update";
 import {
   CONTRACT_VERSION_HEADER,
   isContractVersionSupported,
@@ -44,7 +43,6 @@ function matchesTemplate(template: string, path: string): boolean {
 export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeline: ApiPipeline): RequestGuards {
   const guards = createRequestGuards(runtime);
   const web = new StaticWeb(runtime.config.paths.webRoot);
-  const dashboardUpdates = new DashboardUpdateService(runtime.config);
 
   // Bodies arrive as text; the pipeline parses them so malformed JSON yields a contract error instead of Fastify's.
   fastify.removeAllContentTypeParsers();
@@ -119,30 +117,6 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
           handler: (request, reply) => pipeline.handle(spec, request, reply),
         });
       }
-      // Local owner-only maintenance endpoint. Keep the repository and executable fixed server-side.
-      api.get("/v1/dashboard-update", async (request, reply) => {
-        const principal = runtime.auth.authenticate(request.headers.cookie);
-        if (!principal || principal.role !== "owner") return sendError(reply, new ApiError({ code: "FORBIDDEN", message: "Nur der Besitzer darf Updates prüfen." }));
-        const refresh = (request.query as { refresh?: unknown } | undefined)?.refresh === "1";
-        return reply.header("Cache-Control", "no-store").send(await dashboardUpdates.status(refresh));
-      });
-      api.post("/v1/dashboard-update/install", async (request, reply) => {
-        const principal = runtime.auth.authenticate(request.headers.cookie);
-        if (!principal || principal.role !== "owner") return sendError(reply, new ApiError({ code: "FORBIDDEN", message: "Nur der Besitzer darf Updates installieren." }));
-        if (!runtime.auth.verifyCsrf(principal, { cookie: request.headers.cookie,
-          "x-csrf-token": typeof request.headers["x-csrf-token"] === "string" ? request.headers["x-csrf-token"] : undefined }))
-          return sendError(reply, new ApiError({ code: "CSRF_INVALID", message: "Das CSRF-Token fehlt oder ist ungültig." }));
-        let body: unknown = request.body;
-        if (typeof body === "string") {
-          try { body = JSON.parse(body); } catch { body = null; }
-        }
-        const commit: unknown = body && typeof body === "object" && !Array.isArray(body)
-          ? (body as Record<string, unknown>).commit : undefined;
-        if (typeof commit !== "string") return sendError(reply, new ApiError({ code: "VALIDATION_FAILED", message: "Commit-ID fehlt." }));
-        try { await dashboardUpdates.install(commit); }
-        catch (error) { return sendError(reply, new ApiError({ code: "CONFLICT", message: error instanceof Error ? error.message : "Update konnte nicht gestartet werden." })); }
-        return reply.status(202).header("Cache-Control", "no-store").send({ accepted: true, commit });
-      });
       // Everything else below /api: a contract-shaped 404 (405 when the path exists for another method).
       api.all("/*", (request: FastifyRequest, reply: FastifyReply) => {
         const path = new URL(request.url, "http://localhost").pathname;

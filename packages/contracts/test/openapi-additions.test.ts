@@ -78,7 +78,7 @@ describe("observability operations (PLAN §50.3)", () => {
     // diff reports, 283 with the content studio skill bridge (KEEP-05), 286 with the voice domain task
     // routes (DASH-16.02/16.04). Bump deliberately with the release note instead of fitting the number to a
     // failure.
-    expect(operations).toHaveLength(291);
+    expect(operations).toHaveLength(293);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

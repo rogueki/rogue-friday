@@ -70,6 +70,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   resolveNotification: "notifications.resolve",
   runServiceHealthcheck: "system.healthcheck",
   restartAdapter: "system.restartAdapter",
+  installDashboardUpdate: "settings.update",
   exportAudit: "audit.export",
   updateSettings: "settings.update",
   patchHermesConfig: "settings.update",

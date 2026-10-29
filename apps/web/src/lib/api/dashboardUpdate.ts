@@ -1,51 +1,29 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCsrfToken } from "./client";
+import type { DashboardUpdateStatus } from "@friday/sdk";
+import { call } from "./call";
+import { getApiClient } from "./client";
 
-export interface DashboardUpdateStatus {
-  installed: string | null;
-  latest: string | null;
-  available: boolean;
-  installing: boolean;
-  error: string | null;
-  progress: {
-    runId: string; targetCommit: string; state: "running" | "success" | "failed";
-    phase: string; step: number; totalSteps: number; message: string;
-    startedAt: string; updatedAt: string;
-  } | null;
-  lastResult: { commit: string; status: "success" | "failed"; time: string; message?: string } | null;
-}
-
-async function responseJson<T>(response: Response): Promise<T> {
-  const body = await response.json();
-  if (!response.ok) throw new Error(body?.error?.message ?? `HTTP ${response.status}`);
-  return body as T;
-}
+export type { DashboardUpdateStatus } from "@friday/sdk";
 
 export function useDashboardUpdateStatus(enabled: boolean, starting = false) {
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["dashboard-update"],
-    queryFn: async () => responseJson<DashboardUpdateStatus>(await fetch("/api/v1/dashboard-update", { credentials: "same-origin", cache: "no-store" })),
+    queryFn: () => call(getApiClient().GET("/api/v1/dashboard-update")),
     enabled,
     staleTime: 0,
     refetchInterval: (query) => starting || query.state.data?.installing ? 2_000 : 30_000,
     retry: false,
   });
   return { ...query, refresh: async (): Promise<DashboardUpdateStatus> => {
-    const status = await responseJson<DashboardUpdateStatus>(await fetch("/api/v1/dashboard-update?refresh=1", {
-      credentials: "same-origin", cache: "no-store",
-    }));
+    const status = await call(getApiClient().GET("/api/v1/dashboard-update", { params: { query: { refresh: "1" } } }));
     client.setQueryData(["dashboard-update"], status);
     return status;
   } };
 }
 
 export async function installDashboardUpdate(commit: string): Promise<void> {
-  const token = getCsrfToken();
-  await responseJson(await fetch("/api/v1/dashboard-update/install", {
-    method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", ...(token ? { "X-CSRF-Token": token } : {}) },
-    body: JSON.stringify({ commit }),
-  }));
+  await call(getApiClient().POST("/api/v1/dashboard-update/install", { body: { commit } }));
 }
