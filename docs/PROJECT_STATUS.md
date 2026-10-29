@@ -1151,6 +1151,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Kopplungsmodus ohne IDs und Webhook-Entfernen nur auf ausdruecklichen Wunsch (#75); Hermes kennt keine Topic-Allowlist.
   Telefonie-Vorschauen kollidieren nicht mehr bei gleicher Millisekunde (#76). Offen: Live-Tests mit echten Konten.
 
+- DASH-08.05/KEEP-04/REL-01.03 (2026-10-29, N-127 bis N-132): CloudTalk laesst sich trennen; die Schluessel werden
+  geloescht und alte Rufvorschauen bleiben ungueltig (#78). Ein Consumer-Audit aller Dashboard-Bereiche entfernte tote
+  Steuerelemente oder band sie an echte Daten (#79). Die 38 Windows-PowerShell-Installertests laufen erstmals in der CI
+  (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
+  jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
