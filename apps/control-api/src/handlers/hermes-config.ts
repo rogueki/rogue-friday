@@ -4,7 +4,7 @@ import type { OperationId } from "../http/route-types";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 import { HERMES_MODEL_CREDENTIALS, type HermesPluginPatch, type HermesMcpPatch, type HermesMcpActivationPatch, type HermesMcpBearerPatch, type HermesModelCredentialPatch,
-  type HermesConfigPatch as ServiceHermesConfigPatch } from "../services/hermes-config";
+  type GatewayPairingPlatform, type HermesConfigPatch as ServiceHermesConfigPatch } from "../services/hermes-config";
 
 const single = <T>(data: T) => ({
   contractVersion: CONTRACT_VERSION,
@@ -85,6 +85,23 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
     const result = await ctx.runtime.hermesConfig.access();
     ctx.audit.action = "settings.hermes_access_read";
     ctx.audit.after = { providers: result.providers.map((item) => item.provider) };
+    return { status: 200, body: single(result) };
+  },
+  async getGatewayPairing(ctx) {
+    return { status: 200, body: single(await ctx.runtime.hermesConfig.gatewayPairing({ action: "list" })) };
+  },
+  async approveGatewayPairing(ctx) {
+    const { platform, requestId } = ctx.body as { platform: GatewayPairingPlatform; requestId: string };
+    const result = await ctx.runtime.hermesConfig.gatewayPairing({ action: "approve", platform, requestId });
+    ctx.audit.action = "settings.gateway_pairing_approved";
+    ctx.audit.after = { platform };
+    return { status: 200, body: single(result) };
+  },
+  async revokeGatewayPairing(ctx) {
+    const { platform, userId } = ctx.body as { platform: GatewayPairingPlatform; userId: string };
+    const result = await ctx.runtime.hermesConfig.gatewayPairing({ action: "revoke", platform, userId });
+    ctx.audit.action = "settings.gateway_pairing_revoked";
+    ctx.audit.after = { platform };
     return { status: 200, body: single(result) };
   },
   async getHermesConfig(ctx) {

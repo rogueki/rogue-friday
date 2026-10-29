@@ -19,6 +19,7 @@ import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
 import { MessengerCatalogPanel } from "../communication/MessengerCatalogPanel";
 import { TelephonySetup } from "./TelephonySetup";
 import { CloudTalkDesktopSetup } from "./CloudTalkDesktopSetup";
+import { GatewayPairingPanel } from "./GatewayPairingPanel";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -345,6 +346,7 @@ export function SkillAccountsArea() {
     <TelegramGatewaySetup owner={role === "owner"} />
     <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
     <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />
+    <GatewayPairingPanel owner={role === "owner"} />
     <MessengerCatalogPanel />
     <CloudTalkDesktopSetup owner={role === "owner"} />
     <TelephonySetup owner={role === "owner"} />

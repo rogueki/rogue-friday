@@ -429,7 +429,7 @@ def apply_env_value(home, source, key, value):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test", "pairing"):
         # An empty stdout with exit 2 looked like a broken adapter; the caller could not tell a typo from a crash.
         print(json.dumps({"error": "invalid_request",
                           "detail": "unknown action " + (sys.argv[1] if len(sys.argv) > 1 else "<missing>")}))
@@ -445,6 +445,8 @@ def main():
 
 SKILL_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 SKILL_MD_LIMIT = 65536
+PAIRING_PLATFORMS = ("telegram", "discord", "whatsapp")
+PAIRING_USER_ID = re.compile(r"^[A-Za-z0-9@._:+-]{1,128}$")
 
 
 def read_skill_markdown(home, source, slug):
@@ -1267,6 +1269,33 @@ def locked_main(home, source, cli):
             return 4
         print(json.dumps({"name": request["name"], "revision": before, **result}))
         return 0
+    if sys.argv[1] == "pairing":
+        if not source_revision or not source_revision.startswith(PINNED_SOURCE):
+            raise ValueError("unsupported_source_revision")
+        request = read_request()
+        keys = set(request) if isinstance(request, dict) else set()
+        valid = keys == {"action"} and request["action"] == "list" or (
+            keys == {"action", "platform", "requestId"} and request["action"] == "approve" and
+            request["platform"] in PAIRING_PLATFORMS and isinstance(request["requestId"], str) and
+            re.fullmatch(r"[0-9a-f]{16}", request["requestId"]) is not None) or (
+            keys == {"action", "platform", "userId"} and request["action"] == "revoke" and
+            request["platform"] in PAIRING_PLATFORMS and isinstance(request["userId"], str) and
+            PAIRING_USER_ID.fullmatch(request["userId"]) is not None)
+        if not valid:
+            raise ValueError("invalid_request")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        helper = Path(__file__).with_name("hermes_pairing_store.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps(request), 25)
+        response = json.loads(result.stdout)
+        if result.returncode == 4 and isinstance(response, dict) and response.get("error") in ("pairing_request_not_found", "pairing_user_not_found"):
+            print(json.dumps({"error": response["error"]}))
+            return 4
+        if result.returncode or not isinstance(response, dict) or not isinstance(response.get("platforms"), list):
+            raise ValueError("pairing_unavailable")
+        print(json.dumps({"platforms": response["platforms"]}))
+        return 0
     if sys.argv[1] == "model-catalog":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
@@ -1672,7 +1701,7 @@ if __name__ == "__main__":
             "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
             "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
             "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
-            "profile_pin_required", "custom_provider_required"}
+            "profile_pin_required", "custom_provider_required", "pairing_unavailable"}
         # "hermes_unavailable" used to swallow the real reason (missing binary, broken profile, parse error) and the
         # operator only saw an unreachable distro. Keep the canonical code, add what actually happened.
         payload = {"error": message if canonical else "hermes_unavailable"}

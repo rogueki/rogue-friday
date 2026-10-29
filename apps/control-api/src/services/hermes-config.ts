@@ -242,6 +242,18 @@ const unavailable = (detail?: string) =>
 const unavailableBecause = (message: string) =>
   new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
 
+export type GatewayPairingPlatform = "telegram" | "discord" | "whatsapp";
+export type GatewayPairingRequest = { action: "list" } | { action: "approve"; platform: GatewayPairingPlatform; requestId: string } |
+  { action: "revoke"; platform: GatewayPairingPlatform; userId: string };
+export interface GatewayPairingState {
+  platforms: { platform: GatewayPairingPlatform;
+    pending: { requestId: string; userId: string; userName: string; ageMinutes: number }[];
+    approved: { userId: string; userName: string; approvedAt: string | null }[] }[];
+}
+const PAIRING_PLATFORMS: readonly GatewayPairingPlatform[] = ["telegram", "discord", "whatsapp"];
+const PAIRING_REQUEST_ID = /^[0-9a-f]{16}$/;
+const PAIRING_USER_ID = /^[A-Za-z0-9@._:+-]{1,128}$/;
+
 export class HermesConfigService {
   constructor(
     private readonly dataDir: string,
@@ -621,6 +633,41 @@ export class HermesConfigService {
       return { provider: provider.provider, count: credentials.length, credentials };
     });
     return { providers };
+  }
+
+  /** Native Hermes pairing store: list, approve by server-side request id, revoke. Pairing codes never leave Hermes. */
+  async gatewayPairing(request: GatewayPairingRequest): Promise<GatewayPairingState> {
+    if (request.action !== "list" && (!PAIRING_PLATFORMS.includes(request.platform) ||
+        (request.action === "approve" ? !PAIRING_REQUEST_ID.test(request.requestId) : !PAIRING_USER_ID.test(request.userId))))
+      throw validationFailed("Plattform, Anfrage-ID oder Nutzer-ID der Kopplung ist ungueltig.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["pairing"], JSON.stringify(request), 30000, 256000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.startsWith("runner_4:pairing_request_not_found"))
+        throw conflict("Diese Kopplungsanfrage ist abgelaufen oder wurde schon bearbeitet. Liste neu laden.");
+      if (message.startsWith("runner_4:pairing_user_not_found")) throw notFound("Freigegebener Nutzer");
+      throw unavailable();
+    }
+    const platforms = raw.platforms;
+    const text = (value: unknown) => typeof value === "string" && value.length <= 128;
+    if (!Array.isArray(platforms) || platforms.length > 3 || !platforms.every((entry) => {
+      const item = entry as Record<string, unknown>;
+      return item && typeof item === "object" && PAIRING_PLATFORMS.includes(item.platform as GatewayPairingPlatform) &&
+        Array.isArray(item.pending) && item.pending.length <= 50 && item.pending.every((row) => {
+          const p = row as Record<string, unknown>;
+          return p && typeof p.requestId === "string" && PAIRING_REQUEST_ID.test(p.requestId) && typeof p.userId === "string" &&
+            PAIRING_USER_ID.test(p.userId) && text(p.userName) && Number.isSafeInteger(p.ageMinutes) && (p.ageMinutes as number) >= 0;
+        }) &&
+        Array.isArray(item.approved) && item.approved.length <= 200 && item.approved.every((row) => {
+          const a = row as Record<string, unknown>;
+          return a && typeof a.userId === "string" && PAIRING_USER_ID.test(a.userId) && text(a.userName) &&
+            (a.approvedAt === null || typeof a.approvedAt === "string" && !Number.isNaN(Date.parse(a.approvedAt)));
+        });
+    })) throw unavailable();
+    return { platforms } as GatewayPairingState;
   }
 
   private target(): { script: string; distro: string; user: string } {
