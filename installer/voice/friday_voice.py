@@ -1331,6 +1331,7 @@ class VoiceService:
             return
         if owner_required and score < self.cfg["speaker_threshold"]:
             self.status["rejected_speaker"] += 1
+            self.speaker_decision = {"decision": "rejected", "score": round(score, 3), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
             if hasattr(self, "mail_voice"):
                 self.mail_voice.clear_confirmation()
@@ -1339,6 +1340,9 @@ class VoiceService:
             log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None,
                       **probe_details)
             return
+        if owner_required:
+            self.speaker_decision = {"decision": "verified", "score": round(score, 3),
+                                     "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
@@ -1998,6 +2002,8 @@ class VoiceService:
                 "native_ptt_available": getattr(self, "native_ptt_available", False),
                 "service_started_at": getattr(self, "service_started_at", None),
                 "trusted": time.monotonic() < self.trusted_until,
+                "trusted_remaining_s": round(max(0.0, self.trusted_until - time.monotonic()), 1),
+                "speaker_decision": getattr(self, "speaker_decision", None),
                 "input_level": self.input_level.value(),
                 "output_level": self.tts.level.value(),
                 "phase": self.voice_phase(),
