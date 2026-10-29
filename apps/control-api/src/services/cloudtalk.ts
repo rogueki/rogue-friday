@@ -4,6 +4,7 @@ import { kvGet, kvSet } from "../db/database";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 
 const PROFILE_KEY = "telephony.cloudtalk.profile";
+const REVISION_FLOOR_KEY = "telephony.cloudtalk.revision_floor";
 const E164 = /^\+[1-9]\d{7,14}$/;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 export type CloudTalkKeyVerdict = "verified" | "rejected" | "unverified";
@@ -61,11 +62,16 @@ export class CloudTalkService {
     } catch { throw new Error("CloudTalk profile cannot be decrypted; restore the original auth.key"); }
   }
 
+  private revisionFloor(): number {
+    const floor = Number(kvGet(this.db, REVISION_FLOOR_KEY) ?? 0);
+    return Number.isSafeInteger(floor) && floor >= 0 ? floor : 0;
+  }
+
   status() {
     const profile = this.readProfile();
     const last = profile?.ownerId ? this.db.prepare("SELECT state, created_at FROM cloudtalk_reminder_calls WHERE owner_id = ? ORDER BY created_at DESC LIMIT 1")
       .get(profile.ownerId) as { state: string; created_at: string } | undefined : undefined;
-    return { configured: profile !== null, agentId: profile?.agentId ?? null, revision: profile?.revision ?? 0,
+    return { configured: profile !== null, agentId: profile?.agentId ?? null, revision: profile?.revision ?? this.revisionFloor(),
       ownerPhone: profile?.ownerPhone ?? null, ownerPhoneConfirmed: profile?.ownerPhoneConfirmed === true,
       voiceAgentId: profile?.voiceAgentId ?? null,
       remindersEnabled: profile?.remindersEnabled === true, reminderMinutes: profile?.reminderMinutes ?? 15,
@@ -75,7 +81,7 @@ export class CloudTalkService {
 
   async configure(input: ConfigureInput, revision: number, ownerId?: string) {
     const current = this.readProfile();
-    if (revision !== (current?.revision ?? 0)) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
+    if (revision !== (current?.revision ?? this.revisionFloor())) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
     const accessKeyId = input.accessKeyId?.trim() || undefined;
     const accessKeySecret = input.accessKeySecret?.trim() ? input.accessKeySecret : undefined;
     if ((accessKeyId === undefined) !== (accessKeySecret === undefined)) {
@@ -104,7 +110,7 @@ export class CloudTalkService {
       if (verdict === "rejected") throw validationFailed("CloudTalk hat den neuen API-Schlüssel abgelehnt. Der bisher gespeicherte Zugang bleibt unverändert.");
       if (verdict !== "verified") throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
         message: "CloudTalk war nicht erreichbar, der API-Schlüssel konnte nicht geprüft werden. Es wurde nichts geändert." });
-      if ((this.readProfile()?.revision ?? 0) !== revision) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
+      if ((this.readProfile()?.revision ?? this.revisionFloor()) !== revision) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
     }
     const profile: Profile = { revision: revision + 1, agentId: input.agentId ?? current?.agentId,
       accessKeyId: accessKeyId ?? current!.accessKeyId, accessKeySecret: accessKeySecret ?? current!.accessKeySecret,
@@ -114,6 +120,18 @@ export class CloudTalkService {
     cipher.setAAD(Buffer.from(PROFILE_KEY));
     const encrypted = Buffer.concat([cipher.update(JSON.stringify(profile), "utf8"), cipher.final()]);
     kvSet(this.db, PROFILE_KEY, ["v1", nonce.toString("base64"), cipher.getAuthTag().toString("base64"), encrypted.toString("base64")].join(":"));
+    return this.status();
+  }
+
+  /** Deletes the stored keys. Revisions never go backwards, so call previews issued before the disconnect stay invalid. */
+  disconnect(revision: number) {
+    let current: Profile | null;
+    try { current = this.readProfile(); }
+    catch { current = null; } // An undecryptable profile must still be removable; it cannot place calls anyway.
+    const latest = current?.revision ?? this.revisionFloor();
+    if (current && revision !== latest) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
+    kvSet(this.db, REVISION_FLOOR_KEY, String(Math.max(latest, this.revisionFloor())));
+    this.db.prepare("DELETE FROM kv WHERE key = ?").run(PROFILE_KEY);
     return this.status();
   }
 

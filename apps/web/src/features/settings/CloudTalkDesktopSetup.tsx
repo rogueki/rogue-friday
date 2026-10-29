@@ -60,6 +60,19 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
     finally { setBusy(false); }
   }
 
+  async function disconnect() {
+    if (!status.data) return;
+    if (!window.confirm("CloudTalk-Zugang wirklich trennen? Die gespeicherten API-Schlüssel werden gelöscht, automatische Terminanrufe enden und offene Rufvorschauen verfallen. Bereits angefragte Anrufe laufen bei CloudTalk weiter.")) return;
+    setBusy(true); setMessage(""); setPreview(null);
+    try {
+      await call(getApiClient().DELETE("/api/v1/settings/cloudtalk", {
+        params: { header: { "If-Match": String(status.data.data.revision) } } }));
+      await status.refetch();
+      setMessage("CloudTalk getrennt. Die API-Schlüssel sind gelöscht.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "CloudTalk konnte nicht getrennt werden."); }
+    finally { setBusy(false); }
+  }
+
   async function prepare() {
     setBusy(true); setMessage(""); setPreview(null); setResult(null);
     try {
@@ -118,6 +131,7 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
         <button type="button" disabled={busy || !status.data || (!status.data.data.configured && (!accessKeyId.trim() || !accessKeySecret.trim())) ||
           Boolean(accessKeyId.trim()) !== Boolean(accessKeySecret.trim()) ||
           (remindersEnabled && (!/^\+[1-9]\d{7,14}$/.test(ownerPhone) || !voiceAgentId || !ownerPhoneConfirmed))} onClick={() => void save()}>CloudTalk-Zugang speichern</button>
+        {status.data?.data.configured && <>{" "}<button type="button" disabled={busy} onClick={() => void disconnect()}>CloudTalk trennen</button></>}
       </details>
       {status.data?.data.configured && status.data.data.agentId && <>
         <label>Zielnummer (E.164, z. B. +491701234567) <input type="tel" autoComplete="off" disabled={unresolved} value={destination} onChange={(event) => { setDestination(event.target.value); setPreview(null); }} /></label>

@@ -61,6 +61,13 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.after = { configured: result.configured, agentId: result.agentId };
     return { status: 200, body: single(result) };
   },
+  async deleteCloudTalk(ctx) {
+    const result = ctx.runtime.cloudtalk.disconnect(ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.cloudtalk_disconnected";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { configured: result.configured };
+    return { status: 200, body: single(result) };
+  },
   async previewCloudTalkCall(ctx) {
     const { destination } = ctx.body as { destination: string };
     return { status: 200, body: single(ctx.runtime.cloudtalk.preview(destination, ctx.principal!.userId)) };
