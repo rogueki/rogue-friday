@@ -77,6 +77,14 @@ describe("voice status (PLAN §38.1)", () => {
     expect(screen.getAllByText("Kein Gerät gewählt").length).toBeGreaterThan(0);
   });
 
+  it("marks a selected device that is no longer connected as unreachable instead of showing its id", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ audioInputDeviceId: "vdev_gone" })) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
+    expect((await screen.findAllByText("Gewähltes Gerät nicht gefunden")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Nicht erreichbar").length).toBeGreaterThan(0);
+    expect(screen.queryByText("vdev_gone")).toBeNull();
+  });
+
   it("keeps the microphone activity visible and flips to active when the microphone records", async () => {
     const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ mode: "listening", microphone: { state: "listening", active: true, deviceId: null, inputLevel: 0.4 } })) }));
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });

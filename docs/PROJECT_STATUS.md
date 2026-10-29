@@ -1134,6 +1134,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Wake-Modell und Meta des zuvor funktionierenden Profils. Jetzt werden sie vor dem Training gesichert (`*.prev`), bei
   Fehlschlag samt `active`-Marker wiederhergestellt und erst nach Erfolg verworfen (`linux-voice-enrollment.test.ts` 4/4,
   Gegenprobe gegen den alten Code rot).
+- DASH-16.03 (2026-10-29): Grenzen fuer Unteragenten im Dashboard einstellbar (`delegation.max_spawn_depth`,
+  `max_concurrent_children`, `max_iterations`, `child_timeout_seconds`; Hermes-Einstellungen -> Agent, wirken beim
+  naechsten delegate_task). Anbietergrenze und Geldlimit gibt es in Hermes nicht; Ersatz und Begruendung in
+  `dash-15-16-orchestrierung.md` Abschnitt 3.
 
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
