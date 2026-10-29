@@ -719,6 +719,11 @@ export class HermesConfigService {
       if (action === "mcp-bearer")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-MCP-Schluesselvorgang nicht bestaetigt. Status neu laden, bevor er wiederholt wird." });
+      if (action === "credential-update" && error instanceof Error && error.message.includes("credential_rejected"))
+        throw validationFailed("Der Anbieter hat den neuen Schlüssel abgelehnt. Der bisher gespeicherte Schlüssel bleibt unverändert.");
+      if (action === "credential-update" && error instanceof Error && error.message.includes("credential_unverified"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Der neue Schlüssel konnte beim Anbieter nicht geprüft werden (keine Verbindung oder Anbieterfehler). Der bisher gespeicherte Schlüssel bleibt unverändert." });
       if (action === "credential-update")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });

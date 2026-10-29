@@ -68,6 +68,38 @@ class TelephonyRunnerTests(unittest.TestCase):
                 runner.originate({"callId": "call_" + "b" * 32, "number": "sip:attacker@example.test"})
             self.assertEqual(ari.call_count, 1)
 
+    def test_failed_write_restores_the_previous_profile_set(self):
+        profile = dict(mode="trunk", ariUser="friday", ariPassword="long-secret-123", ariPort=8088,
+                       ownerEndpoint="friday-owner", callerId="+491701234567", sipHost="sip.example.test",
+                       sipUser="acct123", sipPassword="sip-secret-123")
+        with patch.object(runner, "ari", return_value=(0, {})):
+            runner.configure({"profile": dict(profile), "revision": 0})
+        before = {path.name: path.read_bytes() for path in self.root.iterdir() if not path.name.startswith(".")}
+        original = runner.write_private
+        profile_writes = []
+        def failing(name, content):
+            if name == "profile.json":
+                profile_writes.append(name)
+                if len(profile_writes) == 1:
+                    raise OSError("disk full")
+            return original(name, content)
+        changed = dict(profile, sipHost="sip2.example.test")
+        with patch.object(runner, "ari", return_value=(0, {})), patch.object(runner, "write_private", side_effect=failing):
+            with self.assertRaises(RuntimeError) as raised:
+                runner.configure({"profile": changed, "revision": 1})
+        self.assertEqual(str(raised.exception), "profile_write_failed")
+        after = {path.name: path.read_bytes() for path in self.root.iterdir() if not path.name.startswith(".")}
+        self.assertEqual(after, before)
+
+    def test_stale_revision_is_refused_under_the_lock(self):
+        profile = dict(mode="local", ariUser="friday", ariPassword="long-secret-123", ariPort=8088,
+                       ownerEndpoint="friday-owner", callerId="1234")
+        with patch.object(runner, "ari", return_value=(0, {})):
+            runner.configure({"profile": dict(profile), "revision": 0})
+            with self.assertRaises(RuntimeError) as raised:
+                runner.configure({"profile": dict(profile), "revision": 0})
+        self.assertEqual(str(raised.exception), "revision_conflict")
+
 
 if __name__ == "__main__":
     unittest.main()

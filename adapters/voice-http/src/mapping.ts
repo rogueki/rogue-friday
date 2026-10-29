@@ -107,6 +107,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(input ? { input_audio: input } : {}),
     ...(output ? { output_audio: output } : {}),
     ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
+    ...(raw.host_platform === "windows" || raw.host_platform === "linux" ? { host_platform: raw.host_platform } : {}),
     ...(typeof raw.trusted_remaining_s === "number" && Number.isFinite(raw.trusted_remaining_s) && raw.trusted_remaining_s >= 0
       ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
     ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
@@ -226,6 +227,10 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       audioOutputDeviceId: raw.output_device_id ?? null,
       serviceStartedAt: raw.service_started_at ?? null,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
+      ...(raw.audio_transport === "device" || raw.audio_transport === "browser"
+        ? { audioPath: { transport: raw.audio_transport,
+            host: raw.host_platform === "windows" || raw.host_platform === "linux" ? raw.host_platform : null } }
+        : {}),
       pushToTalk: { enabled: (raw.audio_transport === "browser" || raw.native_ptt_available === true) && raw.runtime_settings !== undefined,
         active: raw.ptt_active === true },
       focusMode,

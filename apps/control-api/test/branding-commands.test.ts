@@ -59,6 +59,32 @@ it("routes voice stop, pause and resume to the authenticated local voice service
   }
 });
 
+it("serves the voice page stop through the authenticated live voice service", async () => {
+  const providerFetch = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(new Response(null, { status: 202 }))
+    .mockResolvedValueOnce(new Response(null, { status: 503 }));
+  const ctx = {
+    runtime: {
+      config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
+      voiceBridgeKey: Buffer.from("test-bridge-key"),
+    },
+    body: {},
+    correlationId: "corr_test",
+    audit: {},
+  } as unknown as RequestContext;
+  try {
+    const stopped = (await commandHandlers.stopVoice!(ctx)).body as { accepted: boolean; status: string };
+    expect(stopped).toMatchObject({ accepted: true, status: "completed" });
+    expect(providerFetch.mock.calls[0]?.[0].toString()).toBe("http://127.0.0.1:43794/control/stop");
+    expect((providerFetch.mock.calls[0]?.[1] as RequestInit).headers).toEqual({ Authorization: `Bearer ${Buffer.from("test-bridge-key").toString("base64")}` });
+    const rejected = (await commandHandlers.stopVoice!(ctx)).body as { accepted: boolean; status: string; message: string };
+    expect(rejected).toMatchObject({ accepted: false, status: "rejected" });
+    expect(rejected.message).toContain("Voice-Schlüssel");
+  } finally {
+    providerFetch.mockRestore();
+  }
+});
+
 it("controls live voice and the command adapter for the bottom bar's all scope", async () => {
   const providerFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
   const commandPort = {

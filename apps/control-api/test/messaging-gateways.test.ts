@@ -48,3 +48,26 @@ describe.each([
     } finally { await api.close(); }
   });
 });
+
+describe("WhatsApp pairing errors", () => {
+  it("reports a refused re-pairing as conflict instead of an unreachable bridge", async () => {
+    const invoke = vi.fn(async () => { throw new Error("runner_4: linked_session_present"); });
+    const service = new MessagingGatewayService("unused", "whatsapp", invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string; setupUrl: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_messaging_gateway.py", distro: "Friday-Ubuntu", user: "friday", setupUrl: whatsapp.setupUrl });
+    await expect(service.pairing("start", "bot")).rejects.toMatchObject({ code: "CONFLICT" });
+    invoke.mockImplementationOnce(async () => { throw new Error("runner_5: pinned_bridge_or_dependencies_unavailable"); });
+    await expect(service.pairing("start", "bot")).rejects.not.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("explains a rejected or unverifiable Discord token and keeps the stored one", async () => {
+    const invoke = vi.fn(async () => { throw new Error("runner_4:bot_token_rejected"); });
+    const service = new MessagingGatewayService("unused", "discord", invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string; setupUrl: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_messaging_gateway.py", distro: "Friday-Ubuntu", user: "friday", setupUrl: "https://discord.com/developers/applications" });
+    const patch = { token: "N".repeat(59), clearToken: false, allowedUserIds: ["123456789012345678"], allowedChannelIds: [], enabled: false };
+    await expect(service.update(patch as never, 42)).rejects.toMatchObject({ code: "VALIDATION_FAILED", message: expect.stringContaining("bleibt unverändert") });
+    invoke.mockImplementationOnce(async () => { throw new Error("runner_4:bot_unverified"); });
+    await expect(service.update(patch as never, 42)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+});

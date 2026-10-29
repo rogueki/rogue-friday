@@ -364,6 +364,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       result.modules.research.read = true;
       result.modules.research.export = true;
     }
+    // The live voice stop goes through the Control API (commandHandlers.stopVoice -> /control/stop), not the adapter.
+    if (config.adapters.voice.provider === "friday-voice-http") result.modules.voice.stop = true;
     return result;
   };
   const capabilityEnabled = (capability: string): boolean => {

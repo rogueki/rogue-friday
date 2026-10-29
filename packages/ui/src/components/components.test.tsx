@@ -7,7 +7,7 @@ import { mockElementSize } from '../test-utils';
 import { CircularMetric } from './Metrics';
 import { ConfirmDialog, CommandPalette, Dialog, fuzzyScore, type CommandItem } from './Overlays';
 import { FreshnessBadge, StatusFlag } from './Primitives';
-import { Tabs, TextArea } from './Forms';
+import { Select, Tabs, TextArea } from './Forms';
 import { EmptyState, ErrorState, OfflineState } from './States';
 import { ActivityFeed, DataTable, type DataTableColumn } from './Lists';
 
@@ -354,6 +354,54 @@ describe('TextArea', () => {
   it('is disabled for read-only capabilities', () => {
     render(<TextArea label="Notiz" disabled defaultValue="gesperrt" />);
     expect(screen.getByLabelText('Notiz')).toBeDisabled();
+  });
+});
+
+describe('Select', () => {
+  const levels = [
+    { value: 'DEBUG', label: 'Debug' },
+    { value: 'INFO', label: 'Info' },
+  ];
+
+  it('keeps a stored value visible that is no longer offered', () => {
+    render(<Select label="Log-Level" value="ERROR" options={levels} onChange={() => undefined} />);
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe('ERROR');
+    const unknown = screen.getByRole('option', { name: 'Nicht verfügbar (ERROR)' }) as HTMLOptionElement;
+    expect(unknown).toBeDisabled();
+    expect(unknown.selected).toBe(true);
+    expect((screen.getByRole('option', { name: 'Debug' }) as HTMLOptionElement).selected).toBe(false);
+  });
+
+  it('accepts a custom unknownLabel', () => {
+    render(<Select label="Gerät" value="printer" options={levels} onChange={() => undefined} unknownLabel={() => 'Gerät nicht verbunden'} />);
+    expect(screen.getByRole('option', { name: 'Gerät nicht verbunden' })).toBeInTheDocument();
+  });
+
+  it('drops duplicate option values', () => {
+    render(
+      <Select
+        label="Auswahl"
+        value="a"
+        onChange={() => undefined}
+        options={[
+          { value: 'a', label: 'A' },
+          { value: 'a', label: 'A2' },
+          { value: 'b', label: 'B' },
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+  });
+
+  it('explains an empty option list instead of rendering an empty dropdown', () => {
+    render(<Select label="Konto" options={[]} />);
+    expect(screen.getByRole('option', { name: 'Keine Auswahl verfügbar' })).toBeInTheDocument();
+  });
+
+  it('adds no extra option when the value is offered', () => {
+    render(<Select label="Log-Level" value="INFO" options={levels} onChange={() => undefined} />);
+    expect(screen.getAllByRole('option')).toHaveLength(2);
   });
 });
 

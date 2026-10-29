@@ -23,6 +23,11 @@ DELETE = re.compile(r"^(?:friday[, ]+)?(?:l[oö]sche|entferne)\s+Termin\s+(?P<ti
 YES = re.compile(r"^\s*(?:ja|ja bitte|best[aä]tige|best[aä]tigen|mach das|okay|ok)[.!?\s]*$", re.I)
 NO = re.compile(r"^\s*(?:nein|abbrechen|stopp|stop|verwerfen)[.!?\s]*$", re.I)
 CONNECTED = re.compile(r"\s+im\s+Kalender\s+(?P<name>[\wÄÖÜäöüß][\wÄÖÜäöüß -]{0,80})[.!?]?\s*$", re.I)
+CORRECTION = re.compile(r"^\s*(?:nein[,.]?\s+)?(?:(?:ich\s+meinte|lieber|besser|stattdessen|doch)\s+)?(?P<rest>(?:am|um|f[uü]r)\s.+?)[.!?]?\s*$", re.I)
+CORRECTION_DATE = re.compile(r"\bam\s+(?P<day>\d{1,2})\.(?P<month>\d{1,2})\.(?P<year>\d{4})\b", re.I)
+CORRECTION_TIME = re.compile(r"\bum\s+(?P<hour>\d{1,2})(?:[:.](?P<minute>\d{2}))?\s*Uhr\b", re.I)
+CORRECTION_DURATION = re.compile(r"\bf[uü]r\s+(?P<duration>\d{1,3})\s+Minuten\b", re.I)
+REMINDER = "Die Terminvorschau wartet noch auf deine Antwort. Sage Ja, Nein oder eine Korrektur wie: nein, um 16 Uhr."
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -80,6 +85,38 @@ class CalendarVoice:
         if utc.astimezone(zone).replace(tzinfo=None) != local.replace(tzinfo=None) or zone.utcoffset(local.replace(fold=0)) != zone.utcoffset(local.replace(fold=1)):
             raise ValueError("ambiguous local time")
         return utc.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+    def _corrected(self, request, rest):
+        date = CORRECTION_DATE.search(rest)
+        time_ = CORRECTION_TIME.search(rest)
+        duration = CORRECTION_DURATION.search(rest)
+        if not (date or time_ or duration):
+            return None
+        if request["action"] != "create" and not (request["action"] == "update" and "start" in request):
+            raise ValueError("not correctable")
+        if request["action"] == "update" and duration:
+            raise ValueError("not correctable")
+        zone = ZoneInfo(self.zone)
+        start = dt.datetime.fromisoformat(request["start"].replace("Z", "+00:00")).astimezone(zone)
+        parts = {"day": start.day, "month": start.month, "year": start.year, "hour": start.hour, "minute": start.minute}
+        if date:
+            parts["day"], parts["month"], parts["year"] = int(date["day"]), int(date["month"]), int(date["year"])
+        if time_:
+            parts["hour"], parts["minute"] = int(time_["hour"]), int(time_["minute"] or 0)
+        corrected = dict(request)
+        corrected["start"] = self._iso(parts)
+        if request["action"] == "create":
+            if duration:
+                minutes = int(duration["duration"])
+            else:
+                seconds = (dt.datetime.fromisoformat(request["end"].replace("Z", "+00:00"))
+                           - dt.datetime.fromisoformat(request["start"].replace("Z", "+00:00"))).total_seconds()
+                minutes = int(seconds // 60)
+            if not 1 <= minutes <= 480:
+                raise ValueError("duration")
+            corrected["end"] = (dt.datetime.fromisoformat(corrected["start"].replace("Z", "+00:00"))
+                                + dt.timedelta(minutes=minutes)).isoformat().replace("+00:00", "Z")
+        return corrected
 
     def _request_from_text(self, words):
         connected = CONNECTED.search(words)
@@ -139,14 +176,29 @@ class CalendarVoice:
             return {"create": "Der Termin ist im lokalen Friday-Kalender angelegt.",
                     "update": "Der lokale Termin wurde geaendert.",
                     "delete": "Der lokale Termin wurde geloescht."}[pending["request"]["action"]]
-        if self.pending:
-            self.pending = None
+        if self.pending and (correction := CORRECTION.fullmatch(words)):
+            try:
+                corrected = self._corrected(self.pending["request"], correction["rest"])
+            except ValueError:
+                return "Das kann ich in dieser Vorschau nicht korrigieren. Sage Nein und nenne den Termin neu."
+            except ZoneInfoNotFoundError:
+                return "Datum oder Uhrzeit sind nicht eindeutig, oder Zeitzonendaten fehlen. Bitte nenne einen gueltigen Termin."
+            if corrected is not None:
+                self.pending = None
+                answer = self._preview(corrected)
+                return "Korrigiert. " + answer if self.pending else answer
         try:
             request = self._request_from_text(words)
         except (ValueError, ZoneInfoNotFoundError):
+            self.pending = None
             return "Datum oder Uhrzeit sind nicht eindeutig, oder Zeitzonendaten fehlen. Bitte nenne einen gueltigen Termin."
         if request is None:
-            return None
+            # An open preview is a question to the owner: keep it and ask again instead of dropping it silently.
+            return REMINDER if self.pending else None
+        self.pending = None
+        return self._preview(request)
+
+    def _preview(self, request):
         preview, error = self._safe_request("preview", request)
         if error:
             return error
