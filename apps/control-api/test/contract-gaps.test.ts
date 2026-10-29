@@ -232,7 +232,7 @@ describe("contract gaps: authorization and enforcement", () => {
       const memory = (await list("/api/v1/memory"))[0];
       expect((await owner.post(`/api/v1/memory/${memory.id}/conflicts/mem_00000000000000000000000000/resolve`, { resolution: "dismiss" })).statusCode).toBe(404);
       expect((await owner.post(`/api/v1/memory/${memory.id}/conflicts/mem_00000000000000000000000000/resolve`, { resolution: "wegwerfen" })).statusCode).toBe(422);
-      expect((await owner.post(`/api/v1/memory/${memory.id}/conflicts/keine-id/resolve`, { resolution: "dismiss" })).statusCode).toBe(404);
+      expect((await owner.post(`/api/v1/memory/${memory.id}/conflicts/keine-id/resolve`, { resolution: "dismiss" })).statusCode).toBe(400);
     });
   });
 

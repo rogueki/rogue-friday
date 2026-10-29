@@ -1130,6 +1130,14 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch. Live-Lauf als root steht aus
   (`n-094-profil-benutzer-entwurf.md`).
 
+- N-052 (2026-10-29): Pfadparameter werden gegen Laenge, Muster und Enum aus dem Vertrag geprueft (vorher nur
+  128 Zeichen); Werte wie `-../` enden mit 400 VALIDATION_FAILED vor Handler und Adapter. 46 Operationen mit
+  Pfadparametern deklarieren 400 jetzt im Vertrag (additiv).
+- DASH-16.03 (2026-10-29): Grenzen fuer Unteragenten im Dashboard einstellbar (`delegation.max_spawn_depth`,
+  `max_concurrent_children`, `max_iterations`, `child_timeout_seconds`; Hermes-Einstellungen -> Agent, wirken beim
+  naechsten delegate_task). Anbietergrenze und Geldlimit gibt es in Hermes nicht; Ersatz und Begruendung in
+  `dash-15-16-orchestrierung.md` Abschnitt 3.
+
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.

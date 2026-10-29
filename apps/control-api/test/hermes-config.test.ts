@@ -152,6 +152,10 @@ const bridge = {
     "kanban.max_spawn": null,
     "kanban.failure_limit": 2,
     "kanban.dispatch_stale_timeout_seconds": 0,
+    "delegation.max_spawn_depth": 1,
+    "delegation.max_concurrent_children": 10,
+    "delegation.max_iterations": 250,
+    "delegation.child_timeout_seconds": 0,
     "gateway.loop_watchdog": true,
     "gateway.startup_watchdog": true,
     "gateway.startup_watchdog_timeout_seconds": 300,
@@ -242,6 +246,10 @@ const bridge = {
     "kanban.max_spawn": false,
     "kanban.failure_limit": false,
     "kanban.dispatch_stale_timeout_seconds": false,
+    "delegation.max_spawn_depth": false,
+    "delegation.max_concurrent_children": false,
+    "delegation.max_iterations": false,
+    "delegation.child_timeout_seconds": false,
     "gateway.loop_watchdog": false,
     "gateway.startup_watchdog": false,
     "gateway.startup_watchdog_timeout_seconds": false,
@@ -277,7 +285,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(88);
+  expect(status.fields).toHaveLength(92);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
@@ -566,6 +574,22 @@ it("accepts the Kanban dispatcher limits and rejects values outside the Hermes b
   await expect(service.update({ key: "kanban.failure_limit", value: 0 }, 123))
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "kanban.dispatch_stale_timeout_seconds", value: -1 }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("accepts delegation limits and rejects values outside the Hermes bounds", async () => {
+  const invoke = vi.fn(async (_script, _distro, _user, _args, request) => {
+    const patch = JSON.parse(String(request)) as { key: string; value: number };
+    return { ...bridge, revision: 124, values: { ...bridge.values, [patch.key]: patch.value },
+      write: { key: patch.key, persisted: true } };
+  }) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const depth = await service.update({ key: "delegation.max_spawn_depth", value: 2 }, 123);
+  expect(depth.fields.find((field) => field.key === "delegation.max_spawn_depth"))
+    .toMatchObject({ value: 2, family: "agent" });
+  await expect(service.update({ key: "delegation.max_spawn_depth", value: 4 }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "delegation.max_spawn_depth", value: 0 }, 123))
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 

@@ -53,6 +53,13 @@ function parseAudioLevels(value: unknown): RawAudioLevels | undefined {
   return result;
 }
 
+function isSpeakerDecision(value: unknown): value is { decision: "verified" | "rejected"; score: number; at: string } {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (item.decision === "verified" || item.decision === "rejected") && typeof item.score === "number" &&
+    Number.isFinite(item.score) && typeof item.at === "string" && !Number.isNaN(Date.parse(item.at));
+}
+
 /**
  * Validates the body of the status server. Unknown keys are ignored (never forwarded); a missing or mistyped
  * known key rejects the whole answer, so nothing half-valid reaches the canonical model.
@@ -100,6 +107,9 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(input ? { input_audio: input } : {}),
     ...(output ? { output_audio: output } : {}),
     ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
+    ...(typeof raw.trusted_remaining_s === "number" && Number.isFinite(raw.trusted_remaining_s) && raw.trusted_remaining_s >= 0
+      ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
+    ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
     ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
@@ -128,6 +138,9 @@ export interface VoiceStatusInput {
   localModel: LocalModelProbe;
 }
 
+/** A speaker decision is shown as the present state only this long after the service made it. */
+const SPEAKER_DECISION_TTL_MS = 60_000;
+
 const IN_COMMAND: ReadonlySet<RawVoiceState> = new Set(["command", "followup"]);
 
 /**
@@ -155,6 +168,12 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
     const phase = toVoicePhase(raw);
     const waiting = raw.state === "waiting_audio";
     const focusMode = typeof raw.game_mode === "string" && raw.game_mode.length > 0;
+    const verificationEnabled = raw.runtime_settings?.speakerVerificationRequired ?? true;
+    const nowMs = Date.parse(context.syncedAt);
+    // A decision is current only for a short while; an old rejection must not be shown as the present state.
+    const decision = raw.speaker_decision && nowMs - Date.parse(raw.speaker_decision.at) <= SPEAKER_DECISION_TTL_MS
+      ? raw.speaker_decision : null;
+    const speakerState = !verificationEnabled ? "disabled" : raw.trusted ? "verified" : decision?.decision === "rejected" ? "rejected" : "idle";
     return {
       updatedAt: context.syncedAt,
       source: context.source(),
@@ -181,16 +200,19 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
         // The service reports the phrase chosen at install time; older services fall back to the configured value.
         phrase: raw.runtime_settings?.wakeWord ?? raw.wake_phrase ?? settings.wakePhrase,
       },
-      // The service only starts with a speaker profile (fail closed, JV:254-255). `trusted` is set only after a
-      // successful verification (JV:422); who spoke and with which score is not exposed.
+      // The service compares against the single enrolled owner profile; it does not name speakers.
       speakerVerification: {
-        enabled: raw.runtime_settings?.speakerVerificationRequired ?? true,
-        state: raw.trusted ? "verified" : "idle",
+        enabled: verificationEnabled,
+        state: speakerState,
         recognizedSpeaker: null,
-        confidence: null,
+        confidence: (speakerState === "verified" || speakerState === "rejected") && decision
+          ? Math.min(1, Math.max(0, decision.score)) : null,
       },
-      // Remaining time is not exposed (window `trusted_session_s`, VS:98), so no expiry is invented.
-      trustedSession: { active: raw.trusted, expiresAt: null },
+      trustedSession: {
+        active: raw.trusted,
+        expiresAt: raw.trusted && typeof raw.trusted_remaining_s === "number"
+          ? new Date(nowMs + raw.trusted_remaining_s * 1000).toISOString() : null,
+      },
       // Models load before the server opens its port (JV:285-297): reachable means loaded.
       stt: { engine: settings.sttEngine, state: phase === "transcribing" ? "busy" : "ready", latencyMs: null },
       // During the gaming mode the service switches to Piper (JV:565).

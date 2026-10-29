@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import type { HttpMethod, QueryParamSpec, RequiredRole, ResponseSpec, RouteSpec } from "./route-types";
+import type { HttpMethod, PathParamRule, QueryParamSpec, RequiredRole, ResponseSpec, RouteSpec } from "./route-types";
 
 type Json = Record<string, unknown>;
 
@@ -39,6 +39,17 @@ export function buildRouteTable(bundledYaml: string): RouteSpec[] {
       const query: QueryParamSpec[] = params
         .filter((p) => p.in === "query")
         .map((p) => ({ name: p.name as string, required: p.required === true, schema: (p.schema ?? {}) as Json }));
+      const pathParams = params.filter((p) => p.in === "path").map((p) => p.name as string);
+      const pathParamRules: Record<string, PathParamRule> = {};
+      for (const param of params) {
+        if (param.in !== "path") continue;
+        const schema = resolve(param.schema, "schemas");
+        const rule: PathParamRule = {};
+        if (typeof schema.maxLength === "number") rule.maxLength = schema.maxLength;
+        if (typeof schema.pattern === "string") rule.pattern = schema.pattern;
+        if (Array.isArray(schema.enum) && schema.enum.every((entry) => typeof entry === "string")) rule.enum = schema.enum as string[];
+        if (Object.keys(rule).length > 0) pathParamRules[param.name as string] = rule;
+      }
       const headerNames = params.filter((p) => p.in === "header").map((p) => String(p.name).toLowerCase());
       const body = op.requestBody ? resolve(op.requestBody, "requestBodies") : null;
       const bodyJson = (body?.content as Json | undefined)?.["application/json"] as Json | undefined;
@@ -67,7 +78,8 @@ export function buildRouteTable(bundledYaml: string): RouteSpec[] {
         capability: (op["x-capability"] as string | undefined) ?? null,
         role,
         requiresSession: !(Array.isArray(op.security) && op.security.length === 0),
-        pathParams: params.filter((p) => p.in === "path").map((p) => p.name as string),
+        pathParams,
+        pathParamRules,
         query,
         acceptsIfMatch: headerNames.includes("if-match"),
         acceptsIdempotencyKey: headerNames.includes("idempotency-key"),
