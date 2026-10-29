@@ -280,7 +280,7 @@ export function InstallationPanel() {
     >
       {data ? (
         <div className="mc-stack">
-          <dl className="mc-kvlist mc-kvlist--single">
+          <dl className="mc-kvlist mc-kvlist--single" data-testid="installation-runtime">
             <KeyValue label={t("system.installation.id")} mono>
               {data.installationId}
             </KeyValue>
@@ -288,13 +288,13 @@ export function InstallationPanel() {
               {data.dashboard.commit?.slice(0, 12) ?? null}
             </KeyValue>
             <KeyValue label={t("system.installation.installedAt")} reason={t("system.installation.noCommit")}>
-              {data.dashboard.installedAt ? formatters.relative(data.dashboard.installedAt) : null}
+              {data.dashboard.installedAt ? formatters.dateTime(data.dashboard.installedAt) : null}
             </KeyValue>
             <KeyValue label={t("system.installation.port")} mono>
               {`${host}:${data.controlApi.port} · PID ${data.controlApi.pid}`}
             </KeyValue>
             <KeyValue label={t("system.installation.startedAt")}>
-              {formatters.relative(data.controlApi.startedAt)}
+              {formatters.dateTime(data.controlApi.startedAt)}
             </KeyValue>
             <KeyValue label={t("system.installation.contract")} mono>
               {data.controlApi.contractVersion}
