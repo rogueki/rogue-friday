@@ -356,9 +356,9 @@ jobs:
         shell: powershell
         run: |
           $failed = @()
-          # Hosted runners cannot satisfy these: a 1024x768 screen for the fixed 1200x760 wizard, and steps that already
-          # run inside a runner job object. Run them locally (installer/tests) before changing the wizard or process supervision.
-          $hostBound = @('gui-dpi.Tests.ps1', 'gui-shell-layout.Tests.ps1', 'gui-wizard-pages.Tests.ps1', 'job-tree.Tests.ps1')
+          # Hosted runners cannot satisfy these: a 1024x768 screen for the fixed 1200x760 wizard.
+          # Run them locally (installer/tests) before changing the wizard.
+          $hostBound = @('gui-dpi.Tests.ps1', 'gui-shell-layout.Tests.ps1', 'gui-wizard-pages.Tests.ps1')
           foreach ($test in Get-ChildItem installer/tests/*.Tests.ps1) {
             if ($hostBound -contains $test.Name) { Write-Host "=== $($test.Name) skipped (host-bound)"; continue }
             Write-Host "=== $($test.Name)"
