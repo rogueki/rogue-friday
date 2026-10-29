@@ -734,6 +734,11 @@ export class HermesConfigService {
     } catch (error) {
       if (action === "status" && error instanceof Error && error.message.includes("hermes_not_installed"))
         return null;
+      // The bridge refuses every change on an unsupported Hermes checkout before touching anything; say so instead of
+      // reporting an outage or an unconfirmed write.
+      if (action !== "status" && error instanceof Error && error.message.includes("unsupported_source_revision"))
+        throw conflict("Die installierte Hermes-Version wird nicht unterstützt; diese Änderung wurde nicht ausgeführt. Hermes über den Installer auf den unterstützten Stand bringen.",
+          { reason: "unsupported_source_revision" });
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
       if (action === "update" && error instanceof Error) {
