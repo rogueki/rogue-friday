@@ -184,6 +184,12 @@ function Secure-Field([string]$name) {
     try { return (ConvertFrom-SecureString -SecureString $secure) }
     finally { $secure.Dispose() }
 }
+function Test-VoiceReferenceAnswer([int]$ModeIndex, [int]$ChoiceIndex, [string]$Reference) {
+    # Die eigene Stimme hat keine mitgelieferte Ersatzdatei; ohne Datei braeche der Installer erst spaeter ab.
+    if ($ModeIndex -eq 0 -and $ChoiceIndex -eq 2 -and -not "$Reference".Trim()) {
+        throw 'Für die eigene Stimme bitte eine MP3/WAV-Datei (3 bis 30 Sekunden) wählen.'
+    }
+}
 function Test-Wizard {
     $root = Value 'installRoot'; $location = Value 'distroLocation'; $distro = Value 'distroName'
     if ($root -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $root -match '[\\/]\.\.?([\\/]|$)') { throw 'Installationsordner: absoluten Windows-Pfad wählen.' }
@@ -208,6 +214,9 @@ function Test-Wizard {
     if ($script:fields['voiceMode'].SelectedIndex -eq 1 -and (Value 'elevenlabsKey') -eq '') {
         $existingCloudKey = Test-Path -LiteralPath (Join-Path $root 'config\elevenlabs_api.key.dpapi') -PathType Leaf
         if (-not $existingCloudKey) { throw 'ElevenLabs-API-Schlüssel fehlt.' }
+    }
+    if (-not ($state -and $state.voice_mode)) {
+        Test-VoiceReferenceAnswer $script:fields.voiceMode.SelectedIndex $script:fields.voiceChoice.SelectedIndex (Value 'voiceReference')
     }
     if ((Value 'voiceReference') -and -not ($state -and $state.voice_mode) -and
         -not (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) { throw 'Die gewählte Stimmreferenz wurde nicht gefunden.' }
@@ -309,8 +318,8 @@ function Update-PathFields {
 $voicePage = New-WizardPage 'voicePage' 'Sprache & Stimme' 'Lokale Stimmen bleiben auf deinem PC; ElevenLabs braucht Internet und einen passenden Tarif.'
 [void](Add-Text $voicePage.Panel 'Wähle die Sprachverarbeitung und die Stimme. Die Gerätewahl gilt für die Aufnahme deiner Stimmproben.' 0 44)
 [void](Add-Choice $voicePage.Panel 'voiceMode' 'Sprachbetrieb' 50 @('Lokal (NVIDIA 6 GB VRAM)', 'ElevenLabs Cloud'))
-[void](Add-Choice $voicePage.Panel 'voiceChoice' 'Lokale Ausgabestimme' 88 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)'))
-[void](Add-Row $voicePage.Panel 'voiceReference' 'Eigene MP3/WAV (optional)' 126)
+[void](Add-Choice $voicePage.Panel 'voiceChoice' 'Lokale Ausgabestimme' 88 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)', 'Eigene Stimme (eigene MP3/WAV)'))
+[void](Add-Row $voicePage.Panel 'voiceReference' 'Eigene MP3/WAV' 126)
 $browse = New-Object Windows.Forms.Button; $browse.Text = 'Datei wählen'
 $browse.Location = New-Object Drawing.Point(196, 154); $browse.Size = New-Object Drawing.Size(120, 26)
 $voicePage.Panel.Controls.Add($browse)
@@ -323,7 +332,7 @@ $outputs = @('Windows-Standardlautsprecher') + @($audioEndpoints | Where-Object 
     Select-Object -ExpandProperty FriendlyName -Unique)
 [void](Add-Choice $voicePage.Panel 'inputDevice' 'Mikrofon' 226 $inputs)
 [void](Add-Choice $voicePage.Panel 'outputDevice' 'Lautsprecher' 264 $outputs)
-$voiceHelp = Add-Text $voicePage.Panel 'Klassisch wählt ohne eigene Datei automatisch die mitgelieferte Referenz. Für die weibliche lokale Qwen-Stimme kann eine eigene Referenz gewählt werden; ohne Referenz wird Piper Kerstin verwendet.' 302 72
+$voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.' 302 72
 
 $script:fields.voiceId.Enabled = $false
 $script:fields.voiceMode.Add_SelectedIndexChanged({
@@ -331,7 +340,7 @@ $script:fields.voiceMode.Add_SelectedIndexChanged({
     $script:fields.voiceChoice.Enabled = $local; $script:fields.voiceReference.Enabled = $local
     $browse.Enabled = $local; $script:fields.voiceId.Enabled = -not $local
     $voiceHelp.Text = if ($local) {
-        'Klassisch wählt ohne eigene Datei automatisch die mitgelieferte Referenz. Für die weibliche lokale Qwen-Stimme kann eine eigene Referenz gewählt werden; ohne Referenz wird Piper Kerstin verwendet.'
+        'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.'
     } else {
         'ElevenLabs liefert Erkennung und Ausgabe über das Internet. Die Voice ID stammt aus deinem ElevenLabs-Konto; die Standard-Bibliotheksstimme kann einen kostenpflichtigen Tarif erfordern.'
     }
@@ -426,7 +435,7 @@ function Load-RootState {
     $script:fields.address.SelectedIndex = 0; $script:fields.character.SelectedIndex = 0; $script:fields.length.SelectedIndex = 0
     foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey')) { $script:fields[$field].Clear() }
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
-    $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } else { 0 }
+    $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } elseif ($saved -and $saved.voice_choice -eq 'custom') { 2 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
     $script:fields.voiceReference.Text = if ($saved -and $saved.voice_reference) { $saved.voice_reference } else { '' }
     $script:fields.inputDevice.SelectedIndex = 0; $script:fields.outputDevice.SelectedIndex = 0
@@ -445,7 +454,7 @@ function Load-RootState {
         }
         if (-not $saved.voice_mode) {
             if ($pending.voiceMode -in @('1','2')) { $script:fields.voiceMode.SelectedIndex = [int]$pending.voiceMode - 1 }
-            if ($pending.voiceChoice -in @('1','2')) { $script:fields.voiceChoice.SelectedIndex = [int]$pending.voiceChoice - 1 }
+            if ($pending.voiceChoice -in @('1','2','3')) { $script:fields.voiceChoice.SelectedIndex = [int]$pending.voiceChoice - 1 }
             $script:fields.voiceReference.Text = [string]$pending.voiceReference
             $script:fields.voiceId.Text = [string]$pending.voiceId
         }
@@ -518,7 +527,7 @@ function Update-Summary {
     $mode = if ($script:fields.voiceMode.SelectedIndex -eq 0) { 'Lokal (NVIDIA-GPU)' } else { 'ElevenLabs Cloud (mögliche Anbieter-Kosten)' }
     $voiceName = if ($script:fields.voiceMode.SelectedIndex -eq 1) {
         if (Value 'voiceId') { 'ElevenLabs Voice ID ' + (Value 'voiceId') } else { 'ElevenLabs Standardstimme' }
-    } elseif ($script:fields.voiceChoice.SelectedIndex -eq 1) { 'J.A.R.V.I.S. klassisch' } else { 'F.R.I.D.A.Y. weiblich' }
+    } elseif ($script:fields.voiceChoice.SelectedIndex -eq 1) { 'J.A.R.V.I.S. klassisch' } elseif ($script:fields.voiceChoice.SelectedIndex -eq 2) { 'Eigene Stimme' } else { 'F.R.I.D.A.Y. weiblich' }
     $state = Existing-State (Value 'installRoot')
     $previous = if ($state) { "Vorhandene Installation: erledigte Schritte werden übernommen ($(@($state.done).Count) Schritte)." } else { 'Neuinstallation: WSL, Hermes, Sprache und Dashboard werden eingerichtet.' }
     $summaryText.Text = (@"
@@ -970,6 +979,12 @@ if ($Simulation) {
                 $script:fields.length.SelectedIndex -ne 1 -or $script:fields.voiceMode.SelectedIndex -ne 1 -or
                 (Value 'inputDevice') -cne 'Testmikrofon' -or (Value 'outputDevice') -cne 'Testlautsprecher' -or
                 $script:fields.openBrowser.Checked) { throw 'GUI resume did not restore pending nonsecret decisions.' }
+            @{ done=@(); gui_pending=@{ voiceMode='1'; voiceChoice='3'; voiceReference='C:\Stimmen\eigen.wav' } } |
+                ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $stateFile -Encoding UTF8
+            $script:configuredRoot = ''; Load-RootState
+            if ($script:fields.voiceChoice.SelectedIndex -ne 2 -or (Value 'voiceReference') -cne 'C:\Stimmen\eigen.wav') {
+                throw 'GUI resume did not restore the own voice choice.'
+            }
             @{ done=@('persona','voicepython'); gui_pending=@{}; voice_mode='local' } |
                 ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $stateFile -Encoding UTF8
             @{ input_device='Real microphone, MME'; output_device='Real speaker, MME' } |

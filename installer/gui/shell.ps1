@@ -88,6 +88,7 @@ function New-GuiShell {
     $titleLabel.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $titleLabel.BackColor = $content.BackColor
     $titleLabel.TabStop = $true
+    $titleLabel.UseMnemonic = $false
     $content.Controls.Add($titleLabel)
 
     $bodyLabel = New-Object System.Windows.Forms.Label
@@ -97,6 +98,7 @@ function New-GuiShell {
     $bodyLabel.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Regular) $Scale
     $bodyLabel.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $bodyLabel.BackColor = $content.BackColor
+    $bodyLabel.UseMnemonic = $false
     $content.Controls.Add($bodyLabel)
 
     $progress = New-Object System.Windows.Forms.ProgressBar

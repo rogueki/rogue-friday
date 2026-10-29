@@ -194,6 +194,9 @@ try {
     $pixel = $fallbackShell.BackdropBitmap.GetPixel(200, 150)
     Assert-True ([math]::Abs($pixel.R - $fallbackColor.R) -le 2 -and [math]::Abs($pixel.G - $fallbackColor.G) -le 2 -and [math]::Abs($pixel.B - $fallbackColor.B) -le 2) "Ersatzflaeche hat die falsche Farbe: $($pixel.ToString())."
     Assert-True ((Get-GuiContrastRatio (Get-GuiColor $script:GuiLayout.PrimaryText) $fallbackColor) -ge 4.5) 'Kontrast auf der Ersatzflaeche ist zu gering.'
+    # Seitentitel wie "Sprache & Stimme" muessen das Zeichen zeigen statt es als Tastenkuerzel zu verschlucken.
+    Set-GuiShellPage $fallbackShell 'Schritt 3 von 8' 'Sprache & Stimme' 'Text & Hinweis' $false 0
+    Assert-True (-not $fallbackShell.TitleLabel.UseMnemonic -and -not $fallbackShell.BodyLabel.UseMnemonic) 'Ein & im Seitentitel oder Seitentext wird als Tastenkuerzel verschluckt.'
 } finally {
     $fallbackShell.Form.Dispose()
     if ($fallbackShell.BackdropBitmap) { $fallbackShell.BackdropBitmap.Dispose() }

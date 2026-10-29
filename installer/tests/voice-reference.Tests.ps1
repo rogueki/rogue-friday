@@ -80,7 +80,7 @@ try {
     if ((Test-VoiceReferenceFile $broken).Reason -eq '') { throw 'Ablehnung nennt keinen Grund.' }
 
     $guiText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '..\install-friday-gui.ps1'))
-    if ($guiText -notmatch "'voiceChoice'[^\r\n]*'J\.A\.R\.V\.I\.S\. klassisch \(beiliegende WAV\)'\)") { throw 'GUI bietet die beiden beiliegenden Stimmen nicht an.' }
+    if ($guiText -notmatch "'voiceChoice'[^\r\n]*'F\.R\.I\.D\.A\.Y\. weiblich', 'J\.A\.R\.V\.I\.S\. klassisch \(beiliegende WAV\)'") { throw 'GUI bietet die beiden beiliegenden Stimmen nicht an.' }
     if ($guiText -notmatch "Die Stimmreferenz muss eine WAV- oder MP3-Datei sein") { throw 'GUI prueft die Endung der Referenz nicht.' }
     $installerText = [IO.File]::ReadAllText($installer)
     if ($installerText -notmatch "\`$answer -notin @\('1', '2', '3'\)") { throw 'Backend akzeptiert nicht alle drei Stimmen.' }
