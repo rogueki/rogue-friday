@@ -1,6 +1,11 @@
 import { defineConfig } from "@playwright/test";
-import { launchOptions } from "./tests/e2e/support/browser";
+import { launchOptions, NO_GL_ARGS } from "./tests/e2e/support/browser";
 import { API_ORIGIN } from "./tests/e2e/support/constants";
+
+// Specs that render the WebGL orb or compare screenshots keep SwiftShader; the rest run with the 2D fallback, which
+// avoids the SwiftShader GPU-process stalls that caused most CI retries (N-093).
+const WEBGL_SPECS = [/orb-[^/]*\.spec\.ts$/, /visual\.spec\.ts$/, /mobile\.spec\.ts$/, /a11y\.spec\.ts$/,
+  /performance\.spec\.ts$/, /settings\.spec\.ts$/, /fallback-2d\.spec\.ts$/];
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -28,6 +33,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
+  projects: [
+    { name: "webgl", testMatch: WEBGL_SPECS, use: { launchOptions: launchOptions() } },
+    { name: "2d", testMatch: "**/*.spec.ts", testIgnore: WEBGL_SPECS, use: { launchOptions: launchOptions(NO_GL_ARGS) } },
+  ],
   // Built Control API (mock mode, dev login, snapshot of apps/web/out). Needs `pnpm build:app` once; see tests/e2e/README.md.
   webServer: {
     command: "pnpm exec tsx tests/e2e/stack.ts",
