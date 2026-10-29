@@ -400,6 +400,22 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "delegation.max_spawn_depth";
+      value: number;
+    }
+  | {
+      key: "delegation.max_concurrent_children";
+      value: number;
+    }
+  | {
+      key: "delegation.max_iterations";
+      value: number;
+    }
+  | {
+      key: "delegation.child_timeout_seconds";
+      value: number;
+    }
+  | {
       key: "gateway.startup_watchdog_timeout_seconds";
       value: number;
     }
@@ -3574,6 +3590,10 @@ export interface HermesConfigStatus {
       | "kanban.max_spawn"
       | "kanban.failure_limit"
       | "kanban.dispatch_stale_timeout_seconds"
+      | "delegation.max_spawn_depth"
+      | "delegation.max_concurrent_children"
+      | "delegation.max_iterations"
+      | "delegation.child_timeout_seconds"
       | "gateway.loop_watchdog"
       | "gateway.startup_watchdog"
       | "gateway.startup_watchdog_timeout_seconds"

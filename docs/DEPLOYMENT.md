@@ -258,10 +258,7 @@ bereits genutzten Muster `hermes_api.key` (Review §4.1), und `wincred:` bräuch
 Bei der Ersteinrichtung setzt der Nutzer Name, Benutzername und Passwort im lokalen Dashboard. Der Installer speichert nur den Hash und
 behält ein bestehendes Konto bei Updates unverändert. Das Passwort lässt sich aus dem Hash nicht wiederherstellen. Für einen lokalen Reset:
 
-1. Die vorhandene Datei `<InstallRoot>\config\dashboard_owner.hash` nach `<InstallRoot>\backups` sichern.
-2. PowerShell im Ordner `<InstallRoot>\dashboard` öffnen und `& "C:\Program Files\nodejs\node.exe" ".\node_modules\tsx\dist\cli.mjs" ".\packages\auth\src\cli\hash-password.ts"` ausführen. Das neue Passwort wird verdeckt abgefragt und bestätigt.
-3. Aus der Ausgabe `FRIDAY_OWNER_PASSWORD_HASH='…'` **nur den Hash zwischen den Anführungszeichen** in `<InstallRoot>\config\dashboard_owner.hash` eintragen. Weder Passwort noch Hash in Chat, Issue, Git oder Logs kopieren.
-4. Im Dashboard mit dem bei der Ersteinrichtung gewählten Benutzernamen und dem neuen Passwort anmelden. Der Server liest die Hash-Datei bei jeder Anmeldung neu; ein Neustart ist nicht erforderlich.
+PowerShell öffnen und `& "<InstallRoot>\installer\scripts\reset-owner-password.ps1"` ausführen. Das Skript sichert den bisherigen Hash nach `<InstallRoot>\backups\owner-password-<Zeit>`, fragt das neue Passwort verdeckt zweimal ab und trägt den Hash ein; Passwort und Hash erscheinen nirgends. Danach mit dem bisherigen Benutzernamen und dem neuen Passwort anmelden; ein Neustart ist nicht nötig.
 
 Ein erneuter Installerlauf allein setzt ein vergessenes Passwort nicht zurück. Die frühere Anleitung zum Entfernen von `dashboard` aus `install-state.json` trifft auf den aktuellen Installer nicht mehr zu.
 
