@@ -29,7 +29,8 @@ jobs:
   python-helpers:
     name: Python voice and integration helpers
     if: ${{ !inputs.capture_baselines }}
-    runs-on: ubuntu-latest
+    # Pinned to the release Friday installs in WSL (Ubuntu-24.04); ubuntu-latest moved to 26.04, whose coreutils and font rendering differ.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -142,7 +143,7 @@ jobs:
   verify:
     name: Contracts, typecheck, lint, tests, build
     if: ${{ !inputs.capture_baselines }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -194,7 +195,7 @@ jobs:
     name: End-to-end (Playwright ${{ matrix.shard }}/12)
     if: ${{ !inputs.capture_baselines }}
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     # fullyParallel splits single tests across shards; 12 keep each shard well inside the 30 min guard.
     strategy:
@@ -239,7 +240,7 @@ jobs:
   baselines:
     name: Capture Playwright baselines
     if: ${{ inputs.capture_baselines }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -263,8 +264,9 @@ jobs:
         run: pnpm build
 
       # Only these two specs write screenshot baselines; running the rest would just add noise.
+      # "all": a deliberate capture must rewrite every baseline; the default only rewrites images beyond the tolerance, so a stale baseline just under it survived.
       - name: Capture baselines
-        run: pnpm exec playwright test tests/e2e/visual.spec.ts tests/e2e/mobile.spec.ts --update-snapshots --workers=1
+        run: pnpm exec playwright test tests/e2e/visual.spec.ts tests/e2e/mobile.spec.ts --update-snapshots=all --workers=1
 
       - name: Upload baselines
         uses: actions/upload-artifact@v4
