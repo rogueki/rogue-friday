@@ -144,7 +144,9 @@ export async function open(page: Page, path = "/", options: { waitForEventStream
   // Wait for the event stream: a state forced right after the page load would otherwise race the socket subscription.
   if ((page.viewportSize()?.width ?? 1920) >= 1280) {
     if (options.waitForEventStream !== false) {
-      await expect(eventStreamChip(page)).toContainText(/online|eingeschränkt/);
+      // Software WebGL (SwiftShader) at 4K keeps the main thread busy for a while; the stream connects, just later.
+      const largeViewport = (page.viewportSize()?.width ?? 1920) * (page.viewportSize()?.height ?? 1080) >= 3840 * 2160;
+      await expect(eventStreamChip(page)).toContainText(/online|eingeschränkt/, { timeout: largeViewport ? 60_000 : undefined });
     }
     await expect(page.getByRole("navigation", { name: "Hauptnavigation" })).toBeVisible();
   }
