@@ -98,7 +98,9 @@ export class TelephonyService {
     if (!status.ready || !status.mode || !status.callerId) throw unavailable("Asterisk, SIP-Registrierung oder Owner-Nebenstelle ist nicht bereit.");
     if (!(status.mode === "trunk" ? E164 : EXTENSION).test(destination)) throw validationFailed("Zielnummer ist für diesen Modus ungültig.");
     const expires = this.now() + 120000;
-    const body = Buffer.from(JSON.stringify({ actor, destination, revision: status.revision, expires }), "utf8").toString("base64url");
+    // A per-preview nonce keeps two previews in the same millisecond from colliding on the single-use token hash.
+    const body = Buffer.from(JSON.stringify({ actor, destination, revision: status.revision, expires,
+      nonce: randomBytes(16).toString("base64url") }), "utf8").toString("base64url");
     const signature = createHmac("sha256", this.previewKey).update(body).digest("base64url");
     const token = `${body}.${signature}`;
     this.db.prepare("DELETE FROM telephony_previews WHERE expires_at < ?").run(this.now());
