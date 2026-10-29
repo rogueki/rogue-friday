@@ -38,4 +38,11 @@ describe("Telegram gateway setup", () => {
     expect(screen.getByText("Nur der Owner kann den Telegram-Bot einrichten.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Bot-Token")).toBeNull();
   });
+
+  it("shows readable labels instead of raw bot status values", async () => {
+    renderWithProviders(<TelegramGatewaySetup owner />, { fetchImpl: async () => jsonResponse({ ...status,
+      data: { ...status.data, botAuthentication: "invalid", receiveMode: "polling" } }) });
+    await screen.findByText(/Bot-Authentisierung: von Telegram abgelehnt · Empfangsmodus: Polling\./);
+    expect(screen.queryByText(/\binvalid\b/)).toBeNull();
+  });
 });

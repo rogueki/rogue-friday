@@ -137,19 +137,34 @@ def update(lines):
     if flag and (not new_token or not ids):
         print(json.dumps({"error": "token_and_owner_required"}))
         return 4
-    if flag:
+    token_changed = bool(new_token) and new_token != current["TELEGRAM_BOT_TOKEN"]
+    if flag or token_changed:
         probe = bot_probe(new_token)
-        if probe["botAuthentication"] == "invalid" or probe["receiveMode"] == "webhook":
+        # A new token only replaces the stored one after Telegram confirmed it; an unreachable API proves nothing.
+        if token_changed and probe["botAuthentication"] == "invalid":
+            print(json.dumps({"error": "bot_token_rejected"}))
+            return 4
+        if probe["botAuthentication"] == "unknown":
+            print(json.dumps({"error": "bot_unverified"}))
+            return 4
+        if flag and (probe["botAuthentication"] != "verified" or probe["receiveMode"] == "webhook"):
             print(json.dumps({"error": "invalid_bot_or_webhook_conflict"}))
             return 4
     changed_env = new_token != current["TELEGRAM_BOT_TOKEN"] or ",".join(ids) != current["TELEGRAM_ALLOWED_USERS"]
     changed_flag = flag != before["enabled"]
-    if changed_env:
-        write_env(lines, new_token, ids)
+    # Switch the flag first: if Hermes refuses it, nothing has been written yet.
     if changed_flag:
         configured = command(str(HERMES_CLI), "config", "set", "platforms.telegram.enabled", "true" if flag else "false")
         if configured.returncode != 0:
             print(json.dumps({"error": "config_unavailable"}))
+            return 5
+    if changed_env:
+        try:
+            write_env(lines, new_token, ids)
+        except OSError:
+            if changed_flag:
+                command(str(HERMES_CLI), "config", "set", "platforms.telegram.enabled", "true" if before["enabled"] else "false")
+            print(json.dumps({"error": "env_write_failed"}))
             return 5
     applied = None
     if changed_env or changed_flag:
