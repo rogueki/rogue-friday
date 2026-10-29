@@ -445,6 +445,15 @@ it("does not report a timed-out credential write as failed or safe to retry", as
       message: expect.stringContaining("Status neu laden") });
 });
 
+it("explains a provider-rejected or unverifiable key and keeps the stored one", async () => {
+  const rejected = vi.fn(async () => { throw new Error("bridge_exit_1: credential_rejected"); }) as unknown as RunnerInvoker;
+  await expect(fixture(rejected).updateCredential({ key: "OPENAI_API_KEY", value: "CANARY" }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED", message: expect.stringContaining("bleibt unverändert") });
+  const unverified = vi.fn(async () => { throw new Error("bridge_exit_1: credential_unverified"); }) as unknown as RunnerInvoker;
+  await expect(fixture(unverified).updateCredential({ key: "OPENAI_API_KEY", value: "CANARY" }, 123))
+    .rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE", message: expect.stringContaining("bleibt unverändert") });
+});
+
 it("activates only a typed installed-plugin request and leaves runtime adoption unverified", async () => {
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
     plugins: [{ id: "kanban", installed: true, enabled: true, configured: null }],
