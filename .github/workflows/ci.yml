@@ -70,6 +70,7 @@ jobs:
             installer/voice/tests/test_apply_audio_rollback.py \
             installer/voice/tests/test_audio_hotplug.py \
             installer/voice/tests/test_speaker_profile_summary.py \
+            installer/voice/tests/test_fast_tts_voice_slots.py \
             installer/voice/tests/test_voice_runtime_paths.py \
             installer/voice/tests/test_update_dependency_closure.py \
             installer/wsl/test_update_wsl_dependency_closure.py \

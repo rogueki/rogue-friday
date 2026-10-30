@@ -53,6 +53,14 @@ if ($voice -notmatch 'body\["voice"\] not in CHOICES') { throw 'Der Stimm-Endpun
 $update = Read-Text '..\scripts\update-voice-personas.ps1'
 if ($update -notmatch "\`$pairs = @\('friday-female','classic','custom'\)") { throw 'Das Stimmen-Update sichert den eigenen Platz nicht.' }
 
+$installWsl = Read-Text '..\fast_tts\install_wsl.sh'
+if ($installWsl -notmatch '\$# -ne 9' -or $installWsl -notmatch 'custom\) audio="\$8"; words="\$9"') { throw 'Die TTS-Installation legt den eigenen Platz nicht an.' }
+$updateSh = Read-Text '..\fast_tts\update_personas.sh'
+if ($updateSh -notmatch '\[\[ \$# -eq 7 \|\| \$# -eq 9 \]\]') { throw 'Das TTS-Update nimmt den eigenen Platz nicht an.' }
+if ($update -match "'config\\voice-references\\classic-reference\.txt',\s*'config\\voice-references\\custom-streaming\.wav'") { throw 'Das Stimmen-Update uebergibt den eigenen Platz auch ohne Aufnahme.' }
+$installer = Read-Text '..\install-friday.ps1'
+if ($installer -notmatch '\$linuxPaths\.Count -in @\(7, 9\)') { throw 'Der Installer gibt die Stimmpaare bei eigener Aufnahme nicht weiter.' }
+
 # --- Steuerungsseite
 $repo = Join-Path $me '..\..'
 $api = [IO.File]::ReadAllText((Join-Path $repo 'apps\control-api\src\services\voice-persona.ts'))

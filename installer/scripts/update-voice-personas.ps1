@@ -130,8 +130,10 @@ function Invoke-WslVoice([string]$action, [object]$state) {
     if ($action -eq 'Apply') {
         $paths = @('installer\fast_tts\server.py',
             'config\voice-references\friday-female-streaming.wav', 'config\voice-references\friday-female-reference.txt',
-            'config\voice-references\classic-streaming.wav', 'config\voice-references\classic-reference.txt',
-    'config\voice-references\custom-streaming.wav', 'config\voice-references\custom-reference.txt')
+            'config\voice-references\classic-streaming.wav', 'config\voice-references\classic-reference.txt')
+        # Der eigene Platz ist optional: nur mitgeben, wenn die eigene Aufnahme wirklich vorbereitet wurde.
+        $customPair = @('config\voice-references\custom-streaming.wav', 'config\voice-references\custom-reference.txt')
+        if (@($customPair | Where-Object { Test-Path -LiteralPath (Join-Path $root $_) -PathType Leaf }).Count -eq 2) { $paths += $customPair }
         foreach ($relative in $paths) {
             $windows = if ($relative -like 'installer\*') { Join-Path $source $relative } else { Join-Path $root $relative }
             $args += Wsl-Path $windows $state.distro $state.user
