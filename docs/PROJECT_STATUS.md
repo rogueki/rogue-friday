@@ -1160,9 +1160,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
-- DASH-18.03/DASH-19.04/REL-06 (2026-10-30, N-146 bis N-153): Per Sprache lesbar sind jetzt auch Dateien (#113),
-  Systemstatus, Auslastung und Skills (#114) sowie das Wetter am gespeicherten Standort (#119); ohne Sprachweg bleiben
-  nur Studio (ausser Plan) und Onboarding. Das GitHub-ZIP enthaelt keine Agenten-Metadaten mehr, und der Dashboard-Sync
+- DASH-18.03/DASH-19.04/REL-06 (2026-10-30, N-146 bis N-155): Per Sprache lesbar sind jetzt auch Dateien (#113),
+  Systemstatus, Auslastung und Skills (#114), das Wetter am gespeicherten Standort (#119) und der Stand der
+  Ersteinrichtung (#122). Die Paritaetsmatrix uebersah Studio-Intents; korrigiert hat jeder der 20 Bereiche einen
+  Sprachweg (#123). Das GitHub-ZIP enthaelt keine Agenten-Metadaten mehr, und der Dashboard-Sync
   kopiert keine Testschluessel (#115). Eine ZIP-Installation kennt ihren Commit (#116), die Systemseite nennt je Dienst
   die gepruefte Adresse (#118). `docs/RELEASE_COMPATIBILITY.md` fasst Versionen, Ports, Paketinhalt, Migrationen,
   Rollback und Nachweise zusammen (#120). Ein wackliger Orb-Freigabetest ist behoben (#117).
