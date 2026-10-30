@@ -1195,6 +1195,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
 - KEEP-06 (2026-10-30, N-171, offen): `keep-06-hermes-paritaet.md` dokumentiert die Abdeckung des Hermes-Inventars je
   Eintragsart. Die Einstellungen laufen nur ueber eine typisierte Allowlist (rund 85 von 814); ob ein allgemeiner
   Editor und Installationen aus dem Plugin-/Skill-Katalog kommen sollen, entscheidet der Owner.
+- DASH-09.04 (2026-10-30, N-172, N-173): WhatsApp-Gruppen lassen sich im Dashboard freigeben (nur gelistete Gruppen,
+  optional nur bei Erwaehnung), und die Kopfzeile ueber Antworten ist einstellbar statt fest "Hermes Agent" (#144).
+  Zielgrammatik und Medienablehnung beim Senden sind getestet (#143). Antworten auf einzelne Nachrichten und Anhaenge
+  bleiben beim Senden bewusst aus.
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
