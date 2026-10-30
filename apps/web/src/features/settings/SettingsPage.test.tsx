@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAssistantName } from "@/features/branding/useAssistantName";
 import { setApiClient } from "@/lib/api/client";
 import { AppSettingsProvider } from "@/lib/settings";
-import { capabilitiesOf, renderWithProviders } from "@/test/render";
+import { capabilitiesOf, jsonResponse, renderWithProviders } from "@/test/render";
 import { SettingsPage } from "./SettingsPage";
 import { createFakeApi, makeSettings, type FakeApiOptions } from "./testApi";
 
@@ -331,5 +331,48 @@ describe("settings export and import", () => {
     await user.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(api.find("POST", "/settings/import")).toHaveLength(1));
     expect(api.find("POST", "/settings/import")[0]?.body).toMatchObject({ settings: { approvals: { defaultExpiryMinutes: 60 } } });
+  });
+});
+
+describe("voice devices", () => {
+  const device = (id: string, name: string, kind: "input" | "output", isDefault = false) => ({
+    id, name, kind, isDefault, channels: 1, sampleRateHz: 48000, version: 1, createdAt: "2026-10-14T08:00:00Z",
+    updatedAt: "2026-10-14T08:00:00Z", labels: ["MME"], status: "online",
+    source: { adapterId: "friday-voice-http", system: "friday-voice", externalId: id, lastSyncedAt: "2026-10-14T08:00:00Z" },
+  });
+  const HEADSET_IN = device(`vdev_${"a".repeat(26)}`, "Headset-Mikrofon", "input");
+  const LAPTOP_IN = device(`vdev_${"b".repeat(26)}`, "Laptop-Mikrofon", "input", true);
+  const HEADSET_OUT = device(`vdev_${"c".repeat(26)}`, "Headset-Hörer", "output", true);
+  const devices = (call: { method: string; path: string }) => call.method === "GET" && call.path === "/voice/devices"
+    ? jsonResponse({ contractVersion: "2.0.0", items: [HEADSET_IN, LAPTOP_IN, HEADSET_OUT], pageInfo: { nextCursor: null, hasNextPage: false },
+      freshness: { state: "fresh", asOf: "2026-10-14T08:00:00Z" }, sources: [] })
+    : undefined;
+  const withInput = (inputDeviceId: string) => makeSettings({ voice: { ...makeSettings().voice, inputDeviceId } });
+
+  it("shows exactly one input and one output selection with the saved device active and saves a new output", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=voice", settings: withInput(HEADSET_IN.id), extra: devices });
+    const input = await screen.findByLabelText("Eingabegerät");
+    await waitFor(() => expect(input).toHaveValue(HEADSET_IN.id));
+    expect(screen.getAllByLabelText("Eingabegerät")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Ausgabegerät")).toHaveLength(1);
+    // System default plus one entry per physical device, not one per host API.
+    expect(within(input).getAllByRole("option")).toHaveLength(3);
+    const output = screen.getByLabelText("Ausgabegerät");
+    expect(within(output).getAllByRole("option")).toHaveLength(2);
+
+    await user.selectOptions(output, HEADSET_OUT.id);
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { inputDeviceId: HEADSET_IN.id, outputDeviceId: HEADSET_OUT.id } });
+  });
+
+  it("keeps an unplugged saved device selected and names it instead of switching silently", async () => {
+    const unplugged = `vdev_${"d".repeat(26)}`;
+    setup({ area: "area=voice", settings: withInput(unplugged), extra: devices });
+    const input = await screen.findByLabelText("Eingabegerät");
+    await waitFor(() => expect(input).toHaveValue(unplugged));
+    const selected = within(input).getAllByRole("option").find((option) => (option as HTMLOptionElement).selected);
+    expect(selected?.textContent).toBe("Gewähltes Gerät nicht verbunden");
   });
 });
