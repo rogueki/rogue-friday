@@ -124,6 +124,25 @@ describe("read-only command intents use local read services", () => {
     expect((await run(owner, "Export audit events")).json()).toMatchObject({ status: "rejected" });
   });
 
+  it("reads one audit event by id with the same result as GET /audit/events/{id}", async () => {
+    const latest = (await owner.get("/api/v1/audit/events", { query: { limit: "1" } })).json().items[0] as { id: string; category: string; result: string };
+    expect(latest?.id).toBeTruthy();
+    const direct = await operator.get(`/api/v1/audit/events/${latest.id}`);
+    expect(direct.statusCode).toBe(200);
+    const response = await run(operator, `Zeige Audit ${latest.id}`);
+    expect(response.statusCode, response.body).toBe(200);
+    const message = response.json().result.message as string;
+    expect(message).toContain(latest.id);
+    expect(message).toContain(direct.json().data.category);
+    expect(message).toContain(direct.json().data.result);
+    expect(message).not.toContain('"context"');
+
+    const unknown = `${latest.id.slice(0, latest.id.indexOf("_") + 1)}${"z".repeat(26)}`;
+    expect((await operator.get(`/api/v1/audit/events/${unknown}`)).statusCode).toBe(404);
+    expect((await run(operator, `Zeige Audit ${unknown}`)).statusCode).toBe(404);
+    expect((await run(viewer, `Zeige Audit ${latest.id}`)).statusCode).toBe(403);
+  });
+
   it("does not invent notification detail reads and rejects viewer command access", async () => {
     const notificationId = `ntf_${"x".repeat(26)}`;
     const unsupported = await run(operator, `Show notification ${notificationId}`);

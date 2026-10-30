@@ -1179,6 +1179,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Repository (#131).
 - DASH-18.03 (2026-10-30, N-163): Auch Freigaben-Adapter und Studio-Anbieter haben einen Ausfallbeleg; der
   Funktionsnachweis fuehrt keinen Bereich mit externer Quelle mehr ohne Ausfalltest.
+- INS-11/REL-06.03 (2026-10-30, N-164): Ein Dashboard-Update stoppt den Dienst, bevor es den alten Stand sichert. Die
+  Installer-Selbstkopie und das GitHub-ZIP enthalten keine Installer-Tests mehr (#133).
+- KEEP-03 (2026-10-30, N-165): Die Aktionsmatrix `dashboard-action-nlp-coverage.csv` ist neu gegen den Code geprueft:
+  20 von 97 Aktionsfamilien haben einen getesteten Text-/Sprachweg, die uebrigen 77 einen genannten Grund. Der
+  Audit-Detailbefehl hat jetzt einen Test. Offen bleiben Mehrschrittdialoge, Pronomen, Kanalwechsel und die
+  NLP-01..06-Abnahme.
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
