@@ -6927,6 +6927,9 @@ export interface WhatsappPairing {
     | "error";
   mode?: "bot" | "self-chat";
   qr: string | null;
+  /**
+   * Unix time in seconds at which the running pairing flow ends; null without a flow.
+   */
   expiresAt: number | null;
   linkedIdentity: string | null;
   connectionState: "connected" | "disconnected" | "unknown";

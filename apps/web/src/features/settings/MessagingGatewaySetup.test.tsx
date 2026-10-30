@@ -36,7 +36,7 @@ describe("messaging gateway setup", () => {
       if (new URL(request.url).pathname.endsWith("whatsapp-pairing")) {
         if (request.method === "POST") pairing = true;
         return jsonResponse(envelope({ id: pairing ? "abcdefghijklmnopqrstuvwx" : null, state: pairing ? "waiting" : "idle",
-          qr: pairing ? "FAKE_PAIRING_PAYLOAD" : null, expiresAt: pairing ? Date.now() + 60000 : null,
+          qr: pairing ? "FAKE_PAIRING_PAYLOAD" : null, expiresAt: pairing ? Date.now() / 1000 + 600 : null,
           linkedIdentity: null, connectionState: "unknown", mode: "bot" }));
       }
       requests.push({ method: request.method, body: request.method === "PUT" ? await request.json() : null });
@@ -46,6 +46,8 @@ describe("messaging gateway setup", () => {
     await screen.findByRole("button", { name: "Kopplung starten / QR erneuern" });
     fireEvent.click(screen.getByRole("button", { name: "Kopplung starten / QR erneuern" }));
     expect(await screen.findByAltText("WhatsApp-Kopplungs-QR-Code")).toBeTruthy();
+    // expiresAt is in seconds: ten minutes from now, not a date 50 years ahead.
+    expect(screen.getByRole("timer").textContent).toMatch(/^Kopplungsvorgang endet in (10:00|9:5\d) Minuten\.$/);
     fireEvent.change(screen.getByLabelText("Erlaubte Telefonnummern (Ländervorwahl, ohne +)"), { target: { value: "491701234567" } });
     fireEvent.click(screen.getByRole("button", { name: "WhatsApp-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
@@ -60,12 +62,13 @@ describe("messaging gateway setup", () => {
       if (path.endsWith("whatsapp-pairing")) {
         requests.push({ method: request.method, path });
         return jsonResponse(envelope({ id: "abcdefghijklmnopqrstuvwx", state: "qr_expired", qr: null,
-          expiresAt: Date.now() + 300000, linkedIdentity: null, connectionState: "unknown", mode: "bot" }));
+          expiresAt: Date.now() / 1000 - 5, linkedIdentity: null, connectionState: "unknown", mode: "bot" }));
       }
       return jsonResponse(envelope({ setupUrl: "http://127.0.0.1:43791/channels", mode: null, sessionPresent: false, allowedUserIds: [],
         enabled: false, gatewayRunning: true, connectionState: "unknown", applied: null, revision: 2 }));
     } });
     expect(await screen.findByText("Der QR-Code ist abgelaufen. Neuen Code anfordern oder die Kopplung abbrechen.")).toBeTruthy();
+    expect(screen.getByRole("timer").textContent).toBe("Der Kopplungsvorgang ist abgelaufen. Kopplung neu starten.");
     fireEvent.click(screen.getByRole("button", { name: "Kopplung abbrechen" }));
     await waitFor(() => expect(requests.filter((entry) => entry.method === "DELETE" && entry.path.endsWith("whatsapp-pairing"))).toHaveLength(1));
   });
