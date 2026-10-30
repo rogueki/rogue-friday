@@ -341,7 +341,13 @@ jobs:
         shell: powershell
         run: |
           npm install -g pnpm@10.28.2
-          choco install ffmpeg -y --no-progress
+          # The Chocolatey feed answers 503 now and then; retry, and fail here instead of in an unrelated test later.
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -eq 0 -and (Test-Path 'C:\ProgramData\chocolatey\bin\ffmpeg.exe')) { break }
+            if ($attempt -eq 3) { Write-Host "::error::FFmpeg could not be installed from Chocolatey after 3 attempts."; exit 1 }
+            Start-Sleep -Seconds (20 * $attempt)
+          }
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Parse PowerShell 5.1 and check installer file encodings
