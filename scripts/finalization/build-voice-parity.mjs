@@ -16,8 +16,8 @@ const intents = [];
 for (const file of intentFiles) {
   const source = read(join(servicesDir, file));
   const kinds = new Set([
-    ...Array.from(source.matchAll(/kind: "([a-z]+(?:\.[a-zA-Z]+)+)"/g), (match) => match[1]),
-    ...Array.from(source.matchAll(/^\s*\| \{ kind: "([a-z]+(?:\.[a-zA-Z]+)+)"/gm), (match) => match[1]),
+    ...Array.from(source.matchAll(/kind: "([a-z][a-zA-Z]*(?:\.[a-zA-Z]+)+)"/g), (match) => match[1]),
+    ...Array.from(source.matchAll(/^\s*\| \{ kind: "([a-z][a-zA-Z]*(?:\.[a-zA-Z]+)+)"/gm), (match) => match[1]),
   ]);
   // Parsers without a discriminated union still create something: give them the name their handler uses.
   const fallback = { "research-action-intent.ts": "research.create", "task-create-intent.ts": "task.create" }[file];
@@ -69,7 +69,8 @@ const areas = [
 ];
 
 const reads = new Set(
-  Array.from(read(join(servicesDir, "read-query-intent.ts")).matchAll(/kind: "([a-z]+\.[a-zA-Z]+)"/g), (m) => m[1]),
+  // The first segment may be camelCase (contentStudio.plan); lowercase-only matching hid the Studio paths.
+  Array.from(read(join(servicesDir, "read-query-intent.ts")).matchAll(/kind: "([a-z][a-zA-Z]*\.[a-zA-Z]+)"/g), (m) => m[1]),
 );
 
 const rows = areas.map((area) => {

@@ -8,9 +8,9 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 - Intent-Dienste: 11 (`agent-action-intent.ts`, `automation-action-intent.ts`, `calendar-action-intent.ts`, `knowledge-action-intent.ts`, `mail-action-intent.ts`, `messenger-action-intent.ts`, `read-query-intent.ts`, `research-action-intent.ts`, `settings-content-mutation-intent.ts`, `task-action-intent.ts`, `task-create-intent.ts`)
 - Im Dispatcher erreichbar: 11 von 11
-- Lese-Intents: 29 · eingebaute Sprachintents: voice_start, focus_toggle
-- Bereiche mit Lese- und Schreibweg: 9 von 20
-- Nur lesbar: 8 · nur schreibbar: 2 · ohne Sprachweg: 1
+- Lese-Intents: 30 · eingebaute Sprachintents: voice_start, focus_toggle
+- Bereiche mit Lese- und Schreibweg: 10 von 20
+- Nur lesbar: 8 · nur schreibbar: 2 · ohne Sprachweg: 0
 
 ## 2. Matrix
 
@@ -26,7 +26,7 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 | Automationen | ja | `automations.get`, `automations.list` | `automation.disable`, `automation.enable`, `automation.pause`, `automation.pauseAll`, `automation.resume`, `automation.test` | lesen + schreiben |
 | Recherche | ja | `research.get`, `research.list` | `research.create` | lesen + schreiben |
 | Dateien | ja | `files.get`, `files.list` | `file.delete`, `file.rename` | lesen + schreiben |
-| Studio | ja | — | — | kein Sprachweg |
+| Studio | ja | `contentStudio.plan` | `contentStudio.idea.add`, `contentStudio.idea.date`, `contentStudio.idea.description`, `contentStudio.idea.format`, `contentStudio.idea.remove`, `contentStudio.idea.rename`, `contentStudio.idea.status`, `contentStudio.idea.statusSelected`, `contentStudio.idea.targets`, `contentStudio.plan.exportGuided`, `contentStudio.plan.importGuided`, `contentStudio.posting.create`, `contentStudio.posting.fromIdea`, `contentStudio.posting.remove`, `contentStudio.posting.status` | lesen + schreiben |
 | Sprache | ja | — | `voice_start` | nur schreiben |
 | Aktivität | ja | `activity.get`, `activity.list` | — | nur lesen |
 | Benachrichtigungen | ja | `notifications.list`, `notifications.unsupportedDetail` | — | nur lesen |
@@ -39,7 +39,7 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 ## 3. Bereiche ohne Sprachweg
 
-- Studio: kein Intent-Kind und kein Parser in `services/*-intent.ts`
+_keine_
 
 ## 4. Nur lesbare Bereiche
 
