@@ -1169,7 +1169,7 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Rollback und Nachweise zusammen (#120). Ein wackliger Orb-Freigabetest ist behoben (#117).
 - DASH-18.03 (2026-10-30, N-156 bis N-161): Termine per Sprache anlegen, verschieben und loeschen darf wie im Kalender
   nur der Owner; vorher konnte ein Operator das und seine eigene Freigabe erteilen (#124). Die Terminabfrage per Sprache
-  nennt auch lokale und verbundene Termine (#125). Bei Adapterausfall antworten die Sprach-Lesewege wie die Routen
+  nennt auch lokale und verbundene Termine (#125). Bei Adapterausfall antworten die Sprach-Lesewege (Aufgaben, Agenten, Aktivitaet, Dateien, Gedaechtnis, Benachrichtigungen, Kalender, System) wie die Routen
   (#126). Der Orb haengt nicht mehr an einer Freigabe, die der Server nicht mehr kennt (#127); die Mikrofonpegel-Messung
   im Orb-E2E misst bei gestoerter Szene neu (#128). `dash-18-03-funktionsnachweis.md` belegt je Bereich Quelle,
   Persistenz, Rolle, Fehlerfall und Sprachaktion (#129).
