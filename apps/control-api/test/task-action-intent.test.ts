@@ -39,6 +39,25 @@ describe("task status language", () => {
     });
   }
 
+  const listedPhrasings: Array<[string, TaskActionExpected]> = [
+    ["Markiere die zweite als erledigt", { kind: "task.update", status: "done", ref: null, listed: { ordinal: 1 } }],
+    ["Markiere die erste Aufgabe als erledigt", { kind: "task.update", status: "done", ref: null, listed: { ordinal: 0 } }],
+    ["Setze sie auf in Arbeit", { kind: "task.update", status: "running", ref: null, listed: { ordinal: null } }],
+    ["Lösche sie", { kind: "task.cancel", ref: null, listed: { ordinal: null } }],
+    ["Brich die dritte ab", { kind: "task.cancel", ref: null, listed: { ordinal: 2 } }],
+    ["Starte die fünfte erneut", { kind: "task.retry", ref: null, listed: { ordinal: 4 } }],
+  ];
+  for (const [phrase, expected] of listedPhrasings) {
+    it(`refers to a listed task with ${phrase}`, () => {
+      expect(parseTaskActionIntent(phrase)).toEqual(expected);
+    });
+  }
+
+  it.each(["Lösche die siebte", "Markiere sie als irgendwas", "Lösche diese Woche", "Setze ihn auf erledigt", "Lösche es"])(
+    "does not read %s as a listed task", (phrase) => {
+      expect(parseTaskActionIntent(phrase)).toBeNull();
+    });
+
   it.each([
     "Zeige mir die erledigten Aufgaben",
     "Was bedeutet storniert?",
@@ -55,6 +74,6 @@ describe("task status language", () => {
 });
 
 type TaskActionExpected =
-  | { kind: "task.update"; status: string; ref: string | null }
-  | { kind: "task.cancel"; ref: string | null }
-  | { kind: "task.retry"; ref: string | null };
+  | { kind: "task.update"; status: string; ref: string | null; listed?: { ordinal: number | null } }
+  | { kind: "task.cancel"; ref: string | null; listed?: { ordinal: number | null } }
+  | { kind: "task.retry"; ref: string | null; listed?: { ordinal: number | null } };

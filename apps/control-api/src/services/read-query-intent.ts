@@ -556,6 +556,7 @@ async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "ap
 
 export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryIntent): Promise<HandlerResult> {
   if (intent.kind === "clarify") return baseResponse(ctx, intent.message, "rejected");
+  if (ctx.principal) ctx.runtime.recentCommandListings.clear(ctx.principal.userId, ctx.principal.sessionId);
   if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
   if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
   if (intent.kind.startsWith("tasks.")) requireReadRole(ctx, "tasks", "viewer");
@@ -741,6 +742,11 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
     }
     case "tasks.list": {
       const page = await ctx.runtime.registry.getPort("tasks").listTasks({ limit: MAX_RESULTS, sort: "priority", ...(intent.status ? { status: intent.status } : {}) }, ctx.call);
+      // The spoken order is the order a follow-up ("die zweite") counts in.
+      if (ctx.principal) {
+        ctx.runtime.recentCommandListings.remember(ctx.principal.userId, ctx.principal.sessionId, "tasks",
+          page.items.slice(0, MAX_RESULTS).map((task) => task.id));
+      }
       return baseResponse(ctx, listMessage("Aufgaben", page.items, page.pageInfo.hasNextPage,
         (task: Task) => idStatus(task.id, `${task.status}/${task.priority} ${task.title}`, task.updatedAt)));
     }
