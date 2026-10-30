@@ -400,7 +400,9 @@ export function CommandPalette({
     if (queryProp === undefined) setInnerQuery(value);
     onQueryChange?.(value);
   };
-  const [active, setActive] = useState(0);
+  // The cursor follows the command, not its position: results that arrive later may be inserted above it, and Enter
+  // must still run what was shown as selected. null means "the first item".
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [pending, setPending] = useState<CommandItem | null>(null);
   const baseId = useStableId('jv-cmd');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -409,7 +411,7 @@ export function CommandPalette({
   useEffect(() => {
     if (open) {
       setInnerQuery('');
-      setActive(0);
+      setActiveKey(null);
       setPending(null);
     }
   }, [open]);
@@ -441,12 +443,19 @@ export function CommandPalette({
   }, [items, query, groupOrder]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.entries.map((e) => e.item)), [groups]);
+  const keyIndex = activeKey === null ? -1 : flat.findIndex((item) => item.id === activeKey);
+  const active = keyIndex >= 0 ? keyIndex : 0;
   const activeItem = flat[active];
   const activeId = activeItem ? `${baseId}-opt-${activeItem.id}` : undefined;
+  const setActive = (next: number | ((current: number) => number)): void => {
+    const index = typeof next === 'function' ? next(active) : next;
+    setActiveKey(flat[index]?.id ?? null);
+  };
 
   useEffect(() => {
-    setActive((a) => Math.min(a, Math.max(0, flat.length - 1)));
-  }, [flat.length]);
+    // Pin the item shown as selected (the first one, or the fallback for a vanished one) so later inserts keep it.
+    if (activeItem && activeItem.id !== activeKey) setActiveKey(activeItem.id);
+  }, [activeItem, activeKey]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -538,7 +547,7 @@ export function CommandPalette({
             readOnly={Boolean(pending)}
             onChange={(e) => {
               setQuery(e.target.value);
-              setActive(0);
+              setActiveKey(null);
             }}
             onKeyDown={onKeyDown}
           />
