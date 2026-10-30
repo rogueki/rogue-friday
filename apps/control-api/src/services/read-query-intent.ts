@@ -1,13 +1,26 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type FileCategory, type FileItem, type Memory, type MemoryType, type ResearchProject, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CalendarEventListResponse, type CommandResponse, type ContentPlanState, type Freshness, type FileCategory, type FileItem, type Memory, type MemoryType, type ResearchProject, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
-import type { HandlerResult, RequestContext } from "../http/context";
+import type { Handler, HandlerResult, RequestContext } from "../http/context";
+import { localCalendarReads } from "../handlers/local-calendar";
+import { buildPortHandlers } from "../handlers/ports";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
 import { auditTrailEvent, auditTrailPage } from "./audit-trail";
 import { localDayRange } from "./calendar-day-range";
 import { weatherDescription, weatherServiceFor } from "./location-weather";
 import { healthSnapshot } from "./health-snapshot";
+
+let mergedCalendarList: Handler | undefined;
+
+/** The calendar page's list (local events, connected accounts, calendar adapter), built lazily to avoid import cycles. */
+function calendarList(): Handler {
+  if (!mergedCalendarList) {
+    const ports = buildPortHandlers();
+    mergedCalendarList = localCalendarReads(ports.get("listCalendarEvents")!, ports.get("getCalendarEvent")!).listCalendarEvents!;
+  }
+  return mergedCalendarList;
+}
 
 const MAX_RESULTS = 5;
 const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
@@ -700,7 +713,8 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       if (!range) {
         return baseResponse(ctx, "Ohne gültige Zeitzone im Profil kann ich Tagesgrenzen nicht berechnen. Bitte die Zeitzone in den Einstellungen setzen.");
       }
-      const page = await ctx.runtime.registry.getPort("calendar").listCalendarEvents({ from: range.from, to: range.to, limit: MAX_RESULTS }, ctx.call);
+      // Same list as GET /calendar/events, so events created by voice or in the dashboard are named too.
+      const page = (await calendarList()({ ...ctx, query: { from: range.from, to: range.to, limit: String(MAX_RESULTS) } })).body as CalendarEventListResponse;
       return baseResponse(ctx, listMessage(intent.dayOffset === 0 ? "Termine heute" : "Termine morgen", page.items, page.pageInfo.hasNextPage,
         (event: CalendarEvent) => idStatus(event.id, `${event.start} ${event.title}`, event.start)));
     }
