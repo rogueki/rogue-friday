@@ -1,0 +1,48 @@
+# DASH-18.03 – Funktionsnachweis je Bereich (Stand 2026-10-30)
+
+Pro Bereich ist belegt, woher die Daten kommen, wo Aenderungen gespeichert werden, welche Rolle lesen/schreiben darf, was bei Ausfall der Quelle passiert und welche Sprachaktionen es gibt. Jede Zelle nennt Datei oder Test; "unbelegt" heisst: kein Beleg gefunden, nicht "funktioniert nicht". Rollen werden an der Route (`api/src/http/pipeline.ts`) und zusaetzlich ueber `authorize()` (`api/src/security/action-map.ts`, `packages/auth/src/permissions.ts`) durchgesetzt.
+
+## Querschnitt
+
+- Live-Modus: Bereich ohne konfigurierten Adapter -> `CAPABILITY_MISSING` (HTTP 403); Hybrid-Modus faellt auf Mock-Daten zurueck (`packages/config/src/load.ts`). `ADAPTER_UNAVAILABLE`/`ADAPTER_TIMEOUT` -> 503, wiederholbar (`api/src/util/errors.ts`).
+- Sprach-Lesen: `api/src/services/read-query-intent.ts` mit derselben Rollenpruefung wie die Route (`requireReadRole`); `POST /api/v1/commands` verlangt selbst Operator.
+- Sprach-Schreiben: `*-intent.ts` in `api/src/services`, verdrahtet in `api/src/handlers/commands.ts`; Einstellungen nur Owner.
+- Paritaetsmatrix aller Sprachwege: `docs/agent-work/finalization/dash-18-01-voice-parity.md` (Test `api/test/voice-parity.test.ts`).
+
+## Tabelle
+
+| Bereich | Quelle | Persistenz | Rolle Lesen / Schreiben | Fehlerfall (Beleg) | Sprache Lesen / Schreiben (Beleg) |
+| --- | --- | --- | --- | --- | --- |
+| Übersicht | aggregiert Ports (`api/src/services/core-views.ts`, `api/src/handlers/meta.ts`) | keine (berechnet) | viewer / – | Teilausfall: 200, `freshness: stale`, `degradedSections` (`api/test/degradation.test.ts`, `api/test/overview-section-status.test.ts`) | Sprachweg ueber die Einzelbereiche; eigener Uebersichts-Intent unbelegt |
+| Aufgaben | Port `tasks` -> Hermes (`config/adapters.live.example.yaml`) | Hermes | viewer / operator | Hermes aus -> 503 (`api/test/real-adapters.test.ts`); per Sprache 503 ADAPTER_UNAVAILABLE wie Route (`api/test/read-outage.test.ts`, PR #126) | `tasks.list`/`tasks.get` (`api/test/read-tasks.test.ts`) / anlegen, abbrechen, wiederholen, aendern (`api/test/task-create-intent.test.ts`, `api/test/task-action-intent.test.ts`) |
+| Kalender | lokale Termine + Kalenderkonten + optionaler Port `calendar`, zusammengefuehrt (`api/src/handlers/local-calendar.ts`) | SQLite `local_calendar_events`, `caldav_create_journal` | viewer / owner (`calendar.create` OWNER_ONLY) | Adapter aus: 200 mit lokalen Terminen (`api/test/degradation.test.ts`); per Sprache ebenso (`api/test/read-outage.test.ts`, PR #126) | `calendar.list` liest dieselbe zusammengefuehrte Liste (`api/test/read-calendar.test.ts`, PR #125) / anlegen, verschieben, loeschen nur Owner (`api/test/native-calendar-action.test.ts`, PR #124) |
+| Kommunikation/Mail | Port `communication`; Mail ueber Himalaya in WSL (`api/src/services/mail-accounts.ts`) | SQLite `mail_send_journal`, `himalaya_send_journal`, `encrypted_clarified_mail_drafts` | viewer (Threads), owner (Mailkonten) / Entwuerfe operator, Senden mit Freigabe | Threads aus -> 503 retryable (`api/test/degradation.test.ts`); ohne Konto 503 (`api/test/mail-account-errors.test.ts`) | Lesen (`api/test/read-communication.test.ts`) / verfassen, antworten, Messenger (`api/test/voice-mail.test.ts`, `api/test/messenger-action-intent.test.ts`) |
+| Freigaben | native Freigaben + Port `approvals` (`api/src/handlers/approvals.ts`) | SQLite `native_approval_requests` | viewer / operator; Stufe 3 owner + Reauth, per Sprache abgelehnt | Port aus: 200 mit nativen Freigaben (`api/src/handlers/approvals.ts`); kein eigener Test | Lesen (`api/test/read-command-intents.test.ts`) / Entscheidung bewusst nur im Dashboard |
+| Agenten | Port `agents` -> Hermes | Hermes | viewer / operator | Hermes aus -> 503 ueber Port-Mechanismus; kein agentenspezifischer Test | Lesen (`api/test/read-agents.test.ts`) / zuweisen, pausieren, fortsetzen, stoppen (`api/test/agent-action-intent.test.ts`, `api/test/native-agent-action.test.ts`) |
+| Automationen | Port `automations` -> Hermes | Hermes | viewer / operator | Hermes-Luecken -> 403 CAPABILITY_MISSING (`api/test/automations-live-hermes.test.ts`) | Lesen (`api/test/read-automations.test.ts`) / an, aus, pausieren, testen (`api/test/automation-action-intent.test.ts`) |
+| Recherche | `api/src/services/research.ts` (SQLite), im Mock Port `research` | SQLite `research_projects`, `research_sources`, `research_findings` | viewer / operator (Anbieter-Einstellungen owner) | ohne Anbieter kein Start; Anbieterfehler bleiben sichtbar (`api/test/native-research-action.test.ts`); keine Projekte -> leer statt erfunden (`api/test/read-memory-research.test.ts`) | Lesen (`api/test/read-memory-research.test.ts`) / starten mit Vorschau und Freigabe (`api/test/voice-research-command.test.ts`) |
+| Dateien | Port `files` (Live ohne Adapter -> 403) | Adapter | viewer / operator | Live ohne Adapter 403 CAPABILITY_MISSING; kein eigener Test | Lesen (`api/test/read-files.test.ts`) / umbenennen, loeschen (`api/test/native-knowledge-action.test.ts`) |
+| Gedächtnis | Port `memory`; dauerhaftes Gedaechtnis `api/src/services/durable-memory.ts` | SQLite-Outbox + Obsidian-Vault | viewer / operator, Export owner | Live ohne Adapter 403; kein eigener Ausfalltest | Lesen (`api/test/read-memory-research.test.ts`) / anlegen, aendern, loeschen, bestaetigen (`api/test/native-knowledge-action.test.ts`) |
+| Skills | `api/src/services/skills.ts` (Katalog + Hermes-Inventar) | Hermes | owner / owner | Inventar unlesbar -> 200 mit `catalogError`/`hermesError` (`api/test/skills-onboarding.test.ts`) | Lesen (`api/test/read-system-skills.test.ts`) / Schalten bewusst nur im Dashboard |
+| System | Port `system` -> local-system; Health-Snapshot | `adapter_overrides` | viewer / owner | Adapter aus -> 503; Systemstatus per Sprache nennt Ausfall (`api/test/read-outage.test.ts`, PR #126) | Lesen (`api/test/read-system-skills.test.ts`) / Neustart bewusst nur im Dashboard |
+| Einstellungen | `api/src/services/settings.ts` | SQLite `settings_areas`, `kv` | viewer / owner | unabhaengig von Datenadaptern (`api/test/degradation.test.ts`); Sprachdienst bestaetigt nicht -> 503 (`api/src/handlers/settings-voice.test.ts`) | Lesen (`api/test/read-command-intents.test.ts`) / Profil, Dashboard, Navigation (`api/test/settings-content-mutation.test.ts`) |
+| Studio | `api/src/handlers/content-studio.ts`; Anbieter kie.ai/ElevenLabs | SQLite `content_studio_plan`, `content_studio_jobs` | owner / owner | Anbieter fehlt -> 503 (`api/src/services/content-studio-production.ts`); kein eigener Test | `contentStudio.plan` / Ideen, Postings, Import (`api/test/settings-content-mutation.test.ts`) |
+| Sprache | Port `voice` -> friday-voice-http | Sprachdienst; Einstellungen in `settings_areas` | viewer / operator, Verlauf loeschen owner | Dienst aus -> 503, Uebersichtsbereich degraded (`api/test/overview-section-status.test.ts`) | Status lesen (`api/test/read-command-intents.test.ts`) / Stopp ueber `api/src/handlers/commands.ts` (`api/test/branding-commands.test.ts`) |
+| Audit | lokal `api/src/services/audit-trail.ts` | SQLite `audit_log`, `audit_archive_segments` | viewer / Export owner, keine Schreib-API | lokal, kein Adapterpfad | Lesen (`api/test/read-command-intents.test.ts`) / Export per Sprache gezielt abgelehnt |
+| Benachrichtigungen | Port `notifications`; lokaler `NotificationStore` fuer Messenger-Stufen | SQLite `notifications`, `notification_messenger_stages` | viewer / operator | Live ohne Adapter 403; kein eigener Ausfalltest | Lesen (`api/test/read-command-intents.test.ts`) / Quittieren bewusst nur im Dashboard |
+| Aktivität | Port `activity` -> Hermes | Hermes | viewer / – (nur lesen) | Hermes aus -> 503; kein eigener Test | Lesen (`api/test/read-command-intents.test.ts`) / – |
+| Onboarding | `api/src/handlers/skills.ts` | SQLite `owner_onboarding` | owner / owner | lokal, kein Adapterpfad; viewer/operator 403 (`api/test/skills-onboarding.test.ts`) | `onboarding.status` nur Owner (`api/test/read-onboarding.test.ts`, PR #122) / Entscheidungen im Dashboard |
+| Wetter | `api/src/services/location-weather.ts` (Open-Meteo, Cache im Speicher) | Ort in Einstellungen | viewer / Ort owner | Anbieter aus -> 503 "Wetterdaten sind derzeit nicht erreichbar", veralteter Cache als `stale` (`api/test/location-weather.test.ts`); ohne Ort kein erfundenes Wetter (`api/test/read-weather.test.ts`) | `weather.current` (`api/test/read-weather.test.ts`, PR #119) / Ort in den Einstellungen |
+
+## In dieser Pruefung geschlossene Luecken
+
+- Kalender per Sprache schrieb ohne Owner-Pruefung: Operator konnte Termine anlegen/verschieben/loeschen und selbst freigeben, die Route lieferte 403. Fix PR #124 (`executeCalendarAction` verlangt `calendar.create`).
+- Terminabfrage per Sprache fragte nur den Adapter; lokale und verbundene Termine fehlten. Fix PR #125.
+- Fehlerfall der Sprach-Lesewege war ungetestet. Beleg PR #126.
+- Orb hing nach einer Freigabe an einer Geister-Freigabe aus veraltetem Uebersichts-Cache. Fix PR #127.
+- Neue Sprach-Lesewege fuer Wetter (PR #119) und Onboarding-Stand (PR #122); Paritaetsmatrix zaehlt camelCase-Intents (PR #123).
+
+## Bewusst offen
+
+- Eigene Ausfalltests fehlen fuer Agenten, Aktivitaet, Dateien, Gedaechtnis, Benachrichtigungen, Studio und Freigaben-Port; der gemeinsame Port-Mechanismus (503 bzw. 403) ist ueber Aufgaben und Kommunikation belegt.
+- Freigaben-Entscheidungen, Skill-Schalten, Systemneustart und Quittieren sind absichtlich keine Sprachaktionen (Sicherheits- bzw. Bestaetigungsgruende).
