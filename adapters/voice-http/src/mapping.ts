@@ -215,11 +215,12 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
         // The service reports the phrase chosen at install time; older services fall back to the configured value.
         phrase: raw.runtime_settings?.wakeWord ?? raw.wake_phrase ?? settings.wakePhrase,
       },
-      // The service compares against the single enrolled owner profile; it does not name speakers.
+      // The service compares against the single enrolled owner profile, so a verified speaker is that profile's owner;
+      // any other state names nobody.
       speakerVerification: {
         enabled: verificationEnabled,
         state: speakerState,
-        recognizedSpeaker: null,
+        recognizedSpeaker: speakerState === "verified" ? "Owner" : null,
         confidence: (speakerState === "verified" || speakerState === "rejected") && decision
           ? Math.min(1, Math.max(0, decision.score)) : null,
       },
