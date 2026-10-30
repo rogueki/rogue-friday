@@ -10724,6 +10724,8 @@ export interface components {
             gatewayRunning: boolean | null;
             /** @enum {string} */
             receiveMode: "polling" | "webhook" | "unknown";
+            /** @description TELEGRAM_REQUIRE_MENTION; null when unset (Hermes default false: the bot answers every message in an allowed group). */
+            requireMention: boolean | null;
             revision: number;
             tokenConfigured: boolean;
         };
@@ -10734,6 +10736,8 @@ export interface components {
             clearToken: boolean;
             enabled: boolean;
             removeWebhook: boolean;
+            /** @description In groups only answer when mentioned or addressed by command; omitted keeps the stored value. */
+            requireMention?: boolean;
             token: string;
         };
         /** TelegramGatewayResponse */

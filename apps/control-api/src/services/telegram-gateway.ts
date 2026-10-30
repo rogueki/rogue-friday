@@ -16,6 +16,7 @@ export interface TelegramGatewayStatus {
   connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
+  requireMention: boolean | null;
 }
 
 export interface TelegramGatewayPatch {
@@ -25,6 +26,7 @@ export interface TelegramGatewayPatch {
   allowedChatIds: string[];
   removeWebhook: boolean;
   enabled: boolean;
+  requireMention?: boolean;
 }
 
 const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Telegram-Einrichtung in Friday-Ubuntu ist nicht erreichbar." });
@@ -73,7 +75,7 @@ export class TelegramGatewayService {
         !(data.enabled === null || typeof data.enabled === "boolean") ||
         !(data.gatewayRunning === null || typeof data.gatewayRunning === "boolean") ||
         !["connected", "disconnected", "unknown"].includes(String(data.connectionState)) || !(data.applied === null || typeof data.applied === "boolean") ||
-        !Number.isSafeInteger(data.revision)) throw unavailable();
+        !Number.isSafeInteger(data.revision) || !(data.requireMention === null || typeof data.requireMention === "boolean")) throw unavailable();
     return data as unknown as TelegramGatewayStatus;
   }
 
@@ -88,7 +90,7 @@ export class TelegramGatewayService {
         !Array.isArray(input.allowedChatIds) || input.allowedChatIds.length > 20 ||
         input.allowedChatIds.some((id) => typeof id !== "string" || !CHAT.test(id)) ||
         new Set(input.allowedChatIds).size !== input.allowedChatIds.length || typeof input.removeWebhook !== "boolean" ||
-        typeof input.enabled !== "boolean") {
+        typeof input.enabled !== "boolean" || !(input.requireMention === undefined || typeof input.requireMention === "boolean")) {
       throw validationFailed("Telegram-Bot-Token, erlaubte User-IDs oder Gruppen-Chat-IDs sind ungültig.");
     }
     return this.run("update", { ...input, revision });

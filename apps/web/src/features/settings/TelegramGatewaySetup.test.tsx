@@ -5,7 +5,7 @@ import { jsonResponse, renderWithProviders } from "@/test/render";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 
 const status = { contractVersion: "2.0.0", data: { tokenConfigured: false, botAuthentication: "missing", botId: null, botUsername: null, receiveMode: "unknown", allowedUserIds: [], allowedChatIds: [],
-  enabled: false, gatewayRunning: false, connectionState: "unknown", applied: null, revision: 42 },
+  enabled: false, gatewayRunning: false, connectionState: "unknown", applied: null, revision: 42, requireMention: null },
   freshness: { state: "fresh", asOf: "2026-10-16T10:00:00Z" } };
 
 afterEach(() => setApiClient(null));
@@ -29,7 +29,7 @@ describe("Telegram gateway setup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
     expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ token,
-      clearToken: false, allowedUserIds: ["123456789"], allowedChatIds: [], removeWebhook: false, enabled: true });
+      clearToken: false, allowedUserIds: ["123456789"], allowedChatIds: [], removeWebhook: false, enabled: true, requireMention: false });
     expect(screen.queryByText(token)).toBeNull();
   });
 
@@ -60,7 +60,7 @@ describe("Telegram gateway setup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
     expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ token: "",
-      clearToken: false, allowedUserIds: [], allowedChatIds: ["-1001", "-1002"], removeWebhook: false, enabled: false });
+      clearToken: false, allowedUserIds: [], allowedChatIds: ["-1001", "-1002"], removeWebhook: false, enabled: false, requireMention: false });
   });
 
   it("offers webhook removal only in webhook mode and sends it explicitly", async () => {
@@ -83,5 +83,20 @@ describe("Telegram gateway setup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
     expect(requests.find((entry) => entry.method === "PUT")?.body).toMatchObject({ removeWebhook: true });
+  });
+
+  it("loads and saves the group mention rule", async () => {
+    const requests: Array<{ method: string; body: unknown }> = [];
+    renderWithProviders(<TelegramGatewaySetup owner />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      requests.push({ method: request.method, body: request.method === "PUT" ? await request.json() : null });
+      return jsonResponse({ ...status, data: { ...status.data, allowedChatIds: ["-1001234567890"], requireMention: true } });
+    } });
+    const box = await screen.findByLabelText("In Gruppen nur antworten, wenn Friday erwähnt oder per Befehl angesprochen wird");
+    expect((box as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "Telegram-Konfiguration speichern" }));
+    await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toMatchObject({ allowedChatIds: ["-1001234567890"], requireMention: false });
   });
 });
