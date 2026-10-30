@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { LocalCalendarService } from "../src/services/local-calendar";
 import { startTestApi, type ApiClient, type TestApi } from "./helpers";
 
 /**
@@ -43,6 +44,15 @@ describe("spoken calendar reads", () => {
     for (const event of await listFor(TOMORROW)) {
       expect(message, `Termin von morgen ${event.id} taucht bei heute auf`).not.toContain(event.id);
     }
+  });
+
+  it("names a local Friday event of today like the calendar page does", async () => {
+    const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
+    const local = new LocalCalendarService(api.runtime.db).create({
+      title: "Lokaler Termin", start: "2026-10-14T12:00:00.000Z", end: "2026-10-14T13:00:00.000Z", timeZone: "Europe/Berlin" }, ownerId);
+    expect((await listFor(TODAY)).map((event) => event.id)).toContain(local.id);
+    const message = await command("Zeige meine Termine heute");
+    expect(message, `lokaler Termin fehlt in: ${message}`).toContain(local.id);
   });
 
   it("lists tomorrow's events, not today's", async () => {
