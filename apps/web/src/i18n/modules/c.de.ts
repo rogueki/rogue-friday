@@ -523,6 +523,8 @@ export const deC = {
   "voicePage.enrollment.subtitle": "Sprecherprofile und Kalibrierung",
   "voicePage.enrollment.empty": "Noch kein Sprecherprofil",
   "voicePage.enrollment.emptyDescription": "Sobald ein Profil eingelernt ist, erscheint es hier mit Qualität und Schwellwert.",
+  "voicePage.enrollment.unknown": "Profilstand unbekannt",
+  "voicePage.enrollment.unknownDescription": "Der Sprachdienst meldet kein Profil mit Messwerten. Ein älteres Profil kann trotzdem aktiv sein; ein Installer-Update oder eine Neuaufnahme ergänzt Proben und Qualität.",
   "voicePage.enrollment.readOnly": "Nur lesend",
   "voicePage.enrollment.readOnlyDescription": "Der Sprachdienst meldet nur Lesezugriff. Profile lassen sich hier einsehen, das Einlernen läuft außerhalb des Dashboards.",
   "voicePage.enrollment.start": "Enrollment starten",

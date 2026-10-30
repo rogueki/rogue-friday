@@ -406,11 +406,14 @@ function EnrollmentPanel() {
   const query = useVoiceProfiles();
   const canEnroll = useCapability("voice", "enroll");
   const profiles = query.data?.items ?? [];
+  // An empty list with unknown freshness means the service did not report the profile (or only one without measured
+  // values), not that no profile exists.
+  const profileUnknown = query.data?.freshness.state === "unknown";
   const state = useQueryPanelState(query, {
     module: "voice",
     empty: query.isSuccess && profiles.length === 0,
-    emptyTitle: t("voicePage.enrollment.empty"),
-    emptyDescription: t("voicePage.enrollment.emptyDescription"),
+    emptyTitle: profileUnknown ? t("voicePage.enrollment.unknown") : t("voicePage.enrollment.empty"),
+    emptyDescription: profileUnknown ? t("voicePage.enrollment.unknownDescription") : t("voicePage.enrollment.emptyDescription"),
     emptyIcon: <Fingerprint {...ICON} />,
     freshness: query.data?.freshness,
   });

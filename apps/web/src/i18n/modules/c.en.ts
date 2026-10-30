@@ -525,6 +525,8 @@ export const enC: Record<keyof typeof deC, string> = {
   "voicePage.enrollment.subtitle": "Speaker profiles and calibration",
   "voicePage.enrollment.empty": "No speaker profile yet",
   "voicePage.enrollment.emptyDescription": "Once a profile is enrolled it appears here with quality and threshold.",
+  "voicePage.enrollment.unknown": "Profile state unknown",
+  "voicePage.enrollment.unknownDescription": "The voice service reports no profile with measured values. An older profile may still be active; an installer update or a new enrollment adds samples and quality.",
   "voicePage.enrollment.readOnly": "Read-only",
   "voicePage.enrollment.readOnlyDescription": "The voice service only reports read access. Profiles can be viewed here, enrollment runs outside the dashboard.",
   "voicePage.enrollment.start": "Start enrollment",
