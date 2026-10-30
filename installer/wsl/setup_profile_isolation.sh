@@ -135,6 +135,10 @@ done
 if ! command -v sshd >/dev/null 2>&1; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server >&2
 fi
+# The package enables socket activation on port 22 with its stock config; Friday only serves its own loopback port.
+systemctl disable --now ssh.socket >/dev/null 2>&1 || true
+# sshd -t needs the privilege separation directory, which otherwise only the running service creates.
+install -d -m 755 /run/sshd
 
 install -d -m 755 "$(dirname "$SSHD_DROPIN")"
 render_sshd > "$SSHD_DROPIN.tmp"
@@ -145,7 +149,6 @@ if ! sshd -t; then
     echo 'sshd_config_invalid' >&2
     exit 1
 fi
-systemctl disable --now ssh.socket >/dev/null 2>&1 || true
 systemctl enable ssh.service >/dev/null
 systemctl restart ssh.service
 
