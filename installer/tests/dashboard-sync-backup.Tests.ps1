@@ -186,6 +186,10 @@ console.log(row.json);
     Assert-True ($installerText.Contains("lib\dashboard-sync.ps1") -and $installerText.Contains("lib\dashboard-backup.ps1")) 'Der Installer laedt die Dashboard-Module nicht.'
     Assert-True ($installerText.Contains('Backup-DashboardState -BackupRoot')) 'Der Installer sichert das Dashboard nicht ueber das Manifest.'
     Assert-True ($installerText.Contains("data\dashboard.sqlite")) 'Die Datenbank wird vor dem Update nicht gesichert.'
+    $installBody = [regex]::Match($installerText, '(?s)function Install-Dashboard \{.*?\n\}').Value
+    $stopAt = $installBody.IndexOf('Stop-DashboardService')
+    $backupAt = $installBody.IndexOf('Backup-CustomDashboard')
+    Assert-True ($backupAt -gt 0 -and $stopAt -gt 0 -and $stopAt -lt $backupAt) 'Die Datenbank wird gesichert, solange das Dashboard noch laeuft.'
     Assert-True ($installerText.Contains('Get-DashboardSourceHash -Source $src')) 'Der Quellhash wird nicht mehr ueber das Modul gebildet.'
     Assert-True (-not ($installerText -match '(?m)^function Get-SourceHash\(\[string\]\$src\) \{\s*\n\s*\$files = New-Object')) 'Der alte Hash-Code steht noch im Installer.'
     Assert-True (-not ($installerText -match '(?m)^\s*& robocopy\.exe "\$src\\\$d"')) 'Der alte Kopiercode steht noch im Installer.'

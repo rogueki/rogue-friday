@@ -225,6 +225,19 @@ describe("repository hygiene", () => {
     expect(kept).not.toContain("set");
   });
 
+  it("the source archive and the installer self-copy leave out installer tests", () => {
+    for (const path of ["installer/tests/launcher.Tests.ps1", "installer/test/data-mode.test.ps1", "installer/voice/tests/fixtures/audio/yes.wav",
+      "installer/wsl/test_messaging_pairing.py", "installer/voice/test_memory_outbox.py", "installer/linux/test_find_obsidian_install.sh"]) {
+      const attribute = execFileSync("git", ["check-attr", "export-ignore", "--", path], { cwd: ROOT, encoding: "utf8" });
+      expect(attribute.trim(), path).toMatch(/export-ignore: set$/);
+    }
+    const runtime = execFileSync("git", ["check-attr", "export-ignore", "--", "installer/voice/friday_voice.py", "installer/wsl/messaging_pairing.py"], { cwd: ROOT, encoding: "utf8" });
+    expect(runtime).not.toContain("set");
+    const script = readFileSync(join(ROOT, "installer", "install-friday.ps1"), "utf8");
+    const selfCopy = script.split("\n").find((line) => /robocopy\.exe \$PSScriptRoot \$Inst/.test(line)) ?? "";
+    for (const excluded of [" tests ", " test ", " fixtures ", " test_*.py ", " test_*.sh ", " *.Tests.ps1 "]) expect(selfCopy, excluded).toContain(excluded);
+  });
+
   it("ships only the synthetic voice outputs and test audio, never own voice recordings", () => {
     const audio = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" }).split("\0")
       .filter((path) => /\.(wav|mp3|flac|ogg|m4a|opus|npy|npz)$/i.test(path)).sort();
