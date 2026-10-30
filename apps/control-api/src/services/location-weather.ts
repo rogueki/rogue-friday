@@ -114,3 +114,29 @@ export class LocationWeatherService {
     }
   }
 }
+
+const sharedServices = new WeakMap<SettingsService, LocationWeatherService>();
+
+/** One service per settings store, so the weather route and the spoken read share the provider cache. */
+export function weatherServiceFor(settings: SettingsService): LocationWeatherService {
+  let service = sharedServices.get(settings);
+  if (!service) { service = new LocationWeatherService(settings); sharedServices.set(settings, service); }
+  return service;
+}
+
+/** German wording for the WMO weather codes Open-Meteo reports; unknown codes are named, not guessed. */
+export function weatherDescription(code: number): string {
+  if (code === 0) return "klar";
+  if (code === 1) return "überwiegend klar";
+  if (code === 2) return "teilweise bewölkt";
+  if (code === 3) return "bedeckt";
+  if (code === 45 || code === 48) return "Nebel";
+  if (code >= 51 && code <= 57) return "Nieselregen";
+  if (code >= 61 && code <= 67) return "Regen";
+  if (code >= 71 && code <= 77) return "Schnee";
+  if (code >= 80 && code <= 82) return "Regenschauer";
+  if (code === 85 || code === 86) return "Schneeschauer";
+  if (code >= 95 && code <= 99) return "Gewitter";
+  return `Wettercode ${code}`;
+}
+
