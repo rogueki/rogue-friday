@@ -37,7 +37,8 @@ import type { FileItem } from "@friday/sdk";
 import type { Memory, MemoryUpdateRequest } from "@friday/sdk";
 import type { Automation } from "@friday/sdk";
 import { createId } from "@friday/observability";
-import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
+import { conflict, forbidden, notFound, validationFailed, ApiError } from "../util/errors";
+import { authorize } from "@friday/auth";
 import { portHandler } from "./ports";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 
@@ -236,6 +237,10 @@ async function executeCalendarAction(ctx: Parameters<Handler>[0], request: Comma
   intent: CalendarActionIntent, sessionBinding?: string): Promise<Awaited<ReturnType<Handler>>> {
   const ownerId = ctx.principal?.userId;
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  // Same permission as POST/PATCH/DELETE /calendar/local/events; otherwise an operator could write by voice what the
+  // calendar page refuses, and even approve it.
+  if (!authorize(ctx.principal!.role, "calendar.create").allowed)
+    throw forbidden("Termine anlegen, verschieben und löschen darf wie im Kalender nur der Owner.", { requiredAction: "calendar.create" });
   let action: NativeExecutableAction;
   let actionText: string;
   let previewText: string;

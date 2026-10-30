@@ -366,3 +366,27 @@ it("clears staged calendar drafts with the dev scenario reset", async () => {
       { headers: { "x-action-preview-id": staged.json().error.details.previewId } })).statusCode).toBe(409);
   } finally { await api.close(); }
 });
+
+it("refuses spoken calendar writes to an operator exactly like the calendar route", async () => {
+  const api = await startApiAtNow();
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const operator = api.client();
+    await operator.loginDev("operator");
+    const body = { title: "Nur Owner", start: "2026-10-20T12:00:00.000Z", end: "2026-10-20T13:00:00.000Z", timeZone: ZONE };
+    expect((await operator.post("/api/v1/calendar/local/events", body)).statusCode).toBe(403);
+    const create = await operator.post("/api/v1/commands", { text: "Trage Nur Owner morgen 14 Uhr ein", source: "voice" });
+    expect(create.statusCode, create.body).toBe(403);
+    expect(create.json().error.code).toBe("FORBIDDEN");
+    const seeded = seedEvent(api, await ownerIdOf(owner), "Bestand", "2026-10-21T08:00:00.000Z");
+    const move = await operator.post("/api/v1/commands", { text: "Verschieb den Termin Bestand auf morgen 16 Uhr", source: "voice" });
+    expect(move.statusCode, move.body).toBe(403);
+    const remove = await operator.post("/api/v1/commands", { text: "Lösche den Termin Bestand", source: "voice" });
+    expect(remove.statusCode, remove.body).toBe(403);
+    expect((await listEvents(owner, "Nur Owner"))).toHaveLength(0);
+    expect((await listEvents(owner, "Bestand"))[0]!.version).toBe(seeded.version);
+    expect((await owner.get("/api/v1/approvals", { query: { status: "pending" } })).json().items
+      .filter((item: { action: string }) => item.action.startsWith("Termin"))).toHaveLength(0);
+  } finally { await api.close(); }
+});
