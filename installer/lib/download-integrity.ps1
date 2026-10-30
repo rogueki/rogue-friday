@@ -28,3 +28,20 @@ function Assert-FileSha256([string]$Path, [string]$Expected, [string]$Label) {
     }
     return $false
 }
+
+function Test-VenvUsable([string]$Venv) {
+    # Ein abgebrochenes 'python -m venv' hinterlaesst python.exe ohne pip; erst ein importierbares pip zeigt,
+    # dass die Umgebung fertig angelegt wurde.
+    $python = Join-Path $Venv 'Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { return $false }
+    if (-not (Test-Path -LiteralPath (Join-Path $Venv 'pyvenv.cfg') -PathType Leaf)) { return $false }
+    # PowerShell 5.1 macht stderr eines nativen Programms unter 'Stop' zur Ausnahme; die Pruefung soll nur antworten.
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $python -c 'import pip' 2>&1 | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+}

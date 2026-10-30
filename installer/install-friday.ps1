@@ -1994,6 +1994,10 @@ if (-not (IsDone 'voicepython')) {
     if (-not $py -or -not (Test-Path $py)) { Stop-Install 'Python 3.11 nicht gefunden – bitte von python.org installieren und erneut starten.' }
     Copy-Item "$Inst\voice\*" "$Root\voice\" -Force
     $venv = "$Root\voice\.venv"
+    if ((Test-Path "$venv\Scripts\python.exe") -and -not (Test-VenvUsable $venv)) {
+        Warn 'Unvollständige Python-Umgebung aus einem abgebrochenen Lauf - sie wird neu angelegt.'
+        Remove-Item -LiteralPath $venv -Recurse -Force
+    }
     if (-not (Test-Path "$venv\Scripts\python.exe")) { & $py -m venv $venv }
     $vpy = "$venv\Scripts\python.exe"
     $env:PIP_CACHE_DIR = "$Root\cache\pip"
@@ -2686,6 +2690,9 @@ function Install-Dashboard {
     if ($State.dashboard_hash -eq $hash -and $built) {
         Ok "Quellen unverändert (Hash $($hash.Substring(0, 12))) - Build übersprungen."
     } else {
+        # Der Hash gilt erst nach einem vollstaendigen Build wieder: ein abgebrochener Neubau darf beim naechsten Lauf
+        # nicht als fertig gelten, nur weil alte dist-Dateien und eine teilweise Web-Ausgabe vorhanden sind.
+        $State.dashboard_hash = $null; Save-State
         Stop-DashboardService
         Info "Kopiere das Command Center nach $Dash …"
         Sync-DashSource $src
