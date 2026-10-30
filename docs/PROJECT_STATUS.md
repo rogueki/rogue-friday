@@ -1199,6 +1199,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   optional nur bei Erwaehnung), und die Kopfzeile ueber Antworten ist einstellbar statt fest "Hermes Agent" (#144).
   Zielgrammatik und Medienablehnung beim Senden sind getestet (#143). Antworten auf einzelne Nachrichten und Anhaenge
   bleiben beim Senden bewusst aus.
+- DASH-08.02 (2026-10-30, N-174): Telegram-Gruppen lassen sich auf "nur bei Erwaehnung oder Befehl" stellen (#146);
+  vorher antwortete Friday in einer freigegebenen Gruppe auf jede Nachricht. Discord erwartet die Erwaehnung schon
+  standardmaessig.
+- CI (2026-10-30, N-175, N-176): Die Befehlspalette fuehrt den angezeigten Eintrag aus, auch wenn Treffer spaeter
+  darueber einsortiert werden (#147); die FFmpeg-Installation im Installer-Job wiederholt bei Feed-Ausfall und bricht
+  sonst klar ab (#148).
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
