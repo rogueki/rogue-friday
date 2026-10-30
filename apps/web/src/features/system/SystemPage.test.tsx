@@ -270,11 +270,12 @@ describe("hardware (PLAN §40.1)", () => {
 
 describe("services (PLAN §40.2)", () => {
   it("lists services with status and gates the healthcheck by capability", async () => {
-    const service = { id: "svc_01JAAAAAAAAAAAAAAAAAAAAAAA", version: "1", createdAt: NOW, updatedAt: NOW, source: SOURCE, name: "Hermes", kind: "hermes", status: "degraded", latencyMs: 80, lastCheckAt: NOW, lastSuccessAt: NOW };
+    const service = { id: "svc_01JAAAAAAAAAAAAAAAAAAAAAAA", version: "1", createdAt: NOW, updatedAt: NOW, source: SOURCE, name: "Hermes", kind: "hermes", status: "degraded", latencyMs: 80, lastCheckAt: NOW, lastSuccessAt: NOW, endpoint: "127.0.0.1:43693" };
     const fake = routedFetch({ "GET /api/v1/system/services": listOf([service]) });
     renderWithProviders(<ServicesPanel />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: false } }) });
     expect(await screen.findByText("Hermes")).toBeInTheDocument();
     expect(screen.getByText("Eingeschränkt")).toBeInTheDocument();
+    expect(screen.getByText(/Adresse 127\.0\.0\.1:43693/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Healthcheck für Hermes/ })).toBeDisabled();
   });
 
