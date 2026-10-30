@@ -11,7 +11,7 @@ were missing. Every table below is a file in this repository, not a prose claim.
 | Requirements (all sources) | `requirements.csv` | 168 | master plan 21.10.2026 + six plans + Vollintegration §§5–17 + Journal | **yes**, created against `e98cbf5` |
 | Issues/defects | `issue-ledger.csv` | 80 | I-001..I-062 (journal), FP-01..12 (FIXPLAN), N-001..006 (this session) | **yes**, every row has a current assessment |
 | UI page → data source → consumer → status | `../hermes-full-integration/dashboard-coverage.csv` | 20 areas | `e6f23c7` (19.10.2026) | partially — area level only, no callback proof (`ACTION_ROW_LEVEL`) |
-| UI action → native/NL path | `../hermes-full-integration/dashboard-action-nlp-coverage.csv` | 97 | `e6f23c7` | partially — `SOURCE_TRACE_ONLY`, runtime `NOT_RUN` |
+| UI action → native/NL path | `../hermes-full-integration/dashboard-action-nlp-coverage.csv` | 97 | `e6f23c7` | partially — re-audited 2026-10-30: 20 of 97 families mapped to a tested intent, 77 `NOT_MAPPED` with a reason; runtime `NOT_RUN` |
 | Setting → apply → readback → restart | `../hermes-full-integration/settings-runtime-map.csv` | 110 fields | `e6f23c7` | partially — most acceptance cells are `NOT_RUN` |
 | Hermes function → Friday target → gap | `../hermes-full-integration/hermes-feature-inventory.json` | see `items` | Hermes `d923a5eb487a` (v0.22.2), Friday `e6f23c7` | yes for Hermes side (installed version is identical), Friday side stale |
 | Hermes config key → bridge/consumer | `../hermes-full-integration/p7d-config-matrix.csv` | 97 keys | Hermes `d923a5eb487a` | yes for Hermes, consumers partly unverified |
