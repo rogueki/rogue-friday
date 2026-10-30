@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type Memory, type MemoryType, type ResearchProject, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Agent, type AgentStatus, type Automation, type Approval, type AuditEvent, type CalendarEvent, type CommandResponse, type ContentPlanState, type Freshness, type FileCategory, type FileItem, type Memory, type MemoryType, type ResearchProject, type Notification, type Settings, type Task, type TaskStatus, type Thread, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -25,6 +25,8 @@ export type ReadQueryIntent =
   | { kind: "memory.get"; id: string }
   | { kind: "research.list" }
   | { kind: "research.get"; id: string }
+  | { kind: "files.list"; category?: FileCategory[] }
+  | { kind: "files.get"; id: string }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -185,6 +187,23 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
       ...(needsReply ? { needsReply: true } : {}),
     };
   }
+  const filesArea = /\b(datei|dateien|files?|dokument|dokumente|dokumenten)\b/.test(text);
+  if (filesArea) {
+    if (otherFamilies.length > 0 || /\b(automationen?|automations?|zeitplaene?|zeitplan|schedules?|memory|memories|gedaechtnis|gedaechtnisses|agenten?|agents?|assistenten?)\b/.test(text))
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Dateiabfrage formulieren." };
+    if (/\b(loesche|loeschen|benenne|benennen|umbenennen|verschiebe|verschieben|hochladen|aendere|aendern|teile|teilen|erstelle|erstellen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Dateiabfrage formulieren." };
+    if (/\b(suche|such|finde|find|search|namens|heisst|heissen|nach)\b/.test(text))
+      return { kind: "clarify", message: "Die Dateiabfrage sucht nicht nach Namen. Bitte nach einer Kategorie fragen oder die Datei-Kennung nennen." };
+    const fileIds = [...input.matchAll(/\bfile_[0-9A-Za-z]{26}\b/g)].map((match) => match[0]);
+    if (fileIds.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine Datei-Kennung." };
+    const categories = FILE_CATEGORIES.filter((category) => new RegExp(`\\b(?:${FILE_CATEGORY_WORDS[category]})\\b`).test(text));
+    if (fileIds[0]) {
+      if (categories.length > 0) return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Filter kombiniert werden." };
+      return { kind: "files.get", id: fileIds[0] };
+    }
+    return { kind: "files.list", ...(categories.length > 0 ? { category: categories } : {}) };
+  }
   const automationArea = /\b(automationen?|automations?|zeitplaene?|zeitplan|schedules?)\b/.test(text);
   if (automationArea) {
     if (otherFamilies.length > 0)
@@ -311,6 +330,20 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (family === "approvals") return { kind: "approvals.list", ...(statuses[0] ? { status: [statuses[0] as "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"] } : {}) };
   return { kind: "audit.list", ...(statuses[0] ? { result: [statuses[0] as "success" | "failure" | "denied" | "pending"] } : {}), ...(hours ? { lookbackHours: hours } : {}), ...(/\b(security|sicherheit)\b/.test(text) ? { securityOnly: true } : {}) };
 }
+
+/** German surface forms per file category; only these reach the route as a filter. */
+const FILE_CATEGORY_WORDS: Record<FileCategory, string> = {
+  generated: "erzeugte|erzeugten|generierte|generierten",
+  uploaded: "hochgeladene|hochgeladenen",
+  reports: "berichte|berichten|reports",
+  presentations: "praesentationen|praesentation",
+  invoices: "rechnungen|rechnung",
+  research: "recherche|recherchen|recherchedateien",
+  exports: "exporte|exportierte|exportierten",
+  temporary: "temporaere|temporaeren|temporaer",
+};
+
+const FILE_CATEGORIES = ["generated", "uploaded", "reports", "presentations", "invoices", "research", "exports", "temporary"] as const;
 
 /** German surface forms per memory type; only these reach the route as a filter. */
 const MEMORY_TYPE_WORDS: Record<"fact" | "preference" | "person" | "company" | "project" | "instruction", string> = {
@@ -443,6 +476,8 @@ const idStatus = (id: string, status: string, date: string): string => `${id} ·
 // Sensitive and restricted titles and contents are never spoken back.
 const memoryTitle = (memory: Memory): string => memory.sensitivity === "normal" ? memory.title ?? "" : "vertraulich";
 const truncate = (text: string, max: number): string => text.length > max ? `${text.slice(0, max - 1)}…` : text;
+const fileSize = (bytes: number): string => bytes < 1024 ? `${bytes} Byte`
+  : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed">): Promise<{ items: Approval[]; hasNextPage: boolean }> {
   const ownerId = ctx.principal!.userId;
@@ -471,6 +506,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind.startsWith("automations.")) requireReadRole(ctx, "automations", "viewer");
   if (intent.kind.startsWith("memory.")) requireReadRole(ctx, "memory", "viewer");
   if (intent.kind.startsWith("research.")) requireReadRole(ctx, "research", "viewer");
+  if (intent.kind.startsWith("files.")) requireReadRole(ctx, "files", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -551,6 +587,18 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
         ? (await ctx.runtime.registry.getPort("research").getResearchProject({ id: intent.id }, ctx.call)).data
         : ctx.runtime.research.get(ctx.principal!.userId, intent.id);
       return baseResponse(ctx, `Recherche ${project.id}: ${project.topic}, Status ${project.status}, ${project.sourceCount ?? 0} Quellen, ${project.findingCount ?? 0} Erkenntnisse.`);
+    }
+    case "files.list": {
+      const page = await ctx.runtime.registry.getPort("files").listFiles({
+        limit: MAX_RESULTS,
+        ...(intent.category ? { category: intent.category } : {}),
+      }, ctx.call);
+      return baseResponse(ctx, listMessage("Dateien", page.items, page.pageInfo.hasNextPage,
+        (file: FileItem) => idStatus(file.id, `${file.category} · ${file.name}`, file.updatedAt)));
+    }
+    case "files.get": {
+      const file = (await ctx.runtime.registry.getPort("files").getFile({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Datei ${file.id}: ${file.name}, Kategorie ${file.category}, ${fileSize(file.sizeBytes)}, Version ${file.currentVersion}, geändert ${file.updatedAt}.`);
     }
     case "agents.list": {
       const page = await ctx.runtime.registry.getPort("agents").listAgents({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}) }, ctx.call);

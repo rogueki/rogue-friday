@@ -8,9 +8,9 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 - Intent-Dienste: 11 (`agent-action-intent.ts`, `automation-action-intent.ts`, `calendar-action-intent.ts`, `knowledge-action-intent.ts`, `mail-action-intent.ts`, `messenger-action-intent.ts`, `read-query-intent.ts`, `research-action-intent.ts`, `settings-content-mutation-intent.ts`, `task-action-intent.ts`, `task-create-intent.ts`)
 - Im Dispatcher erreichbar: 11 von 11
-- Lese-Intents: 22 · eingebaute Sprachintents: voice_start, focus_toggle
-- Bereiche mit Lese- und Schreibweg: 8 von 20
-- Nur lesbar: 4 · nur schreibbar: 3 · ohne Sprachweg: 5
+- Lese-Intents: 24 · eingebaute Sprachintents: voice_start, focus_toggle
+- Bereiche mit Lese- und Schreibweg: 9 von 20
+- Nur lesbar: 4 · nur schreibbar: 2 · ohne Sprachweg: 5
 
 ## 2. Matrix
 
@@ -25,7 +25,7 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 | Skills | ja | — | — | kein Sprachweg |
 | Automationen | ja | `automations.get`, `automations.list` | `automation.disable`, `automation.enable`, `automation.pause`, `automation.pauseAll`, `automation.resume`, `automation.test` | lesen + schreiben |
 | Recherche | ja | `research.get`, `research.list` | `research.create` | lesen + schreiben |
-| Dateien | ja | — | `file.delete`, `file.rename` | nur schreiben |
+| Dateien | ja | `files.get`, `files.list` | `file.delete`, `file.rename` | lesen + schreiben |
 | Studio | ja | — | — | kein Sprachweg |
 | Sprache | ja | — | `voice_start` | nur schreiben |
 | Aktivität | ja | `activity.get`, `activity.list` | — | nur lesen |
