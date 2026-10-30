@@ -186,6 +186,21 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     expect(text).toMatch(/Threshold\s*72\s*%/);
   });
 
+  it("names an unknown profile state instead of claiming that no profile exists", async () => {
+    const unknown = { ...listOf([]), freshness: { state: "unknown", asOf: null } };
+    const fake = routedFetch(routes({ "GET /api/v1/voice/profiles": unknown }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: false }) });
+    expect(await screen.findByText("Profilstand unbekannt")).toBeInTheDocument();
+    expect(screen.queryByText("Noch kein Sprecherprofil")).toBeNull();
+  });
+
+  it("still says that no profile exists when the service reports none", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/voice/profiles": listOf([]) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: false }) });
+    expect(await screen.findByText("Noch kein Sprecherprofil")).toBeInTheDocument();
+    expect(screen.queryByText("Profilstand unbekannt")).toBeNull();
+  });
+
   const job = (partial: Partial<VoiceEnrollment> = {}): VoiceEnrollment => ({
     id: "venr_01JAAAAAAAAAAAAAAAAAAAAAAA",
     profileId: "vprof_1",
