@@ -36,6 +36,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { NativeApprovalRequests } from "../services/native-approval-requests";
 import { PendingCommandClarifications } from "../services/pending-command-clarifications";
+import { RecentCommandListings } from "../services/recent-command-listings";
 import { EncryptedClarifiedMailDrafts } from "../services/encrypted-clarified-mail-drafts";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
@@ -276,6 +277,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  const recentCommandListings = new RecentCommandListings(options.now);
   let pendingCommandClarifications: PendingCommandClarifications;
   let encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
   try {
@@ -563,6 +565,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     settings,
     nativeApprovals,
     pendingCommandClarifications,
+    recentCommandListings,
     encryptedClarifiedMailDrafts,
     contentStudioKeys,
     contentStudioProviders,

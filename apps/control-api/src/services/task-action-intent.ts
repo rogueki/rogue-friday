@@ -1,9 +1,12 @@
 import type { TaskStatus } from "@friday/sdk";
 
+/** Set when the sentence points at tasks a read command just listed: an ordinal, or null for "sie"/"diese". */
+export interface ListedTaskRef { ordinal: number | null }
+
 export type TaskActionIntent =
-  | { kind: "task.update"; status: TaskStatus; ref: string | null }
-  | { kind: "task.cancel"; ref: string | null }
-  | { kind: "task.retry"; ref: string | null };
+  | { kind: "task.update"; status: TaskStatus; ref: string | null; listed?: ListedTaskRef }
+  | { kind: "task.cancel"; ref: string | null; listed?: ListedTaskRef }
+  | { kind: "task.retry"; ref: string | null; listed?: ListedTaskRef };
 
 const TASK_ID = /^task_[0-9A-Za-z]{26}$/;
 
@@ -77,6 +80,31 @@ const RETRY_SELECTED = /^(?:(?:please|bitte)\s+)?(?:retry|restart|erneut\s+start
 const RETRY_POSTFIX_WITH_REF = /^(?:bitte\s+)?starte\s+(?:(?:die|das|den)\s+)?(?:task|aufgabe)\s+(.+?)\s+erneut$/iu;
 const RETRY_POSTFIX_SELECTED = /^(?:bitte\s+)?starte\s+(?:(?:die|das|den)\s+)?(?:task|aufgabe)\s+erneut$/iu;
 
+const ORDINALS: Readonly<Record<string, number>> = {
+  erste: 0, zweite: 1, dritte: 2, vierte: 3, fuenfte: 4, "fünfte": 4,
+};
+
+/** "sie", "diese" or "die erste … fünfte [Aufgabe]"; "ihn" and "es" stay unmatched (Termin/Eintrag elsewhere). */
+function listedRef(value: string | undefined): ListedTaskRef | null {
+  const phrase = (value ?? "").trim().toLowerCase();
+  if (/^(?:sie|diese)$/u.test(phrase)) return { ordinal: null };
+  const match = /^(?:die|der|den)\s+(erste|zweite|dritte|vierte|fuenfte|fünfte)[nr]?(?:\s+(?:aufgabe|task))?$/u.exec(phrase);
+  return match ? { ordinal: ORDINALS[match[1]!]! } : null;
+}
+
+const STATUS_LISTED = [
+  /^(?:bitte\s+)?markiere\s+(.+?)\s+als\s+(.+)$/iu,
+  /^(?:bitte\s+)?(?:setze|stelle)\s+(.+?)\s+auf\s+(.+)$/iu,
+];
+const CANCEL_LISTED = [
+  /^(?:bitte\s+)?(?:loesche|lösche|entferne|storniere)\s+(.+)$/iu,
+  /^(?:bitte\s+)?brich\s+(.+?)\s+ab$/iu,
+];
+const RETRY_LISTED = [
+  /^(?:bitte\s+)?starte\s+(.+?)\s+erneut$/iu,
+  /^(?:bitte\s+)?wiederhole\s+(.+)$/iu,
+];
+
 /**
  * Only an explicit status-change or cancel imperative for one task is treated as an action. The reference is a task
  * id or title; phrases without a reference resolve the single selected task of the command context at the handler.
@@ -110,6 +138,21 @@ export function parseTaskActionIntent(text: string): TaskActionIntent | null {
   }
   for (const pattern of CANCEL_SELECTED) {
     if (pattern.test(trimmed)) return { kind: "task.cancel", ref: null };
+  }
+  // Follow-ups to a listing come last, so every phrasing above keeps its meaning.
+  for (const pattern of STATUS_LISTED) {
+    const match = pattern.exec(trimmed);
+    const listed = listedRef(match?.[1]);
+    const status = statusOf(match?.[2]);
+    if (match && listed && status) return { kind: "task.update", status, ref: null, listed };
+  }
+  for (const pattern of CANCEL_LISTED) {
+    const listed = listedRef(pattern.exec(trimmed)?.[1]);
+    if (listed) return { kind: "task.cancel", ref: null, listed };
+  }
+  for (const pattern of RETRY_LISTED) {
+    const listed = listedRef(pattern.exec(trimmed)?.[1]);
+    if (listed) return { kind: "task.retry", ref: null, listed };
   }
   return null;
 }

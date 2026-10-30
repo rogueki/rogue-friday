@@ -103,8 +103,28 @@ const STATUS_LABEL: Readonly<Record<string, string>> = {
  * list, or the single selected task of the command context. Unknown or ambiguous references fail here, not after a
  * preview was saved.
  */
-async function resolveTaskRef(ctx: Parameters<Handler>[0], request: CommandRequest, ref: string | null) {
+async function resolveTaskRef(ctx: Parameters<Handler>[0], request: CommandRequest, ref: string | null,
+  listed?: { ordinal: number | null }) {
   const tasks = ctx.runtime.registry.getPort("tasks");
+  if (ref === null && listed) {
+    const ids = ctx.principal
+      ? ctx.runtime.recentCommandListings.read(ctx.principal.userId, ctx.principal.sessionId, "tasks") : null;
+    if (!ids) {
+      throw validationFailed("Welche Aufgabe ist gemeint? Bitte zuerst die Aufgaben auflisten lassen oder Titel bzw. Kennung nennen.",
+        [{ path: "text", message: "keine kurz zuvor genannten Aufgaben" }]);
+    }
+    const index = listed.ordinal ?? (ids.length === 1 ? 0 : -1);
+    if (index < 0) {
+      throw validationFailed(`Welche der ${ids.length} genannten Aufgaben ist gemeint? Bitte z. B. „markiere die zweite als erledigt“ sagen.`,
+        [{ path: "text", message: "mehrere Aufgaben genannt" }]);
+    }
+    const id = ids[index];
+    if (!id) {
+      throw validationFailed(`Es wurden nur ${ids.length} Aufgaben genannt.`,
+        [{ path: "text", message: "Ordnungszahl ausserhalb der Liste" }]);
+    }
+    return (await tasks.getTask({ id }, ctx.call)).data;
+  }
   if (ref === null) {
     const selected = request.context?.selectedIds ?? [];
     if (selected.length !== 1) {
@@ -133,7 +153,7 @@ async function executeTaskAction(ctx: Parameters<Handler>[0], request: CommandRe
         : intent.kind === "task.retry" ? "Aufgaben koennen derzeit nicht neu gestartet werden."
           : "Aufgaben koennen derzeit nicht abgebrochen werden." });
   }
-  const task = await resolveTaskRef(ctx, request, intent.ref);
+  const task = await resolveTaskRef(ctx, request, intent.ref, intent.listed);
   if (!request.confirm && intent.kind === "task.cancel" && ["done", "failed", "cancelled"].includes(task.status)) {
     throw conflict(`Aufgabe ${task.id} ist bereits beendet (${task.status}) und kann nicht abgebrochen werden.`, { status: task.status });
   }

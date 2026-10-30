@@ -15,6 +15,7 @@ import type { OrbService, OverviewService, StatusService } from "../services/cor
 import type { SettingsService } from "../services/settings";
 import type { NativeApprovalRequests } from "../services/native-approval-requests";
 import type { PendingCommandClarifications } from "../services/pending-command-clarifications";
+import type { RecentCommandListings } from "../services/recent-command-listings";
 import type { EncryptedClarifiedMailDrafts } from "../services/encrypted-clarified-mail-drafts";
 import type { ContentStudioKeysService } from "../services/content-studio-keys";
 import type { ContentStudioProviderService } from "../services/content-studio-providers";
@@ -99,6 +100,7 @@ export interface Runtime {
   settings: SettingsService;
   nativeApprovals: NativeApprovalRequests;
   pendingCommandClarifications: PendingCommandClarifications;
+  recentCommandListings: RecentCommandListings;
   encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
   contentStudioKeys: ContentStudioKeysService;
   contentStudioProviders: ContentStudioProviderService;
