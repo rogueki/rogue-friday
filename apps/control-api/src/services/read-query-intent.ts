@@ -737,6 +737,10 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       }
       // Same list as GET /calendar/events, so events created by voice or in the dashboard are named too.
       const page = (await calendarList()({ ...ctx, query: { from: range.from, to: range.to, limit: String(MAX_RESULTS) } })).body as CalendarEventListResponse;
+      if (ctx.principal) {
+        ctx.runtime.recentCommandListings.remember(ctx.principal.userId, ctx.principal.sessionId, "calendar",
+          page.items.slice(0, MAX_RESULTS).map((event) => event.id));
+      }
       return baseResponse(ctx, listMessage(intent.dayOffset === 0 ? "Termine heute" : "Termine morgen", page.items, page.pageInfo.hasNextPage,
         (event: CalendarEvent) => idStatus(event.id, `${event.start} ${event.title}`, event.start)));
     }

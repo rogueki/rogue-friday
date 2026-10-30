@@ -64,6 +64,28 @@ describe("calendar delete language", () => {
   }
 });
 
+describe("calendar follow-ups to a listing", () => {
+  const phrasings: Array<[string, CalendarActionIntent]> = [
+    ["Verschiebe den zweiten auf morgen 16 Uhr",
+      { kind: "calendar.update", ref: null, start: "2026-10-20T14:00:00.000Z", listed: { ordinal: 1 } }],
+    ["Verlege ihn auf Mittwoch 9:30",
+      { kind: "calendar.update", ref: null, start: "2026-10-21T07:30:00.000Z", listed: { ordinal: null } }],
+    ["Lösche den ersten Termin", { kind: "calendar.delete", ref: null, listed: { ordinal: 0 } }],
+    ["Sag ihn ab", { kind: "calendar.delete", ref: null, listed: { ordinal: null } }],
+    ["Bitte streiche den fünften", { kind: "calendar.delete", ref: null, listed: { ordinal: 4 } }],
+  ];
+  for (const [phrase, expected] of phrasings) {
+    it(`recognizes ${phrase}`, () => {
+      expect(parse(phrase)).toEqual(expected);
+    });
+  }
+
+  it.each(["Verschiebe ihn auf später", "Lösche sie", "Lösche es", "Lösche den siebten", "Sag den Urlaub ab"])(
+    "does not read %s as a listed event", (phrase) => {
+      expect(parse(phrase)).toBeNull();
+    });
+});
+
 describe("calendar language negatives", () => {
   it.each([
     "Zeige mir die Termine nächste Woche",
