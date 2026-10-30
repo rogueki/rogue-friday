@@ -359,6 +359,7 @@ export const deC = {
   "system.services.title": "Dienste",
   "system.services.empty": "Keine Dienste gemeldet",
   "system.services.lastCheck": "Prüfung {time}",
+  "system.services.endpoint": "Adresse {endpoint}",
   "system.services.check": "Healthcheck für {name} ausführen",
   "system.services.checked": "{name} geprüft",
   "system.models.title": "Modelle",

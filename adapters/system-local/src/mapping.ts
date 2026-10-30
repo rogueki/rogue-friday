@@ -20,6 +20,7 @@ export interface ServiceInput {
   checkedAt: string;
   createdAt: string;
   lastSuccessAt: string | null;
+  endpoint?: string;
 }
 
 export const serviceMapper = defineMapper<ServiceInput, Service>({
@@ -38,6 +39,7 @@ export const serviceMapper = defineMapper<ServiceInput, Service>({
     lastCheckAt: input.checkedAt,
     lastSuccessAt: input.lastSuccessAt,
     detail: input.probe.detail,
+    ...(input.endpoint ? { endpoint: input.endpoint } : {}),
   }),
 });
 
