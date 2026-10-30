@@ -224,4 +224,20 @@ describe("repository hygiene", () => {
     const kept = execFileSync("git", ["check-attr", "export-ignore", "--", "installer/install-friday.ps1", "README.md"], { cwd: ROOT, encoding: "utf8" });
     expect(kept).not.toContain("set");
   });
+
+  it("ships only the synthetic voice outputs and test audio, never own voice recordings", () => {
+    const audio = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" }).split("\0")
+      .filter((path) => /\.(wav|mp3|flac|ogg|m4a|opus|npy|npz)$/i.test(path)).sort();
+    expect(audio).toEqual([
+      "installer/voice/tests/fixtures/audio/calendar.wav",
+      "installer/voice/tests/fixtures/audio/mail.wav",
+      "installer/voice/tests/fixtures/audio/no.wav",
+      "installer/voice/tests/fixtures/audio/research.wav",
+      "installer/voice/tests/fixtures/audio/yes.wav",
+      "installer/voice_models/friday_ref.wav",
+      "installer/voice_models/jarvis_ref.wav",
+    ]);
+    const ignored = execFileSync("git", ["check-ignore", "--no-index", "-v", "installer/voice_models/owner_recording.wav"], { cwd: ROOT, encoding: "utf8" });
+    expect(ignored).toContain(".gitignore");
+  });
 });
