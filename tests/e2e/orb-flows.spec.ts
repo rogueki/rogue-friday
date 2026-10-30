@@ -125,15 +125,28 @@ test("working: task start activates it, agents are counted, progress is only sho
   expect([...order].sort((a, b) => a - b)).toEqual(order);
 });
 
+/**
+ * Waits until the orb shows the single pending approval the server reports. Right after a scenario reset the page can
+ * still show the previous world's approval for a moment; acting before both agree would target a different approval.
+ */
+async function settledApproval(page: Page, api: { get(path: string): Promise<{ body: any }> }): Promise<{ id: string; action: string }> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  let pending: Array<{ id: string; action: string }> = [];
+  await expect.poll(async () => {
+    pending = (await api.get("/approvals?status=pending&limit=5")).body.items as Array<{ id: string; action: string }>;
+    const state = await orbState(page);
+    return state.mode === "waiting_approval" && pending.length === 1 && state.approvalId === pending[0]!.id;
+  }, { timeout: 20_000, message: "orb and server agree on the single pending approval" }).toBe(true);
+  return pending[0]!;
+}
+
 test.describe("approval (acceptance 22.8)", () => {
   test("the approval event activates waiting_approval, also while F.R.I.D.A.Y. speaks; the click opens exactly that approval", async ({ page, api }) => {
     test.setTimeout(120_000);
     await openOverview(page);
     await api.forceOrb(null);
     await api.play("approval-waiting", 10);
-    await expect.poll(async () => (await orbState(page)).mode, { timeout: 20_000 }).toBe("waiting_approval");
-    const pending = (await api.get("/approvals?status=pending&limit=5")).body.items as Array<{ id: string; action: string }>;
-    expect((await orbState(page)).approvalId, "controller knows the concrete approval").toBe(pending[0]!.id);
+    const approval = await settledApproval(page, api);
+    expect((await orbState(page)).approvalId, "controller knows the concrete approval").toBe(approval.id);
 
     // parallel state: speaking + approval -> the approval stays the visible mode and keeps its target
     await call(page, "onTtsStarted", { engine: "test", hasAudioAnalysis: false });
@@ -147,7 +160,7 @@ test.describe("approval (acceptance 22.8)", () => {
     await orbRoot(page).getByRole("button", { name: /^Orb: Details öffnen\./ }).click();
     const drawer = page.getByRole("dialog", { name: "Freigabe" });
     await expect(drawer).toBeVisible();
-    await expect(drawer).toContainText(pending[0]!.action);
+    await expect(drawer).toContainText(approval.action);
   });
 
   test("resolving the approval returns the orb to calm", async ({ page, api }) => {
@@ -155,9 +168,8 @@ test.describe("approval (acceptance 22.8)", () => {
     await openOverview(page);
     await api.forceOrb(null);
     await api.play("approval-waiting", 10);
-    await expect.poll(async () => (await orbState(page)).mode, { timeout: 20_000 }).toBe("waiting_approval");
-    const pending = (await api.get("/approvals?status=pending&limit=5")).body.items as Array<{ id: string }>;
-    const result = await api.post(`/approvals/${pending[0]!.id}/reject`, { comment: "E2E" });
+    const approval = await settledApproval(page, api);
+    const result = await api.post(`/approvals/${approval.id}/reject`, { comment: "E2E" });
     expect(result.status, JSON.stringify(result.body)).toBeLessThan(300);
     await expect.poll(async () => (await orbState(page)).mode, { timeout: 20_000 }).not.toBe("waiting_approval");
     expect((await orbState(page)).approvalId).toBeNull();
