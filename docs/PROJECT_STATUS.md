@@ -1205,6 +1205,10 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
 - CI (2026-10-30, N-175, N-176): Die Befehlspalette fuehrt den angezeigten Eintrag aus, auch wenn Treffer spaeter
   darueber einsortiert werden (#147); die FFmpeg-Installation im Installer-Job wiederholt bei Feed-Ausfall und bricht
   sonst klar ab (#148).
+- DASH-18.04 (2026-10-30, N-177, N-178): Folgebefehle nach einer Liste: nach "Zeige meine offenen Aufgaben" etwa
+  "markiere die zweite als erledigt" oder "loesche sie" (#150), nach "Zeige meine Termine morgen" etwa "verschiebe den
+  zweiten auf morgen 16 Uhr" oder "sag ihn ab" (#151). Friday merkt sich dafuer nur die Kennungen, 5 Minuten, pro
+  Sitzung; unklare Bezuege fuehren zur Rueckfrage. Akzeptanzzeilen NLP-02 bis NLP-05 mit Testbelegen versehen.
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
