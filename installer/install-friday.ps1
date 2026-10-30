@@ -2735,13 +2735,15 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     }
     if ($script:DashOk) {
         MarkDone 'dashboard'
-        if ($State.dashboard_source -and (Test-Path (Join-Path $State.dashboard_source '.git'))) {
-            $revision = & git.exe -C $State.dashboard_source rev-parse HEAD 2>$null
-            if ($LASTEXITCODE -eq 0 -and "$revision" -cmatch '^[0-9a-f]{40}$') {
-                $revisionFile = "$Dash\data\dashboard-revision.json"
-                $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
-                [IO.File]::WriteAllText($revisionFile, $revisionJson, [Text.UTF8Encoding]::new($false))
-            }
+        # Auch ein GitHub-ZIP ohne .git liefert den Commit (installer\source-revision.txt); ohne ihn zeigt die
+        # Systemseite keinen Stand und das Dashboard-Update verweigert den Start.
+        $revision = Get-DashboardSourceRevision $State.dashboard_source
+        if ($revision) {
+            $revisionFile = "$Dash\data\dashboard-revision.json"
+            $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
+            [IO.File]::WriteAllText($revisionFile, $revisionJson, [Text.UTF8Encoding]::new($false))
+        } else {
+            Warn 'Quell-Commit unbekannt (weder Git-Checkout noch GitHub-ZIP): die Systemseite zeigt keinen Dashboard-Stand.'
         }
     } else {
         Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'
