@@ -1127,8 +1127,9 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
 
 - N-094 (2026-10-29): Harte Bereichstrennung ueber `installer/wsl/setup_profile_isolation.sh`: je Domain-Profil ein
   Linux-Benutzer `friday-<p>`, Hermes `terminal.backend: ssh` auf 127.0.0.1:2222 (nur Schluessel), Terminal- und
-  Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch. Live-Lauf als root steht aus
-  (`n-094-profil-benutzer-entwurf.md`).
+  Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch (`n-094-profil-benutzer-entwurf.md`).
+  Live auf FRIDAY-2 am 2026-10-30 abgenommen: sieben Profile als eigene Benutzer, fremde Zugangsdaten verweigert. Der
+  erste Lauf scheiterte auf frischem openssh-server und liess Port 22 offen; #104 behebt das (N-143).
 
 - DASH-12.04/12.05 (2026-10-29): Ein fehlgeschlagenes Neutraining der Linux-Sprecheranmeldung loeschte bisher Profil,
   Wake-Modell und Meta des zuvor funktionierenden Profils. Jetzt werden sie vor dem Training gesichert (`*.prev`), bei
