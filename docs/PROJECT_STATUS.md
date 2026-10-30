@@ -1129,7 +1129,9 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Linux-Benutzer `friday-<p>`, Hermes `terminal.backend: ssh` auf 127.0.0.1:2222 (nur Schluessel), Terminal- und
   Datei-Tools laufen dort; Gateway-Seite 0700/0750. Kein Hermes-Patch (`n-094-profil-benutzer-entwurf.md`).
   Live auf FRIDAY-2 am 2026-10-30 abgenommen: sieben Profile als eigene Benutzer, fremde Zugangsdaten verweigert. Der
-  erste Lauf scheiterte auf frischem openssh-server und liess Port 22 offen; #104 behebt das (N-143).
+  erste Lauf scheiterte auf frischem openssh-server und liess Port 22 offen; #104 behebt das (N-143). Sieben
+  Kanban-Aufgaben ueber den Dispatcher liefen danach je als `friday-<p>`; Schreiben in `~/.hermes` des Eigentuemers
+  scheiterte in allen sieben.
 
 - DASH-12.04/12.05 (2026-10-29): Ein fehlgeschlagenes Neutraining der Linux-Sprecheranmeldung loeschte bisher Profil,
   Wake-Modell und Meta des zuvor funktionierenden Profils. Jetzt werden sie vor dem Training gesichert (`*.prev`), bei
