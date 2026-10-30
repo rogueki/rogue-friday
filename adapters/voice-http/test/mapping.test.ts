@@ -232,7 +232,7 @@ describe("voiceStatusMapper", () => {
     expect(status.speakerVerification).toEqual({
       enabled: true,
       state: "verified",
-      recognizedSpeaker: null,
+      recognizedSpeaker: "Owner",
       confidence: null,
     });
     expect(status.trustedSession).toEqual({ active: true, expiresAt: null });
@@ -329,14 +329,14 @@ describe("speaker verification from the service (DASH-11.03)", () => {
       trusted_remaining_s: 90,
       speaker_decision: { decision: "verified", score: 0.82, at: at(0) },
     }));
-    expect(status.speakerVerification).toMatchObject({ state: "verified", confidence: 0.82 });
+    expect(status.speakerVerification).toMatchObject({ state: "verified", confidence: 0.82, recognizedSpeaker: "Owner" });
     expect(status.trustedSession.active).toBe(true);
     expect(status.trustedSession.expiresAt).toBe(new Date(Date.parse(status.updatedAt) + 90_000).toISOString());
   });
 
   it("current rejection: state rejected with its confidence", () => {
     const status = map(raw({ speaker_decision: { decision: "rejected", score: 0.31, at: at(-10) } }));
-    expect(status.speakerVerification).toMatchObject({ state: "rejected", confidence: 0.31 });
+    expect(status.speakerVerification).toMatchObject({ state: "rejected", confidence: 0.31, recognizedSpeaker: null });
     expect(status.trustedSession).toEqual({ active: false, expiresAt: null });
   });
 
@@ -351,7 +351,7 @@ describe("speaker verification from the service (DASH-11.03)", () => {
       runtime_settings: runtimeSettings(false),
       speaker_decision: { decision: "verified", score: 0.82, at: at(0) },
     }));
-    expect(status.speakerVerification).toMatchObject({ enabled: false, state: "disabled" });
+    expect(status.speakerVerification).toMatchObject({ enabled: false, state: "disabled", recognizedSpeaker: null });
   });
 
   it("clamps a negative score to zero", () => {
