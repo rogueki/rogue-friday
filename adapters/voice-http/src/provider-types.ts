@@ -42,6 +42,8 @@ export interface RawVoiceStatus {
   trusted: boolean;
   trusted_remaining_s?: number;
   speaker_decision?: { decision: "verified" | "rejected"; score: number; at: string } | null;
+  /** Additive: summary of the active speaker profile (never the embedding); null when no profile file exists. */
+  speaker_profile?: RawSpeakerProfile | null;
   game_mode?: string | null;
   /** Additive fields of the personalized installer (assistant name / wake phrase chosen at install time). */
   assistant_name?: string;
@@ -78,4 +80,13 @@ export interface RawVoiceStatus {
   };
   ptt_active?: boolean;
   native_ptt_available?: boolean;
+}
+
+/** Measured values are null when the profile predates the metadata file or the metadata belongs to another embedding. */
+export interface RawSpeakerProfile {
+  updated_at: string;
+  threshold: number;
+  sample_count: number | null;
+  quality: number | null;
+  calibrated_at: string | null;
 }

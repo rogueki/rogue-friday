@@ -2066,7 +2066,44 @@ class VoiceService:
                 "audio_input_flags": getattr(self, "audio_input_flags", None),
                 "memory_capture_error": getattr(self, "memory_capture_error", None),
                 "memory_pending": memory_pending,
-                "memory_search_error": getattr(self, "memory_search_error", None)}
+                "memory_search_error": getattr(self, "memory_search_error", None),
+                "speaker_profile": self.speaker_profile_summary()}
+
+    def speaker_profile_summary(self) -> dict | None:
+        """Zusammenfassung des aktiven Sprecherprofils fuer das Dashboard: nur Zeitpunkte und Messwerte, nie das
+        Embedding. Messwerte zaehlen nur, wenn owner_profile.json zur Pruefsumme des aktuellen Embeddings passt."""
+        path = self.cfg.get("speaker_profile")
+        if not path or not os.path.exists(path):
+            return None
+        meta_path = os.path.join(os.path.dirname(path), "owner_profile.json")
+        try:
+            stamp = (os.path.getmtime(path), os.path.getmtime(meta_path) if os.path.exists(meta_path) else None)
+        except OSError:
+            return None
+        cached = getattr(self, "_speaker_profile_cache", None)
+        if cached is not None and cached[0] == stamp:
+            return cached[1]
+        measured = {"sample_count": None, "quality": None, "calibrated_at": None}
+        try:
+            with open(path, "rb") as handle:
+                digest = hashlib.sha256(handle.read()).hexdigest()
+            if stamp[1] is not None:
+                with open(meta_path, encoding="utf-8") as handle:
+                    meta = json.load(handle)
+                valid = (isinstance(meta, dict) and meta.get("format") == 1 and meta.get("profile_sha256") == digest
+                         and isinstance(meta.get("sample_count"), int) and not isinstance(meta.get("sample_count"), bool)
+                         and meta["sample_count"] >= 0 and isinstance(meta.get("quality"), (int, float))
+                         and not isinstance(meta.get("quality"), bool) and 0 <= meta["quality"] <= 1
+                         and isinstance(meta.get("calibrated_at"), str))
+                if valid:
+                    measured = {"sample_count": meta["sample_count"], "quality": float(meta["quality"]),
+                                "calibrated_at": meta["calibrated_at"]}
+        except (OSError, ValueError):
+            pass
+        summary = {"updated_at": datetime.datetime.fromtimestamp(stamp[0], datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                   "threshold": float(self.cfg.get("speaker_threshold", 0.0)), **measured}
+        self._speaker_profile_cache = (stamp, summary)
+        return summary
 
     def _start_health(self) -> None:
         service = self

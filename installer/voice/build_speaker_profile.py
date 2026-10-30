@@ -3,7 +3,10 @@
 Profil = normierter Mittelwert der Embeddings aus 3-s-Fenstern der speech-Aufnahmen.
 Danach Selbsttest: Cosine-Score jeder Wake-Word-Aufnahme gegen das Profil.
 """
+import datetime
 import glob
+import hashlib
+import json
 import os
 import sys
 
@@ -88,6 +91,23 @@ cv = np.array(cv)
 if not len(cv):
     raise SystemExit("Zu wenige verwertbare Lesefenster fuer die Kreuzvalidierung")
 print(f"Kreuzvalidierung 1,5-s-Fenster: n={len(cv)} min={cv.min():.3f} p10={np.percentile(cv, 10):.3f} median={np.median(cv):.3f}")
+
+# Messwerte fuer das Dashboard: Qualitaet = 10-%-Quantil der Kreuzvalidierung (90 % der Live-Fenster liegen darueber).
+# Die Pruefsumme bindet die Werte an genau dieses Embedding; ein spaeter ersetztes Profil verliert sie dadurch.
+profile_file = os.path.join(OWNER, "embeddings", "owner_ecapa.npy")
+with open(profile_file, "rb") as handle:
+    profile_sha256 = hashlib.sha256(handle.read()).hexdigest()
+meta = {
+    "format": 1,
+    "profile_sha256": profile_sha256,
+    "sample_count": len(embs) + len(wake_embs),
+    "quality": round(float(min(1.0, max(0.0, np.percentile(cv, 10)))), 3),
+    "calibrated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+}
+meta_file = os.path.join(OWNER, "embeddings", "owner_profile.json")
+with open(meta_file + ".tmp", "w", encoding="utf-8") as handle:
+    json.dump(meta, handle)
+os.replace(meta_file + ".tmp", meta_file)
 
 # Wake-Blocks heissen wake_<slug der Phrase> (+ wake_<slug der Kurzform>), z. B. wake_hey_friday / wake_friday.
 for block in (*WAKE_BLOCKS, "negatives"):
