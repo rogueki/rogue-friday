@@ -1195,6 +1195,23 @@ def test_service_barge_in_and_openwakeword_path(monkeypatch):
     assert svc.status["wake_engine"] == "openwakeword"
 
 
+def test_status_server_ignores_client_disconnects(capsys):
+    # N-144: each dashboard probe that timed out mid-response left a 20-line traceback in the voice log.
+    jv = load_voice_module()
+    srv = jv.QuietHTTPServer.__new__(jv.QuietHTTPServer)
+    for exc in (ConnectionAbortedError(10053, "aborted"), ConnectionResetError(), BrokenPipeError()):
+        try:
+            raise exc
+        except OSError:
+            srv.handle_error(None, ("127.0.0.1", 1))
+    assert capsys.readouterr().err == ""
+    try:
+        raise ValueError("handler bug")
+    except ValueError:
+        srv.handle_error(None, ("127.0.0.1", 1))
+    assert "ValueError: handler bug" in capsys.readouterr().err
+
+
 def test_service_backlog_becomes_preroll(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
