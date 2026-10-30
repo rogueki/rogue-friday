@@ -1167,6 +1167,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   kopiert keine Testschluessel (#115). Eine ZIP-Installation kennt ihren Commit (#116), die Systemseite nennt je Dienst
   die gepruefte Adresse (#118). `docs/RELEASE_COMPATIBILITY.md` fasst Versionen, Ports, Paketinhalt, Migrationen,
   Rollback und Nachweise zusammen (#120). Ein wackliger Orb-Freigabetest ist behoben (#117).
+- DASH-18.03 (2026-10-30, N-156 bis N-161): Termine per Sprache anlegen, verschieben und loeschen darf wie im Kalender
+  nur der Owner; vorher konnte ein Operator das und seine eigene Freigabe erteilen (#124). Die Terminabfrage per Sprache
+  nennt auch lokale und verbundene Termine (#125). Bei Adapterausfall antworten die Sprach-Lesewege wie die Routen
+  (#126). Der Orb haengt nicht mehr an einer Freigabe, die der Server nicht mehr kennt (#127); die Mikrofonpegel-Messung
+  im Orb-E2E misst bei gestoerter Szene neu (#128). `dash-18-03-funktionsnachweis.md` belegt je Bereich Quelle,
+  Persistenz, Rolle, Fehlerfall und Sprachaktion (#129).
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
