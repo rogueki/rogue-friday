@@ -224,6 +224,27 @@ function resolveEventRef(ctx: Parameters<Handler>[0], request: CommandRequest, r
   intent: Extract<CalendarActionIntent, { kind: "calendar.update" | "calendar.delete" }>): CalendarEvent {
   const calendar = new LocalCalendarService(ctx.runtime.db);
   const ownerId = ctx.principal!.userId;
+  if (ref === null && intent.listed) {
+    const ids = ctx.runtime.recentCommandListings.read(ownerId, ctx.principal!.sessionId, "calendar");
+    if (!ids) {
+      throw validationFailed("Welcher Termin ist gemeint? Bitte zuerst die Termine auflisten lassen oder Titel bzw. Kennung nennen.",
+        [{ path: "text", message: "keine kurz zuvor genannten Termine" }]);
+    }
+    const index = intent.listed.ordinal ?? (ids.length === 1 ? 0 : -1);
+    if (index < 0) {
+      throw validationFailed(`Welcher der ${ids.length} genannten Termine ist gemeint? Bitte z. B. „verschiebe den zweiten auf morgen 16 Uhr“ sagen.`,
+        [{ path: "text", message: "mehrere Termine genannt" }]);
+    }
+    const id = ids[index];
+    if (!id) {
+      throw validationFailed(`Es wurden nur ${ids.length} Termine genannt.`,
+        [{ path: "text", message: "Ordnungszahl ausserhalb der Liste" }]);
+    }
+    if (!calendar.has(id)) {
+      throw conflict("Dieser Termin stammt aus einem verbundenen Kalender; per Befehl lassen sich nur Friday-Termine ändern.", { id });
+    }
+    return calendar.get(id);
+  }
   if (ref === null) {
     const selected = request.context?.selectedIds ?? [];
     if (selected.length !== 1) {
@@ -1278,8 +1299,15 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
     let status = "failed";
     try {
       const taskCreate = settingsContentMutation ? null : parseTaskCreateIntent(request.text);
-      const taskAction = taskCreate ? null : parseTaskActionIntent(request.text);
+      const parsedTaskAction = taskCreate ? null : parseTaskActionIntent(request.text);
+      // A bare follow-up such as "lösche den zweiten" belongs to whatever a read command just listed.
+      const listedKind = ctx.principal
+        ? ctx.runtime.recentCommandListings.kind(ctx.principal.userId, ctx.principal.sessionId) : null;
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
+      const calendarFollowUp = parsedTaskAction?.listed && listedKind === "calendar"
+        ? parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone) : null;
+      const taskAction = calendarFollowUp && calendarFollowUp.kind !== "calendar.create" && calendarFollowUp.listed
+        ? null : parsedTaskAction;
       const calendarAction = taskCreate || taskAction ? null
         : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
       const knowledgeAction = taskCreate || taskAction || calendarAction ? null

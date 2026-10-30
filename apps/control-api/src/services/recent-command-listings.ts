@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export type ListingKind = "tasks";
+export type ListingKind = "tasks" | "calendar";
 
 const TTL_MS = 5 * 60_000;
 const MAX_SESSIONS = 200;
@@ -35,6 +35,14 @@ export class RecentCommandListings {
   /** A newer read of anything else replaces the listing, so "die erste" never points at an older list. */
   clear(ownerId: string, sessionId: string): void {
     this.entries.delete(this.key(ownerId, sessionId));
+  }
+
+  /** Which kind of items this session was shown last, so a bare "den zweiten" goes to that domain. */
+  kind(ownerId: string, sessionId: string): ListingKind | null {
+    const key = this.key(ownerId, sessionId);
+    const entry = this.entries.get(key);
+    if (!entry || entry.expiresAt <= this.now()) return null;
+    return entry.kind;
   }
 
   read(ownerId: string, sessionId: string, kind: ListingKind): readonly string[] | null {

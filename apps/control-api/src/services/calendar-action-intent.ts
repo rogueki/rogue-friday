@@ -1,7 +1,10 @@
+/** Set when the sentence points at events a read command just listed: an ordinal, or null for "ihn"/"diesen". */
+export interface ListedEventRef { ordinal: number | null }
+
 export type CalendarActionIntent =
   | { kind: "calendar.create"; title: string; start: string; end: string; timeZone: string }
-  | { kind: "calendar.update"; ref: string | null; start: string }
-  | { kind: "calendar.delete"; ref: string | null };
+  | { kind: "calendar.update"; ref: string | null; start: string; listed?: ListedEventRef }
+  | { kind: "calendar.delete"; ref: string | null; listed?: ListedEventRef };
 
 const EVENT_ID = /^cal_[0-9A-Za-z]{26}$/;
 const DEFAULT_DURATION_MS = 60 * 60_000;
@@ -130,6 +133,24 @@ const DELETE_SELECTED = [
   /^(?:bitte\s+)?sag(?:e)?\s+(?:(?:den|die|das|meinen|meine)\s+)?(?:termin|besprechung|meeting)\s+ab$/iu,
 ];
 
+const ORDINALS: Readonly<Record<string, number>> = {
+  erste: 0, zweite: 1, dritte: 2, vierte: 3, fuenfte: 4,
+};
+
+/** "ihn", "diesen" or "den ersten … fünften [Termin]" (Termin is masculine, so "sie"/"es" stay unmatched). */
+function listedRef(value: string | undefined): ListedEventRef | null {
+  const phrase = squash((value ?? "").trim());
+  if (/^(?:ihn|diesen)$/u.test(phrase)) return { ordinal: null };
+  const match = /^(?:den|der)\s+(erste|zweite|dritte|vierte|fuenfte)[nr]?(?:\s+(?:termin|eintrag))?$/u.exec(phrase);
+  return match ? { ordinal: ORDINALS[match[1]!]! } : null;
+}
+
+const MOVE_LISTED = /^(?:bitte\s+)?(?:verschiebe?|verlege?)\s+(.+?)\s+auf\s+(.+)$/iu;
+const DELETE_LISTED = [
+  /^(?:bitte\s+)?(?:lösche?|loesche?|entferne?|streiche?)\s+(.+)$/iu,
+  /^(?:bitte\s+)?sag(?:e)?\s+(.+?)\s+ab$/iu,
+];
+
 /**
  * Only an explicit calendar create/move/delete imperative with a resolvable time (create/move) is treated as an
  * action. The reference is an event id or an exact title; phrases without one resolve the single selected event of
@@ -164,6 +185,17 @@ export function parseCalendarActionIntent(text: string, nowMs: number, timeZone:
   }
   for (const pattern of DELETE_SELECTED) {
     if (pattern.test(trimmed)) return { kind: "calendar.delete", ref: null };
+  }
+  // Follow-ups to a listing come last, so every phrasing above keeps its meaning.
+  const move = MOVE_LISTED.exec(trimmed);
+  const moveRef = listedRef(move?.[1]);
+  const moveWhen = move && moveRef ? parseWhen(move[2]!, nowMs, timeZone) : null;
+  if (moveRef && moveWhen && !moveWhen.rest) {
+    return { kind: "calendar.update", ref: null, start: new Date(moveWhen.startMs).toISOString(), listed: moveRef };
+  }
+  for (const pattern of DELETE_LISTED) {
+    const listed = listedRef(pattern.exec(trimmed)?.[1]);
+    if (listed) return { kind: "calendar.delete", ref: null, listed };
   }
   return null;
 }
