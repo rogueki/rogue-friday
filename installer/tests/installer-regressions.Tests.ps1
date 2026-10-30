@@ -195,6 +195,88 @@ try {
     Assert-True ($broken.Contains('Native { wsl.exe --update }') -and -not $broken.Contains($bounded)) 'Die Gegenprobe ohne Zeitlimit blieb unentdeckt.'
     $brokenHash = $installer.Replace('if (-not (Assert-FileSha256 $model', 'if ($false -and (Assert-FileSha256 $model')
     Assert-True (-not $brokenHash.Contains('if (-not (Assert-FileSha256 $model')) 'Die Gegenprobe ohne Modellpruefung blieb unentdeckt.'
+
+    # --- 9) I-010: Ein Abruf, der mitten im Download stehen bleibt, wird erkannt und neu versucht, statt bis zum
+    # Downloadfenster zu haengen. Geprueft werden die echten curl-Argumente aus Download().
+    Assert-True ($pathSource.Contains('$script:DownloadStallSeconds = 60')) 'Die Stillstandsgrenze fuer Downloads fehlt.'
+    $argsMatch = [regex]::Match($pathSource, '(?s)function Download\(\$url, \$file\) \{.*?-Arguments (@\([^\r\n]*\)) `')
+    Assert-True $argsMatch.Success 'Die curl-Argumente in Download() wurden nicht gefunden.'
+    Assert-True ($argsMatch.Groups[1].Value.Contains('''--speed-time'', [string]$script:DownloadStallSeconds')) 'Download() bricht einen stehenden Abruf nicht ab.'
+    $stallPort = 0
+    foreach ($candidate in 18721..18729) {
+        $probe = $null
+        try {
+            $probe = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $candidate)
+            $probe.Start()
+            $stallPort = $candidate
+            break
+        } catch {
+        } finally {
+            if ($probe) { $probe.Stop() }
+        }
+    }
+    Assert-True ($stallPort -gt 0) 'Kein freier Port fuer den Stillstandsserver gefunden.'
+    $servers += Start-Job -ArgumentList $stallPort -ScriptBlock {
+        param($port)
+        $data = New-Object byte[] 400000
+        for ($i = 0; $i -lt $data.Length; $i++) { $data[$i] = [byte]($i % 251) }
+        $listener = New-Object Net.HttpListener
+        $listener.Prefixes.Add("http://127.0.0.1:$port/")
+        $listener.Start()
+        $seen = @{}
+        $stalled = New-Object Collections.ArrayList
+        while ($listener.IsListening) {
+            try {
+                $context = $listener.GetContext()
+                $start = 0
+                if ("$($context.Request.Headers['Range'])" -match '^bytes=(\d+)-') { $start = [int]$Matches[1] }
+                if ($start -gt 0) {
+                    $context.Response.StatusCode = 206
+                    $context.Response.AddHeader('Content-Range', "bytes $start-$($data.Length - 1)/$($data.Length)")
+                }
+                $context.Response.ContentLength64 = $data.Length - $start
+                $path = $context.Request.Url.AbsolutePath
+                if (-not $seen.ContainsKey($path)) {
+                    # Erster Abruf je Pfad: ein Viertel liefern, dann bei offener Verbindung stehen bleiben.
+                    $seen[$path] = $true
+                    $context.Response.OutputStream.Write($data, $start, 100000)
+                    $context.Response.OutputStream.Flush()
+                    [void]$stalled.Add($context)
+                    continue
+                }
+                $context.Response.OutputStream.Write($data, $start, $data.Length - $start)
+                $context.Response.OutputStream.Close()
+            } catch { break }
+        }
+    }
+    Assert-True (Wait-Until { try { $c = New-Object Net.Sockets.TcpClient('127.0.0.1', $stallPort); $c.Close(); $true } catch { $false } } 10000) 'Der Stillstandsserver startete nicht.'
+    $script:DownloadStallSeconds = 3
+    $file = Join-Path $dir 'stall.gguf'
+    $url = "http://127.0.0.1:$stallPort/stall.gguf"
+    $curlArgs = @(& ([scriptblock]::Create($argsMatch.Groups[1].Value)))
+    $proc = Start-Process -FilePath 'curl.exe' -ArgumentList ($curlArgs | ForEach-Object { '"' + $_ + '"' }) -PassThru -NoNewWindow
+    $null = $proc.Handle
+    $exited = $proc.WaitForExit(60000)
+    if (-not $exited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+    Assert-True $exited 'curl blieb bei einem stehenden Abruf haengen.'
+    Assert-True ($proc.ExitCode -eq 0) "curl endete nach dem Stillstand mit Exitcode $($proc.ExitCode)."
+    $got = [IO.File]::ReadAllBytes($file)
+    Assert-True ($got.Length -eq 400000) "Nach dem Stillstand fehlen Daten: $($got.Length) von 400000 Bytes."
+    $wrong = @(0, 99999, 100000, 250000, 399999 | Where-Object { $got[$_] -ne [byte]($_ % 251) })
+    Assert-True ($wrong.Count -eq 0) "Die nach dem Stillstand geholte Datei ist verfaelscht (Offsets $($wrong -join ', '))."
+    # Gegenprobe: dieselben Argumente ohne Stillstandsgrenze bleiben am stehenden Abruf haengen.
+    $noStall = @()
+    for ($i = 0; $i -lt $curlArgs.Count; $i++) {
+        if (@('--speed-limit', '--speed-time') -contains $curlArgs[$i]) { $i++; continue }
+        $noStall += $curlArgs[$i]
+    }
+    $file = Join-Path $dir 'gegenprobe.gguf'
+    $url = "http://127.0.0.1:$stallPort/gegenprobe.gguf"
+    $noStall = @($noStall | ForEach-Object { if ($_ -like '*stall.gguf') { $_.Replace('stall.gguf', 'gegenprobe.gguf') } else { $_ } })
+    $proc = Start-Process -FilePath 'curl.exe' -ArgumentList ($noStall | ForEach-Object { '"' + $_ + '"' }) -PassThru -NoNewWindow
+    $hung = -not $proc.WaitForExit(8000)
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    Assert-True $hung 'Die Gegenprobe ohne Stillstandsgrenze endete, der Test erkennt einen haengenden Abruf nicht.'
 } finally {
     foreach ($job in $servers) { Stop-Job -Job $job -ErrorAction SilentlyContinue; Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
     if ($dir -and (Test-Path -LiteralPath $dir)) {
@@ -205,4 +287,4 @@ try {
     }
 }
 
-Write-Host "Installerregressionen: PASS ($script:checks Zusicherungen, 503 als Laden, Keepalive als Prozess, Pruefsummen mit Loeschung, WSL-Update begrenzt)"
+Write-Host "Installerregressionen: PASS ($script:checks Zusicherungen, 503 als Laden, Keepalive als Prozess, Pruefsummen mit Loeschung, WSL-Update begrenzt, Download-Stillstand erkannt)"

@@ -93,6 +93,9 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\dashboard-backup.ps1')
 # Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
 $script:DownloadTimeoutSeconds = 3600
+# Stillstand: liefert ein Abruf 60 s lang weniger als 1 KB/s, bricht curl ab und versucht es erneut (I-010);
+# ohne diese Grenze haengt ein stehender Abruf bis zum Downloadfenster.
+$script:DownloadStallSeconds = 60
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
 . (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
 # Job-Objekte: damit beendet ein Zeitlimit auch Enkelprozesse des eigenen Aufrufs (pip -> python).
@@ -540,7 +543,7 @@ function Download($url, $file) {
     $downloadName = Split-Path -Path $file -Leaf
     Write-GuiEvent 'download' @{ state = 'start'; name = $downloadName }
     $run = Invoke-SupervisedProcess -FilePath 'curl.exe' -TimeoutSeconds $script:DownloadTimeoutSeconds -PollMilliseconds 500 `
-        -Arguments @('-L', '--fail', '--retry', '5', '-C', '-', '-s', '-o', $file, $url) `
+        -Arguments @('-L', '--fail', '--retry', '5', '-C', '-', '--connect-timeout', '30', '--speed-limit', '1024', '--speed-time', [string]$script:DownloadStallSeconds, '-s', '-o', $file, $url) `
         -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
     if ($run.Cancelled) { Confirm-NotCancelled }
     if ($run.TimedOut) { Warn "Download $downloadName nach $($script:DownloadTimeoutSeconds) s abgebrochen; ein erneuter Lauf setzt an der vorhandenen Datei fort." }
