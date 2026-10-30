@@ -1160,6 +1160,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- DASH-18.03/DASH-19.04/REL-06 (2026-10-30, N-146 bis N-153): Per Sprache lesbar sind jetzt auch Dateien (#113),
+  Systemstatus, Auslastung und Skills (#114) sowie das Wetter am gespeicherten Standort (#119); ohne Sprachweg bleiben
+  nur Studio (ausser Plan) und Onboarding. Das GitHub-ZIP enthaelt keine Agenten-Metadaten mehr, und der Dashboard-Sync
+  kopiert keine Testschluessel (#115). Eine ZIP-Installation kennt ihren Commit (#116), die Systemseite nennt je Dienst
+  die gepruefte Adresse (#118). `docs/RELEASE_COMPATIBILITY.md` fasst Versionen, Ports, Paketinhalt, Migrationen,
+  Rollback und Nachweise zusammen (#120). Ein wackliger Orb-Freigabetest ist behoben (#117).
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
