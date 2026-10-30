@@ -23,9 +23,16 @@ export function createRealtimeOrbRouter(queryClient: QueryClient): OrbRealtimeRo
     browserVoiceActive: () => browserAudio.snapshot().active,
     pendingApprovalIds: () => (overview()?.openApprovals ?? []).filter((approval) => approval.status === "pending").map((approval) => approval.id),
   });
+  // A stored overview is the truth the router compares against: approvals the orb still shows but the overview no longer
+  // lists (missed or wiped events, e.g. after a reconnect) are released instead of pinning waiting_approval forever.
+  const overviewKey = JSON.stringify(queryKeys.overview);
+  const unsubscribeOverview = queryClient.getQueryCache().subscribe((event) => {
+    if (event.type === "updated" && event.action.type === "success" && JSON.stringify(event.query.queryKey) === overviewKey) router.reconcileApprovals();
+  });
   return {
     ...router,
     dispose: () => {
+      unsubscribeOverview();
       setBrowserAudioPassiveProbe(() => false);
       router.dispose();
     },
