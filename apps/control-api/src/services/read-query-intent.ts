@@ -33,6 +33,7 @@ export type ReadQueryIntent =
   | { kind: "system.metrics" }
   | { kind: "skills.list"; enabled?: boolean }
   | { kind: "weather.current" }
+  | { kind: "onboarding.status" }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -223,6 +224,14 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     if (/\b(?:in|fuer|bei)\s+(?!meiner\b|meinem\b|unserer\b|unserem\b|der\b|dem\b|den\b|mir\b|uns\b)[a-z]{3,}/.test(text))
       return { kind: "clarify", message: "Das Wetter gibt es nur für den gespeicherten Standort. Einen anderen Ort stellst du in den Einstellungen ein." };
     return { kind: "weather.current" };
+  }
+  const onboardingArea = /\b(onboarding|einrichtung|ersteinrichtung|einrichtungsassistent|einrichtungsassistenten)\b/.test(text);
+  if (onboardingArea) {
+    if (otherFamilies.length > 0 || /\b(recherche|telegram|whatsapp|discord|mail|mails|kalender|stimme)\b/.test(text))
+      return { kind: "clarify", message: "Bitte nur nach dem Stand der Ersteinrichtung fragen; andere Einrichtungen stehen auf ihren Seiten." };
+    if (/\b(starte|starten|setze|setzen|zuruecksetzen|schliesse|schliessen|ueberspringe|ueberspringen|beende|beenden|wiederhole|wiederholen)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Den Assistenten bedienst du auf der Einrichtungsseite." };
+    return { kind: "onboarding.status" };
   }
   const filesArea = /\b(datei|dateien|files?|dokument|dokumente|dokumenten)\b/.test(text);
   if (filesArea) {
@@ -547,6 +556,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind.startsWith("system.")) requireReadRole(ctx, "system", "viewer");
   if (intent.kind === "skills.list") requireReadRole(ctx, "skills", "owner");
   if (intent.kind === "weather.current") requireReadRole(ctx, "meta", "viewer");
+  if (intent.kind === "onboarding.status") requireReadRole(ctx, "onboarding", "owner");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -650,6 +660,17 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       const note = !catalog.fresh || catalog.hermesError ? " Hermes-Stand nicht bestätigt." : "";
       return baseResponse(ctx, `${catalog.skills.length} Skills: ${active} aktiv, ${disabled} deaktiviert, ${catalog.skills.length - active - disabled} unbestätigt.${note} `
         + listMessage("Skills", matching, matching.length > MAX_RESULTS, (skill) => `${skill.name} · ${skill.source}`));
+    }
+    case "onboarding.status": {
+      const state = ctx.runtime.onboarding.get();
+      const labels = { intro: "Einführung", profile: "Profil", skills: "Skills", accounts: "Konten", finish: "Abschluss" } as const;
+      const entries = (Object.keys(labels) as Array<keyof typeof labels>).map((step) => [step, state.steps[step]] as const);
+      const done = entries.filter(([, status]) => status === "completed").length;
+      const skipped = entries.filter(([, status]) => status === "skipped").length;
+      const pending = entries.filter(([, status]) => status === "pending").map(([step]) => labels[step]);
+      const head = state.completedAt ? `Einrichtung abgeschlossen am ${state.completedAt}` : "Einrichtung läuft";
+      return baseResponse(ctx, `${head}: ${done + skipped} von ${entries.length} Schritten entschieden (${done} erledigt, ${skipped} übersprungen)`
+        + (pending.length > 0 ? `; offen: ${pending.join(", ")}.` : "."));
     }
     case "weather.current": {
       let weather;

@@ -35,10 +35,10 @@ describe("voice parity inventory", () => {
     const matrix = readFileSync(join(REPO_ROOT, "docs/agent-work/finalization/dash-18-01-voice-parity.md"), "utf8");
     const noVoice = matrix.split("## 3. Bereiche ohne Sprachweg")[1]?.split("##")[0] ?? "";
     const readOnly = matrix.split("## 4. Nur lesbare Bereiche")[1]?.split("##")[0] ?? "";
-    for (const label of ["Studio", "Onboarding"]) {
+    for (const label of ["Studio"]) {
       expect(noVoice, `${label} muss als Bereich ohne Sprachweg genannt sein`).toContain(label);
     }
-    for (const label of ["Aktivität", "Benachrichtigungen", "Freigaben", "Audit", "Skills", "System", "Standort/Wetter"]) {
+    for (const label of ["Aktivität", "Benachrichtigungen", "Freigaben", "Audit", "Skills", "System", "Standort/Wetter", "Onboarding"]) {
       expect(readOnly, `${label} darf nicht als schreibbar gelten`).toContain(label);
     }
   });
