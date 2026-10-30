@@ -184,6 +184,7 @@ export class SystemBackupService {
       [join(this.dataDir, "calendar-bridge", "auth.key"), "keys/calendar-bridge.key"],
       [join(this.dataDir, "mail-bridge", "auth.key"), "keys/mail-bridge.key"],
       [join(this.dataDir, "hermes-memory-bridge", "auth.key"), "keys/hermes-memory-bridge.key"],
+      [join(this.dataDir, "content-studio-bridge", "auth.key"), "keys/content-studio-bridge.key"],
       [join(this.dataDir, "hermes-messenger-bridge", "auth.key"), "keys/hermes-messenger-bridge.key"],
       [join(this.installRoot, "config", "voice.json"), "config/voice.json"],
       [join(this.installRoot, "config", "persona.json"), "config/persona.json"],

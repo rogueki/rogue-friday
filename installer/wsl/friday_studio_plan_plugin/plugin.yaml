@@ -1,0 +1,9 @@
+name: friday-studio-plan
+version: 1.0.0
+description: Read and save Friday's Content Studio plan through the loopback Control API.
+author: RogueKI
+kind: standalone
+manifest_version: 2
+provides_tools:
+  - friday_studio_plan_read
+  - friday_studio_plan_write

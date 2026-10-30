@@ -349,7 +349,8 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '', [int]$Time
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
-                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort", "FRIDAY_MEMORY_PORT=$DashPort")
+                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort", "FRIDAY_MEMORY_PORT=$DashPort",
+                "FRIDAY_STUDIO_PORT=$DashPort")
     # Zeitlimit und Abbruchbitte gelten fuer den gesamten WSL-Aufruf; ohne Limit konnte ein haengendes
     # Skript den Installer unbegrenzt blockieren.
     $arguments = @('-d', $Distro, '-u', $User, '--exec', 'env') + $wslEnv + @('bash', $Script)
@@ -2803,6 +2804,25 @@ if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
             Warn 'Hermes-Mailleser nicht eingerichtet; Postfach im Dashboard bleibt verfuegbar.'
         } finally { $mailKey = $null }
     } else { Warn 'Mail-Dienstschluessel fehlt; Dashboard-Health und API-Start pruefen.' }
+}
+
+# Hermes liest und speichert den Content-Studio-Plan mit eigenem Schluessel (nur Plan, Revision geprueft, I-054);
+# bezahlte Studio-Aktionen bleiben im Dashboard. Schluessel nur per stdin, nie als WSL-Argument oder im Log.
+if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
+    $studioKeyFile = "$Dash\data\content-studio-bridge\auth.key"
+    $studioHealth = Test-DashboardHealth 3
+    if (-not $studioHealth.Up -or $studioHealth.Code -lt 200 -or $studioHealth.Code -ge 300) {
+        Warn 'Hermes-Studioplan nicht eingerichtet: Dashboard-Healthcheck ist nicht erfolgreich.'
+    } elseif (Test-Path -LiteralPath $studioKeyFile -PathType Leaf) {
+        $studioKey = [IO.File]::ReadAllText($studioKeyFile).Trim()
+        try {
+            if ($studioKey -notmatch '^[A-Za-z0-9+/]{43}=$') { throw 'Ungueltiger Studio-Dienstschluessel.' }
+            $studioResult = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_studio_bridge.sh" $studioKey
+            if ($studioResult -match 'FRIDAY_STUDIO_BRIDGE_READY') { Ok 'Hermes-Studioplan mit privatem lokalem Schluessel eingerichtet.' }
+            else { Warn 'Hermes-Studioplan nicht eingerichtet; Content Studio im Dashboard bleibt verfuegbar.' }
+        } catch { Warn 'Hermes-Studioplan nicht eingerichtet; Content Studio im Dashboard bleibt verfuegbar.' }
+        finally { $studioKey = $null }
+    } else { Warn 'Studio-Dienstschluessel fehlt; Dashboard-API-Start pruefen.' }
 }
 
 # A distinct owner-only memory credential reaches the pinned local Hermes CLI plugin.
