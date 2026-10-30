@@ -5391,6 +5391,26 @@ export interface VoiceStatus {
   audioInputDeviceId: string | null;
   ttsVoiceChoice?: string | null;
   /**
+   * The wake-word artifact, separate from the speaker profile: engine, active threshold and the calibration of a personal model. Null when the service reports no wake engine.
+   */
+  wakeCalibration?: null | {
+    engine: "openwakeword" | "personal";
+    threshold: number | null;
+    quality: null | ("good" | "medium" | "weak");
+    hitRate: number | null;
+    ownClips: number | null;
+    calibratedAt: string | null;
+  };
+  /**
+   * The output voice artifact: selected slot, whether it is a local clone, a preset or a cloud voice, which slots have a reference, and when the reference in use last changed. Never paths or audio.
+   */
+  outputVoice?: {
+    choice: string | null;
+    kind: "clone" | "preset" | "cloud";
+    available: string[];
+    referenceUpdatedAt: string | null;
+  };
+  /**
    * Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.
    */
   audioPath?: {

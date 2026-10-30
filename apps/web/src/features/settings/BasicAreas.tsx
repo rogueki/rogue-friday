@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useHermesModelCatalog, useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
-import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
+import { useVoiceDevices, useVoiceIntegrationStatus, useVoiceStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
 import { useDataRetentionAction, useDataRetentionStatus } from "@/lib/api/domains/data-retention";
@@ -280,6 +280,7 @@ export function VoiceArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("voice");
   const devices = useVoiceDevices();
+  const voiceStatus = useVoiceStatus();
   const integration = useVoiceIntegrationStatus();
   const saved = useSettings();
   if (!value) return null;
@@ -338,9 +339,12 @@ export function VoiceArea() {
         <FieldGrid>
           <Select label={t("settings.voice.ttsVoice")} value={value.ttsVoice} disabled={readOnly}
             options={[
-              ...(!["friday-female", "classic"].includes(value.ttsVoice) ? [{ value: value.ttsVoice, label: t("settings.voice.unconfigured") }] : []),
+              ...(!["friday-female", "classic", "custom"].includes(value.ttsVoice) ? [{ value: value.ttsVoice, label: t("settings.voice.unconfigured") }] : []),
               { value: "friday-female", label: "F.R.I.D.A.Y. (weiblich)" },
               { value: "classic", label: "J.A.R.V.I.S. (männlich)" },
+              // The own slot only exists after the installer prepared a recording; the voice service refuses it otherwise.
+              ...(value.ttsVoice === "custom" || voiceStatus.data?.data.outputVoice?.available.includes("custom")
+                ? [{ value: "custom", label: t("settings.voice.customSlot") }] : []),
             ]}
             onChange={(event) => update({ ttsVoice: event.target.value })} />
           <Slider label={t("settings.voice.ttsRate")} min={0.5} max={2} step={0.05} value={value.ttsRate} disabled={readOnly} formatValue={(v) => `${v.toFixed(2)}×`} onValueChange={(ttsRate) => update({ ttsRate })} />

@@ -429,6 +429,7 @@ export const deD = {
   "settings.voice.output": "Ausgabe und Geräte",
   "settings.voice.ttsVoice": "Stimme (TTS)",
   "settings.voice.unconfigured": "Bisherige Stimme – noch nicht im Sprachdienst auswählbar",
+  "settings.voice.customSlot": "Eigene Aufnahme",
   "settings.voice.ttsRate": "Sprechgeschwindigkeit",
   "settings.voice.inputDevice": "Eingabegerät",
   "settings.voice.outputDevice": "Ausgabegerät",

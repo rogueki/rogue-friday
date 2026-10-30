@@ -718,6 +718,7 @@ class VoiceService:
                 raise SystemExit(f"Persoenliches Wake-Word-Modell fehlt: {path} - Stimmaufnahme/Training erneut "
                                  "ausfuehren (install-friday.bat). Fail closed, Dienst startet nicht.")
         meta = personal_wake.load_meta(meta_path)
+        self.personal_wake_meta_path = meta_path
         if meta.get("wake_phrase") and personal_wake.phrase_key(meta["wake_phrase"]) != personal_wake.phrase_key(self.phrase):
             raise SystemExit(f"Wake-Word-Modell gehoert zu '{meta['wake_phrase']}', nicht zu '{self.phrase}'.")
         self.wake_threshold = self.cfg.get("personal_wake_threshold") or meta["threshold"]
@@ -2067,7 +2068,9 @@ class VoiceService:
                 "memory_capture_error": getattr(self, "memory_capture_error", None),
                 "memory_pending": memory_pending,
                 "memory_search_error": getattr(self, "memory_search_error", None),
-                "speaker_profile": self.speaker_profile_summary()}
+                "speaker_profile": self.speaker_profile_summary(),
+                "wake_calibration": self.wake_calibration_summary(),
+                "output_voice": self.output_voice_summary()}
 
     def speaker_profile_summary(self) -> dict | None:
         """Zusammenfassung des aktiven Sprecherprofils fuer das Dashboard: nur Zeitpunkte und Messwerte, nie das
@@ -2104,6 +2107,74 @@ class VoiceService:
                    "threshold": float(self.cfg.get("speaker_threshold", 0.0)), **measured}
         self._speaker_profile_cache = (stamp, summary)
         return summary
+
+    def wake_calibration_summary(self) -> dict | None:
+        """Wake-Word-Artefakt fuer das Dashboard, getrennt vom Sprecherprofil: Engine, aktive Schwelle und - beim
+        persoenlichen Modell - die Kalibrierwerte aus personal_wake.json. Nie Aufnahmen oder Modelldaten."""
+        engine = getattr(self, "engine", None)
+        if engine not in ("openwakeword", "personal"):
+            return None
+        threshold = getattr(self, "wake_threshold", None)
+        threshold = float(threshold) if isinstance(threshold, (int, float)) and not isinstance(threshold, bool) else None
+        summary = {"engine": engine, "threshold": threshold, "quality": None, "hit_rate": None, "own_clips": None,
+                   "calibrated_at": None}
+        if engine != "personal":
+            return summary
+        meta_path = self.cfg.get("personal_wake_meta") or getattr(self, "personal_wake_meta_path", None)
+        try:
+            stamp = os.path.getmtime(meta_path) if meta_path else None
+        except OSError:
+            stamp = None
+        if stamp is None:
+            return summary
+        cached = getattr(self, "_wake_calibration_cache", None)
+        if cached is not None and cached[0] == (meta_path, stamp):
+            return {**summary, **cached[1]}
+        measured = {"calibrated_at": datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        try:
+            meta = personal_wake.load_meta(meta_path)
+        except (OSError, ValueError):
+            meta = None
+        if isinstance(meta, dict):
+            measured["quality"] = {"gut": "good", "mittel": "medium", "schwach": "weak"}.get(meta.get("quality"))
+            calibration = meta.get("calibration") if isinstance(meta.get("calibration"), dict) else {}
+            miss = calibration.get("frr_cv")
+            if isinstance(miss, (int, float)) and not isinstance(miss, bool) and 0 <= miss <= 1:
+                measured["hit_rate"] = round(1 - float(miss), 3)
+            clips = meta.get("clips") if isinstance(meta.get("clips"), dict) else {}
+            own = [clips.get("hey"), clips.get("bare")]
+            if all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in own):
+                measured["own_clips"] = own[0] + own[1]
+        self._wake_calibration_cache = ((meta_path, stamp), measured)
+        return {**summary, **measured}
+
+    def output_voice_summary(self) -> dict:
+        """Ausgabestimme als eigenes Artefakt: gewaehlter Platz, Art der Stimme und welche Plaetze eine Referenz
+        haben. Pfade und Aufnahmen bleiben im Dienst; gemeldet wird nur der Stand der verwendeten Referenz."""
+        from voice_persona import CHOICES
+        choice = self.cfg.get("tts_voice_choice")
+        mode = self.cfg.get("voice_mode")
+        backend = self.cfg.get("tts_backend")
+        if mode == "elevenlabs":
+            ids = self.cfg.get("elevenlabs_voice_ids") if isinstance(self.cfg.get("elevenlabs_voice_ids"), dict) else {}
+            available = [name for name in CHOICES if isinstance(ids.get(name), str) and ids[name].strip()]
+            return {"choice": choice if isinstance(choice, str) else None, "kind": "cloud",
+                    "available": available, "reference_updated_at": None}
+        folder = os.path.join(INSTALL_ROOT, "config", "voice-references")
+        available = [name for name in CHOICES
+                     if any(os.path.isfile(os.path.join(folder, f"{name}-reference.{extension}")) for extension in ("wav", "mp3"))]
+        reference = self.cfg.get("tts_reference")
+        updated = None
+        if backend in ("streaming_qwen", "qwen3") and isinstance(reference, str) and os.path.isfile(reference):
+            kind = "clone"
+            try:
+                updated = datetime.datetime.fromtimestamp(os.path.getmtime(reference), datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            except OSError:
+                updated = None
+        else:
+            kind = "preset"
+        return {"choice": choice if isinstance(choice, str) else None, "kind": kind, "available": available,
+                "reference_updated_at": updated}
 
     def _start_health(self) -> None:
         service = self

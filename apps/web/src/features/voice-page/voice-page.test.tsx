@@ -146,6 +146,32 @@ describe("status rows without fresh data (DASH-11.05)", () => {
   });
 });
 
+describe("voice artifacts as separate rows (DASH-12.02)", () => {
+  const t = ((key: string, vars?: Record<string, string | number>) => (vars ? `${key} ${JSON.stringify(vars)}` : key)) as never;
+
+  it("shows the wake model and the output voice apart from the speaker profile", () => {
+    const rows = buildStatusRows(status({
+      wakeCalibration: { engine: "personal", threshold: 2.4, quality: "weak", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z" },
+      outputVoice: { choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z" },
+    }), [], t, "de-DE", "x");
+    const wake = rows.find((row) => row.id === "wakeCalibration");
+    expect(wake?.value).toContain("voicePage.wakeCalibration.personalQuality");
+    expect(wake?.tone).toBe("amber");
+    expect(String(wake?.detail)).toContain("voicePage.wakeCalibration.ownClips {\"count\":20}");
+    const voice = rows.find((row) => row.id === "outputVoice");
+    expect(voice?.value).toBe("voicePage.outputVoice.slot.custom");
+    expect(String(voice?.detail)).toContain("voicePage.outputVoice.kind.clone");
+    expect(rows.findIndex((row) => row.id === "wakeCalibration")).toBe(rows.findIndex((row) => row.id === "wakeWord") + 1);
+  });
+
+  it("names a missing wake model and shows no artifact rows for an older service", () => {
+    expect(buildStatusRows(status({ wakeCalibration: null }), [], t, "de-DE", "x").find((row) => row.id === "wakeCalibration")?.value)
+      .toBe("voicePage.wakeCalibration.missing");
+    const older = buildStatusRows(status(), [], t, "de-DE", "x");
+    expect(older.some((row) => row.id === "wakeCalibration" || row.id === "outputVoice")).toBe(false);
+  });
+});
+
 describe("live metrics (PLAN §38.2)", () => {
   it("renders null measurements as missing with a reason and never as 0", async () => {
     const fake = routedFetch(routes());
@@ -183,7 +209,7 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     const text = (card as HTMLElement).textContent ?? "";
     expect(text).toMatch(/Samples\s*24/);
     expect(text).toMatch(/Qualität\s*93\s*%/);
-    expect(text).toMatch(/Threshold\s*72\s*%/);
+    expect(text).toMatch(/Sprecherschwelle\s*72\s*%/);
   });
 
   it("names an unknown profile state instead of claiming that no profile exists", async () => {

@@ -40,7 +40,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { KeyValue, StatusStrip, useFormatters, useQueryPanelState } from "@/features/system/common";
-import { formatFraction, formatMs, MISSING } from "@/features/system/format";
+import { bcp47, formatFraction, formatMs, MISSING } from "@/features/system/format";
 import { useT, type MessageKey } from "@/i18n";
 import { useDeleteVoiceHistory, useStopVoice, useVoiceDevices, useVoiceMetrics, useVoiceProfiles, useVoiceStatus, useVoiceTest } from "@/lib/api/domains/voice";
 import { useModuleAvailability, useModulePanelGate } from "@/features/shared/useAvailability";
@@ -80,6 +80,59 @@ function deviceMissing(devices: VoiceDevice[] | undefined, id: string | null): b
 
 /* ── Status (§38.1) ───────────────────────────────────────────────────── */
 
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
+const formatDay = (iso: string | null, locale: string): string | null =>
+  iso === null || Number.isNaN(Date.parse(iso)) ? null : new Intl.DateTimeFormat(bcp47(locale), { dateStyle: "medium" }).format(new Date(iso));
+
+/** The wake-word artifact is not the speaker profile: its own threshold, quality and recordings (DASH-12.02). */
+function wakeCalibrationRow(calibration: NonNullable<VoiceStatus["wakeCalibration"]> | null, t: Translate, locale: string): StatusRow {
+  if (calibration === null) {
+    return { id: "wakeCalibration", icon: Radio, title: t("voicePage.status.wakeCalibration"), value: t("voicePage.wakeCalibration.missing"),
+      tone: "amber", stateLabel: t("voicePage.status.unknown") };
+  }
+  const threshold = calibration.threshold === null ? MISSING
+    : new Intl.NumberFormat(bcp47(locale), { maximumFractionDigits: 3 }).format(calibration.threshold);
+  const parts = [t("voicePage.wakeCalibration.threshold", { value: threshold })];
+  if (calibration.hitRate !== null) parts.push(t("voicePage.wakeCalibration.hitRate", { value: formatFraction(calibration.hitRate, locale) }));
+  if (calibration.ownClips !== null) parts.push(t("voicePage.wakeCalibration.ownClips", { count: calibration.ownClips }));
+  const day = formatDay(calibration.calibratedAt, locale);
+  if (day !== null) parts.push(t("voicePage.wakeCalibration.calibratedAt", { date: day }));
+  const personal = calibration.engine === "personal";
+  return {
+    id: "wakeCalibration",
+    icon: Radio,
+    title: t("voicePage.status.wakeCalibration"),
+    value: personal
+      ? calibration.quality === null ? t("voicePage.wakeCalibration.personal") : t("voicePage.wakeCalibration.personalQuality", { quality: t(`voicePage.wakeCalibration.quality.${calibration.quality}` as MessageKey) })
+      : t("voicePage.wakeCalibration.builtin"),
+    detail: parts.join(" · "),
+    tone: !personal ? "muted" : calibration.quality === "weak" ? "amber" : "green",
+    stateLabel: personal ? t("voicePage.wakeCalibration.calibrated") : t("voicePage.wakeCalibration.standard"),
+  };
+}
+
+/** The output voice artifact: which slot speaks, whether it is a local clone, and which slots have a reference. */
+function outputVoiceRow(voice: NonNullable<VoiceStatus["outputVoice"]>, t: Translate, locale: string): StatusRow {
+  const slot = (choice: string): string =>
+    ["friday-female", "classic", "custom"].includes(choice) ? t(`voicePage.outputVoice.slot.${choice}` as MessageKey) : choice;
+  const parts: string[] = [t(`voicePage.outputVoice.kind.${voice.kind}` as MessageKey)];
+  const day = formatDay(voice.referenceUpdatedAt, locale);
+  if (day !== null) parts.push(t("voicePage.outputVoice.referenceAt", { date: day }));
+  parts.push(voice.available.length > 0
+    ? t("voicePage.outputVoice.available", { slots: voice.available.map(slot).join(", ") })
+    : t("voicePage.outputVoice.noReference"));
+  return {
+    id: "outputVoice",
+    icon: Volume2,
+    title: t("voicePage.status.outputVoice"),
+    value: voice.choice === null ? MISSING : slot(voice.choice),
+    detail: parts.join(" · "),
+    tone: voice.choice === null ? "muted" : "green",
+    stateLabel: t(`voicePage.outputVoice.kind.${voice.kind}` as MessageKey),
+  };
+}
+
 export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string, expires: string, live = true): StatusRow[] {
   const mic = status.microphone;
   const wake = status.wakeWord;
@@ -107,6 +160,7 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       tone: wake.state === "armed" ? "green" : wake.state === "triggered" ? "cyan" : wake.state === "error" ? "red" : "muted",
       stateLabel: t(`voicePage.wake.${wake.state}` as MessageKey),
     },
+    ...(status.wakeCalibration !== undefined ? [wakeCalibrationRow(status.wakeCalibration, t, locale)] : []),
     {
       id: "speaker",
       icon: Fingerprint,
@@ -152,6 +206,7 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       tone: PIPELINE_TONE[status.tts.state],
       stateLabel: pipelineLabel(status.tts.state),
     },
+    ...(status.outputVoice ? [outputVoiceRow(status.outputVoice, t, locale)] : []),
     {
       id: "localModel",
       icon: BrainCircuit,

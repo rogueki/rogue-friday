@@ -44,6 +44,10 @@ export interface RawVoiceStatus {
   speaker_decision?: { decision: "verified" | "rejected"; score: number; at: string } | null;
   /** Additive: summary of the active speaker profile (never the embedding); null when no profile file exists. */
   speaker_profile?: RawSpeakerProfile | null;
+  /** Additive: wake-word artifact (engine, threshold, personal calibration); never model data. */
+  wake_calibration?: RawWakeCalibration | null;
+  /** Additive: output voice artifact (slot, clone/preset/cloud, slots with a reference); never paths or audio. */
+  output_voice?: RawOutputVoice;
   game_mode?: string | null;
   /** Additive fields of the personalized installer (assistant name / wake phrase chosen at install time). */
   assistant_name?: string;
@@ -80,6 +84,22 @@ export interface RawVoiceStatus {
   };
   ptt_active?: boolean;
   native_ptt_available?: boolean;
+}
+
+export interface RawWakeCalibration {
+  engine: "openwakeword" | "personal";
+  threshold: number | null;
+  quality: "good" | "medium" | "weak" | null;
+  hit_rate: number | null;
+  own_clips: number | null;
+  calibrated_at: string | null;
+}
+
+export interface RawOutputVoice {
+  choice: string | null;
+  kind: "clone" | "preset" | "cloud";
+  available: string[];
+  reference_updated_at: string | null;
 }
 
 /** Measured values are null when the profile predates the metadata file or the metadata belongs to another embedding. */
