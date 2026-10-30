@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 3 && $# -ne 7 ]]; then
-  echo "Usage: install_wsl.sh REFERENCE_WAV REFERENCE_TRANSCRIPT_FILE PORT [FRIDAY_WAV FRIDAY_TXT CLASSIC_WAV CLASSIC_TXT]" >&2
+if [[ $# -ne 3 && $# -ne 7 && $# -ne 9 ]]; then
+  echo "Usage: install_wsl.sh REFERENCE_WAV REFERENCE_TRANSCRIPT_FILE PORT [FRIDAY_WAV FRIDAY_TXT CLASSIC_WAV CLASSIC_TXT [CUSTOM_WAV CUSTOM_TXT]]" >&2
   exit 2
 fi
 
@@ -20,11 +20,18 @@ cp "$(dirname "$0")/server.py" "$root/server.py"
 cp "$reference" "$root/reference.wav"
 cp "$transcript" "$root/reference.txt"
 chmod 600 "$root/reference.wav" "$root/reference.txt"
-if [[ $# -eq 7 ]]; then
+if [[ $# -ge 7 ]]; then
   voice_args=" --voice-dir $root/voices"
   mkdir -p "$root/voices"
-  for choice in friday-female classic; do
-    if [[ "$choice" == friday-female ]]; then audio="$4"; words="$5"; else audio="$6"; words="$7"; fi
+  choices="friday-female classic"
+  # The own recording is an optional third pair; without it the service offers the two bundled voices.
+  if [[ $# -eq 9 ]]; then choices="$choices custom"; fi
+  for choice in $choices; do
+    case "$choice" in
+      friday-female) audio="$4"; words="$5" ;;
+      classic) audio="$6"; words="$7" ;;
+      custom) audio="$8"; words="$9" ;;
+    esac
     [[ -f "$audio" && -f "$words" && -s "$words" ]] || { echo "Voice pair unavailable: $choice" >&2; exit 2; }
     cp "$audio" "$root/voices/$choice.wav"
     cp "$words" "$root/voices/$choice.txt"

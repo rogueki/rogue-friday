@@ -2060,8 +2060,9 @@ if (-not (IsDone 'voicepython')) {
             $windowsPaths += @("$referenceDir\friday-female-streaming.wav", "$referenceDir\friday-female-reference.txt",
                                "$referenceDir\classic-streaming.wav", "$referenceDir\classic-reference.txt")
         }
-        if ($pairs.custom) {
-            # Der eigene Platz wird nur mitgegeben, wenn wirklich eine eigene Aufnahme vorbereitet wurde.
+        if ($pairs.custom -and $pairs.'friday-female' -and $pairs.classic) {
+            # Der eigene Platz wird nur mitgegeben, wenn wirklich eine eigene Aufnahme vorbereitet wurde; er folgt
+            # positionell auf die beiden mitgelieferten Paare.
             $referenceDir = "$Root\config\voice-references"
             $windowsPaths += @("$referenceDir\custom-streaming.wav", "$referenceDir\custom-reference.txt")
         }
@@ -2075,7 +2076,7 @@ if (-not (IsDone 'voicepython')) {
         }
         Assert-WslKeepalive
         $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
-        if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
+        if ($linuxPaths.Count -in @(7, 9)) { $ttsArgs += $linuxPaths[3..($linuxPaths.Count - 1)] }
         # Das Installationsskript des TTS-Dienstes laedt Pakete nach und braucht daher ein eigenes Limit.
         $ttsRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments (@('-d', $Distro, '-u', $State.linux_user, '--exec', 'bash') + $ttsArgs) -TimeoutSeconds 1800 -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
         foreach ($stream in @($ttsRun.StdOut, $ttsRun.StdErr)) {
