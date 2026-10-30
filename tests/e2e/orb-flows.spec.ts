@@ -61,6 +61,19 @@ async function micEffect(page: Page): Promise<{ effect: number; noise: number }>
   return { effect: await imageDiff(page, quiet, loud), noise: await imageDiff(page, quiet, quietAgain) };
 }
 
+/**
+ * A measurement only counts when the two quiet shots agree; a disturbed scene (the CI runner once showed the loud frame
+ * in the second quiet shot) is measured again and the least noisy attempt wins. Lower noise only tightens the checks.
+ */
+async function stableMicEffect(page: Page): Promise<{ effect: number; noise: number }> {
+  let best = await micEffect(page);
+  for (let attempt = 1; attempt < 3 && best.noise > 0.01; attempt++) {
+    const next = await micEffect(page);
+    if (next.noise < best.noise) best = next;
+  }
+  return best;
+}
+
 test.describe("transcribing and thinking (acceptance 22.4, 22.5)", () => {
   test.setTimeout(240_000);
 
@@ -72,13 +85,13 @@ test.describe("transcribing and thinking (acceptance 22.4, 22.5)", () => {
     await call(page, "onMicrophoneOpened", { source: "browser", passive: false });
     await expect.poll(async () => (await orbState(page)).mode).toBe("listening");
     await freezeScene(page);
-    const listening = await micEffect(page);
+    const listening = await stableMicEffect(page);
     await call(page, "onTranscriptionStarted");
     await expect.poll(async () => (await orbState(page)).mode, { message: "listening ends when transcribing starts" }).toBe("transcribing");
     expect((await orbState(page)).primaryInteraction).toBe("transcribing");
     await expect(page.getByRole("status").filter({ hasText: /SPRACHE WIRD VERARBEITET|verarbeitet Sprache/ }).first()).toBeAttached();
     await page.waitForTimeout(1500);
-    const transcribing = await micEffect(page);
+    const transcribing = await stableMicEffect(page);
 
     await call(page, "onTranscriptionCompleted");
     await call(page, "onThinkingStarted");
@@ -87,7 +100,7 @@ test.describe("transcribing and thinking (acceptance 22.4, 22.5)", () => {
     expect(thinking.progressMode, "thinking has no progress").toBe("none");
     expect(thinking.progress).toBeNull();
     await page.waitForTimeout(1500);
-    const thinkingEffect = await micEffect(page);
+    const thinkingEffect = await stableMicEffect(page);
     test.info().annotations.push({ type: "mic-effect", description: `listening ${JSON.stringify(listening)}, transcribing ${JSON.stringify(transcribing)}, thinking ${JSON.stringify(thinkingEffect)}` });
     console.log(`[flows] mic effect (mean abs diff): listening ${JSON.stringify(listening)} transcribing ${JSON.stringify(transcribing)} thinking ${JSON.stringify(thinkingEffect)}`);
 
