@@ -6399,6 +6399,10 @@ export interface TelegramGateway {
   connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
+  /**
+   * TELEGRAM_REQUIRE_MENTION; null when unset (Hermes default false: the bot answers every message in an allowed group).
+   */
+  requireMention: boolean | null;
 }
 export interface TelegramGatewayPatch {
   token: string;
@@ -6407,6 +6411,10 @@ export interface TelegramGatewayPatch {
   allowedChatIds: string[];
   removeWebhook: boolean;
   enabled: boolean;
+  /**
+   * In groups only answer when mentioned or addressed by command; omitted keeps the stored value.
+   */
+  requireMention?: boolean;
 }
 export interface TelegramGatewayResponse {
   contractVersion: ContractVersion;

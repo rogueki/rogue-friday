@@ -5,7 +5,7 @@ import { startTestApi } from "./helpers";
 const PATH = "/api/v1/settings/telegram-gateway";
 const TOKEN = `123456789:${"a".repeat(35)}`;
 const status = { tokenConfigured: true, botAuthentication: "verified" as const, botId: "123456789", botUsername: "fake_bot", receiveMode: "polling" as const,
-  allowedUserIds: ["123456789"], allowedChatIds: [], enabled: true,
+  allowedUserIds: ["123456789"], allowedChatIds: [], enabled: true, requireMention: null,
   gatewayRunning: true, connectionState: "unknown" as const, applied: true, revision: 42 };
 
 describe("Telegram gateway settings", () => {
@@ -88,6 +88,22 @@ describe("Telegram group chat access and webhook removal", () => {
     const service = new TelegramGatewayService("unused", invoke);
     vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
       .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_telegram.py", distro: "Friday-Ubuntu", user: "friday" });
+    await expect(service.status()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+});
+
+describe("Telegram mention rule", () => {
+  it("passes requireMention through and rejects a non-boolean value", async () => {
+    const invoke = vi.fn(async () => ({ ...status, requireMention: true }));
+    const service = new TelegramGatewayService("unused", invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_telegram.py", distro: "Friday-Ubuntu", user: "friday" });
+    const patch = { token: "", clearToken: false, allowedUserIds: [], allowedChatIds: ["-1001234567890"], removeWebhook: false, enabled: false, requireMention: true };
+    expect(await service.update(patch, status.revision)).toMatchObject({ requireMention: true });
+    const args = invoke.mock.calls[0] as unknown as [string, string, string, string[], string];
+    expect(JSON.parse(args[4])).toMatchObject({ requireMention: true });
+    expect(() => service.update({ ...patch, requireMention: "yes" } as never, status.revision)).toThrow();
+    invoke.mockResolvedValueOnce({ ...status, requireMention: "yes" } as never);
     await expect(service.status()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
   });
 });

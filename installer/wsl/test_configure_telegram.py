@@ -171,6 +171,22 @@ class TelegramSetupTests(unittest.TestCase):
         self.assertNotIn("TELEGRAM_ALLOWED_USERS", text)
         self.assertEqual(self.restarts, 1)
 
+    def test_require_mention_is_written_kept_when_omitted_and_validated(self):
+        base = {"token": "123456789:" + "a" * 35, "clearToken": False, "allowedUserIds": [],
+                "allowedChatIds": ["-1001234567890"], "removeWebhook": False, "enabled": False}
+        self.assertIsNone(module.snapshot()["requireMention"])
+        code, result = self.submit({**base, "requireMention": True, "revision": module.snapshot()["revision"]})
+        self.assertEqual((code, result["requireMention"]), (0, True))
+        self.assertIn('TELEGRAM_REQUIRE_MENTION="true"', self.env.read_text(encoding="utf-8"))
+        code, result = self.submit({**base, "revision": module.snapshot()["revision"]})
+        self.assertEqual((code, result["requireMention"]), (0, True))
+        code, result = self.submit({**base, "requireMention": False, "revision": module.snapshot()["revision"]})
+        self.assertEqual((code, result["requireMention"]), (0, False))
+        self.assertIn('TELEGRAM_REQUIRE_MENTION="false"', self.env.read_text(encoding="utf-8"))
+        before = self.env.read_text(encoding="utf-8")
+        self.assertEqual(self.submit({**base, "requireMention": "yes", "revision": module.snapshot()["revision"]})[0], 2)
+        self.assertEqual(self.env.read_text(encoding="utf-8"), before)
+
     def test_positive_or_duplicate_chat_ids_are_refused(self):
         before = self.env.read_text(encoding="utf-8")
         for chats in (["123"], ["-5", "-5"]):

@@ -20,7 +20,7 @@ LOCK = HERMES / ".obsidian-vault.lock"
 TOKEN = re.compile(r"^[0-9]{5,20}:[A-Za-z0-9_-]{30,100}$")
 USER = re.compile(r"^[1-9][0-9]{0,19}$")
 CHAT = re.compile(r"^-[1-9][0-9]{0,19}$")
-KEYS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS", "TELEGRAM_GROUP_ALLOWED_CHATS")
+KEYS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS", "TELEGRAM_GROUP_ALLOWED_CHATS", "TELEGRAM_REQUIRE_MENTION")
 
 
 def command(*args):
@@ -100,14 +100,16 @@ def snapshot(lines=None, applied=None):
     ids = [part.strip() for part in current["TELEGRAM_ALLOWED_USERS"].split(",") if part.strip()]
     chats = [part.strip() for part in current["TELEGRAM_GROUP_ALLOWED_CHATS"].split(",") if part.strip()]
     flag = enabled()
-    revision_source = json.dumps([current["TELEGRAM_BOT_TOKEN"], ids, chats, flag], separators=(",", ":"))
+    mention = current["TELEGRAM_REQUIRE_MENTION"].lower()
+    revision_source = json.dumps([current["TELEGRAM_BOT_TOKEN"], ids, chats, flag, mention], separators=(",", ":"))
     return {"tokenConfigured": bool(current["TELEGRAM_BOT_TOKEN"]), "allowedUserIds": ids, "allowedChatIds": chats,
+            "requireMention": mention == "true" if mention in ("true", "false") else None,
             "enabled": flag, "gatewayRunning": gateway_running(), "connectionState": platform_state(HERMES, "telegram"),
             "applied": applied, "revision": int(hashlib.sha256(revision_source.encode()).hexdigest()[:12], 16),
             **bot_probe(current["TELEGRAM_BOT_TOKEN"])}
 
 
-def write_env(lines, token, ids, chats):
+def write_env(lines, token, ids, chats, mention=""):
     other = [line for line in lines if not any(line.startswith(key + "=") for key in KEYS)]
     if other and not other[-1].endswith("\n"):
         other[-1] += "\n"
@@ -117,6 +119,8 @@ def write_env(lines, token, ids, chats):
         other.append(f'TELEGRAM_ALLOWED_USERS="{",".join(ids)}"\n')
     if chats:
         other.append(f'TELEGRAM_GROUP_ALLOWED_CHATS="{",".join(chats)}"\n')
+    if mention:
+        other.append(f'TELEGRAM_REQUIRE_MENTION="{mention}"\n')
     fd, path = tempfile.mkstemp(prefix=".env.telegram.", dir=HERMES)
     try:
         os.fchmod(fd, 0o600)
@@ -132,7 +136,11 @@ def write_env(lines, token, ids, chats):
 
 def update(lines):
     data = json.load(sys.stdin)
-    if not isinstance(data, dict) or set(data) != {"token", "clearToken", "allowedUserIds", "allowedChatIds", "removeWebhook", "enabled", "revision"}:
+    base_keys = {"token", "clearToken", "allowedUserIds", "allowedChatIds", "removeWebhook", "enabled", "revision"}
+    # requireMention is optional: an older client that does not send it leaves the stored value alone.
+    if not isinstance(data, dict) or set(data) not in (base_keys, base_keys | {"requireMention"}):
+        return 2
+    if "requireMention" in data and not isinstance(data["requireMention"], bool):
         return 2
     token, clear, ids, chats, remove, flag, expected = (data[key] for key in ("token", "clearToken", "allowedUserIds", "allowedChatIds", "removeWebhook", "enabled", "revision"))
     if not isinstance(token, str) or not isinstance(clear, bool) or not isinstance(flag, bool) or not isinstance(ids, list) or not isinstance(chats, list) or not isinstance(remove, bool) or not isinstance(expected, int):
@@ -149,6 +157,7 @@ def update(lines):
         return 3
     current = values(lines)
     new_token = "" if clear else token or current["TELEGRAM_BOT_TOKEN"]
+    mention = ("true" if data["requireMention"] else "false") if "requireMention" in data else current["TELEGRAM_REQUIRE_MENTION"]
     if (flag or remove) and not new_token:
         print(json.dumps({"error": "token_required"}))
         return 4
@@ -172,7 +181,7 @@ def update(lines):
             print(json.dumps({"error": "invalid_bot_or_webhook_conflict"}))
             return 4
     changed_env = (new_token != current["TELEGRAM_BOT_TOKEN"] or ",".join(ids) != current["TELEGRAM_ALLOWED_USERS"]
-                   or ",".join(chats) != current["TELEGRAM_GROUP_ALLOWED_CHATS"])
+                   or ",".join(chats) != current["TELEGRAM_GROUP_ALLOWED_CHATS"] or mention != current["TELEGRAM_REQUIRE_MENTION"])
     changed_flag = flag != before["enabled"]
     # Switch the flag first: if Hermes refuses it, nothing has been written yet.
     if changed_flag:
@@ -182,7 +191,7 @@ def update(lines):
             return 5
     if changed_env:
         try:
-            write_env(lines, new_token, ids, chats)
+            write_env(lines, new_token, ids, chats, mention)
         except OSError:
             if changed_flag:
                 command(str(HERMES_CLI), "config", "set", "platforms.telegram.enabled", "true" if before["enabled"] else "false")

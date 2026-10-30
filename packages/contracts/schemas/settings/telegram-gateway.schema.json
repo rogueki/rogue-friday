@@ -15,8 +15,9 @@
     "gatewayRunning": { "type": ["boolean", "null"] },
     "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] },
     "applied": { "type": ["boolean", "null"] },
-    "revision": { "type": "integer", "minimum": 0 }
+    "revision": { "type": "integer", "minimum": 0 },
+    "requireMention": { "type": ["boolean", "null"], "description": "TELEGRAM_REQUIRE_MENTION; null when unset (Hermes default false: the bot answers every message in an allowed group)." }
   },
-  "required": ["tokenConfigured", "botAuthentication", "botId", "botUsername", "receiveMode", "allowedUserIds", "allowedChatIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "required": ["tokenConfigured", "botAuthentication", "botId", "botUsername", "receiveMode", "allowedUserIds", "allowedChatIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision", "requireMention"],
   "additionalProperties": false
 }

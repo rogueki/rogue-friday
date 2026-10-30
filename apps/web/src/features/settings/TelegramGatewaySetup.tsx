@@ -16,6 +16,7 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
   const [ids, setIds] = useState("");
   const [chats, setChats] = useState("");
   const [removeWebhook, setRemoveWebhook] = useState(false);
+  const [requireMention, setRequireMention] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [clearToken, setClearToken] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,10 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
   });
   const current = status.data?.data;
   useEffect(() => {
-    if (current) { setIds(current.allowedUserIds.join(", ")); setChats(current.allowedChatIds.join(", ")); setEnabled(current.enabled === true); }
+    if (current) {
+      setIds(current.allowedUserIds.join(", ")); setChats(current.allowedChatIds.join(", ")); setEnabled(current.enabled === true);
+      setRequireMention(current.requireMention === true);
+    }
   }, [current]);
 
   async function save() {
@@ -37,7 +41,7 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
     try {
       const response: TelegramGatewayResponse = await call(getApiClient().PUT("/api/v1/settings/telegram-gateway", {
         params: { header: { "If-Match": String(current.revision) } },
-        body: { token, clearToken, allowedUserIds: ids.split(",").map((id) => id.trim()).filter(Boolean), allowedChatIds: chats.split(",").map((id) => id.trim()).filter(Boolean), removeWebhook, enabled },
+        body: { token, clearToken, allowedUserIds: ids.split(",").map((id) => id.trim()).filter(Boolean), allowedChatIds: chats.split(",").map((id) => id.trim()).filter(Boolean), removeWebhook, enabled, requireMention },
       }));
       setToken("");
       setClearToken(false);
@@ -74,6 +78,7 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
         <label>Erlaubte numerische User-IDs <input type="text" value={ids} onChange={(event) => setIds(event.target.value)} placeholder={current.allowedUserIds.join(", ") || "123456789"} /></label>
         <label>Erlaubte Gruppen-Chat-IDs (beginnen mit „-“) <input type="text" value={chats} onChange={(event) => setChats(event.target.value)} placeholder={current.allowedChatIds.join(", ") || "-1001234567890"} /></label>
         <p>Jedes Mitglied einer eingetragenen Gruppe darf Friday dort schreiben. Hermes kann keine einzelnen Topics freigeben; eine freigegebene Gruppe gilt für alle ihre Topics. Die Gruppen-Chat-ID zeigt z. B. @RawDataBot, wenn du ihn kurz in die Gruppe holst.</p>
+        <label><input type="checkbox" checked={requireMention} onChange={(event) => setRequireMention(event.target.checked)} /> In Gruppen nur antworten, wenn Friday erwähnt oder per Befehl angesprochen wird</label>
         {current.receiveMode === "webhook" && <>
           <label><input type="checkbox" checked={removeWebhook} disabled={busy} onChange={(event) => setRemoveWebhook(event.target.checked)} /> Webhook bei Telegram entfernen, damit Hermes per Polling empfängt</label>
           <p>Achtung: Ein anderer Dienst, der diesen Bot per Webhook nutzt, bekommt danach keine Nachrichten mehr.</p>
