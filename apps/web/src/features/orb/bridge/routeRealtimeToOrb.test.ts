@@ -253,6 +253,33 @@ describe("agents and approvals", () => {
       ["onApprovalResolved", "ap2"],
     ]);
   });
+
+  it("releases an approval the refreshed overview no longer lists and shows the next real one", () => {
+    const { router, calls, state } = setup();
+    router.route(event("friday.approval.requested", { id: "ghost", status: "pending" }));
+    router.route(event("friday.approval.requested", { id: "real", status: "pending" }));
+    state.approvals = ["ghost"]; // stale overview right after the decision
+    router.route(event("friday.approval.resolved", { id: "real", status: "rejected" }));
+    state.approvals = ["next"]; // refetched overview: the ghost is gone
+    router.reconcileApprovals();
+    router.reconcileApprovals();
+    expect(calls).toEqual([
+      ["onApprovalRequired", "ghost"],
+      ["onApprovalRequired", "real"],
+      ["onApprovalResolved", "real"],
+      ["onApprovalRequired", "ghost"],
+      ["onApprovalResolved", "ghost"],
+      ["onApprovalRequired", "next"],
+    ]);
+  });
+
+  it("keeps approvals the overview still lists", () => {
+    const { router, calls, state } = setup();
+    router.route(event("friday.approval.requested", { id: "ap1", status: "pending" }));
+    state.approvals = ["ap1"];
+    router.reconcileApprovals();
+    expect(calls).toEqual([["onApprovalRequired", "ap1"]]);
+  });
 });
 
 describe("errors, warnings and connection", () => {
