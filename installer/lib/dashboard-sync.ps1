@@ -54,7 +54,8 @@ function Sync-DashboardSource([string]$Source, [string]$Target, [string[]]$RootF
     foreach ($name in @($Dirs)) {
         $dir = Join-Path $Source $name
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
-        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
+        # Schluessel im Quellbaum sind Testmaterial; echte Schluessel liegen in data\ und werden nie gespiegelt.
+        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs /XF '*.log' '*.key' '*.pem' '*.pfx' '*.p12' /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { throw "Kopieren von '$name' nach $Target fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
     foreach ($name in @($ConfigDirs)) {
