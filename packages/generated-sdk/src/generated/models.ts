@@ -6902,11 +6902,37 @@ export interface WhatsappGateway {
   connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
+  /**
+   * Stored WHATSAPP_GROUP_POLICY; null when unset. Hermes forwards group messages only for allowlist (listed groups) and open (all groups).
+   */
+  groupPolicy: "open" | "allowlist" | "disabled" | "pairing" | null;
+  /**
+   * Group JIDs from WHATSAPP_GROUP_ALLOWED_USERS.
+   */
+  groupAllowedIds: string[];
+  /**
+   * WHATSAPP_REQUIRE_MENTION; null when unset (Hermes default false).
+   */
+  requireMention: boolean | null;
+  /**
+   * Header line above every WhatsApp reply; null when unset, then Hermes adds its own header.
+   */
+  replyPrefix: string | null;
 }
 export interface WhatsappGatewayPatch {
   mode: "bot" | "self-chat";
   allowedUserIds: string[];
   enabled: boolean;
+  /**
+   * Friday offers no open group policy.
+   */
+  groupPolicy: "disabled" | "allowlist";
+  groupAllowedIds: string[];
+  requireMention: boolean;
+  /**
+   * Empty keeps the Hermes header.
+   */
+  replyPrefix: string;
 }
 export interface WhatsappGatewayResponse {
   contractVersion: ContractVersion;

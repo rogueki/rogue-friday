@@ -6,8 +6,12 @@
   "properties": {
     "mode": { "type": "string", "enum": ["bot", "self-chat"] },
     "allowedUserIds": { "type": "array", "maxItems": 10, "uniqueItems": true, "items": { "type": "string", "pattern": "^[1-9][0-9]{5,19}$" } },
-    "enabled": { "type": "boolean" }
+    "enabled": { "type": "boolean" },
+    "groupPolicy": { "type": "string", "enum": ["disabled", "allowlist"], "description": "Friday offers no open group policy." },
+    "groupAllowedIds": { "type": "array", "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "pattern": "^[0-9]{6,40}(-[0-9]{6,20})?@g\\.us$" } },
+    "requireMention": { "type": "boolean" },
+    "replyPrefix": { "type": "string", "pattern": "^[^\\r\\n\"\\\\$`]{0,40}$", "description": "Empty keeps the Hermes header." }
   },
-  "required": ["mode", "allowedUserIds", "enabled"],
+  "required": ["mode", "allowedUserIds", "enabled", "groupPolicy", "groupAllowedIds", "requireMention", "replyPrefix"],
   "additionalProperties": false
 }

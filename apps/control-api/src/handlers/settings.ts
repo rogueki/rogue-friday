@@ -150,7 +150,9 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "settings.whatsapp_gateway_updated";
     ctx.audit.severity = "warning";
     ctx.audit.after = { mode: status.mode, allowedUserCount: status.allowedUserIds.length,
-      enabled: status.enabled, sessionPresent: status.sessionPresent, applied: status.applied };
+      enabled: status.enabled, sessionPresent: status.sessionPresent, applied: status.applied,
+      groupPolicy: status.groupPolicy, allowedGroupCount: status.groupAllowedIds?.length ?? 0,
+      requireMention: status.requireMention, replyPrefixSet: status.replyPrefix !== null && status.replyPrefix !== undefined };
     return { status: 200, body: single(status) };
   },
   async getTelegramGateway(ctx) {

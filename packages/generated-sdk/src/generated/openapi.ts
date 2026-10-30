@@ -11467,8 +11467,19 @@ export interface components {
             connectionState: "connected" | "disconnected" | "unknown";
             enabled: boolean | null;
             gatewayRunning: boolean | null;
+            /** @description Group JIDs from WHATSAPP_GROUP_ALLOWED_USERS. */
+            groupAllowedIds: string[];
+            /**
+             * @description Stored WHATSAPP_GROUP_POLICY; null when unset. Hermes forwards group messages only for allowlist (listed groups) and open (all groups).
+             * @enum {string|null}
+             */
+            groupPolicy: "open" | "allowlist" | "disabled" | "pairing" | null;
             /** @enum {string|null} */
             mode: "bot" | "self-chat" | null;
+            /** @description Header line above every WhatsApp reply; null when unset, then Hermes adds its own header. */
+            replyPrefix: string | null;
+            /** @description WHATSAPP_REQUIRE_MENTION; null when unset (Hermes default false). */
+            requireMention: boolean | null;
             revision: number;
             sessionPresent: boolean;
             setupUrl: string;
@@ -11477,8 +11488,17 @@ export interface components {
         WhatsappGatewayPatch: {
             allowedUserIds: string[];
             enabled: boolean;
+            groupAllowedIds: string[];
+            /**
+             * @description Friday offers no open group policy.
+             * @enum {string}
+             */
+            groupPolicy: "disabled" | "allowlist";
             /** @enum {string} */
             mode: "bot" | "self-chat";
+            /** @description Empty keeps the Hermes header. */
+            replyPrefix: string;
+            requireMention: boolean;
         };
         /** WhatsappGatewayResponse */
         WhatsappGatewayResponse: {

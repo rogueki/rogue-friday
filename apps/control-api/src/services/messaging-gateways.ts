@@ -16,10 +16,16 @@ export interface MessagingGatewayStatus {
   allowedChannelIds?: string[];
   mode?: "bot" | "self-chat" | null;
   sessionPresent?: boolean;
+  groupPolicy?: "open" | "allowlist" | "disabled" | "pairing" | null;
+  groupAllowedIds?: string[];
+  requireMention?: boolean | null;
+  replyPrefix?: string | null;
 }
 export type MessagingGatewayPatch = {
   allowedUserIds: string[]; enabled: boolean;
-} & ({ token: string; clearToken: boolean; allowedChannelIds: string[] } | { mode: "bot" | "self-chat" });
+} & ({ token: string; clearToken: boolean; allowedChannelIds: string[] } | {
+  mode: "bot" | "self-chat"; groupPolicy: "disabled" | "allowlist"; groupAllowedIds: string[]; requireMention: boolean; replyPrefix: string;
+});
 export interface WhatsappPairing {
   id: string | null;
   state: "idle" | "starting" | "waiting" | "qr_expired" | "connected" | "unverified" | "expired" | "cancelled" | "error";
@@ -34,6 +40,8 @@ const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "
 const SNOWFLAKE = /^[1-9][0-9]{0,19}$/;
 const PHONE = /^[1-9][0-9]{5,19}$/;
 const TOKEN = /^[A-Za-z0-9_.-]{30,128}$/;
+const GROUP_JID = /^[0-9]{6,40}(-[0-9]{6,20})?@g\.us$/;
+const REPLY_PREFIX = /^[^\r\n"\\$`]{0,40}$/;
 const idsValid = (ids: unknown, pattern: RegExp, limit: number): ids is string[] => Array.isArray(ids) && ids.length <= limit &&
   ids.every((id) => typeof id === "string" && pattern.test(id)) && new Set(ids).size === ids.length;
 
@@ -76,7 +84,12 @@ export class MessagingGatewayService {
         !["connected", "disconnected", "unknown"].includes(String(data.connectionState)) || !(data.applied === null || typeof data.applied === "boolean") ||
         !Number.isSafeInteger(data.revision)) throw unavailable();
     if (this.platform === "discord" && (typeof data.tokenConfigured !== "boolean" || !idsValid(data.allowedChannelIds, SNOWFLAKE, 20))) throw unavailable();
-    if (this.platform === "whatsapp" && (typeof data.sessionPresent !== "boolean" || ![null, "bot", "self-chat"].includes(data.mode as string | null))) throw unavailable();
+    if (this.platform === "whatsapp" && (typeof data.sessionPresent !== "boolean" || ![null, "bot", "self-chat"].includes(data.mode as string | null) ||
+        ![null, "open", "allowlist", "disabled", "pairing"].includes(data.groupPolicy as string | null) ||
+        !Array.isArray(data.groupAllowedIds) || data.groupAllowedIds.length > 50 ||
+        !data.groupAllowedIds.every((id) => typeof id === "string" && id.length <= 128) ||
+        !(data.requireMention === null || typeof data.requireMention === "boolean") ||
+        !(data.replyPrefix === null || typeof data.replyPrefix === "string" && data.replyPrefix.length <= 256))) throw unavailable();
     return { ...data, setupUrl } as MessagingGatewayStatus;
   }
 
@@ -90,7 +103,15 @@ export class MessagingGatewayService {
       if (typeof patch.token !== "string" || (patch.token !== "" && !TOKEN.test(patch.token)) ||
           typeof patch.clearToken !== "boolean" || (patch.clearToken && !!patch.token) ||
           !idsValid(patch.allowedChannelIds, SNOWFLAKE, 20)) throw validationFailed("Discord-Bot-Token oder Kanal-IDs sind ungültig.");
-    } else if (!(["bot", "self-chat"] as unknown[]).includes((input as { mode?: unknown }).mode)) throw validationFailed("WhatsApp-Modus ist ungültig.");
+    } else {
+      const patch = input as Extract<MessagingGatewayPatch, { mode: string }>;
+      if (!(["bot", "self-chat"] as unknown[]).includes(patch.mode)) throw validationFailed("WhatsApp-Modus ist ungültig.");
+      // Friday never opens every group; "open" stays a Hermes-only choice.
+      if (!(["disabled", "allowlist"] as unknown[]).includes(patch.groupPolicy) || !idsValid(patch.groupAllowedIds, GROUP_JID, 20) ||
+          typeof patch.requireMention !== "boolean") throw validationFailed("WhatsApp-Gruppenregeln sind ungültig.");
+      if (typeof patch.replyPrefix !== "string" || !REPLY_PREFIX.test(patch.replyPrefix))
+        throw validationFailed("Die Antwort-Kopfzeile darf höchstens 40 Zeichen ohne Zeilenumbruch, Anführungszeichen, \\, $ oder ` enthalten.");
+    }
     return this.run("update", { ...input, revision });
   }
 

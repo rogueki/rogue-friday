@@ -22,6 +22,10 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
   const [ids, setIds] = useState("");
   const [channels, setChannels] = useState("");
   const [mode, setMode] = useState<"bot" | "self-chat">("bot");
+  const [groupPolicy, setGroupPolicy] = useState<"disabled" | "allowlist">("disabled");
+  const [groups, setGroups] = useState("");
+  const [requireMention, setRequireMention] = useState(false);
+  const [replyPrefix, setReplyPrefix] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -65,6 +69,13 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
     setEnabled(current.enabled === true);
     if ("allowedChannelIds" in current) setChannels(current.allowedChannelIds.join(", "));
     if ("mode" in current && current.mode) setMode(current.mode);
+    if ("sessionPresent" in current) {
+      // Unset, pairing and disabled all keep groups out; "open" is shown as a warning and replaced on save.
+      setGroupPolicy(current.groupPolicy === "allowlist" ? "allowlist" : "disabled");
+      setGroups((current.groupAllowedIds ?? []).join(", "));
+      setRequireMention(current.requireMention === true);
+      setReplyPrefix(current.replyPrefix ?? "");
+    }
   }, [current]);
 
   async function save() {
@@ -80,7 +91,10 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
             allowedChannelIds: channels.split(",").map((item) => item.trim()).filter(Boolean), enabled },
         }))
         : await call(getApiClient().PUT("/api/v1/settings/whatsapp-gateway", {
-          params: { header: { "If-Match": String(current.revision) } }, body: { mode, allowedUserIds, enabled },
+          params: { header: { "If-Match": String(current.revision) } },
+          body: { mode, allowedUserIds, enabled, groupPolicy,
+            groupAllowedIds: groupPolicy === "allowlist" ? groups.split(",").map((item) => item.trim()).filter(Boolean) : [],
+            requireMention, replyPrefix: replyPrefix.trim() },
         }));
       setToken("");
       setClearToken(false);
@@ -145,6 +159,17 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
             <button type="button" disabled={busy} onClick={() => void changePairing("cancel")}>Kopplung abbrechen</button> : null}
           <label>WhatsApp-Modus <select value={mode} onChange={(event) => setMode(event.target.value as "bot" | "self-chat")}><option value="bot">Bot</option><option value="self-chat">Eigener Chat</option></select></label>
           <label>Erlaubte Telefonnummern (Ländervorwahl, ohne +) <input type="text" value={ids} onChange={(event) => setIds(event.target.value)} placeholder="491701234567" /></label>
+          <fieldset>
+            <legend>Gruppen</legend>
+            {(current as WhatsappGatewayResponse["data"]).groupPolicy === "open" &&
+              <p role="alert">In Hermes ist „alle Gruppen“ eingestellt. Friday bietet das nicht an; beim Speichern gilt die Auswahl unten.</p>}
+            {mode === "self-chat" && <p>Im Modus „Eigener Chat“ beantwortet Friday keine Gruppen; diese Regeln gelten erst im Bot-Modus.</p>}
+            <label>Gruppennachrichten <select value={groupPolicy} onChange={(event) => setGroupPolicy(event.target.value as "disabled" | "allowlist")}>
+              <option value="disabled">Keine Gruppen</option><option value="allowlist">Nur freigegebene Gruppen</option></select></label>
+            {groupPolicy === "allowlist" && <label>Freigegebene Gruppen-IDs (endet auf @g.us) <input type="text" value={groups} onChange={(event) => setGroups(event.target.value)} placeholder="120363012345678901@g.us" /></label>}
+            <label><input type="checkbox" checked={requireMention} onChange={(event) => setRequireMention(event.target.checked)} /> In Gruppen nur antworten, wenn Friday erwähnt wird</label>
+          </fieldset>
+          <label>Kopfzeile über WhatsApp-Antworten (leer = Hermes-Standard „☤ Hermes Agent“) <input type="text" maxLength={40} value={replyPrefix} onChange={(event) => setReplyPrefix(event.target.value)} placeholder="*Friday*" /></label>
           <button type="button" onClick={() => void status.refetch()}>Kopplungsstatus erneut prüfen</button>
         </>}
         <label><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> {name} aktivieren</label>

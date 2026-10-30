@@ -51,7 +51,54 @@ describe("messaging gateway setup", () => {
     fireEvent.change(screen.getByLabelText("Erlaubte Telefonnummern (Ländervorwahl, ohne +)"), { target: { value: "491701234567" } });
     fireEvent.click(screen.getByRole("button", { name: "WhatsApp-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
-    expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ mode: "bot", allowedUserIds: ["491701234567"], enabled: false });
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ mode: "bot", allowedUserIds: ["491701234567"], enabled: false,
+      groupPolicy: "disabled", groupAllowedIds: [], requireMention: false, replyPrefix: "" });
+  });
+
+  it("loads and saves WhatsApp group rules and the reply header", async () => {
+    const requests: Array<{ method: string; body: unknown }> = [];
+    renderWithProviders(<MessagingGatewaySetup owner platform="whatsapp" />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      if (new URL(request.url).pathname.endsWith("whatsapp-pairing")) {
+        return jsonResponse(envelope({ id: null, state: "idle", qr: null, expiresAt: null, linkedIdentity: null, connectionState: "unknown" }));
+      }
+      requests.push({ method: request.method, body: request.method === "PUT" ? await request.json() : null });
+      return jsonResponse(envelope({ setupUrl: "http://127.0.0.1:43791/channels", mode: "bot", sessionPresent: true, allowedUserIds: ["491701234567"],
+        enabled: true, gatewayRunning: true, connectionState: "connected", applied: null, revision: 3, groupPolicy: "allowlist",
+        groupAllowedIds: ["120363012345678901@g.us"], requireMention: true, replyPrefix: "*Friday*" }));
+    } });
+    const groupIds = await screen.findByLabelText("Freigegebene Gruppen-IDs (endet auf @g.us)");
+    expect((groupIds as HTMLInputElement).value).toBe("120363012345678901@g.us");
+    expect((screen.getByLabelText("In Gruppen nur antworten, wenn Friday erwähnt wird") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText(/Kopfzeile über WhatsApp-Antworten/) as HTMLInputElement).value).toBe("*Friday*");
+    fireEvent.change(groupIds, { target: { value: "120363012345678901@g.us, 120363000000000002@g.us" } });
+    fireEvent.change(screen.getByLabelText(/Kopfzeile über WhatsApp-Antworten/), { target: { value: " *F.R.I.D.A.Y.* " } });
+    fireEvent.click(screen.getByRole("button", { name: "WhatsApp-Konfiguration speichern" }));
+    await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toEqual({ mode: "bot", allowedUserIds: ["491701234567"], enabled: true,
+      groupPolicy: "allowlist", groupAllowedIds: ["120363012345678901@g.us", "120363000000000002@g.us"], requireMention: true,
+      replyPrefix: "*F.R.I.D.A.Y.*" });
+  });
+
+  it("warns about all-groups access set in Hermes and saves the safer choice", async () => {
+    const requests: Array<{ method: string; body: unknown }> = [];
+    renderWithProviders(<MessagingGatewaySetup owner platform="whatsapp" />, { fetchImpl: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      if (new URL(request.url).pathname.endsWith("whatsapp-pairing")) {
+        return jsonResponse(envelope({ id: null, state: "idle", qr: null, expiresAt: null, linkedIdentity: null, connectionState: "unknown" }));
+      }
+      requests.push({ method: request.method, body: request.method === "PUT" ? await request.json() : null });
+      return jsonResponse(envelope({ setupUrl: "http://127.0.0.1:43791/channels", mode: "bot", sessionPresent: true, allowedUserIds: [],
+        enabled: false, gatewayRunning: true, connectionState: "unknown", applied: null, revision: 4, groupPolicy: "open",
+        groupAllowedIds: ["120363012345678901@g.us"], requireMention: null, replyPrefix: null }));
+    } });
+    expect(await screen.findByText(/In Hermes ist „alle Gruppen“ eingestellt\./)).toBeTruthy();
+    expect((screen.getByLabelText("Gruppennachrichten") as HTMLSelectElement).value).toBe("disabled");
+    expect(screen.queryByLabelText("Freigegebene Gruppen-IDs (endet auf @g.us)")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "WhatsApp-Konfiguration speichern" }));
+    await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));
+    expect(requests.find((entry) => entry.method === "PUT")?.body).toMatchObject({ groupPolicy: "disabled", groupAllowedIds: [],
+      requireMention: false, replyPrefix: "" });
   });
 
   it("offers a cancel action for an expired WhatsApp QR code", async () => {
