@@ -38,6 +38,23 @@ describe("spoken reads during an adapter outage", () => {
     expect(error.code).toBe((route.json() as any).error.code);
   });
 
+  it.each([
+    ["mock-agents", "/api/v1/agents", "zeige meine agenten"],
+    ["mock-activity", "/api/v1/activity", "Zeige aktuelle Activity-Ereignisse"],
+    ["mock-files", "/api/v1/files", "zeige meine dateien"],
+    ["mock-memory", "/api/v1/memory", "zeige mein gedaechtnis"],
+    ["mock-notifications", "/api/v1/notifications", "Zeige offene Meldungen"],
+  ])("answers like the route when %s is offline", async (adapterId, path, text) => {
+    await offline(adapterId);
+    const route = await owner.get(path);
+    expect(route.statusCode, route.body).toBe(503);
+    const spoken = await say(text);
+    expect(spoken.statusCode, spoken.body).toBe(503);
+    const error = (spoken.json() as any).error;
+    expect(error.code).toBe((route.json() as any).error.code);
+    expect(error.retryable).toBe(true);
+  });
+
   it("keeps naming local events when the calendar adapter is offline, like the calendar page", async () => {
     const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
     const local = new LocalCalendarService(api.runtime.db).create({
