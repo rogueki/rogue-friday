@@ -52,7 +52,8 @@ async function main(): Promise<void> {
   if (password.length < MIN_LENGTH) throw new Error(`Passwort muss mindestens ${MIN_LENGTH} Zeichen lang sein.`);
 
   const hash = await hashPassword(password);
-  process.stderr.write('In .env eintragen (Single Quotes wegen der $-Zeichen):\n');
+  // Only a person reading a terminal needs the hint; a calling script (owner reset) stores the hash itself.
+  if (process.stdout.isTTY) process.stderr.write('In .env eintragen (Single Quotes wegen der $-Zeichen):\n');
   process.stdout.write(`FRIDAY_OWNER_PASSWORD_HASH='${hash}'\n`);
 }
 
