@@ -68,6 +68,27 @@ class MessengerSendTest(unittest.TestCase):
         self.assertEqual(bridge.send(self.request(text="MEDIA:/private/file"), self.runner)["reason"], "invalid_target_or_text")
         self.assertEqual(self.calls, [])
 
+    def test_whatsapp_targets_are_exact_numbers_or_jids_and_media_never_leaves(self):
+        for recipient in ("+491701234567", "491701234567@s.whatsapp.net", "120363012345678901@g.us",
+                          "123456789012345@lid", "status@broadcast", "120363000000000000@newsletter"):
+            with self.subTest(recipient=recipient):
+                self.assertTrue(bridge.exact_target("whatsapp", recipient))
+        for recipient in ("491701234567", "+0491701234567", "Family group", "120363012345678901@g.us.evil",
+                          "user@example.com", "../g.us", "+49 170 1234567"):
+            with self.subTest(recipient=recipient):
+                self.assertFalse(bridge.exact_target("whatsapp", recipient))
+                self.assertEqual(bridge.send(self.request(platform="whatsapp", recipient=recipient), self.runner)["reason"],
+                                 "invalid_target_or_text")
+        self.assertEqual(bridge.send(self.request(platform="whatsapp", recipient="+491701234567",
+                                                  text="MEDIA:/home/user/photo.jpg"), self.runner)["reason"],
+                         "invalid_target_or_text")
+        self.assertEqual(self.calls, [])
+        self.assertEqual(bridge.send(self.request(platform="whatsapp", recipient="120363012345678901@g.us"), self.runner)["state"],
+                         "sent")
+        argv, kwargs = self.calls[-1]
+        self.assertEqual(argv[1:4], ["send", "--to", "whatsapp:120363012345678901@g.us"])
+        self.assertEqual(kwargs["input"], "Synthetic hello")
+
     def test_matrix_colon_target_and_missing_configuration(self):
         self.assertEqual(bridge.send(self.request(platform="matrix", recipient="@user:example.org"), self.runner)["state"], "sent")
         with patch.object(bridge, "configured_revision", return_value=None):
