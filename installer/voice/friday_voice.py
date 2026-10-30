@@ -2480,8 +2480,18 @@ class VoiceService:
             def log_message(self, *args):
                 pass
 
-        srv = http.server.ThreadingHTTPServer(("127.0.0.1", self.cfg["health_port"]), Handler)
+        srv = QuietHTTPServer(("127.0.0.1", self.cfg["health_port"]), Handler)
         threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+
+class QuietHTTPServer(http.server.ThreadingHTTPServer):
+    """Status server whose clients (dashboard probes) may give up mid-response."""
+
+    def handle_error(self, request, client_address):
+        # A probe that timed out closes its socket; that is the caller's choice, not a service fault (N-144).
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
 
 
 def main() -> None:
