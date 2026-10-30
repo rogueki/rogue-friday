@@ -6,6 +6,7 @@ import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
 import { auditTrailEvent, auditTrailPage } from "./audit-trail";
 import { localDayRange } from "./calendar-day-range";
+import { healthSnapshot } from "./health-snapshot";
 
 const MAX_RESULTS = 5;
 const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
@@ -27,6 +28,9 @@ export type ReadQueryIntent =
   | { kind: "research.get"; id: string }
   | { kind: "files.list"; category?: FileCategory[] }
   | { kind: "files.get"; id: string }
+  | { kind: "system.status" }
+  | { kind: "system.metrics" }
+  | { kind: "skills.list"; enabled?: boolean }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -186,6 +190,25 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
       ...(statuses[0] ? { status: [statuses[0]] } : {}),
       ...(needsReply ? { needsReply: true } : {}),
     };
+  }
+  const systemArea = /\b(system|systems|systemstatus|systemzustand|systemauslastung|auslastung|rechner|cpu|prozessor|arbeitsspeicher|ram)\b/.test(text);
+  if (systemArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Systemabfrage formulieren." };
+    if (/\b(starte|starten|neustart|neustarten|restart|stoppe|stoppen|beende|beenden|pruefe|pruefen|healthcheck|repariere|reparieren)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Systemabfrage formulieren." };
+    return /\b(auslastung|systemauslastung|cpu|prozessor|arbeitsspeicher|ram)\b/.test(text) ? { kind: "system.metrics" } : { kind: "system.status" };
+  }
+  const skillsArea = /\b(skill|skills|faehigkeit|faehigkeiten)\b/.test(text);
+  if (skillsArea) {
+    if (otherFamilies.length > 0)
+      return { kind: "clarify", message: "Der Text nennt zwei Bereiche zugleich. Bitte nur die Skillabfrage formulieren." };
+    if (/\b(aktiviere|aktivieren|deaktiviere|deaktivieren|installiere|installieren|entferne|entfernen|loesche|loeschen|aendere|aendern)\b/.test(text))
+      return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die Skillabfrage formulieren." };
+    const wantsEnabled = /\b(aktiv|aktive|aktiven|aktiviert|aktivierte|aktivierten|eingeschaltet|eingeschaltete|eingeschalteten)\b/.test(text);
+    const wantsDisabled = /\b(inaktiv|inaktive|inaktiven|deaktiviert|deaktivierte|deaktivierten|ausgeschaltet|ausgeschaltete|ausgeschalteten)\b/.test(text);
+    if (wantsEnabled && wantsDisabled) return { kind: "clarify", message: "Bitte entweder aktive oder deaktivierte Skills abfragen." };
+    return { kind: "skills.list", ...(wantsEnabled ? { enabled: true } : wantsDisabled ? { enabled: false } : {}) };
   }
   const filesArea = /\b(datei|dateien|files?|dokument|dokumente|dokumenten)\b/.test(text);
   if (filesArea) {
@@ -507,6 +530,8 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind.startsWith("memory.")) requireReadRole(ctx, "memory", "viewer");
   if (intent.kind.startsWith("research.")) requireReadRole(ctx, "research", "viewer");
   if (intent.kind.startsWith("files.")) requireReadRole(ctx, "files", "viewer");
+  if (intent.kind.startsWith("system.")) requireReadRole(ctx, "system", "viewer");
+  if (intent.kind === "skills.list") requireReadRole(ctx, "skills", "owner");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -587,6 +612,29 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
         ? (await ctx.runtime.registry.getPort("research").getResearchProject({ id: intent.id }, ctx.call)).data
         : ctx.runtime.research.get(ctx.principal!.userId, intent.id);
       return baseResponse(ctx, `Recherche ${project.id}: ${project.topic}, Status ${project.status}, ${project.sourceCount ?? 0} Quellen, ${project.findingCount ?? 0} Erkenntnisse.`);
+    }
+    case "system.status": {
+      const health = healthSnapshot(ctx.runtime);
+      const degraded = health.components.filter((component) => component.status !== "online");
+      const online = health.components.length - degraded.length;
+      return baseResponse(ctx, `Systemstatus ${health.status}: ${health.components.length} Komponenten, ${online} online`
+        + (degraded.length === 0 ? "." : `; nicht online: ${degraded.slice(0, MAX_RESULTS).map((component) => `${component.name} (${component.status})`).join("; ")}${degraded.length > MAX_RESULTS ? " und weitere" : ""}.`));
+    }
+    case "system.metrics": {
+      const metrics = (await ctx.runtime.registry.getPort("system").getSystemMetrics({}, ctx.call)).data;
+      const gib = (bytes: number): string => (bytes / (1024 ** 3)).toFixed(1);
+      return baseResponse(ctx, `Systemauslastung ${metrics.sampledAt}: CPU ${Math.round(metrics.cpu.usagePercent)} Prozent auf ${metrics.cpu.cores} Kernen, `
+        + `Arbeitsspeicher ${Math.round(metrics.ram.usagePercent)} Prozent (${gib(metrics.ram.usedBytes)} von ${gib(metrics.ram.totalBytes)} GB).`);
+    }
+    case "skills.list": {
+      const catalog = await ctx.runtime.skills.list();
+      const active = catalog.skills.filter((skill) => skill.enabled === true).length;
+      const disabled = catalog.skills.filter((skill) => skill.enabled === false).length;
+      const matching = intent.enabled === undefined ? catalog.skills : catalog.skills.filter((skill) => skill.enabled === intent.enabled);
+      // Without a fresh Hermes observation the enabled flags are not confirmed; say so instead of presenting them as fact.
+      const note = !catalog.fresh || catalog.hermesError ? " Hermes-Stand nicht bestätigt." : "";
+      return baseResponse(ctx, `${catalog.skills.length} Skills: ${active} aktiv, ${disabled} deaktiviert, ${catalog.skills.length - active - disabled} unbestätigt.${note} `
+        + listMessage("Skills", matching, matching.length > MAX_RESULTS, (skill) => `${skill.name} · ${skill.source}`));
     }
     case "files.list": {
       const page = await ctx.runtime.registry.getPort("files").listFiles({
