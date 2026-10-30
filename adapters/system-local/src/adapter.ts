@@ -106,6 +106,8 @@ interface ServiceDef {
   key: ServiceKey;
   name: string;
   kind: Service["kind"];
+  /** host:port of the probed listener; absent for checks without a network endpoint. */
+  endpoint?: string;
   probe(env: ProbeEnv): Promise<ProbeResult>;
 }
 
@@ -337,12 +339,12 @@ export class LocalSystemAdapter implements SystemPort, FridayAdapter {
 
   private buildServices(settings: AdapterSettings): ServiceDef[] {
     const defs: ServiceDef[] = [
-      { key: "hermes-api", name: "Hermes API", kind: "hermes", probe: probeHermesApi },
-      { key: "hermes-dashboard", name: "Hermes Dashboard", kind: "hermes", probe: probeHermesDashboard },
-      { key: "voice", name: "Voice-Dienst", kind: "voice", probe: probeVoice },
+      { key: "hermes-api", name: "Hermes API", kind: "hermes", endpoint: endpointOf(settings.hermesApiUrl), probe: probeHermesApi },
+      { key: "hermes-dashboard", name: "Hermes Dashboard", kind: "hermes", endpoint: endpointOf(settings.hermesDashboardUrl), probe: probeHermesDashboard },
+      { key: "voice", name: "Voice-Dienst", kind: "voice", endpoint: endpointOf(settings.voiceUrl), probe: probeVoice },
     ];
     if (!settings.cloudMode)
-      defs.unshift({ key: "qwen", name: "Qwen lokal (llama-server)", kind: "llm", probe: probeQwen });
+      defs.unshift({ key: "qwen", name: "Qwen lokal (llama-server)", kind: "llm", endpoint: endpointOf(settings.qwenUrl), probe: probeQwen });
     if (this.host.platform === "win32" && settings.enableWsl)
       defs.push({ key: "wsl", name: "WSL", kind: "wsl", probe: probeWsl });
     defs.push({
@@ -385,6 +387,7 @@ export class LocalSystemAdapter implements SystemPort, FridayAdapter {
       checkedAt: toIso(context.clock),
       createdAt: this.startedAt,
       lastSuccessAt: this.lastSuccess.get(def.key) ?? null,
+      ...(def.endpoint ? { endpoint: def.endpoint } : {}),
     };
   }
 
@@ -537,6 +540,15 @@ export class LocalSystemAdapter implements SystemPort, FridayAdapter {
   private ready(): { context: AdapterContext; settings: AdapterSettings; env: ProbeEnv } {
     if (this.stopped || !this.context || !this.settings || !this.env) throw unavailable();
     return { context: this.context, settings: this.settings, env: this.env };
+  }
+}
+
+/** host:port of a configured URL; an unparsable value yields no endpoint rather than a wrong one. */
+function endpointOf(url: string): string | undefined {
+  try {
+    return new URL(url).host || undefined;
+  } catch {
+    return undefined;
   }
 }
 

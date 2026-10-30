@@ -7,3 +7,9 @@
 *.sh  text eol=lf
 *.webp binary
 *.png binary
+# Agent metadata and working drafts stay in the repository but not in the downloadable source archive (REL-06.03).
+CLAUDE.md export-ignore
+.claude/** export-ignore
+docs/agent-work/** export-ignore
+# GitHub setzt beim ZIP-Export den Commit ein; der Installer schreibt daraus den installierten Stand (DASH-19.04).
+installer/source-revision.txt export-subst

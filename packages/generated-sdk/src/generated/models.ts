@@ -5825,6 +5825,10 @@ export interface Service {
   lastCheckAt: string | null;
   lastSuccessAt: string | null;
   detail?: string;
+  /**
+   * host:port the dashboard probes for this service, so the page shows which listener answers.
+   */
+  endpoint?: string;
 }
 /**
  * Cursor-paginated list envelope for Service.

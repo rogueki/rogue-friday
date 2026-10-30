@@ -249,7 +249,7 @@ Alle IDs über `createIdCodec` (`task`, `agent`, `act`), `source.externalId` hä
 | `status` | `status` | siehe 6.4 |
 | `priority` | `priority` (Integer) | Konvention (Annahme): `P0=4, P1=3, P2=2, P3=1, P4=0`; Rückrichtung `>=4 -> P0`, `<=0 -> P4`. Hermes nutzt es nur als Tiebreaker (`--priority "Priority tiebreaker"`). |
 | `agentId`, `agentName` | `assignee` (Profil-/Assignee-Name) | `null` -> `agentId: null`, `agentName` weglassen; ID über Agent-Codec |
-| `model` | `model_override` (nur wenn gesetzt) sonst Profil-Modell aus `/api/plugins/kanban/profiles` | `null` erlaubt |
+| `model` | `model_override` (nur wenn gesetzt) sonst Profil-Modell aus `/api/plugins/kanban/profiles` | `null` erlaubt; zeigt die konfigurierte Route, nicht das in einem vergangenen Lauf genutzte Modell (Versionssemantik: `docs/agent-work/finalization/dash-15-16-orchestrierung.md`) |
 | `progress` | `progress` der Karte (Kind-Fortschritt) | nur wenn nicht `null`, sonst `indeterminate` bei `running`, sonst `none` (Form von `progress` bei Kindern nicht live gesehen) |
 | `startedAt` | `started_at` bzw. `current_run_started_at` | `current_run_started_at` bevorzugen (läuft nach Retry neu) |
 | `runtimeMs` | `(now - current_run_started_at)*1000` bei `running`, sonst `(completed_at - started_at)*1000` | abgeleitet |

@@ -346,6 +346,7 @@ function ServiceRow({ service, canCheck }: { service: Service; canCheck: boolean
         <strong>{service.name}</strong>
         <span className="mc-muted">
           {service.detail ? `${service.detail} · ` : ""}
+          {service.endpoint ? `${t("system.services.endpoint", { endpoint: service.endpoint })} · ` : ""}
           {t("system.services.lastCheck", { time: formatters.relative(service.lastCheckAt) })}
         </span>
       </div>

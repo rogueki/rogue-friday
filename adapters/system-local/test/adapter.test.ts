@@ -219,6 +219,14 @@ describe("system.read: services", () => {
     }
     expect(page.items[0]?.latencyMs).toBeGreaterThanOrEqual(0);
     expect(page.items.at(-1)?.detail).toBe("Prozess läuft seit 3 h 25 min");
+    const endpoints = Object.fromEntries(page.items.map((s) => [s.name, s.endpoint]));
+    expect(endpoints).toEqual({
+      "Qwen lokal (llama-server)": new URL(rig.qwen.url).host,
+      "Hermes API": new URL(rig.hermes.url).host,
+      "Hermes Dashboard": new URL(rig.dashboard.url).host,
+      "Voice-Dienst": new URL(rig.voice.url).host,
+      "Control API": undefined,
+    });
     assertValidResult("system", "listServices", page);
   });
 

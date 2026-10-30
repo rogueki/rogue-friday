@@ -2200,7 +2200,7 @@ if (-not (IsDone 'voiceservice')) {
 $NodeMin = [version]'22.13.0'
 # Verzeichnisse, die nie ins Ziel kopiert werden (Build-Ausgaben, Abhaengigkeiten, Screenshots/Belege, Metadaten).
 $DashExcludeDirs = @('node_modules', '.git', '.next', 'dist', 'out', 'coverage', 'storybook-static', 'playwright-report',
-                     'test-results', 'screenshots', 'evidence', '.turbo', '__pycache__', '.claude')
+                     'test-results', 'screenshots', 'evidence', '.turbo', '__pycache__', '.claude', 'fixtures')
 $DashSyncDirs  = @('apps', 'packages', 'adapters', 'scripts')
 $DashRootFiles = @('package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.base.json', 'eslint.config.js',
                    'vitest.config.ts', '.npmrc', '.nvmrc', 'README.md', 'LICENSE')
@@ -2735,13 +2735,15 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     }
     if ($script:DashOk) {
         MarkDone 'dashboard'
-        if ($State.dashboard_source -and (Test-Path (Join-Path $State.dashboard_source '.git'))) {
-            $revision = & git.exe -C $State.dashboard_source rev-parse HEAD 2>$null
-            if ($LASTEXITCODE -eq 0 -and "$revision" -cmatch '^[0-9a-f]{40}$') {
-                $revisionFile = "$Dash\data\dashboard-revision.json"
-                $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
-                [IO.File]::WriteAllText($revisionFile, $revisionJson, [Text.UTF8Encoding]::new($false))
-            }
+        # Auch ein GitHub-ZIP ohne .git liefert den Commit (installer\source-revision.txt); ohne ihn zeigt die
+        # Systemseite keinen Stand und das Dashboard-Update verweigert den Start.
+        $revision = Get-DashboardSourceRevision $State.dashboard_source
+        if ($revision) {
+            $revisionFile = "$Dash\data\dashboard-revision.json"
+            $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
+            [IO.File]::WriteAllText($revisionFile, $revisionJson, [Text.UTF8Encoding]::new($false))
+        } else {
+            Warn 'Quell-Commit unbekannt (weder Git-Checkout noch GitHub-ZIP): die Systemseite zeigt keinen Dashboard-Stand.'
         }
     } else {
         Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'

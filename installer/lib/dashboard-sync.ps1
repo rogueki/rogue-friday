@@ -42,6 +42,24 @@ function Get-DashboardSourceHash([string]$Source, [string[]]$RootFiles, [string[
     return (-join ($sha.ComputeHash((New-Object Text.UTF8Encoding $false).GetBytes($builder.ToString())) | ForEach-Object { $_.ToString('x2') }))
 }
 
+# Quell-Commit des Dashboards: aus einem Git-Checkout oder aus installer\source-revision.txt, die GitHub beim
+# ZIP-Export ausfuellt (export-subst). Ein nicht ersetzter Platzhalter oder fehlendes Git ergibt $null.
+function Get-DashboardSourceRevision([string]$Source) {
+    if (-not $Source) { return $null }
+    if (Test-Path -LiteralPath (Join-Path $Source '.git')) {
+        try {
+            $revision = & git.exe -C $Source rev-parse HEAD 2>$null
+            if ($LASTEXITCODE -eq 0 -and "$revision" -cmatch '^[0-9a-f]{40}$') { return "$revision" }
+        } catch { }
+    }
+    $file = Join-Path $Source 'installer\source-revision.txt'
+    if (Test-Path -LiteralPath $file -PathType Leaf) {
+        $text = ([IO.File]::ReadAllText($file)).Trim()
+        if ($text -cmatch '^[0-9a-f]{40}$') { return $text }
+    }
+    return $null
+}
+
 function Sync-DashboardSource([string]$Source, [string]$Target, [string[]]$RootFiles, [string[]]$Dirs,
                               [string[]]$ExcludeDirs, [string[]]$PreserveFiles = @(), [string[]]$ConfigDirs = @('config')) {
     # /MIR fuer Quellordner (entfernt Veraltetes, laesst ausgeschlossene Ordner im Ziel unberuehrt),
@@ -54,7 +72,8 @@ function Sync-DashboardSource([string]$Source, [string]$Target, [string[]]$RootF
     foreach ($name in @($Dirs)) {
         $dir = Join-Path $Source $name
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
-        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
+        # Schluessel im Quellbaum sind Testmaterial; echte Schluessel liegen in data\ und werden nie gespiegelt.
+        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs /XF '*.log' '*.key' '*.pem' '*.pfx' '*.p12' /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { throw "Kopieren von '$name' nach $Target fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
     foreach ($name in @($ConfigDirs)) {

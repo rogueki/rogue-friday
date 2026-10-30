@@ -9996,6 +9996,8 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             detail?: string;
+            /** @description host:port the dashboard probes for this service, so the page shows which listener answers. */
+            endpoint?: string;
             id: string;
             /** @enum {string} */
             kind: "hermes" | "llm" | "voice" | "wsl" | "api" | "stream" | "adapter" | "worker" | "other";
