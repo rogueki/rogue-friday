@@ -29,6 +29,8 @@ export interface OrbRealtimeRouter {
   setConnection(state: "connecting" | "online" | "degraded" | "offline" | "polling"): void;
   /** Gap/resync: drop transient audio and service-owned microphone/TTS facts (server snapshot restores the rest). */
   resync(): void;
+  /** The overview (pending approvals) changed: release approvals the orb shows but the server no longer lists. */
+  reconcileApprovals(): void;
   dispose(): void;
 }
 
@@ -74,6 +76,12 @@ export function createOrbRealtimeRouter(deps: OrbRouterDeps): OrbRealtimeRouter 
   let ttsActive = false;
   let ttsFromState = false;
   let offline = false;
+  const requiredApprovals = new Set<string>();
+
+  const requireApproval = (id: string): void => {
+    requiredApprovals.add(id);
+    bridge.onApprovalRequired(id);
+  };
 
   const addError = (key: string, message: string, code: string): void => {
     errorSources.add(key);
@@ -249,13 +257,14 @@ export function createOrbRealtimeRouter(deps: OrbRouterDeps): OrbRealtimeRouter 
           return;
 
         case "friday.approval.requested":
-          if (event.data.status === "pending") bridge.onApprovalRequired(event.data.id);
+          if (event.data.status === "pending") requireApproval(event.data.id);
           return;
         case "friday.approval.resolved":
         case "friday.approval.expired": {
+          requiredApprovals.delete(event.data.id);
           bridge.onApprovalResolved(event.data.id);
           const [next] = deps.pendingApprovalIds().filter((id) => id !== event.data.id);
-          if (next) bridge.onApprovalRequired(next);
+          if (next) requireApproval(next);
           return;
         }
 
@@ -300,7 +309,23 @@ export function createOrbRealtimeRouter(deps: OrbRouterDeps): OrbRealtimeRouter 
       voiceMode = null;
     },
 
+    reconcileApprovals() {
+      const pending = new Set(deps.pendingApprovalIds());
+      let released = false;
+      for (const id of [...requiredApprovals]) {
+        if (pending.has(id)) continue;
+        requiredApprovals.delete(id);
+        bridge.onApprovalResolved(id);
+        released = true;
+      }
+      if (released && requiredApprovals.size === 0) {
+        const [next] = pending;
+        if (next) requireApproval(next);
+      }
+    },
+
     dispose() {
+      requiredApprovals.clear();
       for (const handle of errorTimers.values()) clearTimer(handle);
       errorTimers.clear();
       errorSources.clear();
