@@ -11,3 +11,5 @@
 CLAUDE.md export-ignore
 .claude/** export-ignore
 docs/agent-work/** export-ignore
+# GitHub setzt beim ZIP-Export den Commit ein; der Installer schreibt daraus den installierten Stand (DASH-19.04).
+installer/source-revision.txt export-subst
