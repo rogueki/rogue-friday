@@ -66,6 +66,18 @@ class SetupProfileIsolationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("invalid_mode", result.stderr)
 
+    def test_apply_closes_package_socket_and_prepares_sshd_check(self):
+        # N-143: a fresh openssh-server left ssh.socket on 0.0.0.0:22 and sshd -t failed without /run/sshd.
+        text = SCRIPT.read_text(encoding="utf-8")
+        install = text.index("apt-get install")
+        disable = text.index("systemctl disable --now ssh.socket")
+        run_dir = text.index("install -d -m 755 /run/sshd")
+        check = text.index("if ! sshd -t")
+        self.assertLess(install, disable)
+        self.assertLess(disable, check)
+        self.assertLess(run_dir, check)
+        self.assertEqual(text.count("systemctl disable --now ssh.socket"), 1)
+
     def test_script_parses_with_bash(self):
         result = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
