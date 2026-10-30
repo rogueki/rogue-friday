@@ -4,6 +4,7 @@ import {
   RAW_VOICE_PHASES,
   RAW_VOICE_STATES,
   type RawAudioLevels,
+  type RawSpeakerProfile,
   type RawVoicePhase,
   type RawVoiceState,
   type RawVoiceStatus,
@@ -51,6 +52,17 @@ function parseAudioLevels(value: unknown): RawAudioLevels | undefined {
     if (typeof member === "number" && Number.isFinite(member)) result[key] = clampLevel(member);
   }
   return result;
+}
+
+const isIsoTime = (value: unknown): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value));
+const isFraction = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+function isSpeakerProfile(value: unknown): value is RawSpeakerProfile {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return isIsoTime(item.updated_at) && isFraction(item.threshold) &&
+    (item.sample_count === null || (Number.isInteger(item.sample_count) && (item.sample_count as number) >= 0)) &&
+    (item.quality === null || isFraction(item.quality)) && (item.calibrated_at === null || isIsoTime(item.calibrated_at));
 }
 
 function isSpeakerDecision(value: unknown): value is { decision: "verified" | "rejected"; score: number; at: string } {
@@ -111,6 +123,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(typeof raw.trusted_remaining_s === "number" && Number.isFinite(raw.trusted_remaining_s) && raw.trusted_remaining_s >= 0
       ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
     ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
+    ...(raw.speaker_profile === null || isSpeakerProfile(raw.speaker_profile) ? { speaker_profile: raw.speaker_profile } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.service_version === "string" ? { service_version: raw.service_version } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),

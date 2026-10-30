@@ -175,7 +175,7 @@ describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py"
   });
 
   describe("optional voice resources", () => {
-    it("devices are fresh from the host while profiles remain unknown", async () => {
+    it("devices are fresh from the host; profiles stay unknown while the service does not report them", async () => {
       rig = await createRig();
       const deviceResult = await rig.adapter.listVoiceDevices({}, call());
       expect(deviceResult.items).toEqual([]);
@@ -187,6 +187,36 @@ describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py"
       }
       assertValidResult("voice", "listVoiceDevices", await rig.adapter.listVoiceDevices({}, call()));
       assertValidResult("voice", "listVoiceProfiles", await rig.adapter.listVoiceProfiles({}, call()));
+    });
+
+    it("shows the measured owner profile with the last live speaker check", async () => {
+      rig = await createRig();
+      rig.voice.setStatus(makeVoiceStatus({
+        speaker_profile: { updated_at: "2026-10-30T08:00:05Z", threshold: 0.4, sample_count: 42, quality: 0.61, calibrated_at: "2026-10-30T08:00:00Z" },
+        speaker_decision: { decision: "rejected", score: 0.12, at: "2026-10-30T09:00:00Z" },
+      }));
+      const result = await rig.adapter.listVoiceProfiles({}, call());
+      expect(result.freshness.state).toBe("fresh");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ owner: true, sampleCount: 42, quality: 0.61, threshold: 0.4,
+        calibratedAt: "2026-10-30T08:00:00Z", lastTestAt: "2026-10-30T09:00:00Z", lastTestResult: "fail" });
+      assertValidResult("voice", "listVoiceProfiles", result);
+    });
+
+    it("names a missing profile as empty and keeps a profile without measured values unknown", async () => {
+      rig = await createRig();
+      rig.voice.setStatus(makeVoiceStatus({ speaker_profile: null }));
+      const missing = await rig.adapter.listVoiceProfiles({}, call());
+      expect(missing.items).toEqual([]);
+      expect(missing.freshness.state).toBe("fresh");
+      rig.voice.setStatus(makeVoiceStatus({
+        speaker_profile: { updated_at: "2026-10-30T08:00:05Z", threshold: 0.4, sample_count: null, quality: null, calibrated_at: null },
+      }));
+      const legacy = await rig.adapter.listVoiceProfiles({}, call());
+      expect(legacy.items).toEqual([]);
+      expect(legacy.freshness.state).toBe("unknown");
+      rig.voice.setStatus(makeVoiceStatus({ speaker_profile: { updated_at: "x", threshold: 7 } as never }));
+      expect((await rig.adapter.listVoiceProfiles({}, call())).freshness.state).toBe("unknown");
     });
 
     it("metrics: empty statistics, no request to the service", async () => {

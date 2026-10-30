@@ -81,6 +81,9 @@ const UNREACHABLE_MESSAGE =
  * Voice adapter over the status endpoint of the installed Friday voice service. The authenticated manual-start
  * endpoint is used by the Control API command intent; this adapter only exposes `voice.read`.
  */
+/** The service keeps exactly one speaker profile (the owner's); its id is stable across restarts. */
+const OWNER_PROFILE_ID = "vprof_000000000000000000000OWNER";
+
 export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
   readonly manifest = manifest;
 
@@ -255,9 +258,36 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     return { items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: { state: "fresh", asOf: now } };
   }
 
-  async listVoiceProfiles(_params: PageParams, _call: CallContext): Promise<Page<VoiceProfile>> {
-    // No data source: the speaker profile is a local .npy embedding; sample count, quality and threshold are not exposed.
-    return this.emptyPage<VoiceProfile>();
+  async listVoiceProfiles(_params: PageParams, call: CallContext): Promise<Page<VoiceProfile>> {
+    const { voiceHttp, context } = this.ready();
+    const raw = await this.fetchRawStatus(voiceHttp, true, call);
+    const profile = raw.speaker_profile;
+    // Older services do not report the profile, and a profile without measured values cannot fill the required
+    // sample count and quality honestly: both stay "unknown" instead of claiming that no profile exists.
+    if (profile === undefined || (profile !== null && (profile.sample_count === null || profile.quality === null))) {
+      return this.emptyPage<VoiceProfile>();
+    }
+    const now = new Date(context.clock.now()).toISOString();
+    const page = (items: VoiceProfile[]): Page<VoiceProfile> =>
+      ({ items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: { state: "fresh", asOf: now } });
+    if (profile === null) return page([]);
+    // The last speaker check of the service is the profile's latest real test against live speech.
+    const decision = raw.speaker_decision ?? null;
+    return page([{
+      id: OWNER_PROFILE_ID,
+      version: 1,
+      createdAt: profile.calibrated_at ?? profile.updated_at,
+      updatedAt: profile.updated_at,
+      source: { adapterId: manifest.id, system: PROVIDER_SYSTEM, externalId: "owner", lastSyncedAt: now },
+      displayName: "Owner",
+      owner: true,
+      sampleCount: profile.sample_count as number,
+      quality: profile.quality as number,
+      calibratedAt: profile.calibrated_at,
+      threshold: profile.threshold,
+      lastTestAt: decision?.at ?? null,
+      lastTestResult: decision === null ? "unknown" : decision.decision === "verified" ? "pass" : "fail",
+    }]);
   }
 
   async getVoiceMetrics(_params: Record<string, never>, _call: CallContext): Promise<Single<VoiceMetrics>> {

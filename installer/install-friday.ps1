@@ -2154,6 +2154,22 @@ if (-not (IsDone 'enroll')) {
     }
     Ok 'Stimmprofil erstellt (bleibt nur auf diesem PC).'
     MarkDone 'enroll'
+} elseif ((Test-Path "$Root\voice\profiles\owner\embeddings\owner_ecapa.npy") -and
+          -not (Test-Path "$Root\voice\profiles\owner\embeddings\owner_profile.json") -and
+          [bool](Get-ChildItem "$Root\voice\profiles\owner\raw\speech\*.wav" -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+    # Aeltere Installationen haben ein Profil ohne Messwerte: aus denselben Aufnahmen neu berechnen, damit das
+    # Dashboard Probenzahl und Qualitaet zeigt. Scheitert das, bleibt das bisherige Profil unveraendert in Betrieb.
+    Info 'Ergänze die Messwerte des vorhandenen Stimmprofils …'
+    $vpy = "$Root\voice\.venv\Scripts\python.exe"
+    $profileFile = "$Root\voice\profiles\owner\embeddings\owner_ecapa.npy"
+    Copy-Item -LiteralPath $profileFile -Destination "$profileFile.prev" -Force
+    & $vpy "$Root\voice\build_speaker_profile.py" 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'Profil|Kreuz' } | ForEach-Object { Info $_ }
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$Root\voice\profiles\owner\embeddings\owner_profile.json")) {
+        Move-Item -LiteralPath "$profileFile.prev" -Destination $profileFile -Force
+        Warn 'Messwerte des Stimmprofils konnten nicht ergänzt werden; das bisherige Profil bleibt aktiv.'
+    } else {
+        Remove-Item -LiteralPath "$profileFile.prev" -Force
+    }
 }
 
 # ================================================================ 14 Sprachdienst + Abschluss
