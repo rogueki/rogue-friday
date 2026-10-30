@@ -21,6 +21,31 @@ Hermes übernimmt dabei:
 - Rückholen hängender Läufe
 - Abgleich verwaister Worker beim Neustart (`reconcile_orphans`)
 
+### Versionssemantik bei Modell- und Profiländerung (DASH-15.04)
+
+Eine Profilkonfiguration (`~/.hermes/profiles/<p>/config.yaml`, z. B. `model.default`, `fallback_model`, Grenzen) hat
+keine eigene Versionsnummer. Maßgeblich ist der Stand der Datei **beim Start des Worker-Prozesses**:
+
+- Ein laufender Lauf behält Modell und Konfiguration, mit denen sein Worker gestartet wurde, bis er endet.
+- Jeder danach gestartete Lauf, auch ein Retry oder ein erneut eingereihter Lauf, liest die Profilkonfiguration neu
+  (`hermes -p <p> … chat`, eigener Prozess je Lauf, `hermes_cli/kanban_db_dispatch.py` `_worker_argv`).
+- Ein Modell-Override an der Aufgabe (`model`/`provider` bei `POST /api/v1/tasks` -> `model_override`) geht der
+  Profilroute immer vor.
+- Ist das Profilmodell beim Provider nicht verfügbar, wechselt Hermes im selben Lauf auf `fallback_model` (der Reihe
+  nach); das tatsächlich genutzte Modell steht in der Hermes-Session des Laufs (`state.db`, Spalte `sessions.model`).
+- `kanban.*` liest der Dispatcher nur beim Gateway-Start (siehe Abschnitt 3); Modell und Profilgrenzen brauchen keinen
+  Neustart.
+- `Task.model` im Command Center zeigt die konfigurierte Route (Override, sonst das aktuelle Profilmodell), nicht das
+  tatsächlich genutzte Modell eines vergangenen Laufs. Nach einer Profiländerung zeigt eine noch laufende oder
+  abgeschlossene Aufgabe daher schon die neue Route; Belege für den Lauf liefert die Hermes-Session.
+
+Live-Abnahme 2026-10-30 (Profil `research`, Lauf `sem-20261030-105235`, Sicherung
+`~/friday/backups/dash15-semantics-20261030-105235/`): Aufgabe A startete mit `deepseek-v4-pro`; während A lief, wurde
+`model.default` auf den nicht existierenden Wert `deepseek-v4-pro-semprobe` gesetzt. A lief mit `deepseek-v4-pro` zu Ende.
+Die danach angelegte Aufgabe B startete mit `deepseek-v4-pro-semprobe`, bekam vom Provider `NotFoundError` und lief
+über den Fallback `qwen3.8-max` fertig. Nach dem Zurücksetzen startete Aufgabe C wieder mit `deepseek-v4-pro`. Alle drei
+Läufe `completed`; die Profilkonfiguration ist danach bitgleich mit der Sicherung.
+
 ## 2. Routing-Regeln
 
 | Aufgabe betrifft | Profil | Begründung |
@@ -117,9 +142,8 @@ Gateway-Neustart um 22:31:55, danach sechs Aufgaben in einem Durchgang:
 
 ## 5. Offene Punkte
 
-- **Harte Bereichstrennung (DASH-15.04):** Entschieden 2026-10-29: eigene Linux-Benutzer je Domain-Profil. Umsetzung
-  nach `n-094-profil-benutzer-entwurf.md`; bis dahin gelten die weichen Grenzen (Profil-Home, Profil-`.env`, Skill- und
-  Toolsets).
+- **Harte Bereichstrennung (DASH-15.04):** Umgesetzt nach `n-094-profil-benutzer-entwurf.md` (eigene Linux-Benutzer je
+  Domain-Profil, SSH-Terminal-Backend) und am 2026-10-30 live abgenommen (N-094, Kanban-Lauf `dash15ssh-20261030-091152`).
 - **DASH-16.02 Sprache -> Domain-Aufgabe:** Umgesetzt. Bei `background` legt `installer/voice/domain_task_voice.py`
   ueber `POST /api/v1/voice/tasks` eine Aufgabe beim Profil an (Einordnung nach Stichworten: Pruefen -> audit,
   Warnen/Ueberwachen -> alerts, Recherche -> research, sonst tasks), sagt "Ich gebe das an den ...-Agenten" und fragt

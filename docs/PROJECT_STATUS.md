@@ -1160,6 +1160,9 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
+  alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
+  Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
 - Live-Nachweise 2026-10-30 (I-010, I-029, I-031, I-054, I-055, N-144): Downloads brechen einen stehenden Abruf nach 60 s
   ab und versuchen es erneut (#108). Die Wake-Restpuffer-Logik ist seit dem 16.10. im Repo, offen ist nur der Sprachtest.
   Ein Voice-Neustart wird im Health korrekt als offline und danach online gezeigt; abgebrochene Statusproben fuellen das

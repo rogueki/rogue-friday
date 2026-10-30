@@ -361,6 +361,7 @@ export const enC: Record<keyof typeof deC, string> = {
   "system.services.title": "Services",
   "system.services.empty": "No services reported",
   "system.services.lastCheck": "Checked {time}",
+  "system.services.endpoint": "Address {endpoint}",
   "system.services.check": "Run health check for {name}",
   "system.services.checked": "{name} checked",
   "system.models.title": "Models",

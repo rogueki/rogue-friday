@@ -207,6 +207,21 @@ describe("repository hygiene", () => {
     for (const forbidden of ["CLAUDE.md", "MEMORY.md", "SCOPE.md", "AGENTS.md", ".env", "docs", "data", "logs", "backups"]) {
       expect([...dirs, ...rootFiles], forbidden).not.toContain(forbidden);
     }
-    expect(list("DashExcludeDirs")).toEqual(expect.arrayContaining([".claude", "node_modules", ".git", "evidence"]));
+    expect(list("DashExcludeDirs")).toEqual(expect.arrayContaining([".claude", "node_modules", ".git", "evidence", "fixtures"]));
+  });
+
+  it("the dashboard sync never copies key material from the source tree", () => {
+    const sync = readFileSync(join(ROOT, "installer", "lib", "dashboard-sync.ps1"), "utf8");
+    const mirror = sync.split("\n").find((line) => line.includes("robocopy.exe") && line.includes("/MIR")) ?? "";
+    for (const pattern of ["'*.key'", "'*.pem'", "'*.pfx'", "'*.p12'"]) expect(mirror, pattern).toContain(pattern);
+  });
+
+  it("the downloadable source archive leaves out agent metadata and working drafts", () => {
+    for (const path of ["CLAUDE.md", ".claude/agents/implementer.md", "docs/agent-work/finalization/issue-ledger.csv"]) {
+      const attribute = execFileSync("git", ["check-attr", "export-ignore", "--", path], { cwd: ROOT, encoding: "utf8" });
+      expect(attribute.trim(), path).toMatch(/export-ignore: set$/);
+    }
+    const kept = execFileSync("git", ["check-attr", "export-ignore", "--", "installer/install-friday.ps1", "README.md"], { cwd: ROOT, encoding: "utf8" });
+    expect(kept).not.toContain("set");
   });
 });

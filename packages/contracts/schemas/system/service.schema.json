@@ -53,6 +53,10 @@
     },
     "detail": {
       "type": "string"
+    },
+    "endpoint": {
+      "type": "string",
+      "description": "host:port the dashboard probes for this service, so the page shows which listener answers."
     }
   },
   "required": [
