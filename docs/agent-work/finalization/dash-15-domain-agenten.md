@@ -30,7 +30,7 @@ Jedes Profil hat eine echte `config.yaml` und eine `SOUL.md`:
 | Zulässige Domänen | `SOUL.md` Abschnitt „Erlaubte Domaenen" |
 | Verbotene Aktionen | `SOUL.md` Abschnitt „Nicht erlaubt" (z. B. Audit darf nichts schreiben, Meldungen nichts reparieren) |
 | Datenzugriff | `SOUL.md` Abschnitt „Datenzugriff" |
-| Modellroute | `config.yaml` → `model.default: k3`, `model.provider: kimi-coding` (die eine real konfigurierte Route) |
+| Modellroute | `config.yaml` → `model.default`, `model.provider`, `fallback_model`; Stand 2026-10-30 in allen sieben Profilen `deepseek-v4-pro` über `custom` (Alibaba Token Plan), Fallback `qwen3.8-max`, dann `glm-5.3` (2026-10-23 war es `k3`/`kimi-coding`). Wirksamkeit einer Änderung: `dash-15-16-orchestrierung.md`, Abschnitt Versionssemantik |
 | Budget/Timeout | `agent.max_turns`, `code_execution.timeout`, `code_execution.max_tool_calls`, `terminal.timeout` — je Domäne unterschiedlich (Meldungen 60 Turns/90 s, Recherche 200 Turns/300 s) |
 | Arbeitsverzeichnis | Profilstandard `workspace/` (Hermes legt es je Profil an) |
 | Eskalation | `SOUL.md` Abschnitt „Eskalation" (einmal knapp nachfragen, dann warten; nichts erfinden) |
