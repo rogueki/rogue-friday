@@ -11490,6 +11490,7 @@ export interface components {
         WhatsappPairing: {
             /** @enum {string} */
             connectionState: "connected" | "disconnected" | "unknown";
+            /** @description Unix time in seconds at which the running pairing flow ends; null without a flow. */
             expiresAt: number | null;
             id: string | null;
             linkedIdentity: string | null;

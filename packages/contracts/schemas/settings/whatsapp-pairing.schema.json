@@ -8,7 +8,7 @@
     "state": { "type": "string", "enum": ["idle", "starting", "waiting", "qr_expired", "connected", "unverified", "expired", "cancelled", "error"] },
     "mode": { "type": "string", "enum": ["bot", "self-chat"] },
     "qr": { "type": ["string", "null"], "maxLength": 4096 },
-    "expiresAt": { "type": ["number", "null"] },
+    "expiresAt": { "type": ["number", "null"], "description": "Unix time in seconds at which the running pairing flow ends; null without a flow." },
     "linkedIdentity": { "type": ["string", "null"] },
     "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] }
   },

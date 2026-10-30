@@ -26,6 +26,7 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [qrImage, setQrImage] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const name = platform === "discord" ? "Discord" : "WhatsApp";
   const status = useQuery<DiscordGatewayResponse | WhatsappGatewayResponse>({ queryKey: ["settings", `${platform}-gateway`], enabled: owner,
     queryFn: () => platform === "discord"
@@ -48,6 +49,16 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
       .catch(() => { if (live) setQrImage(null); });
     return () => { live = false; };
   }, [pairing.data?.data.qr]);
+  const flowRunning = ["starting", "waiting", "qr_expired"].includes(pairing.data?.data.state ?? "");
+  useEffect(() => {
+    if (!flowRunning) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [flowRunning]);
+  const expiresAt = pairing.data?.data.expiresAt ?? null;
+  // expiresAt is Unix time in seconds (contract); the countdown never goes below zero.
+  const remainingSeconds = flowRunning && expiresAt !== null ? Math.max(0, Math.floor(expiresAt - nowMs / 1000)) : null;
   useEffect(() => {
     if (!current) return;
     setIds(current.allowedUserIds.join(", "));
@@ -118,6 +129,10 @@ export function MessagingGatewaySetup({ owner, platform }: { owner: boolean; pla
             {pairing.data?.data.linkedIdentity ? ` · Verknüpft: ${pairing.data.data.linkedIdentity}` : ""}</p>
           {qrImage && pairing.data?.data.state === "waiting" && <div><img src={qrImage} width={320} height={320} alt="WhatsApp-Kopplungs-QR-Code" />
             <p>Der QR-Code läuft nach kurzer Zeit ab. Danach neuen Code anfordern.</p></div>}
+          {remainingSeconds !== null && <p role="timer" aria-live="off">
+            {remainingSeconds > 0
+              ? `Kopplungsvorgang endet in ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")} Minuten.`
+              : "Der Kopplungsvorgang ist abgelaufen. Kopplung neu starten."}</p>}
           {pairing.data?.data.state === "qr_expired" && <p role="status">Der QR-Code ist abgelaufen. Neuen Code anfordern oder die Kopplung abbrechen.</p>}
           {!(current as WhatsappGatewayResponse["data"]).sessionPresent &&
             <button type="button" disabled={busy} onClick={() => void changePairing("start")}>Kopplung starten / QR erneuern</button>}
