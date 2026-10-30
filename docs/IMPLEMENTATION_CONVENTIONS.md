@@ -110,6 +110,13 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - Persistence: `node:sqlite` (built into Node ≥ 22.13) at `${FRIDAY_DATA_DIR}/dashboard.sqlite` for settings,
   sessions, audit (append-only, hash chain), idempotency keys, command history. No native modules.
 - Data mode: `FRIDAY_DATA_MODE=mock|hybrid|live` + `config/adapters.yaml`.
+- Channel binding of previews: a command preview is a native approval draft bound to the owner, its unguessable
+  previewId and the exact action; it is confirmed once. Another signed-in owner tab may finish the identical preview,
+  a changed action (409) or another role may not. Clarification dialogs are bound to owner and session (5 min), so a
+  question asked in one tab is answered there. The voice bridge may run research commands through `executeCommand`
+  only; voice calendar/mail use their own spoken preview with an owner+action token. A spoken "ja" therefore never
+  confirms a dashboard preview. Messenger inbound messages are captured, not executed as commands.
+  Tests: `cross-channel-confirmation.test.ts`, `native-calendar-action.test.ts`.
 
 ## 6. Frontend
 
