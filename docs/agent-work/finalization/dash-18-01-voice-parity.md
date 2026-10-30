@@ -8,9 +8,9 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 
 - Intent-Dienste: 11 (`agent-action-intent.ts`, `automation-action-intent.ts`, `calendar-action-intent.ts`, `knowledge-action-intent.ts`, `mail-action-intent.ts`, `messenger-action-intent.ts`, `read-query-intent.ts`, `research-action-intent.ts`, `settings-content-mutation-intent.ts`, `task-action-intent.ts`, `task-create-intent.ts`)
 - Im Dispatcher erreichbar: 11 von 11
-- Lese-Intents: 27 · eingebaute Sprachintents: voice_start, focus_toggle
+- Lese-Intents: 28 · eingebaute Sprachintents: voice_start, focus_toggle
 - Bereiche mit Lese- und Schreibweg: 9 von 20
-- Nur lesbar: 6 · nur schreibbar: 2 · ohne Sprachweg: 3
+- Nur lesbar: 7 · nur schreibbar: 2 · ohne Sprachweg: 2
 
 ## 2. Matrix
 
@@ -35,13 +35,12 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 | System | ja | `system.metrics`, `system.status` | — | nur lesen |
 | Einstellungen | ja | `settings.get` | `settings.dashboard.backgroundGrid`, `settings.dashboard.compact`, `settings.dashboard.contentStudioEnabled`, `settings.dashboard.refresh`, `settings.dashboard.soundEffects`, `settings.navigation.defaultPage`, `settings.navigation.mode`, `settings.profile.assistantName`, `settings.profile.dateFormat`, `settings.profile.displayName`, `settings.profile.firstDayOfWeek`, `settings.profile.locale`, `settings.profile.timeFormat`, `settings.profile.timeZone` | lesen + schreiben |
 | Onboarding | ja | — | — | kein Sprachweg |
-| Standort/Wetter | nur Route | — | — | kein Sprachweg |
+| Standort/Wetter | nur Route | `weather.current` | — | nur lesen |
 
 ## 3. Bereiche ohne Sprachweg
 
 - Studio: kein Intent-Kind und kein Parser in `services/*-intent.ts`
 - Onboarding: kein Intent-Kind und kein Parser in `services/*-intent.ts`
-- Standort/Wetter: kein Intent-Kind und kein Parser in `services/*-intent.ts`
 
 ## 4. Nur lesbare Bereiche
 
@@ -51,6 +50,7 @@ dem Dispatcher in `handlers/commands.ts`, nicht aus Erinnerung.
 - Freigaben: `approvals.get`, `approvals.list`; kein Schreib-Intent vorhanden
 - Audit: `audit.exportUnsupported`, `audit.get`, `audit.list`; kein Schreib-Intent vorhanden
 - System: `system.metrics`, `system.status`; kein Schreib-Intent vorhanden
+- Standort/Wetter: `weather.current`; kein Schreib-Intent vorhanden
 
 ## 5. Was das Urteil bedeutet
 

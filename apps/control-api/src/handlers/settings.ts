@@ -7,7 +7,7 @@ import type { MessagingGatewayPatch } from "../services/messaging-gateways";
 import type { TelephonyProfile } from "../services/telephony";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
 import { ApiError, conflict, forbidden, validationFailed } from "../util/errors";
-import { LocationWeatherService } from "../services/location-weather";
+import { weatherServiceFor } from "../services/location-weather";
 import { applyVoicePersona, VOICE_PERSONAS, type VoicePersona } from "../services/voice-persona";
 import { recordAudioAck, recordVoiceAck, recordVoiceSettingsAck } from "../services/integration-status";
 import { applyVoiceAudio, voiceRuntimeStatus } from "../services/voice-audio";
@@ -19,23 +19,17 @@ import { captureMailSend } from "./mail-memory";
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
-const weatherServices = new WeakMap<SettingsService, LocationWeatherService>();
 const voiceChanges = new WeakSet<SettingsService>();
 async function legacyMail(ctx: Parameters<Handler>[0]) {
   const catalog = await ctx.runtime.mailAccounts.list();
   const account = catalog.accounts.find((item) => item.id === catalog.defaultAccountId);
   return { catalog, account };
 }
-function weatherService(settings: SettingsService): LocationWeatherService {
-  let service = weatherServices.get(settings);
-  if (!service) { service = new LocationWeatherService(settings); weatherServices.set(settings, service); }
-  return service;
-}
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   async searchLocations(ctx) {
     try {
-      const items = await weatherService(ctx.runtime.settings).search(String(ctx.query.q ?? ""), ctx.query.language === "en" ? "en" : "de");
+      const items = await weatherServiceFor(ctx.runtime.settings).search(String(ctx.query.q ?? ""), ctx.query.language === "en" ? "en" : "de");
       return { status: 200, body: single({ items, provider: "Open-Meteo" }) };
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("Bitte")) throw validationFailed(error.message);
@@ -44,7 +38,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   },
   async getCurrentWeather(ctx) {
     try {
-      const data = await weatherService(ctx.runtime.settings).current();
+      const data = await weatherServiceFor(ctx.runtime.settings).current();
       return { status: 200, body: { contractVersion: CONTRACT_VERSION, data,
         freshness: data?.stale ? { state: "stale", asOf: data.fetchedAt } : fresh() } };
     } catch (error) {
