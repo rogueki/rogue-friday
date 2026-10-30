@@ -1185,6 +1185,16 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   20 von 97 Aktionsfamilien haben einen getesteten Text-/Sprachweg, die uebrigen 77 einen genannten Grund. Der
   Audit-Detailbefehl hat jetzt einen Test. Offen bleiben Mehrschrittdialoge, Pronomen, Kanalwechsel und die
   NLP-01..06-Abnahme.
+- DASH-12.03/DASH-11.03 (2026-10-30, N-166, N-170): Die Sprachseite zeigt das vorhandene Sprecherprofil mit echten
+  Messwerten (#134); ein aelteres Profil ohne Messwerte heisst "Profilstand unbekannt" statt "kein Profil" (#141). Nach
+  bestaetigter Sprecherpruefung nennt sie den Owner als erkannten Sprecher (#140).
+- DASH-09.03/DASH-13 (2026-10-30, N-167, N-168): Die WhatsApp-Kopplung zeigt die Restzeit (#135); paralleler Start und
+  Ablauf des Kopplungsfensters sind getestet (#139). Die Audiogeraete-Auswahl hat einen Oberflaechentest (#136).
+- INS-07 (2026-10-30, N-169): Ein abgebrochener Lauf hinterlaesst kein unbrauchbares Python-venv mehr, und ein
+  abgebrochener Dashboard-Neubau gilt beim naechsten Lauf nicht als fertig (#138).
+- KEEP-06 (2026-10-30, N-171, offen): `keep-06-hermes-paritaet.md` dokumentiert die Abdeckung des Hermes-Inventars je
+  Eintragsart. Die Einstellungen laufen nur ueber eine typisierte Allowlist (rund 85 von 814); ob ein allgemeiner
+  Editor und Installationen aus dem Plugin-/Skill-Katalog kommen sollen, entscheidet der Owner.
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
