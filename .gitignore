@@ -30,3 +30,10 @@ __pycache__/
 *.dpapi
 apps/web/screenshots/**/*.png
 .pytest_cache/
+# Own voice references and speaker recordings stay on the user's machine; only the shipped voice outputs are tracked.
+installer/voice_models/*
+!installer/voice_models/LIESMICH.txt
+!installer/voice_models/friday_ref.wav
+!installer/voice_models/friday_ref.txt
+!installer/voice_models/jarvis_ref.wav
+!installer/voice_models/jarvis_ref.txt
