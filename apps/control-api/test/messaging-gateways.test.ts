@@ -7,13 +7,15 @@ const discord = { tokenConfigured: true, allowedUserIds: ["123456789012345678"],
   setupUrl: "http://127.0.0.1:43791/channels" };
 const whatsapp = { mode: "bot" as const, sessionPresent: false, allowedUserIds: ["491701234567"],
   enabled: false, gatewayRunning: true, connectionState: "unknown" as const, applied: null, revision: 43,
-  setupUrl: "http://127.0.0.1:43791/channels" };
+  setupUrl: "http://127.0.0.1:43791/channels", groupPolicy: "allowlist" as const, groupAllowedIds: ["120363012345678901@g.us"],
+  requireMention: true, replyPrefix: "*Friday*" };
 
 describe.each([
   { platform: "discord" as const, status: discord, patch: { token: "a".repeat(40), clearToken: false,
     allowedUserIds: ["123456789012345678"], allowedChannelIds: [], enabled: true } },
   { platform: "whatsapp" as const, status: whatsapp, patch: { mode: "bot" as const,
-    allowedUserIds: ["491701234567"], enabled: false } },
+    allowedUserIds: ["491701234567"], enabled: false, groupPolicy: "allowlist" as const,
+    groupAllowedIds: ["120363012345678901@g.us"], requireMention: true, replyPrefix: "*Friday*" } },
 ])("$platform gateway settings", ({ platform, status, patch }) => {
   const path = `/api/v1/settings/${platform}-gateway`;
   it("passes changes to WSL stdin without exposing credentials in arguments", async () => {
@@ -46,6 +48,36 @@ describe.each([
       expect(update).toHaveBeenCalledWith(patch, status.revision);
       if (platform === "discord") expect(saved.body + logs.join("\n")).not.toContain(patch.token);
     } finally { await api.close(); }
+  });
+});
+
+describe("WhatsApp group rules", () => {
+  const service = () => {
+    const invoke = vi.fn(async () => whatsapp);
+    const instance = new MessagingGatewayService("unused", "whatsapp", invoke);
+    vi.spyOn(instance as unknown as { target: () => { script: string; distro: string; user: string; setupUrl: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_messaging_gateway.py", distro: "Friday-Ubuntu", user: "friday", setupUrl: whatsapp.setupUrl });
+    return { instance, invoke };
+  };
+  const patch = { mode: "bot" as const, allowedUserIds: [], enabled: false, groupPolicy: "disabled" as const,
+    groupAllowedIds: [] as string[], requireMention: false, replyPrefix: "" };
+
+  it("rejects open groups, non-group JIDs and unsafe reply prefixes before anything reaches WSL", async () => {
+    const { instance, invoke } = service();
+    for (const change of [{ groupPolicy: "open" }, { groupAllowedIds: ["491701234567@s.whatsapp.net"] },
+      { groupAllowedIds: ["120363012345678901@g.us", "120363012345678901@g.us"] }, { requireMention: "yes" },
+      { replyPrefix: "x\"\nINJECTED=1" }, { replyPrefix: "$HOME" }, { replyPrefix: "a".repeat(41) }]) {
+      expect(() => instance.update({ ...patch, ...change } as never, 43)).toThrow(expect.objectContaining({ code: "VALIDATION_FAILED" }));
+    }
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("refuses a status whose group rules do not match the contract", async () => {
+    const { instance, invoke } = service();
+    invoke.mockResolvedValueOnce({ ...whatsapp, groupPolicy: "everyone" } as never);
+    await expect(instance.status()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    invoke.mockResolvedValueOnce({ ...whatsapp, groupPolicy: "open", requireMention: null, replyPrefix: null } as never);
+    await expect(instance.status()).resolves.toMatchObject({ groupPolicy: "open", requireMention: null, replyPrefix: null });
   });
 });
 

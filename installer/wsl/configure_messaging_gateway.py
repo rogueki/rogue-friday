@@ -19,11 +19,16 @@ CLI = Path.home() / ".local" / "bin" / "hermes"
 LOCK = HERMES / ".obsidian-vault.lock"
 SPECS = {
     "discord": ("DISCORD_BOT_TOKEN", "DISCORD_ALLOWED_USERS", "DISCORD_ALLOWED_CHANNELS"),
-    "whatsapp": ("WHATSAPP_MODE", "WHATSAPP_ALLOWED_USERS", "WHATSAPP_ENABLED"),
+    "whatsapp": ("WHATSAPP_MODE", "WHATSAPP_ALLOWED_USERS", "WHATSAPP_ENABLED", "WHATSAPP_GROUP_POLICY",
+                 "WHATSAPP_GROUP_ALLOWED_USERS", "WHATSAPP_REQUIRE_MENTION", "WHATSAPP_REPLY_PREFIX"),
 }
 DISCORD_TOKEN = re.compile(r"^[A-Za-z0-9_.-]{30,128}$")
 SNOWFLAKE = re.compile(r"^[1-9][0-9]{0,19}$")
 PHONE = re.compile(r"^[1-9][0-9]{5,19}$")
+GROUP_JID = re.compile(r"^[0-9]{6,40}(?:-[0-9]{6,20})?@g\.us$")
+# Quotes, backslashes, $ and backticks would change how the .env line is parsed.
+REPLY_PREFIX = re.compile(r'^[^\r\n"\\$`]{0,40}$')
+GROUP_POLICIES = ("open", "allowlist", "disabled", "pairing")
 
 
 def command(*args):
@@ -91,8 +96,14 @@ def snapshot(platform, lines, applied=None):
         base.update(tokenConfigured=bool(current["DISCORD_BOT_TOKEN"]),
                     allowedChannelIds=[item.strip() for item in current["DISCORD_ALLOWED_CHANNELS"].split(",") if item.strip()])
     else:
+        policy = current["WHATSAPP_GROUP_POLICY"].lower()
+        mention = current["WHATSAPP_REQUIRE_MENTION"].lower()
+        prefix = current["WHATSAPP_REPLY_PREFIX"]
         base.update(mode=current["WHATSAPP_MODE"] if current["WHATSAPP_MODE"] in ("bot", "self-chat") else None,
-                    sessionPresent=linked())
+                    sessionPresent=linked(), groupPolicy=policy if policy in GROUP_POLICIES else None,
+                    groupAllowedIds=[item.strip() for item in current["WHATSAPP_GROUP_ALLOWED_USERS"].split(",") if item.strip()],
+                    requireMention=mention == "true" if mention in ("true", "false") else None,
+                    replyPrefix=(prefix[:-2] if prefix.endswith("\\n") else prefix) if prefix else None)
     return base
 
 
@@ -140,7 +151,8 @@ def discord_probe(token):
 def update(platform, lines):
     data = json.load(sys.stdin)
     expected = {"allowedUserIds", "enabled", "revision"}
-    expected |= {"token", "clearToken", "allowedChannelIds"} if platform == "discord" else {"mode"}
+    expected |= {"token", "clearToken", "allowedChannelIds"} if platform == "discord" else {
+        "mode", "groupPolicy", "groupAllowedIds", "requireMention", "replyPrefix"}
     if not isinstance(data, dict) or set(data) != expected:
         return 2
     ids, flag, revision = data["allowedUserIds"], data["enabled"], data["revision"]
@@ -168,8 +180,9 @@ def update(platform, lines):
                 return 4
         updates = {"DISCORD_BOT_TOKEN": token, "DISCORD_ALLOWED_USERS": ",".join(ids), "DISCORD_ALLOWED_CHANNELS": ",".join(channels)}
     else:
-        mode = data["mode"]
-        if mode not in ("bot", "self-chat"):
+        mode, policy, groups = data["mode"], data["groupPolicy"], data["groupAllowedIds"]
+        mention, prefix = data["requireMention"], data["replyPrefix"]
+        if mode not in ("bot", "self-chat") or policy not in ("disabled", "allowlist") or not isinstance(mention, bool) or not isinstance(groups, list) or len(groups) > 20 or any(not isinstance(x, str) or not GROUP_JID.fullmatch(x) for x in groups) or len(set(groups)) != len(groups) or not isinstance(prefix, str) or not REPLY_PREFIX.fullmatch(prefix):
             return 2
         if flag and (not ids or not linked()):
             print(json.dumps({"error": "pairing_and_owner_required"}))
@@ -177,7 +190,11 @@ def update(platform, lines):
         if flag and mode == "self-chat" and linked_phone() not in ids:
             print(json.dumps({"error": "self_chat_owner_phone_required"}))
             return 4
-        updates = {"WHATSAPP_MODE": mode, "WHATSAPP_ALLOWED_USERS": ",".join(ids), "WHATSAPP_ENABLED": "true" if flag else "false"}
+        # The bridge turns a literal \n into a line break; an empty prefix leaves Hermes' own header in place.
+        updates = {"WHATSAPP_MODE": mode, "WHATSAPP_ALLOWED_USERS": ",".join(ids), "WHATSAPP_ENABLED": "true" if flag else "false",
+                   "WHATSAPP_GROUP_POLICY": policy, "WHATSAPP_GROUP_ALLOWED_USERS": ",".join(groups),
+                   "WHATSAPP_REQUIRE_MENTION": "true" if mention else "false",
+                   "WHATSAPP_REPLY_PREFIX": prefix + "\\n" if prefix.strip() else ""}
     changed_env = any(updates[key] != current[key] for key in updates)
     changed_flag = flag != before["enabled"]
     # Switch the flag first: if Hermes refuses it, nothing has been written yet.

@@ -102,6 +102,73 @@ class MessagingGatewayTests(unittest.TestCase):
             self.assertEqual((root / ".env").read_text(), original)
             probed.assert_not_called()
 
+    def _whatsapp_update(self, root, request):
+        calls = []
+        def fake_command(*args):
+            calls.append(args)
+            return type("Result", (), {"returncode": 0, "stdout": "false"})()
+        with patch.object(gateway, "HERMES", root), patch.object(gateway, "ENV", root / ".env"), \
+                patch.object(gateway, "command", side_effect=fake_command), \
+                patch.object(gateway, "running", return_value=False), \
+                patch.object(gateway, "platform_state", return_value="unknown"), \
+                patch.object(gateway, "enabled", return_value=False), \
+                patch.object(gateway, "linked", return_value=False):
+            request = {**request, "revision": gateway.snapshot("whatsapp", gateway.read_lines())["revision"]}
+            output = io.StringIO()
+            with patch.object(gateway.sys, "stdin", io.StringIO(json.dumps(request))), patch("sys.stdout", output):
+                code = gateway.update("whatsapp", gateway.read_lines())
+        return code, json.loads(output.getvalue()) if output.getvalue() else None
+
+    def test_whatsapp_group_rules_and_reply_prefix_round_trip(self):
+        base = {"mode": "bot", "allowedUserIds": ["491701234567"], "enabled": False}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".env").write_text("UNRELATED=value\n")
+            code, result = self._whatsapp_update(root, {**base, "groupPolicy": "allowlist",
+                "groupAllowedIds": ["120363012345678901@g.us"], "requireMention": True, "replyPrefix": "*Friday*"})
+            self.assertEqual(code, 0)
+            text = (root / ".env").read_text()
+            self.assertIn('WHATSAPP_GROUP_POLICY="allowlist"', text)
+            self.assertIn('WHATSAPP_GROUP_ALLOWED_USERS="120363012345678901@g.us"', text)
+            self.assertIn('WHATSAPP_REQUIRE_MENTION="true"', text)
+            self.assertIn('WHATSAPP_REPLY_PREFIX="*Friday*\\n"', text)
+            self.assertIn("UNRELATED=value", text)
+            self.assertEqual({key: result[key] for key in ("groupPolicy", "groupAllowedIds", "requireMention", "replyPrefix")},
+                             {"groupPolicy": "allowlist", "groupAllowedIds": ["120363012345678901@g.us"],
+                              "requireMention": True, "replyPrefix": "*Friday*"})
+            code, result = self._whatsapp_update(root, {**base, "groupPolicy": "disabled", "groupAllowedIds": [],
+                "requireMention": False, "replyPrefix": ""})
+            self.assertEqual(code, 0)
+            self.assertNotIn("WHATSAPP_REPLY_PREFIX", (root / ".env").read_text())
+            self.assertNotIn("WHATSAPP_GROUP_ALLOWED_USERS", (root / ".env").read_text())
+            self.assertEqual((result["groupPolicy"], result["groupAllowedIds"], result["requireMention"], result["replyPrefix"]),
+                             ("disabled", [], False, None))
+
+    def test_whatsapp_rejects_open_groups_unknown_jids_and_unsafe_prefixes(self):
+        base = {"mode": "bot", "allowedUserIds": [], "enabled": False, "groupPolicy": "disabled",
+                "groupAllowedIds": [], "requireMention": False, "replyPrefix": ""}
+        for change in ({"groupPolicy": "open"}, {"groupPolicy": "pairing"}, {"groupAllowedIds": ["491701234567@s.whatsapp.net"]},
+                       {"groupAllowedIds": ["Family"]}, {"replyPrefix": 'x"\nINJECTED=1'}, {"replyPrefix": "$HOME"},
+                       {"replyPrefix": "a" * 41}, {"requireMention": "true"}):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / ".env").write_text("UNRELATED=value\n")
+                code, _ = self._whatsapp_update(root, {**base, **change})
+                self.assertEqual(code, 2)
+                self.assertEqual((root / ".env").read_text(), "UNRELATED=value\n")
+
+    def test_whatsapp_snapshot_reports_values_set_outside_friday(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".env").write_text('WHATSAPP_GROUP_POLICY="OPEN"\nWHATSAPP_REQUIRE_MENTION="yes"\n')
+            with patch.object(gateway, "HERMES", root), patch.object(gateway, "ENV", root / ".env"), \
+                    patch.object(gateway, "running", return_value=False), \
+                    patch.object(gateway, "platform_state", return_value="unknown"), \
+                    patch.object(gateway, "enabled", return_value=None), \
+                    patch.object(gateway, "linked", return_value=False):
+                result = gateway.snapshot("whatsapp", gateway.read_lines())
+            self.assertEqual((result["groupPolicy"], result["requireMention"], result["replyPrefix"]), ("open", None, None))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,8 +12,12 @@
     "gatewayRunning": { "type": ["boolean", "null"] },
     "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] },
     "applied": { "type": ["boolean", "null"] },
-    "revision": { "type": "integer", "minimum": 0 }
+    "revision": { "type": "integer", "minimum": 0 },
+    "groupPolicy": { "type": ["string", "null"], "enum": ["open", "allowlist", "disabled", "pairing", null], "description": "Stored WHATSAPP_GROUP_POLICY; null when unset. Hermes forwards group messages only for allowlist (listed groups) and open (all groups)." },
+    "groupAllowedIds": { "type": "array", "items": { "type": "string" }, "description": "Group JIDs from WHATSAPP_GROUP_ALLOWED_USERS." },
+    "requireMention": { "type": ["boolean", "null"], "description": "WHATSAPP_REQUIRE_MENTION; null when unset (Hermes default false)." },
+    "replyPrefix": { "type": ["string", "null"], "description": "Header line above every WhatsApp reply; null when unset, then Hermes adds its own header." }
   },
-  "required": ["setupUrl", "mode", "sessionPresent", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "required": ["setupUrl", "mode", "sessionPresent", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision", "groupPolicy", "groupAllowedIds", "requireMention", "replyPrefix"],
   "additionalProperties": false
 }
