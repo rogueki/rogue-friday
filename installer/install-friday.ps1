@@ -2200,7 +2200,7 @@ if (-not (IsDone 'voiceservice')) {
 $NodeMin = [version]'22.13.0'
 # Verzeichnisse, die nie ins Ziel kopiert werden (Build-Ausgaben, Abhaengigkeiten, Screenshots/Belege, Metadaten).
 $DashExcludeDirs = @('node_modules', '.git', '.next', 'dist', 'out', 'coverage', 'storybook-static', 'playwright-report',
-                     'test-results', 'screenshots', 'evidence', '.turbo', '__pycache__', '.claude')
+                     'test-results', 'screenshots', 'evidence', '.turbo', '__pycache__', '.claude', 'fixtures')
 $DashSyncDirs  = @('apps', 'packages', 'adapters', 'scripts')
 $DashRootFiles = @('package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.base.json', 'eslint.config.js',
                    'vitest.config.ts', '.npmrc', '.nvmrc', 'README.md', 'LICENSE')
