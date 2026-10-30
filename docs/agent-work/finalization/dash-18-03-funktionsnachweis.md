@@ -44,5 +44,5 @@ Pro Bereich ist belegt, woher die Daten kommen, wo Aenderungen gespeichert werde
 
 ## Bewusst offen
 
-- Eigene Ausfalltests fehlen fuer Agenten, Aktivitaet, Dateien, Gedaechtnis, Benachrichtigungen, Studio und Freigaben-Port; der gemeinsame Port-Mechanismus (503 bzw. 403) ist ueber Aufgaben und Kommunikation belegt.
+- Eigene Ausfalltests fehlen nur noch fuer Studio-Anbieter und den Freigaben-Port; Agenten, Aktivitaet, Dateien, Gedaechtnis und Benachrichtigungen antworten per Sprache bei Adapterausfall mit demselben wiederholbaren 503 wie ihre Route (`api/test/read-outage.test.ts`, PR #126).
 - Freigaben-Entscheidungen, Skill-Schalten, Systemneustart und Quittieren sind absichtlich keine Sprachaktionen (Sicherheits- bzw. Bestaetigungsgruende).
