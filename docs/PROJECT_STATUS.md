@@ -1160,6 +1160,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (`installer-windows`, #79); dabei gefunden: eine verweigerte Job-Zuordnung beendete bei Zeitlimit/Abbruch nichts,
   jetzt endet der ganze Prozessbaum (#79). Das Dashboard-Update laeuft ueber die Vertrags-Pipeline mit Audit (#80).
 
+- Live-Nachweise 2026-10-30 (I-010, I-029, I-031, I-054, I-055, N-144): Downloads brechen einen stehenden Abruf nach 60 s
+  ab und versuchen es erneut (#108). Die Wake-Restpuffer-Logik ist seit dem 16.10. im Repo, offen ist nur der Sprachtest.
+  Ein Voice-Neustart wird im Health korrekt als offline und danach online gezeigt; abgebrochene Statusproben fuellen das
+  Voice-Log nicht mehr (#107). Hermes liest und speichert den Content-Studio-Plan ueber eine eigene, auf den Plan
+  begrenzte Bridge (#110). Der Owner-Reset ist in einer Sandbox abgenommen und zeigt keinen irrefuehrenden
+  .env-Hinweis mehr (#109).
 - INS-10 (2026-10-30, N-142): Auf der Live-Installation war der Hermes-Dashboard-Dienst nach einem SIGTERM 33 h aus, weil
   Restart=on-failure danach nicht neu startet und der Watchdog Hermes nicht kannte; das Command Center lief dadurch mit
   ausgefallenen Aufgaben-/Agenten-/Aktivitaetsadaptern. Die Unit startet jetzt immer neu, und der Watchdog startet einen
