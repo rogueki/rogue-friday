@@ -98,6 +98,7 @@ function wakeCalibrationRow(calibration: NonNullable<VoiceStatus["wakeCalibratio
   if (calibration.ownClips !== null) parts.push(t("voicePage.wakeCalibration.ownClips", { count: calibration.ownClips }));
   const day = formatDay(calibration.calibratedAt, locale);
   if (day !== null) parts.push(t("voicePage.wakeCalibration.calibratedAt", { date: day }));
+  if (calibration.engine === "personal" && calibration.formatVersion === null) parts.push(t("voicePage.wakeCalibration.formatUnknown"));
   const personal = calibration.engine === "personal";
   return {
     id: "wakeCalibration",
@@ -117,6 +118,7 @@ function outputVoiceRow(voice: NonNullable<VoiceStatus["outputVoice"]>, t: Trans
   const slot = (choice: string): string =>
     ["friday-female", "classic", "custom"].includes(choice) ? t(`voicePage.outputVoice.slot.${choice}` as MessageKey) : choice;
   const parts: string[] = [t(`voicePage.outputVoice.kind.${voice.kind}` as MessageKey)];
+  if (voice.needsVoiceUpdate) parts.unshift(t("voicePage.outputVoice.needsUpdate"));
   const day = formatDay(voice.referenceUpdatedAt, locale);
   if (day !== null) parts.push(t("voicePage.outputVoice.referenceAt", { date: day }));
   parts.push(voice.available.length > 0
@@ -128,7 +130,7 @@ function outputVoiceRow(voice: NonNullable<VoiceStatus["outputVoice"]>, t: Trans
     title: t("voicePage.status.outputVoice"),
     value: voice.choice === null ? MISSING : slot(voice.choice),
     detail: parts.join(" · "),
-    tone: voice.choice === null ? "muted" : "green",
+    tone: voice.needsVoiceUpdate ? "amber" : voice.choice === null ? "muted" : "green",
     stateLabel: t(`voicePage.outputVoice.kind.${voice.kind}` as MessageKey),
   };
 }

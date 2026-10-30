@@ -495,6 +495,8 @@ export const enC: Record<keyof typeof deC, string> = {
   "voicePage.outputVoice.referenceAt": "reference from {date}",
   "voicePage.outputVoice.available": "References: {slots}",
   "voicePage.outputVoice.noReference": "No reference recording",
+  "voicePage.wakeCalibration.formatUnknown": "older model format – renewed with the next calibration",
+  "voicePage.outputVoice.needsUpdate": "Voice update pending (still speaks from a single reference)",
   "voicePage.trusted.until": "valid until {time}",
   "voicePage.mode.idle": "Idle",
   "voicePage.mode.listening": "Listening",

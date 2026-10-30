@@ -386,8 +386,21 @@ describe("voice artifacts (DASH-12.02)", () => {
 
   it("maps the wake calibration and the output voice as separate artifacts", () => {
     const status = map(parseRawVoiceStatus({ ...makeVoiceStatus(), wake_calibration: wake, output_voice: voice }));
-    expect(status.wakeCalibration).toEqual({ engine: "personal", threshold: 2.4, quality: "good", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z" });
-    expect(status.outputVoice).toEqual({ choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z" });
+    expect(status.wakeCalibration).toEqual({ engine: "personal", threshold: 2.4, quality: "good", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z", formatVersion: null });
+    expect(status.outputVoice).toEqual({ choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z", needsVoiceUpdate: false });
+  });
+
+  it("reports the wake model format and a pending voice update when the service sends them", () => {
+    const status = map(parseRawVoiceStatus({
+      ...makeVoiceStatus(),
+      wake_calibration: { ...wake, format: 1 },
+      output_voice: { ...voice, needs_voice_update: true },
+    }));
+    expect(status.wakeCalibration?.formatVersion).toBe(1);
+    expect(status.outputVoice?.needsVoiceUpdate).toBe(true);
+    const broken = map(parseRawVoiceStatus({ ...makeVoiceStatus(), wake_calibration: { ...wake, format: 0 }, output_voice: { ...voice, needs_voice_update: "yes" } }));
+    expect(broken.wakeCalibration).toBeUndefined();
+    expect(broken.outputVoice).toBeUndefined();
   });
 
   it("keeps an explicit null calibration and omits fields an older service does not send", () => {

@@ -74,7 +74,8 @@ function isWakeCalibration(value: unknown): value is RawWakeCalibration {
     (item.threshold === null || (typeof item.threshold === "number" && Number.isFinite(item.threshold) && item.threshold >= 0)) &&
     (item.quality === null || item.quality === "good" || item.quality === "medium" || item.quality === "weak") &&
     (item.hit_rate === null || isFraction(item.hit_rate)) && (item.own_clips === null || isCount(item.own_clips)) &&
-    (item.calibrated_at === null || isIsoTime(item.calibrated_at));
+    (item.calibrated_at === null || isIsoTime(item.calibrated_at)) &&
+    (item.format === undefined || item.format === null || (isCount(item.format) && item.format >= 1));
 }
 
 function isOutputVoice(value: unknown): value is RawOutputVoice {
@@ -83,7 +84,8 @@ function isOutputVoice(value: unknown): value is RawOutputVoice {
   return (item.choice === null || typeof item.choice === "string") &&
     (item.kind === "clone" || item.kind === "preset" || item.kind === "cloud") &&
     Array.isArray(item.available) && item.available.length <= 8 && item.available.every((entry) => typeof entry === "string") &&
-    (item.reference_updated_at === null || isIsoTime(item.reference_updated_at));
+    (item.reference_updated_at === null || isIsoTime(item.reference_updated_at)) &&
+    (item.needs_voice_update === undefined || typeof item.needs_voice_update === "boolean");
 }
 
 function isSpeakerDecision(value: unknown): value is { decision: "verified" | "rejected"; score: number; at: string } {
@@ -274,6 +276,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
             hitRate: raw.wake_calibration.hit_rate,
             ownClips: raw.wake_calibration.own_clips,
             calibratedAt: raw.wake_calibration.calibrated_at,
+            formatVersion: raw.wake_calibration.format ?? null,
           } }
         : {}),
       ...(raw.output_voice
@@ -282,6 +285,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
             kind: raw.output_voice.kind,
             available: [...raw.output_voice.available],
             referenceUpdatedAt: raw.output_voice.reference_updated_at,
+            needsVoiceUpdate: raw.output_voice.needs_voice_update ?? false,
           } }
         : {}),
       ...(raw.audio_transport === "device" || raw.audio_transport === "browser"
