@@ -36,6 +36,27 @@ describe('CommandPalette', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('keeps the selected command when results arrive above it', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const base: CommandItem[] = [
+      { id: 'calendar', label: 'Gehe zu Kalender', group: 'Navigation' },
+      { id: 'tasks', label: 'Gehe zu Aufgaben', group: 'Navigation' },
+    ];
+    const hit: CommandItem = { id: 'memory-hit', label: 'Notiz zum Kalender', group: 'Gedächtnis' };
+    const later: CommandItem = { id: 'memory-later', label: 'Weitere Notiz', group: 'Gedächtnis' };
+    const { rerender } = render(<CommandPalette open onOpenChange={() => undefined} items={base} onSelect={onSelect} />);
+    const input = screen.getByRole('combobox');
+    expect(input).toHaveAttribute('aria-activedescendant', expect.stringMatching(/-opt-calendar$/));
+    rerender(<CommandPalette open onOpenChange={() => undefined} items={[hit, ...base]} onSelect={onSelect} />);
+    expect(input).toHaveAttribute('aria-activedescendant', expect.stringMatching(/-opt-calendar$/));
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveAttribute('aria-activedescendant', expect.stringMatching(/-opt-tasks$/));
+    rerender(<CommandPalette open onOpenChange={() => undefined} items={[later, hit, ...base]} onSelect={onSelect} />);
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'tasks' }));
+  });
+
   it('matches keywords and reports no result text', async () => {
     const user = userEvent.setup();
     render(<CommandPalette open onOpenChange={() => undefined} items={items} onSelect={() => undefined} emptyLabel="Keine Treffer" />);
