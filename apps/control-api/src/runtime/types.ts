@@ -92,6 +92,8 @@ export interface Runtime {
   /** Read-only local Hermes mail bridge; independent of owner, voice and calendar credentials. */
   mailBridgeKey: Buffer;
   hermesMemoryBridgeKey: Buffer;
+  /** Local Hermes Content Studio plan bridge: plan read and revision-checked save only. */
+  contentStudioBridgeKey: Buffer;
   messengerInboundBridgeKey: Buffer;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;

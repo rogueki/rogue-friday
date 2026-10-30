@@ -152,6 +152,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const calendarBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "calendar-bridge"));
   const mailBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "mail-bridge"));
   const hermesMemoryBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-memory-bridge"));
+  const contentStudioBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "content-studio-bridge"));
+  if (!contentStudioBridgeKey.permissionsRestricted) logger.warn("Content Studio bridge key permissions could not be restricted", { path: contentStudioBridgeKey.path });
   const messengerInboundBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-messenger-bridge"));
   if (!calendarBridgeKey.permissionsRestricted) logger.warn("Calendar bridge key permissions could not be restricted", { path: calendarBridgeKey.path });
   if (!mailBridgeKey.permissionsRestricted) logger.warn("Mail bridge key permissions could not be restricted", { path: mailBridgeKey.path });
@@ -555,6 +557,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     calendarBridgeKey: calendarBridgeKey.key,
     mailBridgeKey: mailBridgeKey.key,
     hermesMemoryBridgeKey: hermesMemoryBridgeKey.key,
+    contentStudioBridgeKey: contentStudioBridgeKey.key,
     messengerInboundBridgeKey: messengerInboundBridgeKey.key,
     approvalTokens,
     settings,

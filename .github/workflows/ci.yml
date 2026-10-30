@@ -104,6 +104,7 @@ jobs:
             installer/wsl/test_coding_cli_status.py \
             installer/wsl/test_configure_himalaya.py \
             installer/wsl/test_configure_memory_bridge.py \
+            installer/wsl/test_studio_plan_bridge.py \
             installer/wsl/test_configure_messaging_gateway.py \
             installer/wsl/test_configure_skill_keys.py \
             installer/wsl/test_configure_telegram.py \

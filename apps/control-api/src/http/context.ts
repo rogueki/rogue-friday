@@ -28,6 +28,7 @@ export interface RequestContext {
   calendarBridgeAuthorized: boolean;
   mailBridgeAuthorized: boolean;
   hermesMemoryBridgeAuthorized: boolean;
+  contentStudioBridgeAuthorized: boolean;
   messengerInboundBridgeAuthorized: boolean;
   actor: Actor;
   pathParams: Record<string, string>;

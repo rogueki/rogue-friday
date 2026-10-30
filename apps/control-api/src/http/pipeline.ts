@@ -127,12 +127,19 @@ export class ApiPipeline {
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       !this.runtime.config.server.allowRemote &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.hermesMemoryBridgeKey);
+    // Hermes reads and saves the Content Studio plan (revision-checked); paid studio actions stay host-bound (I-054).
+    const contentStudioBridgeAuthorized = (spec.operationId === "getContentStudioPlan" && spec.method === "GET" ||
+      spec.operationId === "putContentStudioPlan" && spec.method === "PUT") &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      !this.runtime.config.server.allowRemote &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.contentStudioBridgeKey);
     const messengerInboundBridgeAuthorized = spec.operationId === "captureMessengerInbound" && spec.method === "POST" &&
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       !this.runtime.config.server.allowRemote &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.messengerInboundBridgeKey);
     const actor: Actor = messengerInboundBridgeAuthorized ? { type: "system", id: "friday-messenger", name: "F.R.I.D.A.Y. Messenger" } :
       hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
+      contentStudioBridgeAuthorized ? { type: "system", id: "friday-content-studio", name: "F.R.I.D.A.Y. Content Studio" } :
       mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
       calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
       voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
@@ -151,6 +158,7 @@ export class ApiPipeline {
       mailBridgeAuthorized,
       hermesMemoryBridgeAuthorized,
       messengerInboundBridgeAuthorized,
+      contentStudioBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -199,6 +207,10 @@ export class ApiPipeline {
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.hermesMemoryBridgeKey)) {
       if (ctx.hermesMemoryBridgeAuthorized) return;
       throw new ApiError({ code: "FORBIDDEN", message: "Hermes-Gedächtniskennung gilt nur für lokalen Ereignisabruf und Aufnahme." });
+    }
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.contentStudioBridgeKey)) {
+      if (ctx.contentStudioBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Content-Studio-Dienstkennung gilt nur für das lokale Lesen und Speichern des Plans." });
     }
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.mailBridgeKey)) {
       if (ctx.mailBridgeAuthorized) return;
