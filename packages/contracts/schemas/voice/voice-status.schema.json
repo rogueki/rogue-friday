@@ -149,6 +149,37 @@
       "type": ["string", "null"]
     },
     "ttsVoiceChoice": { "type": ["string", "null"] },
+    "wakeCalibration": {
+      "description": "The wake-word artifact, separate from the speaker profile: engine, active threshold and the calibration of a personal model. Null when the service reports no wake engine.",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "engine": { "type": "string", "enum": ["openwakeword", "personal"] },
+            "threshold": { "type": ["number", "null"], "minimum": 0 },
+            "quality": { "anyOf": [{ "type": "null" }, { "type": "string", "enum": ["good", "medium", "weak"] }] },
+            "hitRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "ownClips": { "type": ["integer", "null"], "minimum": 0 },
+            "calibratedAt": { "type": ["string", "null"], "format": "date-time" }
+          },
+          "required": ["engine", "threshold", "quality", "hitRate", "ownClips", "calibratedAt"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "outputVoice": {
+      "type": "object",
+      "description": "The output voice artifact: selected slot, whether it is a local clone, a preset or a cloud voice, which slots have a reference, and when the reference in use last changed. Never paths or audio.",
+      "properties": {
+        "choice": { "type": ["string", "null"] },
+        "kind": { "type": "string", "enum": ["clone", "preset", "cloud"] },
+        "available": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+        "referenceUpdatedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["choice", "kind", "available", "referenceUpdatedAt"],
+      "additionalProperties": false
+    },
     "audioPath": {
       "type": "object",
       "description": "Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.",

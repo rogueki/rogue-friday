@@ -11315,6 +11315,15 @@ export interface components {
             };
             /** @enum {string} */
             mode: "idle" | "listening" | "transcribing" | "thinking" | "speaking" | "error";
+            /** @description The output voice artifact: selected slot, whether it is a local clone, a preset or a cloud voice, which slots have a reference, and when the reference in use last changed. Never paths or audio. */
+            outputVoice?: {
+                available: string[];
+                choice: string | null;
+                /** @enum {string} */
+                kind: "clone" | "preset" | "cloud";
+                /** Format: date-time */
+                referenceUpdatedAt: string | null;
+            };
             pushToTalk: {
                 active: boolean;
                 enabled: boolean;
@@ -11351,6 +11360,17 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             voiceHistoryEnabled: boolean;
+            /** @description The wake-word artifact, separate from the speaker profile: engine, active threshold and the calibration of a personal model. Null when the service reports no wake engine. */
+            wakeCalibration?: null | {
+                /** Format: date-time */
+                calibratedAt: string | null;
+                /** @enum {string} */
+                engine: "openwakeword" | "personal";
+                hitRate: number | null;
+                ownClips: number | null;
+                quality: null | ("good" | "medium" | "weak");
+                threshold: number | null;
+            };
             wakeWord: {
                 enabled: boolean;
                 phrase: string;

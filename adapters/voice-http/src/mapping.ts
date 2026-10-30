@@ -4,10 +4,12 @@ import {
   RAW_VOICE_PHASES,
   RAW_VOICE_STATES,
   type RawAudioLevels,
+  type RawOutputVoice,
   type RawSpeakerProfile,
   type RawVoicePhase,
   type RawVoiceState,
   type RawVoiceStatus,
+  type RawWakeCalibration,
 } from "./provider-types";
 
 /** Operator-visible settings that the status server does not deliver (see README, "Annahme (unbelegt)"). */
@@ -63,6 +65,25 @@ function isSpeakerProfile(value: unknown): value is RawSpeakerProfile {
   return isIsoTime(item.updated_at) && isFraction(item.threshold) &&
     (item.sample_count === null || (Number.isInteger(item.sample_count) && (item.sample_count as number) >= 0)) &&
     (item.quality === null || isFraction(item.quality)) && (item.calibrated_at === null || isIsoTime(item.calibrated_at));
+}
+
+function isWakeCalibration(value: unknown): value is RawWakeCalibration {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (item.engine === "openwakeword" || item.engine === "personal") &&
+    (item.threshold === null || (typeof item.threshold === "number" && Number.isFinite(item.threshold) && item.threshold >= 0)) &&
+    (item.quality === null || item.quality === "good" || item.quality === "medium" || item.quality === "weak") &&
+    (item.hit_rate === null || isFraction(item.hit_rate)) && (item.own_clips === null || isCount(item.own_clips)) &&
+    (item.calibrated_at === null || isIsoTime(item.calibrated_at));
+}
+
+function isOutputVoice(value: unknown): value is RawOutputVoice {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (item.choice === null || typeof item.choice === "string") &&
+    (item.kind === "clone" || item.kind === "preset" || item.kind === "cloud") &&
+    Array.isArray(item.available) && item.available.length <= 8 && item.available.every((entry) => typeof entry === "string") &&
+    (item.reference_updated_at === null || isIsoTime(item.reference_updated_at));
 }
 
 function isSpeakerDecision(value: unknown): value is { decision: "verified" | "rejected"; score: number; at: string } {
@@ -124,6 +145,8 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
     ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
     ...(raw.speaker_profile === null || isSpeakerProfile(raw.speaker_profile) ? { speaker_profile: raw.speaker_profile } : {}),
+    ...(raw.wake_calibration === null || isWakeCalibration(raw.wake_calibration) ? { wake_calibration: raw.wake_calibration } : {}),
+    ...(isOutputVoice(raw.output_voice) ? { output_voice: raw.output_voice } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.service_version === "string" ? { service_version: raw.service_version } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
@@ -243,6 +266,24 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       serviceStartedAt: raw.service_started_at ?? null,
       audioDeviceWaiting: waiting,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
+      ...(raw.wake_calibration !== undefined
+        ? { wakeCalibration: raw.wake_calibration === null ? null : {
+            engine: raw.wake_calibration.engine,
+            threshold: raw.wake_calibration.threshold,
+            quality: raw.wake_calibration.quality,
+            hitRate: raw.wake_calibration.hit_rate,
+            ownClips: raw.wake_calibration.own_clips,
+            calibratedAt: raw.wake_calibration.calibrated_at,
+          } }
+        : {}),
+      ...(raw.output_voice
+        ? { outputVoice: {
+            choice: raw.output_voice.choice,
+            kind: raw.output_voice.kind,
+            available: [...raw.output_voice.available],
+            referenceUpdatedAt: raw.output_voice.reference_updated_at,
+          } }
+        : {}),
       ...(raw.audio_transport === "device" || raw.audio_transport === "browser"
         ? { audioPath: { transport: raw.audio_transport,
             host: raw.host_platform === "windows" || raw.host_platform === "linux" ? raw.host_platform : null } }

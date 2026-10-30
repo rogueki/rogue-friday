@@ -420,6 +420,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.voice.output": "Output and devices",
   "settings.voice.ttsVoice": "Voice (TTS)",
   "settings.voice.unconfigured": "Previous voice – not selectable in the voice service yet",
+  "settings.voice.customSlot": "Own recording",
   "settings.voice.ttsRate": "Speaking rate",
   "settings.voice.inputDevice": "Input device",
   "settings.voice.outputDevice": "Output device",

@@ -379,3 +379,31 @@ describe("emptyVoiceMetricsMapper", () => {
       expect(metrics[key]).toEqual({ currentMs: null, avgMs: null, p95Ms: null, sampleCount: 0 });
   });
 });
+
+describe("voice artifacts (DASH-12.02)", () => {
+  const wake = { engine: "personal", threshold: 2.4, quality: "good", hit_rate: 0.95, own_clips: 20, calibrated_at: "2026-10-30T09:00:00Z" };
+  const voice = { choice: "custom", kind: "clone", available: ["friday-female", "custom"], reference_updated_at: "2026-10-30T09:05:00Z" };
+
+  it("maps the wake calibration and the output voice as separate artifacts", () => {
+    const status = map(parseRawVoiceStatus({ ...makeVoiceStatus(), wake_calibration: wake, output_voice: voice }));
+    expect(status.wakeCalibration).toEqual({ engine: "personal", threshold: 2.4, quality: "good", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z" });
+    expect(status.outputVoice).toEqual({ choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z" });
+  });
+
+  it("keeps an explicit null calibration and omits fields an older service does not send", () => {
+    expect(map(parseRawVoiceStatus({ ...makeVoiceStatus(), wake_calibration: null })).wakeCalibration).toBeNull();
+    const older = map(parseRawVoiceStatus(makeVoiceStatus()));
+    expect(older.wakeCalibration).toBeUndefined();
+    expect(older.outputVoice).toBeUndefined();
+  });
+
+  it("drops malformed artifacts instead of failing the status", () => {
+    const status = map(parseRawVoiceStatus({
+      ...makeVoiceStatus(),
+      wake_calibration: { ...wake, quality: "excellent" },
+      output_voice: { ...voice, available: "custom", path: "/home/owner/voice.wav" },
+    }));
+    expect(status.wakeCalibration).toBeUndefined();
+    expect(status.outputVoice).toBeUndefined();
+  });
+});
