@@ -1520,7 +1520,8 @@ if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     Enter-Step 'files'
     Title "Schritt 2/15 – Installationsdateien nach $Root kopieren"
     if ($PSScriptRoot -ne $Inst) {
-        & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
+        # Tests, Testdaten und Caches gehoeren nicht ins Installationsziel (REL-06.03); kein Produktcode liest sie.
+        & robocopy.exe $PSScriptRoot $Inst /E /XD tests test fixtures __pycache__ .pytest_cache /XF test_*.py *.Tests.ps1 *.test.ps1 test_*.sh test-find-obsidian-install.ps1 /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren der Installationsdateien fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
     Ok "Dateien liegen in $Inst"
@@ -2636,7 +2637,12 @@ function Backup-CustomDashboard {
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
     Info "Ziel: $Dash  |  URL: $DashUrl  |  Log: $DashInstallLog"
-    if ($CustomRoot -and $UpdateDashboard) { Backup-CustomDashboard }
+    # Erst den Dienst stoppen, dann sichern: sonst schreibt das laufende Dashboard waehrend der Kopie in
+    # dashboard.sqlite/-wal und die Sicherung ist inkonsistent (INS-11). Der Dienst startet am Ende des Schritts neu.
+    if ($CustomRoot -and $UpdateDashboard) {
+        Stop-DashboardService
+        Backup-CustomDashboard
+    }
 
     # --- Quelle des Command Centers: Ordner neben installer\ (oder der beim ersten Start gemerkte)
     $src = $null

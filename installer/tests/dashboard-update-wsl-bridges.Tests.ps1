@@ -11,6 +11,10 @@ foreach ($path in $payload) {
 }
 $installerText = Get-Content -LiteralPath (Join-Path $repo 'installer\install-friday.ps1') -Raw
 if ($installerText -notmatch 'robocopy\.exe\s+\$PSScriptRoot\s+\$Inst\s+/E') { throw 'Clean-Install kopiert Installer-Payload nicht.' }
+$selfCopy = ($installerText -split "`n" | Where-Object { $_ -match 'robocopy\.exe\s+\$PSScriptRoot\s+\$Inst' } | Select-Object -First 1)
+foreach ($excluded in @('tests', 'test', 'fixtures', 'test_*.py', '*.Tests.ps1')) {
+    if ($selfCopy -notmatch "\s$([regex]::Escape($excluded))\s") { throw "Installer-Selbstkopie liefert '$excluded' aus." }
+}
 
 $tokens = $null; $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseInput($updaterText, [ref]$tokens, [ref]$errors)
