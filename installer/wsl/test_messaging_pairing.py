@@ -10,6 +10,34 @@ import unittest
 SCRIPT = Path(__file__).with_name("messaging_pairing.py")
 
 
+def live_workers(pairing_ids):
+    """Pairing workers for the given ids that are still running (zombies do not count)."""
+    found = set()
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            args = (proc / "cmdline").read_bytes().split(b"\0")
+            state = (proc / "stat").read_text().rsplit(") ", 1)[1].split()[0]
+        except (OSError, IndexError):
+            continue
+        if state == "Z" or b"--worker" not in args:
+            continue
+        for pairing_id in pairing_ids:
+            if pairing_id.encode() in args:
+                found.add(pairing_id)
+    return found
+
+
+def wait_for(predicate, seconds=5.0):
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.1)
+    return predicate()
+
+
 class PairingBridgeTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -73,6 +101,45 @@ class PairingBridgeTest(unittest.TestCase):
         _, cancelled = self.call("cancel")
         self.assertEqual(cancelled["state"], "cancelled")
         self.assertIsNone(cancelled["qr"])
+
+    def test_parallel_starts_leave_exactly_one_running_worker(self):
+        procs = [subprocess.Popen(["python3", str(SCRIPT), "start", "bot"], env=self.env,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(2)]
+        ids = []
+        for proc in procs:
+            out, err = proc.communicate(timeout=10)
+            self.assertEqual(proc.returncode, 0, err)
+            ids.append(json.loads(out)["id"])
+        self.assertEqual(len(set(ids)), 2)
+        _, status = self.call("status")
+        self.assertIn(status["id"], ids)
+        # The lock serializes both starts: the later one stops the earlier worker, so only the current flow runs.
+        self.assertTrue(wait_for(lambda: live_workers(ids) == {status["id"]}), live_workers(ids))
+        _, cancelled = self.call("cancel")
+        self.assertEqual(cancelled["state"], "cancelled")
+        self.assertTrue(wait_for(lambda: not live_workers(ids)), live_workers(ids))
+
+    def test_overall_timeout_expires_the_flow_and_stops_its_worker(self):
+        code, first = self.call("start", "bot")
+        self.assertEqual(code, 0, first)
+        self.assertTrue(wait_for(lambda: self.call("status")[1]["state"] == "waiting"))
+        self.assertEqual(live_workers([first["id"]]), {first["id"]})
+        state_file = Path(self.tmp.name) / ".hermes/friday-whatsapp-pairing/state.json"
+        raw = json.loads(state_file.read_text())
+        raw["expiresAt"] = time.time() - 1
+        state_file.write_text(json.dumps(raw))
+        _, expired = self.call("status")
+        self.assertEqual(expired["state"], "expired")
+        self.assertIsNone(expired["qr"])
+        self.assertNotIn("FAKE_SECRET_QR", state_file.read_text())
+        self.assertTrue(wait_for(lambda: not live_workers([first["id"]])), live_workers([first["id"]]))
+        _, still = self.call("status")
+        self.assertEqual(still["state"], "expired")
+        code, again = self.call("start", "bot")
+        self.assertEqual(code, 0, again)
+        self.assertNotEqual(again["id"], first["id"])
+        self.assertEqual(again["state"], "starting")
+        self.call("cancel")
 
     def test_pairing_never_starts_over_a_linked_session(self):
         session = Path(self.tmp.name) / ".hermes/platforms/whatsapp/session"
