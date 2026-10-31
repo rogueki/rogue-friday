@@ -141,3 +141,12 @@ export function useSetVoiceConversationKey() {
     invalidate: [queryKeys.voice.status],
   });
 }
+
+/** POST /voice/conversation-key/from-brain (owner): übernimmt den Alibaba-Schlüssel des Denkmodells, ohne ihn an den Browser zu geben. */
+export function useAdoptVoiceConversationKeyFromBrain() {
+  return useApiMutation<VoiceConversationKeyStatus, IntentVars>({
+    label: "Schlüssel des Denkmodells für Qwen Audio übernehmen",
+    mutationFn: ({ idempotencyKey: _key }) => call(getApiClient().POST("/api/v1/voice/conversation-key/from-brain", {})),
+    invalidate: [queryKeys.voice.status],
+  });
+}

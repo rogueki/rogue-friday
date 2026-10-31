@@ -4116,6 +4116,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/conversation-key/from-brain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Use the brain's Alibaba Token Plan key for Qwen Audio
+         * @description Windows installs only. Reads the key of the Hermes brain inside the machine when the brain uses an Alibaba Cloud Token Plan, checks it against Qwen Audio and stores it for the voice service like setVoiceConversationKey. The key never reaches the browser, a log or the audit trail. The brain's region must match the saved Qwen region.
+         */
+        post: operations["adoptVoiceConversationKeyFromBrain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/devices": {
         parameters: {
             query?: never;
@@ -11647,6 +11667,11 @@ export interface components {
             conversationBackend?: "local" | "qwen";
             /** @description The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local. */
             conversationConsent?: boolean;
+            /**
+             * @description Alibaba Cloud region of the Token Plan used by Qwen Audio (international Singapore or mainland China); must match where the key was issued. Missing means ap-southeast-1.
+             * @enum {string}
+             */
+            conversationRegion?: "ap-southeast-1" | "cn-beijing";
             /** @description Silence after an answer until the conversation ends and the wake word is needed again; missing means 20. */
             conversationSilenceSeconds?: number;
             inputDeviceId: string | null;
@@ -21346,6 +21371,32 @@ export interface operations {
                 "application/json": components["schemas"]["VoiceConversationKeyRequest"];
             };
         };
+        responses: {
+            /** @description Key verified and stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConversationKeyStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    adoptVoiceConversationKeyFromBrain: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Key verified and stored */
             200: {

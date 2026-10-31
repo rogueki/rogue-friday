@@ -3,12 +3,19 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ConversationBackendControl } from "./ConversationBackendControl";
 
-const { mockMutation } = vi.hoisted(() => ({ mockMutation: { mutate: vi.fn(), isPending: false } }));
+const { mockMutation, mockAdopt } = vi.hoisted(() => ({
+  mockMutation: { mutate: vi.fn(), isPending: false },
+  mockAdopt: { mutate: vi.fn(), isPending: false },
+}));
 
-vi.mock("@/lib/api/domains/voice", () => ({ useSetVoiceConversationKey: () => mockMutation }));
+vi.mock("@/lib/api/domains/voice", () => ({
+  useSetVoiceConversationKey: () => mockMutation,
+  useAdoptVoiceConversationKeyFromBrain: () => mockAdopt,
+}));
 
 beforeEach(() => {
   mockMutation.mutate.mockReset();
+  mockAdopt.mutate.mockReset();
 });
 
 it("blockiert Qwen ohne hinterlegten Schlüssel", () => {
@@ -120,5 +127,38 @@ it("shows that Qwen waits for consent when the service reports no consent", () =
 it("hides the consent checkbox in read-only mode", () => {
   const view = render(<ConversationBackendControl value="qwen" consent={false} status={{ backend: "qwen", keyConfigured: true, consent: false, lastError: null }} readOnly onSelect={vi.fn()} />);
   expect(screen.queryByRole("checkbox")).toBeNull();
+  view.unmount();
+});
+
+it("blocks the key check while the region change is unsaved", () => {
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} regionPending onSelect={vi.fn()} />);
+  expect(screen.getByRole("alert").textContent).toContain("Zuerst die geänderte Region speichern");
+  const input = screen.getByLabelText("Alibaba-Token-Plan-Schlüssel");
+  const button = screen.getByRole("button", { name: "Prüfen und speichern" }) as HTMLButtonElement;
+  fireEvent.change(input, { target: { value: "good-key-123" } });
+  expect(button.disabled).toBe(true);
+  view.unmount();
+});
+
+it("übernimmt den Schlüssel des Denkmodells und bestätigt das Speichern", () => {
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Schlüssel des Denkmodells übernehmen" }));
+  expect(mockAdopt.mutate).toHaveBeenCalledWith({}, expect.anything());
+  const callbacks = mockAdopt.mutate.mock.calls[0]?.[1] as { onSuccess?: () => void } | undefined;
+  act(() => {
+    callbacks?.onSuccess?.();
+  });
+  expect(screen.getByText("Schlüssel gespeichert.")).not.toBeNull();
+  view.unmount();
+});
+
+it("zeigt die Meldung des Denkmodell-Schlüssels an", () => {
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Schlüssel des Denkmodells übernehmen" }));
+  const callbacks = mockAdopt.mutate.mock.calls[0]?.[1] as { onError?: (error: Error) => void } | undefined;
+  act(() => {
+    callbacks?.onError?.(new Error("Das Denkmodell nutzt keinen Alibaba Token Plan."));
+  });
+  expect(screen.getByRole("alert").textContent).toContain("Das Denkmodell nutzt keinen Alibaba Token Plan.");
   view.unmount();
 });

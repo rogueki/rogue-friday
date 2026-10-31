@@ -6125,6 +6125,10 @@ export interface VoiceSettings {
    * Friday speaks background results on her own; false holds them until the owner's next request. Missing means true.
    */
   proactiveAnnouncements?: boolean;
+  /**
+   * Alibaba Cloud region of the Token Plan used by Qwen Audio (international Singapore or mainland China); must match where the key was issued. Missing means ap-southeast-1.
+   */
+  conversationRegion?: "ap-southeast-1" | "cn-beijing";
   ttsVoice: string;
   ttsRate: number;
   inputDeviceId: string | null;

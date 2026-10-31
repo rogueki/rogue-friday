@@ -5,7 +5,7 @@ import { addEnrollmentSample, enrollmentStatus, startEnrollmentTraining } from "
 import { ApiError } from "../util/errors";
 import { startWakeEnrollment, wakeEnrollmentRequest } from "../services/wake-enrollment";
 import { startSttModelDownload, sttModelsRequest } from "../services/stt-models";
-import { setConversationKey } from "../services/voice-conversation-key";
+import { adoptBrainConversationKey, setConversationKey } from "../services/voice-conversation-key";
 
 export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   async listVoiceSttModels(ctx) {
@@ -23,6 +23,9 @@ export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   async setVoiceConversationKey(ctx) {
     const { apiKey } = ctx.body as { apiKey: string };
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await setConversationKey(ctx.runtime, apiKey) } };
+  },
+  async adoptVoiceConversationKeyFromBrain(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await adoptBrainConversationKey(ctx.runtime) } };
   },
   async getWakeEnrollment(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };

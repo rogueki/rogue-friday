@@ -429,7 +429,7 @@ def apply_env_value(home, source, key, value):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test", "pairing", "provider-oauth-start", "provider-oauth-status", "provider-oauth-cancel"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test", "pairing", "provider-oauth-start", "provider-oauth-status", "provider-oauth-cancel", "brain-qwen-key"):
         # An empty stdout with exit 2 looked like a broken adapter; the caller could not tell a typo from a crash.
         print(json.dumps({"error": "invalid_request",
                           "detail": "unknown action " + (sys.argv[1] if len(sys.argv) > 1 else "<missing>")}))
@@ -447,6 +447,8 @@ SKILL_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 SKILL_MD_LIMIT = 65536
 PAIRING_PLATFORMS = ("telegram", "discord", "whatsapp")
 PAIRING_USER_ID = re.compile(r"^[A-Za-z0-9@._:+-]{1,128}$")
+TOKEN_PLAN_BASE_URL = re.compile(r"^https://token-plan\.(ap-southeast-1|cn-beijing)\.maas\.aliyuncs\.com/")
+BRAIN_KEY_ENV = ("OPENAI_API_KEY", "DASHSCOPE_API_KEY")
 
 
 def read_skill_markdown(home, source, slug):
@@ -798,6 +800,30 @@ def parse_modified_skills(text):
     return {"names": names}
 
 
+def brain_qwen_key(config_path):
+    """The brain's Token Plan key for Qwen Audio; the value only goes to the Control API pipe, never into errors."""
+    _, raw = snapshot(config_path)
+    env = {}
+    env_path = config_path.parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8-sig").splitlines():
+            name, separator, value = line.partition("=")
+            if separator:
+                env[name.strip()] = value.strip().strip('"')
+    base_url = nested(raw, "model.base_url")
+    if not isinstance(base_url, str) or not base_url:
+        base_url = env.get("OPENAI_BASE_URL", "")
+    match = TOKEN_PLAN_BASE_URL.match(base_url)
+    if match is None:
+        return {"error": "brain_not_token_plan"}
+    key = nested(raw, "model.api_key")
+    if not isinstance(key, str) or not key or key.startswith("${"):
+        key = next((env[name] for name in BRAIN_KEY_ENV if env.get(name)), "")
+    if not 8 <= len(key) <= 4096 or not all(33 <= ord(char) <= 126 for char in key):
+        return {"error": "brain_key_missing"}
+    return {"key": key, "region": match.group(1)}
+
+
 def locked_main(home, source, cli):
     def call(*args):
         result = subprocess.run([str(cli), "config", *args], capture_output=True, text=True, timeout=15)
@@ -1042,6 +1068,10 @@ def locked_main(home, source, cli):
         print(json.dumps(parse_auth_list(result.stdout)))
         return 0
     config_path = Path(call("path"))
+    if sys.argv[1] == "brain-qwen-key":
+        result = brain_qwen_key(config_path)
+        print(json.dumps(result))
+        return 6 if "error" in result else 0
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
     if sys.argv[1] == "approval-test":

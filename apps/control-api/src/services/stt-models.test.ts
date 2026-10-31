@@ -19,7 +19,7 @@ it("routes owner STT inventory, explicit download and cancel to the local servic
     if (path === "/") return new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A",
       runtime_settings: { wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
         speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true,
-        sttLanguage: "de", sttModel: "base", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 } }));
+        sttLanguage: "de", sttModel: "base", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, conversationRegion: "ap-southeast-1", ttsRate: 1 } }));
     return new Response(JSON.stringify(status));
   });
   const context = (body?: object) => ({ runtime, body }) as Parameters<NonNullable<typeof browserVoiceHandlers.listVoiceSttModels>>[0];

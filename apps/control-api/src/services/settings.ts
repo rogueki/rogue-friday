@@ -138,6 +138,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       conversationConsent: false,
       conversationSilenceSeconds: 20,
       proactiveAnnouncements: true,
+      conversationRegion: "ap-southeast-1",
       ttsVoice: installedVoiceChoice(config) ?? "",
       ttsRate: 1,
       inputDeviceId: null,
