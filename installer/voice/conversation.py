@@ -75,9 +75,11 @@ class ConversationOrchestrator:
     def tool_specs(self) -> list[dict]:
         return [dict(spec) for spec in TOOLS]
 
-    def instructions(self, assistant_name: str, address: str) -> str:
+    def instructions(self, assistant_name: str, address: str | None = None) -> str:
+        # Without an address the caller's persona text already says how to address the owner.
+        greeting = f", und rede den Nutzer mit „{address}“ an." if address else "."
         lines = [
-            f"Du bist {assistant_name}. Sprich Deutsch, kurz und natürlich, und rede den Nutzer mit „{address}“ an.",
+            f"Du bist {assistant_name}. Sprich Deutsch, kurz und natürlich{greeting}",
             "Du führst selbst nichts aus. Alles, was etwas erledigt, sucht, sendet oder ändert, gibst du mit "
             "task_create an einen Hintergrund-Agenten und sagst kurz, dass es läuft.",
             "Nach dem Stand fragst du mit task_status, Abbrüche machst du mit task_cancel, Uhrzeit und Datum holst "

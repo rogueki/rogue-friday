@@ -258,6 +258,11 @@ class InstructionsTest(unittest.TestCase):
         voice.call_tool("task_create", {"domain": "research", "auftrag": "Recherchiere Strompreise"})
         self.assertIn("Laufende Aufträge: Recherche: Recherchiere Strompreise", voice.instructions("Friday", "Chef"))
 
+    def test_instructions_without_address_leave_it_to_the_persona(self):
+        text = Harness().voice.instructions("Friday")
+        self.assertIn("Du bist Friday. Sprich Deutsch, kurz und natürlich.", text)
+        self.assertNotIn("rede den Nutzer", text)
+
 
 if __name__ == "__main__":
     unittest.main()
