@@ -124,3 +124,16 @@ Zeilen. Nachweise: 3 Komponententests, volle web-Suite 86/677, typecheck und lin
 
 Noch offen: Hinzufuegen/Erneuern/Trennen (Vertrag + Bridge `auth add/remove/reset/logout` mit Key ueber
 stdin) und die Trennung OpenAI/Anthropic vs. "Erweitert".
+
+
+## Nachtrag 2026-10-31: Anbieter-Anmeldung per Device-Code (DASH-07.04, #165)
+
+"Anbieter anmelden" unter KI-Zugaenge startet ueber die Bridge (`provider-oauth-start/status/cancel`) einen Worker in
+der gepinnten Hermes-Laufzeit. Er ruft Hermes' eigenes `_start_device_code_flow` auf (nous, openai-codex, xai-oauth,
+minimax-oauth), schreibt Code, https-Link und Ablaufzeit in den Vorgangszustand und wartet, bis Hermes die Sitzung
+auf `approved` setzt; das geschieht erst, nachdem Hermes' Poller den Zugang gespeichert hat. Abbruch und Zeitablauf
+beenden die Hermes-Sitzung wie Hermes' eigener Cancel; ein fehlgeschlagener Login aendert keinen bestehenden Zugang.
+Vorgaenge sind an den Owner gebunden (`owner.json`, Vergleich per hmac), haben eine harte Frist von 960 s und werden
+nach 24 h aufgeraeumt. Copilot, Anthropic und Qwen haben in Hermes keinen Device-Code-Starter und sind nicht
+enthalten. Nachweise: `installer/wsl/test_hermes_provider_oauth.py` (9), Bridge-, Service-, Routen- und Seitentests,
+Gegenproben rot, Import-Probe gegen die Hermes-Laufzeit mit Wegwerf-HERMES_HOME. Offen: echter Login (Owner).
