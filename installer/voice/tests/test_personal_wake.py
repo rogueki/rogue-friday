@@ -403,6 +403,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.reply_window = threading.Event()
     svc.wake_model_lock = threading.Lock()
     svc.manual_release = threading.Event()
     svc.user_speaking = threading.Event()
@@ -1477,6 +1478,118 @@ def test_conversation_key_endpoint_verifies_before_storing(monkeypatch, tmp_path
     assert "good-key-1234" not in repr(events)
 
 
+def test_conversation_key_check_reports_the_stored_key_without_changing_it(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-conversation-key-check"
+    svc.cfg.update(wake_phrase=svc.phrase, conversation_backend="local")
+    svc.cfg["qwen_key_file"] = str(tmp_path / "config" / "alibaba_tokenplan.key.dpapi")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    svc.conversation = None
+    svc.qwen_dialog = None
+    svc.domain_tasks = object()
+    stored = []
+    monkeypatch.setattr(jv.qwen_realtime, "save_key", lambda path, key: stored.append((path, key)))
+    events = []
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: events.append(kwargs))
+    state = {"error": RuntimeError("missing")}
+
+    def load_key(path):
+        if state["error"] is not None:
+            raise state["error"]
+        return "sk-sp-STORED-0123"
+
+    checked = []
+
+    def verify_key(key, **kwargs):
+        checked.append((key, kwargs["region"]))
+        if len(checked) == 1:
+            raise jv.qwen_realtime.RealtimeError("quota", "x")
+
+    monkeypatch.setattr(jv.qwen_realtime, "load_key", load_key)
+    monkeypatch.setattr(jv.qwen_realtime, "verify_key", verify_key)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/conversation-key/check"
+
+    def post(authenticated=True):
+        request = urllib.request.Request(url, data=b"{}", method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    assert post(False)[0] == 401
+    assert post() == (200, {"ok": False, "reason": "missing"})
+    state["error"] = None
+    assert post() == (200, {"ok": False, "reason": "quota"})
+    assert checked == [("sk-sp-STORED-0123", svc.cfg.get("qwen_region", "ap-southeast-1"))]
+    assert post() == (200, {"ok": True, "reason": None})
+    assert len(checked) == 2
+    assert stored == []
+    assert "sk-sp-STORED-0123" not in json.dumps(events)
+
+
+def test_voice_sample_speaks_once_and_refuses_while_busy(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.name = "Friday"
+    svc.status["state"] = "listening"
+    svc.processing = None
+    svc.control_paused = False
+    svc.tts.speaking.clear()
+    said = []
+    svc.tts.say = said.append
+    svc.history = []
+    before_history = list(svc.history)
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    key_dir = tmp_path / "dashboard" / "data" / "voice-bridge"
+    key_dir.mkdir(parents=True)
+    (key_dir / "auth.key").write_text("a" * 44, encoding="ascii")
+    jv.INSTALL_ROOT = str(tmp_path)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/voice/sample"
+
+    def post(authenticated=True):
+        request = urllib.request.Request(url, data=b"{}", method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    assert post(False) == (401, None)
+    assert said == []
+    assert post() == (200, {"accepted": True})
+    assert said == ["Hallo, ich bin Friday. So klinge ich mit dieser Stimme."]
+    svc.tts.speaking.set()
+    assert post() == (423, None)
+    assert len(said) == 1
+    svc.tts.speaking.clear()
+    svc.status["state"] = "command"
+    assert post() == (423, None)
+    assert len(said) == 1
+    assert svc.history == before_history
+
+
 class ScriptedVad:
     """Speech probability per 32 ms frame from a script; silence once the script is used up."""
 
@@ -1634,6 +1747,105 @@ def test_proactive_default_speaks_immediately(monkeypatch):
     svc._deliver_announcement([{"taskId": "t1"}])
     assert spoken == ["Recherche \u2013 Wetter: sonnig."]
     assert getattr(svc, "held_proactive", []) == []
+
+
+def test_idle_announcement_opens_a_reply_window(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    spoken = []
+    svc._announcement_text = lambda jobs: "Die Recherche ist fertig."
+    svc._forget_announced = lambda jobs: None
+    svc._proactive_allowed = lambda: True
+    svc._quiet_active = lambda: False
+    svc._speak_held_announcements = lambda: False
+    svc._speak_announcement = spoken.append
+    svc.status["state"] = "listening"
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert spoken == ["Die Recherche ist fertig."]
+    assert svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.status["state"] = "followup"
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.status["state"] = "listening"
+    svc.cfg["speaker_verification_required"] = False
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.cfg["speaker_verification_required"] = True
+    svc.control_paused = True
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+
+def test_reply_window_answers_without_the_wake_word(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._acknowledge_wake = lambda: (_ for _ in ()).throw(AssertionError("wake acknowledged"))
+    svc._beep = lambda *args: (_ for _ in ()).throw(AssertionError("beep"))
+    svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    svc._wake_detected = lambda chunk: False
+    svc._drain = lambda: None
+    calls, handled = [], []
+
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+
+    def handle(audio, wake_audio):
+        handled.append((audio, wake_audio))
+        svc.conversation_ended = True
+
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session(reply=True)
+    assert calls == [20.0]
+    assert handled and handled[0][1] is None
+
+
+def test_wake_word_during_the_announcement_takes_over_the_reply_window(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
+    svc._beep = lambda *args: (_ for _ in ()).throw(AssertionError("beep"))
+    svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    detections = iter([True, False])
+    svc._wake_detected = lambda chunk: next(detections, False)
+    svc._drain = lambda: None
+    calls, handled = [], []
+
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+
+    def handle(audio, wake_audio):
+        handled.append((audio, wake_audio))
+        svc.conversation_ended = True
+
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session(reply=True)
+    assert calls == [5.0]
+    assert handled and handled[0][1] is not None
+
+
+def test_stop_closes_a_pending_reply_window():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.reply_window.set()
+    svc.cancel_active_interaction()
+    assert not svc.reply_window.is_set()
 
 
 def test_wait_for_pause_gives_up_after_its_limit():

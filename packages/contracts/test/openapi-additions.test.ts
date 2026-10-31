@@ -70,16 +70,16 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 304 released operations", () => {
+  it("the contract includes the 306 released operations", () => {
     // 269 after the wave-2 merge, 270 with the staged Hermes cron mutation, 271 with the native
     // approval dry run, 272 with the unsaved mailbox candidate test (DASH-05.03), 273 with the
     // Hermes access read (DASH-07.03), 274 with the SKILL.md detail (DASH-10.02), 276 with the skill
     // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
     // diff reports, 283 with the content studio skill bridge (KEEP-05), 286 with the voice domain task
     // routes (DASH-16.02/16.04), 294 with the Hermes provider device-code login (DASH-07.04), 295 with the Qwen Audio
-    // key entry (LG-3b), 296 with the voice read path (LG-2b.01), 297 with the spoken task reply (LG-2.01), 300 with the quiet mode (LG-2c), 303 with its summary, notices and schedule, 304 with the brain key for Qwen Audio (LG-4.05). Bump deliberately
+    // key entry (LG-3b), 296 with the voice read path (LG-2b.01), 297 with the spoken task reply (LG-2.01), 300 with the quiet mode (LG-2c), 303 with its summary, notices and schedule, 304 with the brain key for Qwen Audio (LG-4.05), 305 with the stored key check (LG-5.02), 306 with the voice sample (LG-5.03). Bump deliberately
     // with the release note instead of fitting the number to a failure.
-    expect(operations).toHaveLength(304);
+    expect(operations).toHaveLength(306);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

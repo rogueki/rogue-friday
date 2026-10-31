@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-conversation-key-check.schema.json",
+  "title": "VoiceConversationKeyCheck",
+  "description": "Result of a live check of the stored Qwen Audio key against the saved region. reason is null when ok is true.",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "ok": { "type": "boolean" },
+    "reason": {
+      "type": ["string", "null"],
+      "enum": ["missing", "auth", "quota", "rate", "idle", "model", "network", "protocol", null]
+    }
+  },
+  "required": ["contractVersion", "ok", "reason"],
+  "additionalProperties": false
+}

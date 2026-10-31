@@ -4116,6 +4116,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/conversation-key/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the stored Qwen Audio key against the saved region
+         * @description Windows installs only. Opens one short Qwen Audio session with the stored key and reports the result; nothing is stored or changed and the key never leaves the voice service.
+         */
+        post: operations["checkVoiceConversationKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/conversation-key/from-brain": {
         parameters: {
             query?: never;
@@ -4303,6 +4323,26 @@ export interface paths {
          * @description Local voice bridge only. Parses the question with the dashboard read intents and answers only the kinds on the voice allowlist (weather, settings, tasks, calendar, system, notifications, approvals, skills, onboarding). Secrets are only reported as set or not set. Nothing is changed and no agent is started.
          */
         post: operations["readVoiceQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speak a short sample with the saved voice
+         * @description Windows installs only. The local voice service speaks one sample sentence through the configured output when nothing else is running; nothing is stored.
+         */
+        post: operations["playVoiceSample"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11363,6 +11403,16 @@ export interface components {
             title?: string;
         };
         /**
+         * VoiceConversationKeyCheck
+         * @description Result of a live check of the stored Qwen Audio key against the saved region. reason is null when ok is true.
+         */
+        VoiceConversationKeyCheck: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            ok: boolean;
+            /** @enum {string|null} */
+            reason: "missing" | "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null;
+        };
+        /**
          * VoiceConversationKeyRequest
          * @description Alibaba Token Plan key for the Qwen Audio conversation. The voice service checks it against Qwen before storing it per Windows user (DPAPI); it is never returned or logged.
          */
@@ -11657,6 +11707,15 @@ export interface components {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["VoiceReadAnswer"];
             freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * VoiceSampleResult
+         * @description The voice service accepted the request and speaks one short sample sentence with the saved voice.
+         */
+        VoiceSampleResult: {
+            /** @constant */
+            accepted: true;
+            contractVersion: components["schemas"]["ContractVersion"];
         };
         /** VoiceSettings */
         VoiceSettings: {
@@ -21386,6 +21445,31 @@ export interface operations {
             422: components["responses"]["UnprocessableEntity"];
         };
     };
+    checkVoiceConversationKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Check result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConversationKeyCheck"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     adoptVoiceConversationKeyFromBrain: {
         parameters: {
             query?: never;
@@ -21735,6 +21819,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    playVoiceSample: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sample accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSampleResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     getVoiceStatus: {

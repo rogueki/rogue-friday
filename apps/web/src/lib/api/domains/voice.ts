@@ -2,8 +2,10 @@
 
 import type {
   ActionResult,
+  VoiceConversationKeyCheck,
   VoiceConversationKeyRequest,
   VoiceConversationKeyStatus,
+  VoiceSampleResult,
   VoiceDeviceListResponse,
   VoiceEnrollment,
   VoiceEnrollmentResponse,
@@ -148,5 +150,21 @@ export function useAdoptVoiceConversationKeyFromBrain() {
     label: "Schlüssel des Denkmodells für Qwen Audio übernehmen",
     mutationFn: ({ idempotencyKey: _key }) => call(getApiClient().POST("/api/v1/voice/conversation-key/from-brain", {})),
     invalidate: [queryKeys.voice.status],
+  });
+}
+
+/** POST /voice/conversation-key/check (owner): prüft den gespeicherten Qwen-Schlüssel, ändert nichts. */
+export function useCheckVoiceConversationKey() {
+  return useApiMutation<VoiceConversationKeyCheck, IntentVars>({
+    label: "Qwen-Audio-Verbindung prüfen",
+    mutationFn: ({ idempotencyKey: _key }) => call(getApiClient().POST("/api/v1/voice/conversation-key/check", {})),
+  });
+}
+
+/** POST /voice/sample (owner): spricht einen kurzen Satz mit der gespeicherten Stimme. */
+export function usePlayVoiceSample() {
+  return useApiMutation<VoiceSampleResult, IntentVars>({
+    label: "Hörprobe abspielen",
+    mutationFn: ({ idempotencyKey: _key }) => call(getApiClient().POST("/api/v1/voice/sample", {})),
   });
 }

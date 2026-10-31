@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-sample-result.schema.json",
+  "title": "VoiceSampleResult",
+  "description": "The voice service accepted the request and speaks one short sample sentence with the saved voice.",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "accepted": { "const": true }
+  },
+  "required": ["contractVersion", "accepted"],
+  "additionalProperties": false
+}

@@ -3,7 +3,7 @@
 import type { VoiceStatus } from "@friday/sdk";
 import { Button, Select, TextField } from "@friday/ui";
 import { useState } from "react";
-import { useAdoptVoiceConversationKeyFromBrain, useSetVoiceConversationKey } from "@/lib/api/domains/voice";
+import { useAdoptVoiceConversationKeyFromBrain, useCheckVoiceConversationKey, useSetVoiceConversationKey } from "@/lib/api/domains/voice";
 
 type ConversationStatus = NonNullable<VoiceStatus["conversation"]>;
 type ConversationBackend = ConversationStatus["backend"];
@@ -34,8 +34,10 @@ export function ConversationBackendControl({ value, consent, status, readOnly, r
   const [replaceKey, setReplaceKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySaved, setKeySaved] = useState(false);
+  const [checkText, setCheckText] = useState<string | null>(null);
   const mutation = useSetVoiceConversationKey();
   const adopt = useAdoptVoiceConversationKeyFromBrain();
+  const check = useCheckVoiceConversationKey();
   const select = (next: ConversationBackend): void => {
     if (next === "qwen") {
       if (status?.keyConfigured !== true) {
@@ -95,6 +97,13 @@ export function ConversationBackendControl({ value, consent, status, readOnly, r
       },
     );
   };
+  const runCheck = (): void => {
+    setCheckText(null);
+    check.mutate({}, {
+      onSuccess: (result) => setCheckText(result.ok ? "Verbindung zu Qwen Audio in Ordnung." : result.reason === "missing" ? "Es ist kein Schlüssel gespeichert." : `Qwen Audio: ${ERROR_TEXT[result.reason as ConversationError]}.`),
+      onError: (error) => setCheckText(error.message),
+    });
+  };
   const statusText = !status ? "Status des Sprachdienstes wird geladen…"
     : status.consent === false && value === "qwen" ? "Qwen Audio wartet auf deine Zustimmung; bis dahin antwortet der Assistent lokal."
       : status.backend === "local" ? "Aktiv: lokales Gespräch."
@@ -149,8 +158,12 @@ export function ConversationBackendControl({ value, consent, status, readOnly, r
         </div>
       ) : null}
       {!readOnly && status?.keyConfigured === true && !replaceKey ? (
-        <Button type="button" size="sm" variant="ghost" onClick={() => setReplaceKey(true)}>Schlüssel ersetzen</Button>
+        <div>
+          <Button type="button" size="sm" variant="ghost" disabled={check.isPending || regionPending} onClick={runCheck}>{check.isPending ? "Wird geprüft …" : "Verbindung prüfen"}</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setReplaceKey(true)}>Schlüssel ersetzen</Button>
+        </div>
       ) : null}
+      {checkText ? <p role="status">{checkText}</p> : null}
     </div>
   );
 }

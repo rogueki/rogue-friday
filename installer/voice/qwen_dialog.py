@@ -5,6 +5,7 @@ detection and speaker check; the answer text is spoken by the local voice senten
 """
 
 import asyncio
+import collections
 import concurrent.futures
 import re
 import threading
@@ -29,6 +30,7 @@ class QwenDialog:
         self._start_lock = threading.Lock()
         self._idle_handle = None
         self._turn_lock = None
+        self._pending_notes = collections.deque(maxlen=5)
 
     @property
     def connected(self) -> bool:
@@ -64,6 +66,12 @@ class QwenDialog:
             if not error.retryable:
                 raise
             await self._session.reconnect()
+        # Announcements made while no session was open: Qwen must know them to answer follow-up questions.
+        while self._pending_notes:
+            try:
+                await self._session.add_system_text(self._pending_notes.popleft())
+            except RealtimeError:
+                break
 
     async def _warm(self) -> None:
         self._cancel_idle()
@@ -146,11 +154,13 @@ class QwenDialog:
     def note(self, text: str) -> None:
         loop = self._loop
         if loop is None or not loop.is_running():
+            self._pending_notes.append(text)
             return
         asyncio.run_coroutine_threadsafe(self._note(text), loop)
 
     async def _note(self, text: str) -> None:
         if not self._session.connected:
+            self._pending_notes.append(text)
             return
         try:
             await self._session.add_system_text(text)

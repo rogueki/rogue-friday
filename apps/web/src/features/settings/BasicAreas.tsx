@@ -6,7 +6,7 @@ import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useHermesModelCatalog, useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
-import { useVoiceDevices, useVoiceIntegrationStatus, useVoiceStatus } from "@/lib/api/domains/voice";
+import { usePlayVoiceSample, useVoiceDevices, useVoiceIntegrationStatus, useVoiceStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
 import { useDataRetentionAction, useDataRetentionStatus } from "@/lib/api/domains/data-retention";
@@ -284,7 +284,10 @@ export function VoiceArea() {
   const voiceStatus = useVoiceStatus();
   const integration = useVoiceIntegrationStatus();
   const saved = useSettings();
+  const sample = usePlayVoiceSample();
+  const [sampleError, setSampleError] = useState<string | null>(null);
   if (!value) return null;
+  const voicePending = (saved.data?.data.voice.ttsVoice ?? value.ttsVoice) !== value.ttsVoice;
   const regionPending = (saved.data?.data.voice.conversationRegion ?? "ap-southeast-1") !== (value.conversationRegion ?? "ap-southeast-1");
   const options = (kind: "input" | "output", current: string | null) => voiceDeviceOptions(devices.data?.items ?? [], kind, current,
     { systemDefault: t("settings.voice.systemDefault"), missing: t("settings.voice.deviceMissing") });
@@ -372,6 +375,14 @@ export function VoiceArea() {
           <Select label={t("settings.voice.inputDevice")} value={value.inputDeviceId ?? ""} disabled={readOnly} options={options("input", value.inputDeviceId)} onChange={(event) => update({ inputDeviceId: event.target.value === "" ? null : event.target.value })} />
           <Select label={t("settings.voice.outputDevice")} value={value.outputDeviceId ?? ""} disabled={readOnly} options={options("output", value.outputDeviceId)} onChange={(event) => update({ outputDeviceId: event.target.value === "" ? null : event.target.value })} />
         </FieldGrid>
+        <div>
+          <Button type="button" size="sm" variant="ghost" disabled={readOnly || voicePending || sample.isPending}
+            onClick={() => { setSampleError(null); sample.mutate({}, { onError: (error) => setSampleError(error.message) }); }}>
+            {sample.isPending ? "Hörprobe läuft …" : "Hörprobe"}
+          </Button>
+          {voicePending ? <p className="st-muted">Erst speichern, dann gibt es die Hörprobe der neuen Stimme.</p> : null}
+          {sampleError ? <p role="alert">{sampleError}</p> : null}
+        </div>
       </Section>
     </>
   );

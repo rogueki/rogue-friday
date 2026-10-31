@@ -1,0 +1,5 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-sample-result.schema.json",
+  "contractVersion": "2.0.0",
+  "accepted": true
+}

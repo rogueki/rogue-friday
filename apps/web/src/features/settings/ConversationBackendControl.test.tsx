@@ -3,19 +3,22 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ConversationBackendControl } from "./ConversationBackendControl";
 
-const { mockMutation, mockAdopt } = vi.hoisted(() => ({
+const { mockMutation, mockAdopt, mockCheck } = vi.hoisted(() => ({
   mockMutation: { mutate: vi.fn(), isPending: false },
   mockAdopt: { mutate: vi.fn(), isPending: false },
+  mockCheck: { mutate: vi.fn(), isPending: false },
 }));
 
 vi.mock("@/lib/api/domains/voice", () => ({
   useSetVoiceConversationKey: () => mockMutation,
   useAdoptVoiceConversationKeyFromBrain: () => mockAdopt,
+  useCheckVoiceConversationKey: () => mockCheck,
 }));
 
 beforeEach(() => {
   mockMutation.mutate.mockReset();
   mockAdopt.mutate.mockReset();
+  mockCheck.mutate.mockReset();
 });
 
 it("blockiert Qwen ohne hinterlegten Schlüssel", () => {
@@ -160,5 +163,29 @@ it("zeigt die Meldung des Denkmodell-Schlüssels an", () => {
     callbacks?.onError?.(new Error("Das Denkmodell nutzt keinen Alibaba Token Plan."));
   });
   expect(screen.getByRole("alert").textContent).toContain("Das Denkmodell nutzt keinen Alibaba Token Plan.");
+  view.unmount();
+});
+
+it("prüft die gespeicherte Qwen-Audio-Verbindung und meldet Erfolg", () => {
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Verbindung prüfen" }));
+  expect(mockCheck.mutate).toHaveBeenCalledWith({}, expect.anything());
+  const callbacks = mockCheck.mutate.mock.calls[0]?.[1] as { onSuccess?: (result: { ok: true; reason: null }) => void } | undefined;
+  act(() => {
+    callbacks?.onSuccess?.({ ok: true, reason: null });
+  });
+  expect(screen.getByText("Verbindung zu Qwen Audio in Ordnung.")).not.toBeNull();
+  view.unmount();
+});
+
+it("meldet ein aufgebrauchtes Kontingent bei der Verbindungsprüfung", () => {
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Verbindung prüfen" }));
+  expect(mockCheck.mutate).toHaveBeenCalledWith({}, expect.anything());
+  const callbacks = mockCheck.mutate.mock.calls[0]?.[1] as { onSuccess?: (result: { ok: false; reason: "quota" }) => void } | undefined;
+  act(() => {
+    callbacks?.onSuccess?.({ ok: false, reason: "quota" });
+  });
+  expect(screen.getByText("Qwen Audio: Kontingent aufgebraucht.")).not.toBeNull();
   view.unmount();
 });
