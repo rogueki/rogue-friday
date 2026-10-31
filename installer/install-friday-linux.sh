@@ -208,7 +208,7 @@ if [[ "$VOICE_MODE" == elevenlabs ]]; then
 fi
 if [[ ! -e "$CONFIG/dashboard.yaml" ]]; then
   cat > "$CONFIG/dashboard.yaml" <<YAML
-dataMode: hybrid
+dataMode: live
 server:
   host: 127.0.0.1
   port: $FRIDAY_PORT
@@ -223,16 +223,16 @@ auth:
   ownerUsername: owner
   ownerPasswordHash: file:$CONFIG/secrets/owner.hash
   secureCookies: false
-dev:
-  scenarioConsole: false
 YAML
   chown root:"$SERVICE" "$CONFIG/dashboard.yaml"
   chmod 0640 "$CONFIG/dashboard.yaml"
 else
   # Reject stale or remotely exposed local configuration before changing services.
   python3 - "$CONFIG/dashboard.yaml" "$FRIDAY_PORT" <<'PY' || fail "Existing $CONFIG/dashboard.yaml is incompatible with loopback-only port $FRIDAY_PORT."
-import re, sys
-text = open(sys.argv[1], encoding='utf-8').read()
+import os, re, shutil, stat, sys, time
+path = sys.argv[1]
+with open(path, encoding='utf-8', newline='') as source:
+    text = source.read()
 server = re.search(r'(?ms)^server:\s*\n(.*?)(?=^\S|\Z)', text)
 port = re.search(r'(?m)^\s+port:\s*(\d+)\b', server.group(1)) if server else None
 host = re.search(r'(?m)^\s+host:\s*([^\s#]+)', server.group(1)) if server else None
@@ -242,11 +242,22 @@ auth = re.search(r'(?ms)^auth:\s*\n(.*?)(?=^\S|\Z)', text)
 auth_mode = re.search(r'(?m)^\s+mode:\s*([^\s#]+)', auth.group(1)) if auth else None
 auth_ref = re.search(r'(?m)^\s+ownerPasswordHash:\s*["\']?([^\s"\']+)', auth.group(1)) if auth else None
 if (not port or port.group(1) != sys.argv[2] or not host or host.group(1) != '127.0.0.1'
-        or (remote and remote.group(1).lower() != 'false') or not mode or mode.group(1) != 'hybrid'
+        or (remote and remote.group(1).lower() != 'false')
+        or (mode and mode.group(1) not in ('live', 'mock', 'hybrid'))
         or not auth_mode or auth_mode.group(1) != 'local' or not auth_ref
         or auth_ref.group(1) != 'file:/etc/friday/secrets/owner.hash'):
-    print('Expected loopback, matching port, dataMode: hybrid and local owner hash file in /etc/friday/secrets.', file=sys.stderr)
+    print('Expected loopback, matching port and local owner hash file in /etc/friday/secrets.', file=sys.stderr)
     sys.exit(1)
+if mode and mode.group(1) != 'live':
+    info = os.stat(path)
+    backup = f"{path}.bak-dataMode-{time.strftime('%Y%m%d%H%M%S', time.gmtime())}"
+    shutil.copy2(path, backup)
+    os.chown(backup, info.st_uid, info.st_gid)
+    os.chmod(backup, stat.S_IMODE(info.st_mode))
+    text = re.sub(r'(?m)^(dataMode:[ \t]*)[^\s#]+', r'\g<1>live', text, count=1)
+    with open(path, 'w', encoding='utf-8', newline='') as target:
+        target.write(text)
+    print(f'Migrated dataMode {mode.group(1)} -> live (backup {backup})', file=sys.stderr)
 PY
 fi
 if [[ ! -e "$CONFIG/adapters.yaml" ]]; then

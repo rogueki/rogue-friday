@@ -16,7 +16,6 @@
     "build": "pnpm -r --workspace-concurrency=1 build",
     "build:app": "pnpm -r --workspace-concurrency=1 --filter @friday/web --filter @friday/control-api build",
     "start": "pnpm --filter @friday/control-api start",
-    "start:hybrid": "node scripts/start-hybrid.mjs",
     "fake:upstreams": "tsx scripts/fake-upstreams/cli.ts",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",

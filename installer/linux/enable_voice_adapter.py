@@ -30,7 +30,7 @@ def configure(config_path: Path, voice_port: int, wake_phrase: str, disable: boo
     if not isinstance(voice, dict):
         raise ValueError("voice adapter configuration is invalid")
     if disable:
-        voice.update({"provider": "mock-voice", "enabled": True})
+        voice.update({"provider": "friday-voice-http", "enabled": False})
         voice.pop("config", None)
     else:
         voice.update({"provider": "friday-voice-http", "enabled": True,

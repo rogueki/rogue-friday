@@ -1,20 +1,14 @@
-# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration
-# Kopieren nach config/dashboard.yaml und anpassen. Werte koennen ${ENV_VAR} oder ${ENV_VAR:-default} enthalten.
-# Umgebungsvariablen ueberschreiben diese Datei: FRIDAY_DATA_MODE, FRIDAY_HOST, FRIDAY_PORT,
-# FRIDAY_DATA_DIR, FRIDAY_LOG_DIR, FRIDAY_CONFIG_DIR.
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (zusammen mit adapters.example.yaml)
+# Kopieren nach config/dashboard.yaml. Werte koennen ${ENV_VAR} oder ${ENV_VAR:-default} enthalten.
 
-# mock   - alles simuliert (Standard, vollstaendig offline lauffaehig)
-# hybrid - in adapters.yaml genannte Kategorien live, der Rest mock
-# live   - nur konfigurierte Kategorien, nicht konfigurierte sind deaktiviert
-dataMode: mock
+dataMode: live # einziger Betriebsmodus: nur eingerichtete Kategorien, keine Simulationsdaten
 
 server:
-  host: 127.0.0.1 # nur Loopback; andere Hosts erfordern allowRemote: true
+  host: 127.0.0.1
   port: 3100
-  allowRemote: false # true nur hinter TLS oder VPN/Zero-Trust (PLAN 49.7), niemals per offener Portfreigabe
+  allowRemote: false
 
-# Relative Pfade gelten relativ zu diesem Config-Verzeichnis.
-# Produktiv (PLAN 54): D:\Friday\dashboard\data, ...\logs, ...\backups
+# Produktiv (PLAN 54): D:\Friday\dashboard\data, ...\logs, ...\backups; relativ zu diesem Config-Verzeichnis.
 paths:
   dataDir: ../data
   logDir: ../logs
@@ -22,15 +16,14 @@ paths:
   webRoot: ../apps/web/out
 
 auth:
-  mode: local # local = Passwort-Login; dev = fester Dev-Account (nur dataMode mock + Loopback)
+  mode: local
   ownerUsername: owner
-  # Verweis auf den scrypt-Hash, erzeugt mit: pnpm --filter @friday/auth hash-password
-  # Formate: env:NAME oder wincred:ZIELNAME (Windows Credential Manager, Modul "CredentialManager")
+  # scrypt-Hash: pnpm --filter @friday/auth hash-password ; Verweis env:NAME, file:<absoluter Pfad> oder wincred:ZIEL
   ownerPasswordHash: env:FRIDAY_OWNER_PASSWORD_HASH
   sessionTtlMinutes: 720
-  reauthWindowMinutes: 5 # Tier-3-Freigaben brauchen eine Re-Auth innerhalb dieses Fensters
+  reauthWindowMinutes: 5
   idleTimeoutMinutes: 30
-  secureCookies: false # true, sobald TLS vor der API terminiert
+  secureCookies: false
 
 realtime:
   ringBufferSize: 5000
@@ -39,18 +32,16 @@ realtime:
 ui:
   locale: de-DE
   timezone: Europe/Berlin
-  assistantName: F.R.I.D.A.Y. # Anzeigename; settings.profile.assistantName hat Vorrang
+  assistantName: F.R.I.D.A.Y.
   theme: friday-command-midnight
   layout: friday-command-overview
-  contentStudio: true # Creator Studio (Menue und API) ausliefern
 
 dev:
-  scenarioConsole: true # Standard: true in mock, sonst false
-  responseValidation: true # Standard: true in mock/hybrid, false in live
+  responseValidation: false
 
 logging:
   level: info
-  redactEmails: false # E-Mail-Adressen in Logs maskieren (Datenschutz-Policy)
+  redactEmails: false
   file:
     enabled: true
     maxBytes: 10485760

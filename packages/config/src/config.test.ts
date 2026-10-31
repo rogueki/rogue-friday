@@ -484,27 +484,22 @@ describe('example files', () => {
   const root = resolve(import.meta.dirname, '..', '..', '..');
   const fixture = (name: string) => readFileSync(join(root, 'config', name), 'utf8');
 
-  it('load cleanly in mock mode and cover all 15 categories', () => {
-    const config = load({ dashboard: fixture('dashboard.example.yaml'), adapters: fixture('adapters.example.yaml') });
-    expect(Object.keys(config.adapters)).toHaveLength(15);
-    expect(ADAPTER_CATEGORIES).toHaveLength(15);
-    for (const category of ADAPTER_CATEGORIES) {
-      expect(config.adapters[category]).toMatchObject({ provider: `mock-${category}`, origin: 'configured', enabled: true });
-    }
+  it('the shipped example loads in live mode with real providers only', () => {
+    const config = load({ dashboard: fixture('dashboard.example.yaml'), adapters: fixture('adapters.example.yaml') }, {});
+    expect(config.dataMode).toBe('live');
     expect(config.warnings).toEqual([]);
+    for (const category of ADAPTER_CATEGORIES) {
+      expect(String(config.adapters[category].provider).startsWith('mock-')).toBe(false);
+    }
+    expect(config.adapters.tasks).toMatchObject({ provider: 'hermes-tasks', enabled: true });
   });
 
-  it('hybrid and live example files load with the real adapter providers', () => {
-    const hybrid = load({ dashboard: 'dataMode: hybrid\n', adapters: fixture('adapters.hybrid.example.yaml') }, {});
-    expect(hybrid.adapters.tasks).toMatchObject({ provider: 'hermes-tasks', enabled: true });
-    expect(hybrid.adapters.voice.provider).toBe('friday-voice-http');
-    expect(hybrid.adapters.system.provider).toBe('local-system');
-    expect(hybrid.adapters.memory.provider).toBe('mock-memory');
-    // Registry-level retry stays opt-in: one attempt unless a category configures more.
-    expect(hybrid.adapters.tasks.retry).toMatchObject({ maxAttempts: 1 });
-    const live = load({ dashboard: 'dataMode: live\n', adapters: fixture('adapters.live.example.yaml') }, {});
+  it('the example adapters keep registry retry opt-in', () => {
+    const live = load({ dashboard: 'dataMode: live\n', adapters: fixture('adapters.example.yaml') }, {});
     expect(live.adapters.tasks.provider).toBe('hermes-tasks');
     expect(live.adapters.memory.enabled).toBe(false);
+    // Registry-level retry stays opt-in: one attempt unless a category configures more.
+    expect(live.adapters.tasks.retry).toMatchObject({ maxAttempts: 1 });
   });
 
   it('.env.example contains no real values', () => {

@@ -45,16 +45,17 @@ class LinuxVoiceServiceTest(unittest.TestCase):
     def test_adapter_switch_keeps_other_sections(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "adapters.yaml"
-            path.write_text("allowlist: {}\nadapters:\n  voice:\n    provider: mock-voice\n  calendar:\n    provider: mock-calendar\n")
+            path.write_text("allowlist: {}\nadapters:\n  voice:\n    provider: friday-voice-http\n    enabled: false\n  calendar:\n    provider: local-calendar\n")
             path.chmod(0o640)
             enable_voice_adapter.configure(path, 43694, "Hey Friday")
             data = enable_voice_adapter.yaml.safe_load(path.read_text())
             self.assertEqual(data["adapters"]["voice"]["provider"], "friday-voice-http")
             self.assertEqual(data["adapters"]["voice"]["config"]["baseUrl"], "http://127.0.0.1:43694")
-            self.assertEqual(data["adapters"]["calendar"]["provider"], "mock-calendar")
+            self.assertEqual(data["adapters"]["calendar"]["provider"], "local-calendar")
             enable_voice_adapter.configure(path, 43694, "Hey Friday", disable=True)
             data = enable_voice_adapter.yaml.safe_load(path.read_text())
-            self.assertEqual(data["adapters"]["voice"]["provider"], "mock-voice")
+            self.assertEqual(data["adapters"]["voice"]["provider"], "friday-voice-http")
+            self.assertIs(data["adapters"]["voice"]["enabled"], False)
             self.assertNotIn("config", data["adapters"]["voice"])
 
 
