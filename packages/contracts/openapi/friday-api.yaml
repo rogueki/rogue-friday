@@ -4862,6 +4862,34 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-required-role: owner
+  /api/v1/voice/conversation-key:
+    post:
+      operationId: setVoiceConversationKey
+      tags: [voice]
+      summary: Check the Alibaba Token Plan key against Qwen Audio and store it for the voice service
+      description: Windows installs only. The key is verified with a short Qwen Audio session before it is stored per Windows user (DPAPI); it is never returned, logged or audited in clear text. A rejected key leaves the stored key unchanged.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceConversationKeyRequest"
+      responses:
+        "200":
+          description: Key verified and stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceConversationKeyStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-required-role: owner
   /api/v1/voice/stt-models/cancel:
     post:
       operationId: cancelVoiceSttModelDownload
@@ -10627,6 +10655,10 @@ components:
       $ref: ../schemas/voice/stt-model-download-request.schema.json
     SttModelCancelRequest:
       $ref: ../schemas/voice/stt-model-cancel-request.schema.json
+    VoiceConversationKeyRequest:
+      $ref: ../schemas/voice/voice-conversation-key-request.schema.json
+    VoiceConversationKeyStatus:
+      $ref: ../schemas/voice/voice-conversation-key-status.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

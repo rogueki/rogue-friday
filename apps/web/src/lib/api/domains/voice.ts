@@ -2,6 +2,8 @@
 
 import type {
   ActionResult,
+  VoiceConversationKeyRequest,
+  VoiceConversationKeyStatus,
   VoiceDeviceListResponse,
   VoiceEnrollment,
   VoiceEnrollmentResponse,
@@ -128,5 +130,14 @@ export function useVoiceTest() {
     label: "Sprachtest",
     mutationFn: ({ idempotencyKey: _key, ...body }) => call(getApiClient().POST("/api/v1/voice/test", { body })),
     invalidate: [queryKeys.voice.metrics],
+  });
+}
+
+/** POST /voice/conversation-key (owner): Qwen prüft den Schlüssel, der Sprachdienst speichert ihn nur bei Erfolg. */
+export function useSetVoiceConversationKey() {
+  return useApiMutation<VoiceConversationKeyStatus, VoiceConversationKeyRequest & IntentVars>({
+    label: "Qwen-Audio-Schlüssel speichern",
+    mutationFn: ({ idempotencyKey: _key, ...body }) => call(getApiClient().POST("/api/v1/voice/conversation-key", { body })),
+    invalidate: [queryKeys.voice.status],
   });
 }

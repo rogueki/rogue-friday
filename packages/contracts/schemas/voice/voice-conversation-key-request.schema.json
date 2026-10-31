@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-conversation-key-request.schema.json",
+  "title": "VoiceConversationKeyRequest",
+  "description": "Alibaba Token Plan key for the Qwen Audio conversation. The voice service checks it against Qwen before storing it per Windows user (DPAPI); it is never returned or logged.",
+  "type": "object",
+  "properties": {
+    "apiKey": { "type": "string", "minLength": 8, "maxLength": 4096, "pattern": "^[!-~]+$", "writeOnly": true }
+  },
+  "required": ["apiKey"],
+  "additionalProperties": false
+}

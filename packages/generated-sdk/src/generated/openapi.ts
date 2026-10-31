@@ -4017,6 +4017,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/conversation-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the Alibaba Token Plan key against Qwen Audio and store it for the voice service
+         * @description Windows installs only. The key is verified with a short Qwen Audio session before it is stored per Windows user (DPAPI); it is never returned, logged or audited in clear text. A rejected key leaves the stored key unchanged.
+         */
+        post: operations["setVoiceConversationKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/devices": {
         parameters: {
             query?: never;
@@ -11062,6 +11082,18 @@ export interface components {
             targetTitle?: string;
             timeZone?: string;
             title?: string;
+        };
+        /**
+         * VoiceConversationKeyRequest
+         * @description Alibaba Token Plan key for the Qwen Audio conversation. The voice service checks it against Qwen before storing it per Windows user (DPAPI); it is never returned or logged.
+         */
+        VoiceConversationKeyRequest: {
+            apiKey: string;
+        };
+        /** VoiceConversationKeyStatus */
+        VoiceConversationKeyStatus: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            keyConfigured: boolean;
         };
         /** VoiceDevice */
         VoiceDevice: {
@@ -20831,6 +20863,36 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    setVoiceConversationKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceConversationKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Key verified and stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConversationKeyStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listVoiceDevices: {

@@ -77,6 +77,23 @@ class WslUpdateDependencyClosureTest(unittest.TestCase):
             called.add("installer/wsl/" + name)
         self.assertEqual(sorted(called - shipped), [])
 
+    def test_local_imports_of_shipped_helpers_are_shipped(self):
+        # A new sibling module imported by a shipped helper would be missing after a GitHub update.
+        helper = (INSTALLER / "scripts" / "update-memory-bridge.ps1").read_text(encoding="utf-8-sig")
+        copied = {path.replace("\\", "/") for path in re.findall(r"'([^']+)'", helper.split("$paths = @(", 1)[1].split(")", 1)[0])
+                  if path.startswith("installer\\wsl\\")}
+        local = {path.stem for path in (INSTALLER / "wsl").glob("*.py")}
+        missing = []
+        for path in sorted(copied):
+            if not path.endswith(".py"):
+                continue
+            text = (INSTALLER.parent / path).read_text(encoding="utf-8")
+            for found in re.findall(r"^\s*(?:from\s+([a-z_][a-z0-9_]*)\s+import|import\s+([a-z_][a-z0-9_]*))", text, re.M):
+                name = found[0] or found[1]
+                if name in local and f"installer/wsl/{name}.py" not in copied:
+                    missing.append(f"{path} -> installer/wsl/{name}.py")
+        self.assertEqual(missing, [])
+
 
 if __name__ == "__main__":
     unittest.main()

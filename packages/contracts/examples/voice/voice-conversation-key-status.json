@@ -1,0 +1,5 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-conversation-key-status.schema.json",
+  "contractVersion": "2.0.0",
+  "keyConfigured": true
+}

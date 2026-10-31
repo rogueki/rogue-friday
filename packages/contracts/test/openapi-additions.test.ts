@@ -76,9 +76,10 @@ describe("observability operations (PLAN §50.3)", () => {
     // Hermes access read (DASH-07.03), 274 with the SKILL.md detail (DASH-10.02), 276 with the skill
     // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
     // diff reports, 283 with the content studio skill bridge (KEEP-05), 286 with the voice domain task
-    // routes (DASH-16.02/16.04), 294 with the Hermes provider device-code login (DASH-07.04). Bump deliberately
+    // routes (DASH-16.02/16.04), 294 with the Hermes provider device-code login (DASH-07.04), 295 with the Qwen Audio
+    // key entry (LG-3b). Bump deliberately
     // with the release note instead of fitting the number to a failure.
-    expect(operations).toHaveLength(294);
+    expect(operations).toHaveLength(295);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

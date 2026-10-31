@@ -73,6 +73,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   installDashboardUpdate: "settings.update",
   exportAudit: "audit.export",
   updateSettings: "settings.update",
+  setVoiceConversationKey: "settings.update",
   patchHermesConfig: "settings.update",
   probeHermesMcp: "settings.update",
   testHermesApproval: "settings.update",

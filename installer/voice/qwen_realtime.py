@@ -32,6 +32,26 @@ def load_key(secret_file: str) -> str:
     return cloud_secret.load_secret(secret_file, linux_file=LINUX_SECRET_FILE, label="Alibaba-Token-Plan")
 
 
+def save_key(secret_file: str, key: str) -> None:
+    cloud_secret.save_secret(secret_file, key, label="Alibaba-Token-Plan")
+
+
+def verify_key(key: str, *, region: str = "ap-southeast-1", connect=None, timeout: float = 15.0) -> None:
+    """Open and close one realtime session; raises RealtimeError (kind auth for a rejected key)."""
+    session = QwenRealtimeSession(key, region=region, instructions="", connect=connect, open_timeout=timeout)
+
+    async def probe():
+        try:
+            await session.connect()
+        finally:
+            await session.close()
+
+    try:
+        asyncio.run(asyncio.wait_for(probe(), timeout + 5))
+    except asyncio.TimeoutError:
+        raise RealtimeError("network", "Qwen Audio antwortet nicht") from None
+
+
 def realtime_url(region: str, model: str = MODEL) -> str:
     if region not in REGIONS:
         raise ValueError("Unbekannte Alibaba-Region")

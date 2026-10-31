@@ -43,3 +43,30 @@ def load_secret(secret_file: str, *, linux_file: str, label: str) -> str:
     if result.returncode or not result.stdout.strip():
         raise RuntimeError(f"{label}-Schluessel konnte nicht fuer diesen Windows-Benutzer gelesen werden")
     return result.stdout.strip()
+
+
+def save_secret(secret_file: str, key: str, *, label: str) -> None:
+    """Store a key for this Windows user (DPAPI, same format the installer writes with ConvertFrom-SecureString)."""
+    if os.name != "nt":
+        raise RuntimeError(f"{label}-Schluessel kann hier nur der Installer speichern")
+    if (not isinstance(key, str) or not 8 <= len(key) <= 4096
+            or not all(0x21 <= ord(char) <= 0x7E for char in key)):
+        raise ValueError(f"{label}-Schluessel ist ungueltig")
+    os.makedirs(os.path.dirname(secret_file) or ".", exist_ok=True)
+    tmp = secret_file + ".tmp"
+    script = ("$k=[Console]::In.ReadToEnd().Trim();$s=ConvertTo-SecureString $k -AsPlainText -Force;"
+              "$s|ConvertFrom-SecureString|Set-Content -LiteralPath $env:FRIDAY_SECRET_FILE -Encoding Ascii")
+    try:
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+                                env={**os.environ, "FRIDAY_SECRET_FILE": tmp}, input=key,
+                                capture_output=True, text=True, timeout=15, check=False)
+        if result.returncode or not os.path.isfile(tmp) or not os.path.getsize(tmp):
+            raise RuntimeError(f"{label}-Schluessel konnte nicht gespeichert werden")
+        os.replace(tmp, secret_file)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
