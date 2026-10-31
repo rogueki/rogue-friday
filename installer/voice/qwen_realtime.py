@@ -132,12 +132,13 @@ class QwenRealtimeSession:
         if self._ws is not None:
             await self.close()
         self._closing = False
-        from websockets.exceptions import InvalidStatus
-        if self._connect is None:
+        try:
+            from websockets.exceptions import InvalidStatus
             from websockets.asyncio.client import connect as ws_connect
-            connect_fn = ws_connect
-        else:
-            connect_fn = self._connect
+        except ImportError as error:
+            # An install updated before the package was added must fall back to the local answer, not crash the turn.
+            raise RealtimeError("protocol", "Python-Paket websockets fehlt im Sprachdienst") from error
+        connect_fn = ws_connect if self._connect is None else self._connect
         try:
             ws = await connect_fn(self._url, additional_headers={"Authorization": f"Bearer {self._api_key}"},
                                   open_timeout=self._open_timeout, max_size=None, ping_interval=20)

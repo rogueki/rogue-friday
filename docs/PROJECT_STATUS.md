@@ -1393,6 +1393,12 @@ entfernt) rot; pyflakes ohne Befund.
   oder ist der Schlüssel unlesbar → 422, alter Modus bleibt) und tauscht sie nach dem Schreiben ohne Neustart aus.
   Ohne hinterlegten Schlüssel ist Qwen im Dashboard nicht wählbar und der Hinweis nennt den Installer-Weg. Alte
   voice.json ohne `qwen_key_file` bekommen den Standardpfad.
+- **GitHub-Update (W4):** Das Update kopierte neue Sprachmodule, installierte aber keine neuen Python-Pakete; auf einer
+  bestehenden Installation hätte `websockets` gefehlt. `update-voice-personas.ps1` installiert jetzt fehlende Pakete aus
+  `$requiredPackages` in die Voice-Venv (nur wenn `import` scheitert; Ergebnis `present|installed|failed` in `result.json`,
+  kein Abbruch des Updates). Zusätzlich meldet `QwenRealtimeSession.connect` ein fehlendes Paket als `RealtimeError
+  protocol`, damit der Turn lokal beantwortet wird statt abzustürzen. Test `voice-update-packages.Tests.ps1`
+  (inkl. Gleichstand der Versionsangabe mit dem Installer); Gegenproben rot.
 - **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
