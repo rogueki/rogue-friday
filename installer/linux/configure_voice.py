@@ -14,9 +14,11 @@ import tempfile
 
 
 SECRET_PATH = Path("/etc/friday/secrets/elevenlabs.key")
+QWEN_SECRET_PATH = Path("/etc/friday/secrets/alibaba-tokenplan.key")
 CONFIG_PATH = Path("/etc/friday/voice.json")
 STATE_PATH = Path("/var/lib/friday")
 VOICE_ID = re.compile(r"[A-Za-z0-9]{10,128}\Z")
+QWEN_REGIONS = ("ap-southeast-1", "cn-beijing")
 
 
 def valid_key(raw: bytes) -> bytes:
@@ -27,7 +29,16 @@ def valid_key(raw: bytes) -> bytes:
     return key
 
 
-def read_key(source: str, file_path: str | None) -> bytes:
+def valid_qwen_key(raw: bytes) -> bytes:
+    key = raw.strip()
+    if (len(raw) > 4096 or not key or len(key) > 4096 or len(key) < 8
+            or any(byte < 0x21 or byte > 0x7E for byte in key)):
+        raise ValueError("Invalid Alibaba Token Plan key input")
+    return key
+
+
+def read_key(source: str, file_path: str | None, *, validator=valid_key,
+             prompt: str = "ElevenLabs API key: ") -> bytes:
     if source == "file":
         if not file_path or not Path(file_path).is_absolute():
             raise ValueError("--key-file requires an absolute path")
@@ -43,8 +54,8 @@ def read_key(source: str, file_path: str | None) -> bytes:
     elif source == "stdin":
         raw = sys.stdin.buffer.read(4097)
     else:
-        raw = getpass.getpass("ElevenLabs API key: ", stream=sys.stderr).encode("ascii")
-    return valid_key(raw)
+        raw = getpass.getpass(prompt, stream=sys.stderr).encode("ascii")
+    return validator(raw)
 
 
 def atomic_private_write(path: Path, data: bytes, owner: int, group: int, mode: int) -> None:
@@ -101,6 +112,21 @@ def existing_key(service_uid: int, service_gid: int) -> bytes:
         os.close(descriptor)
 
 
+def existing_qwen_key(service_uid: int, service_gid: int) -> bytes | None:
+    try:
+        descriptor = os.open(QWEN_SECRET_PATH, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
+    except FileNotFoundError:
+        return None
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != service_uid
+                or info.st_gid != service_gid or info.st_mode & 0o177 or info.st_size > 4096):
+            raise ValueError("Existing Alibaba Token Plan key has unsafe ownership or permissions")
+        return valid_qwen_key(os.read(descriptor, 4097))
+    finally:
+        os.close(descriptor)
+
+
 def reusable_cloud_config(config: dict, service_uid: int, service_gid: int) -> bool:
     if config.get("voice_mode") != "elevenlabs":
         return False
@@ -114,11 +140,24 @@ def reusable_cloud_config(config: dict, service_uid: int, service_gid: int) -> b
 
 def configure(mode: str, voice_id: str | None, key_source: str | None, key_file: str | None,
               voice_port: int = 43694, hermes_api_port: int = 43693,
-              dashboard_port: int = 3100) -> None:
+              dashboard_port: int = 3100, conversation: str | None = None,
+              qwen_region: str | None = None, qwen_consent: bool = False,
+              qwen_key_source: str | None = None, qwen_key_file: str | None = None) -> None:
     if os.geteuid() != 0:
         raise ValueError("Voice configuration requires root")
+    if key_source == "stdin" and qwen_key_source == "stdin":
+        raise ValueError("Only one key can be read from stdin")
+    if conversation not in (None, "local", "qwen"):
+        raise ValueError("Invalid conversation backend")
+    if conversation != "qwen" and (qwen_region or qwen_consent or qwen_key_source or qwen_key_file):
+        raise ValueError("Qwen options require --conversation-backend qwen")
+    if conversation == "qwen" and not qwen_consent:
+        raise ValueError("Qwen Audio requires --qwen-consent")
     service_uid, service_gid = ensure_secret_directory()
     existing = existing_config(service_gid)
+    previous_key = None
+    previous_qwen_key = None
+    qwen_region_value: str | None = None
     reusable = reusable_cloud_config(existing, service_uid, service_gid) if mode == "elevenlabs" else False
     if mode == "elevenlabs":
         voice_id = voice_id or (existing["elevenlabs_voice_id"] if reusable else None)
@@ -132,6 +171,17 @@ def configure(mode: str, voice_id: str | None, key_source: str | None, key_file:
             raise ValueError("Cloud mode requires --key-stdin, --key-file or --key-prompt")
     elif voice_id or key_source or key_file:
         raise ValueError("ElevenLabs options require --voice-mode elevenlabs")
+    if conversation == "qwen":
+        qwen_region_value = qwen_region or existing.get("qwen_region") or "ap-southeast-1"
+        if qwen_region_value not in QWEN_REGIONS:
+            raise ValueError("Invalid Qwen region")
+        previous_qwen_key = existing_qwen_key(service_uid, service_gid)
+        if qwen_key_source:
+            qwen_key = read_key(qwen_key_source, qwen_key_file, validator=valid_qwen_key,
+                                prompt="Alibaba Token Plan API key: ")
+            atomic_private_write(QWEN_SECRET_PATH, qwen_key + b"\n", service_uid, service_gid, 0o600)
+        elif previous_qwen_key is None:
+            raise ValueError("Qwen Audio requires --qwen-key-stdin, --qwen-key-file or --qwen-key-prompt")
     if any(not 1024 <= port <= 65534 for port in (voice_port, hermes_api_port, dashboard_port)):
         raise ValueError("Service ports must be 1024..65534")
     if len({voice_port, voice_port + 1, hermes_api_port, dashboard_port}) != 4:
@@ -170,6 +220,12 @@ def configure(mode: str, voice_id: str | None, key_source: str | None, key_file:
         "data_dir": str(STATE_PATH / "data"),
         "tts_backend": "elevenlabs" if mode == "elevenlabs" else "streaming_qwen",
     })
+    if conversation is not None:
+        existing["conversation_backend"] = conversation
+        if conversation == "qwen":
+            existing["qwen_region"] = qwen_region_value
+            existing["qwen_consent"] = True
+            existing["qwen_key_file"] = str(QWEN_SECRET_PATH)
     try:
         atomic_private_write(CONFIG_PATH, (json.dumps(existing, indent=2, ensure_ascii=False) + "\n").encode(), 0, service_gid, 0o640)
     except Exception:
@@ -178,6 +234,11 @@ def configure(mode: str, voice_id: str | None, key_source: str | None, key_file:
                 SECRET_PATH.unlink(missing_ok=True)
             else:
                 atomic_private_write(SECRET_PATH, previous_key + b"\n", service_uid, service_gid, 0o600)
+        if conversation == "qwen" and qwen_key_source:
+            if previous_qwen_key is None:
+                QWEN_SECRET_PATH.unlink(missing_ok=True)
+            else:
+                atomic_private_write(QWEN_SECRET_PATH, previous_qwen_key + b"\n", service_uid, service_gid, 0o600)
         raise
 
 
@@ -189,12 +250,21 @@ def main() -> None:
     parser.add_argument("--voice-port", type=int, default=43694)
     parser.add_argument("--hermes-api-port", type=int, default=43693)
     parser.add_argument("--dashboard-port", type=int, default=3100)
+    parser.add_argument("--conversation-backend", choices=("local", "qwen"))
+    parser.add_argument("--qwen-region", choices=QWEN_REGIONS)
+    parser.add_argument("--qwen-consent", action="store_true")
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--key-file")
     sources.add_argument("--key-stdin", action="store_true")
     sources.add_argument("--key-prompt", action="store_true")
+    qwen_sources = parser.add_mutually_exclusive_group()
+    qwen_sources.add_argument("--qwen-key-file")
+    qwen_sources.add_argument("--qwen-key-stdin", action="store_true")
+    qwen_sources.add_argument("--qwen-key-prompt", action="store_true")
     options = parser.parse_args()
     source = "file" if options.key_file else "stdin" if options.key_stdin else "prompt" if options.key_prompt else None
+    qwen_key_source = ("file" if options.qwen_key_file else "stdin" if options.qwen_key_stdin
+                       else "prompt" if options.qwen_key_prompt else None)
     try:
         if options.inspect_existing:
             if os.geteuid() != 0:
@@ -204,11 +274,14 @@ def main() -> None:
             print("valid" if reusable_cloud_config(config, uid, gid) else "none")
             return
         configure(options.voice_mode, options.elevenlabs_voice_id, source, options.key_file,
-                  options.voice_port, options.hermes_api_port, options.dashboard_port)
+                  options.voice_port, options.hermes_api_port, options.dashboard_port,
+                  options.conversation_backend, options.qwen_region, options.qwen_consent,
+                  qwen_key_source, options.qwen_key_file)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         # Error messages intentionally never contain the key or its contents.
         parser.exit(1, f"Voice setup failed: {error}\n")
-    print(f"Voice configuration written ({options.voice_mode})")
+    suffix = f" conversation={options.conversation_backend}" if options.conversation_backend else ""
+    print(f"Voice configuration written ({options.voice_mode}){suffix}")
 
 
 if __name__ == "__main__":

@@ -18,13 +18,18 @@ SERVICE=friday
 HERMES_PIN=d923a5eb487a17c0a68801bba9ef0f56c81040a8
 HERMES_TREE=$STATE/.hermes/hermes-agent
 VOICE_MODE=
+CONVERSATION=
+QWEN_REGION=
+QWEN_CONSENT=0
+QWEN_KEY_SOURCE=
+QWEN_KEY_FILE=
 ELEVENLABS_VOICE_ID=
 KEY_SOURCE=
 KEY_FILE=
 
 usage() {
   cat <<'EOF'
-Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT] [--hermes-api-port PORT] [--voice-port PORT] [--voice-mode local|elevenlabs] [--elevenlabs-voice-id ID] [--key-stdin|--key-file ABS_PATH|--key-prompt]
+Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT] [--hermes-api-port PORT] [--voice-port PORT] [--voice-mode local|elevenlabs] [--elevenlabs-voice-id ID] [--key-stdin|--key-file ABS_PATH|--key-prompt] [--conversation local|qwen] [--qwen-region ap-southeast-1|cn-beijing] [--qwen-consent] [--qwen-key-file ABS_PATH|--qwen-key-prompt]
 Ubuntu 22.04/24.04 or Debian 12/13 on x86_64/aarch64; local loopback services only.
 --dry-run prints the plan and missing prerequisites without changing the system.
 --validate exits nonzero if host prerequisites or the existing Friday Hermes binary are missing.
@@ -48,6 +53,11 @@ while (($#)); do
     --hermes-api-port) (($# >= 2)) || fail '--hermes-api-port needs a value'; HERMES_API_PORT=$2; shift 2 ;;
     --voice-port) (($# >= 2)) || fail '--voice-port needs a value'; VOICE_PORT=$2; shift 2 ;;
     --voice-mode) (($# >= 2)) || fail '--voice-mode needs local or elevenlabs'; VOICE_MODE=$2; shift 2 ;;
+    --conversation) (($# >= 2)) || fail '--conversation needs local or qwen'; CONVERSATION=$2; shift 2 ;;
+    --qwen-region) (($# >= 2)) || fail '--qwen-region needs ap-southeast-1 or cn-beijing'; QWEN_REGION=$2; shift 2 ;;
+    --qwen-consent) QWEN_CONSENT=1; shift ;;
+    --qwen-key-file) (($# >= 2)) || fail '--qwen-key-file needs a value'; [[ -z "$QWEN_KEY_SOURCE" ]] || fail 'Choose one Qwen key input'; QWEN_KEY_SOURCE=file; QWEN_KEY_FILE=$2; shift 2 ;;
+    --qwen-key-prompt) [[ -z "$QWEN_KEY_SOURCE" ]] || fail 'Choose one Qwen key input'; QWEN_KEY_SOURCE=prompt; shift ;;
     --elevenlabs-voice-id) (($# >= 2)) || fail '--elevenlabs-voice-id needs a value'; ELEVENLABS_VOICE_ID=$2; shift 2 ;;
     --key-stdin) [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=stdin; shift ;;
     --key-file) (($# >= 2)) || fail '--key-file needs an absolute path'; [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=file; KEY_FILE=$2; shift 2 ;;
@@ -73,6 +83,10 @@ ports=("$FRIDAY_PORT" "$HERMES_PORT" "$HERMES_API_PORT" "$VOICE_PORT" "$((VOICE_
 [[ "$(printf '%s\n' "${ports[@]}" | sort -u | wc -l)" -eq 5 ]] || fail 'Dashboard, Hermes, Hermes API, voice and browser-audio ports must differ'
 [[ -z "$VOICE_MODE" || "$VOICE_MODE" == local || "$VOICE_MODE" == elevenlabs ]] || fail '--voice-mode must be local or elevenlabs'
 [[ -z "$KEY_FILE" || "$KEY_FILE" = /* ]] || fail '--key-file must be absolute'
+[[ -z "$CONVERSATION" || "$CONVERSATION" == local || "$CONVERSATION" == qwen ]] || fail '--conversation must be local or qwen'
+[[ -z "$QWEN_REGION" || "$QWEN_REGION" == ap-southeast-1 || "$QWEN_REGION" == cn-beijing ]] || fail '--qwen-region must be ap-southeast-1 or cn-beijing'
+if [[ "$CONVERSATION" != qwen && ( -n "$QWEN_REGION" || "$QWEN_CONSENT" == 1 || -n "$QWEN_KEY_SOURCE" ) ]]; then fail 'Qwen options require --conversation qwen'; fi
+[[ -z "$QWEN_KEY_FILE" || "$QWEN_KEY_FILE" = /* ]] || fail '--qwen-key-file must be absolute'
 if [[ "$MODE" == install && -z "$VOICE_MODE" ]]; then
   if [[ -r "$CONFIG/voice.json" ]]; then
     [[ ! -L "$CONFIG/voice.json" ]] || fail 'Existing voice.json must not be a symlink'
@@ -83,6 +97,13 @@ if [[ "$MODE" == install && -z "$VOICE_MODE" ]]; then
     read -r -p 'Voice mode (local/elevenlabs): ' VOICE_MODE </dev/tty
   fi
 fi
+if [[ "$MODE" == install && "$VOICE_MODE" == elevenlabs && -z "$CONVERSATION" && ! -e "$CONFIG/voice.json" && -r /dev/tty ]]; then
+  read -r -p 'Live conversation with Qwen Audio over the Alibaba Token Plan? (local/qwen) [local]: ' CONVERSATION </dev/tty
+  CONVERSATION=${CONVERSATION:-local}
+fi
+[[ -z "$CONVERSATION" || "$CONVERSATION" == local || "$CONVERSATION" == qwen ]] || fail '--conversation must be local or qwen'
+# The native Linux voice service only runs with the browser (ElevenLabs) voice, so Qwen needs that mode.
+if [[ "$CONVERSATION" == qwen && "$VOICE_MODE" == local ]]; then fail 'Qwen Audio on Linux needs --voice-mode elevenlabs; the native local voice is not available'; fi
 [[ -z "$VOICE_MODE" || "$VOICE_MODE" == local || "$VOICE_MODE" == elevenlabs ]] || fail '--voice-mode must be local or elevenlabs'
 if [[ "$VOICE_MODE" == local && ( -n "$ELEVENLABS_VOICE_ID" || -n "$KEY_SOURCE" ) ]]; then fail 'ElevenLabs options require --voice-mode elevenlabs'; fi
 if [[ "$VOICE_MODE" == elevenlabs && -n "$ELEVENLABS_VOICE_ID" && ! "$ELEVENLABS_VOICE_ID" =~ ^[A-Za-z0-9]{10,128}$ ]]; then fail 'Invalid ElevenLabs Voice ID'; fi
@@ -151,6 +172,7 @@ fi
 note "Plan: $RELEASES/<revision> -> $CURRENT; config $CONFIG; persistent state $STATE; dashboard 127.0.0.1:$FRIDAY_PORT, Hermes 127.0.0.1:$HERMES_PORT, Hermes API 127.0.0.1:$HERMES_API_PORT, voice 127.0.0.1:$VOICE_PORT"
 note "Friday skills source: ${SKILLS_SOURCE:-missing}"
 note "Voice selection: ${VOICE_MODE:-choose at install}; ElevenLabs voice starts after private enrollment and Hermes API prerequisites"
+note "Conversation: ${CONVERSATION:-keep existing or choose at install}"
 [[ "$MODE" != dry-run ]] || note 'Dry-run does not invoke pnpm/Corepack; its exact version is checked by --validate/install.'
 if ((${#problems[@]})); then printf 'Prerequisite: %s\n' "${problems[@]}" >&2; fi
 if [[ "$MODE" == dry-run ]]; then
@@ -205,6 +227,21 @@ if [[ "$VOICE_MODE" == elevenlabs ]]; then
     [[ -n "$ELEVENLABS_VOICE_ID" ]] || fail 'ElevenLabs mode requires --elevenlabs-voice-id YOUR_VOICE_ID'
     [[ -n "$KEY_SOURCE" ]] || fail 'ElevenLabs mode requires --key-stdin, --key-file or --key-prompt'
   fi
+fi
+if [[ "$CONVERSATION" == qwen ]]; then
+  if (( !QWEN_CONSENT )) && [[ -r /dev/tty ]]; then
+    note 'Qwen Audio sends speech and conversation content to Alibaba Cloud (Token Plan). Wake word, speaker check and voice stay on this machine.'
+    read -r -p 'Agree to this data transfer? (yes/no) [no]: ' qwen_answer </dev/tty
+    [[ "$qwen_answer" == yes ]] && QWEN_CONSENT=1
+  fi
+  if (( !QWEN_CONSENT )); then
+    note 'Without consent the conversation stays local.'
+    CONVERSATION=local
+  fi
+fi
+if [[ "$CONVERSATION" == qwen && -z "$QWEN_KEY_SOURCE" && ! -f "$CONFIG/secrets/alibaba-tokenplan.key" ]]; then
+  [[ -r /dev/tty ]] && QWEN_KEY_SOURCE=prompt
+  [[ -n "$QWEN_KEY_SOURCE" ]] || fail 'Qwen Audio requires --qwen-key-file or --qwen-key-prompt'
 fi
 if [[ ! -e "$CONFIG/dashboard.yaml" ]]; then
   cat > "$CONFIG/dashboard.yaml" <<YAML
@@ -272,6 +309,17 @@ if [[ "$VOICE_MODE" == elevenlabs ]]; then
     prompt) voice_args+=(--key-prompt) ;;
   esac
 fi
+if [[ -n "$CONVERSATION" ]]; then
+  voice_args+=(--conversation-backend "$CONVERSATION")
+fi
+if [[ "$CONVERSATION" == qwen ]]; then
+  voice_args+=(--qwen-consent)
+  [[ -z "$QWEN_REGION" ]] || voice_args+=(--qwen-region "$QWEN_REGION")
+  case "$QWEN_KEY_SOURCE" in
+    file) voice_args+=(--qwen-key-file "$QWEN_KEY_FILE") ;;
+    prompt) voice_args+=(--qwen-key-prompt) ;;
+  esac
+fi
 
 revision=$(git -C "$SOURCE" rev-parse --short=12 HEAD 2>/dev/null || echo source)
 release="$RELEASES/$revision-$(date -u +%Y%m%d%H%M%S)"
@@ -329,16 +377,16 @@ cleanup() {
     note 'Health check failed; restoring previous release symlink.' >&2
     if [[ -n "$voice_backup" ]]; then
       restore_failed=0
-      for file in voice.json elevenlabs.key adapters.yaml; do
+      for file in voice.json elevenlabs.key alibaba-tokenplan.key adapters.yaml; do
         if [[ -f "$voice_backup/$file" ]]; then
           case "$file" in
             voice.json|adapters.yaml) cp -p -- "$voice_backup/$file" "$CONFIG/$file" || restore_failed=1 ;;
-            elevenlabs.key) cp -p -- "$voice_backup/$file" "$CONFIG/secrets/$file" || restore_failed=1 ;;
+            elevenlabs.key|alibaba-tokenplan.key) cp -p -- "$voice_backup/$file" "$CONFIG/secrets/$file" || restore_failed=1 ;;
           esac
         elif [[ -f "$voice_backup/$file.absent" ]]; then
           case "$file" in
             voice.json|adapters.yaml) rm -f -- "$CONFIG/$file" || restore_failed=1 ;;
-            elevenlabs.key) rm -f -- "$CONFIG/secrets/$file" || restore_failed=1 ;;
+            elevenlabs.key|alibaba-tokenplan.key) rm -f -- "$CONFIG/secrets/$file" || restore_failed=1 ;;
           esac
         fi
       done
@@ -600,9 +648,9 @@ systemctl restart friday-dashboard.service
 curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Friday dashboard did not become healthy.'
 voice_backup=$(mktemp -d "$CONFIG/.voice-rollback.XXXXXX")
 chmod 0700 "$voice_backup"
-for file in voice.json elevenlabs.key adapters.yaml; do
+for file in voice.json elevenlabs.key alibaba-tokenplan.key adapters.yaml; do
   case "$file" in
-    elevenlabs.key) original="$CONFIG/secrets/$file" ;;
+    elevenlabs.key|alibaba-tokenplan.key) original="$CONFIG/secrets/$file" ;;
     *) original="$CONFIG/$file" ;;
   esac
   if [[ -f "$original" ]]; then cp -p -- "$original" "$voice_backup/$file"; else touch "$voice_backup/$file.absent"; fi
@@ -661,7 +709,7 @@ else
   note 'VOICE_PENDING: native Linux local voice needs a dedicated GPU/TTS and local audio path; cloud browser voice is available with --voice-mode elevenlabs.'
 fi
 if [[ -n "$voice_backup" ]]; then
-  rm -f -- "$voice_backup/voice.json" "$voice_backup/voice.json.absent" "$voice_backup/elevenlabs.key" "$voice_backup/elevenlabs.key.absent" "$voice_backup/adapters.yaml" "$voice_backup/adapters.yaml.absent"
+  rm -f -- "$voice_backup/voice.json" "$voice_backup/voice.json.absent" "$voice_backup/elevenlabs.key" "$voice_backup/elevenlabs.key.absent" "$voice_backup/alibaba-tokenplan.key" "$voice_backup/alibaba-tokenplan.key.absent" "$voice_backup/adapters.yaml" "$voice_backup/adapters.yaml.absent"
   rmdir -- "$voice_backup"
   voice_backup=
 fi

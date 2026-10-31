@@ -57,6 +57,7 @@ jobs:
             installer/voice/test_memory_outbox.py \
             installer/voice/test_connected_calendar_voice.py \
             installer/voice/tests/test_browser_audio.py \
+            installer/linux/tests/test_configure_voice.py \
             installer/voice/tests/test_personal_wake.py \
             installer/voice/tests/test_wake_enrollment.py \
             installer/voice/tests/test_runtime_settings.py \
@@ -136,6 +137,9 @@ jobs:
             scripts/test_wsl_recovery_bridge_health.py \
             installer/wsl/tests/test_mail_bridge_setup.py \
             installer/wsl/tests/test_calendar_bridge_setup.py
+
+      - name: Native Linux installer modes
+        run: bash installer/linux/tests/test_installer_modes.sh
 
       - name: Script-style bridge and runner tests
         env:
