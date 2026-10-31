@@ -127,7 +127,7 @@ class ToolSpecsTest(unittest.TestCase):
         specs = Harness().voice.tool_specs()
         self.assertEqual([spec["function"]["name"] for spec in specs],
                          ["task_create", "task_status", "task_cancel", "task_antwort", "ruhemodus", "friday_lesen",
-                          "friday_hilfe", "zeit_datum"])
+                          "friday_hilfe", "friday_diagnose", "zeit_datum"])
         parameters = specs[0]["function"]["parameters"]
         self.assertEqual(tuple(parameters["properties"]["domain"]["enum"]), DOMAINS)
         self.assertEqual(parameters["required"], ["domain", "auftrag"])
@@ -580,6 +580,68 @@ class HelpToolTest(unittest.TestCase):
         self.assertNotIn("Bereiche des Dashboards", text)
 
 
+class DiagnoseToolTest(unittest.TestCase):
+    BEFUNDE = ({"bereich": "mikrofon", "ok": True, "text": "Mikrofon liefert Pegel."},
+               {"bereich": "qwen", "ok": False, "text": "Qwen antwortet nicht."})
+
+    @staticmethod
+    def diagnose():
+        return {"befunde": [dict(entry) for entry in DiagnoseToolTest.BEFUNDE],
+                "zusammenfassung": "Zwei Befunde geprüft."}
+
+    def test_tool_is_offered_right_after_the_help(self):
+        names = [spec["function"]["name"] for spec in Harness().voice.tool_specs()]
+        self.assertEqual(names.index("friday_diagnose"), names.index("friday_hilfe") + 1)
+
+    def test_without_diagnostics_it_is_an_error(self):
+        self.assertEqual(Harness().voice.call_tool("friday_diagnose", {"thema": "alles"}),
+                         {"error": "Die Selbstdiagnose ist gerade nicht verfügbar."})
+
+    def test_failing_diagnostics_becomes_the_same_error(self):
+        def boom():
+            raise OSError("self check down")
+
+        self.assertEqual(Harness(diagnostics=boom).voice.call_tool("friday_diagnose", {}),
+                         {"error": "Die Selbstdiagnose ist gerade nicht verfügbar."})
+
+    def test_all_passes_the_summary_through(self):
+        voice = Harness(diagnostics=self.diagnose).voice
+        self.assertEqual(voice.call_tool("friday_diagnose", {"thema": "alles"}),
+                         {"befunde": [dict(entry) for entry in self.BEFUNDE],
+                          "zusammenfassung": "Zwei Befunde geprüft."})
+        self.assertEqual(voice.call_tool("friday_diagnose", {})["zusammenfassung"], "Zwei Befunde geprüft.")
+
+    def test_unknown_topic_falls_back_to_everything(self):
+        voice = Harness(diagnostics=self.diagnose).voice
+        self.assertEqual(voice.call_tool("friday_diagnose", {"thema": "wetter"})["zusammenfassung"],
+                         "Zwei Befunde geprüft.")
+
+    def test_single_topic_filters_and_builds_the_summary(self):
+        voice = Harness(diagnostics=self.diagnose).voice
+        result = voice.call_tool("friday_diagnose", {"thema": "mikrofon"})
+        self.assertEqual(result["befunde"], [dict(self.BEFUNDE[0])])
+        self.assertEqual(result["zusammenfassung"], "Mikrofon liefert Pegel.")
+
+    def test_several_findings_of_one_topic_are_joined(self):
+        voice = Harness(diagnostics=lambda: {
+            "befunde": [{"bereich": "system", "ok": True, "text": "Speicher frei."},
+                        {"bereich": "system", "ok": True, "text": "Temperatur normal."}],
+            "zusammenfassung": "System in Ordnung."}).voice
+        result = voice.call_tool("friday_diagnose", {"thema": "system"})
+        self.assertEqual(result["zusammenfassung"], "Speicher frei. Temperatur normal.")
+
+    def test_topic_without_measurements_is_a_hint(self):
+        voice = Harness(diagnostics=self.diagnose).voice
+        self.assertEqual(voice.call_tool("friday_diagnose", {"thema": "gedaechtnis"}),
+                         {"hinweis": "Dazu habe ich gerade keine Messwerte."})
+
+    def test_instructions_ask_for_the_diagnosis_first(self):
+        text = Harness().voice.instructions("Friday")
+        self.assertIn("Meldet der Nutzer ein Problem mit dir", text)
+        self.assertIn("rufst du zuerst friday_diagnose auf und nennst die Befunde", text)
+        self.assertIn("danach hilft friday_hilfe mit den Prüfschritten", text)
+
+
 class ConversationWindowTest(unittest.TestCase):
     def test_window_opens_and_closes(self):
         harness = Harness()
@@ -705,6 +767,16 @@ class LocalParseTest(unittest.TestCase):
         ("Wo finde ich die Einstellungen?", "friday_hilfe", {"frage": "Wo finde ich die Einstellungen?"}),
     )
 
+    def test_diagnose_phrases_are_local_commands(self):
+        for text in ("Selbstdiagnose", "Selbsttest", "Prüf dich", "Prüfe dich selbst", "Überprüfe dich",
+                     "Ist mit dir alles in Ordnung?", "Funktioniert bei dir alles?", "Was stimmt mit dir nicht?"):
+            with self.subTest(text=text):
+                self.assertEqual(parse_local_command(text), ("friday_diagnose", {"thema": "alles"}))
+
+    def test_how_to_question_about_the_microphone_is_help(self):
+        self.assertEqual(parse_local_command("Wie prüfe ich das Mikrofon?"),
+                         ("friday_hilfe", {"frage": "Wie prüfe ich das Mikrofon?"}))
+
     def test_parser_table(self):
         for text, name, arguments in self.CASES:
             with self.subTest(text=text):
@@ -756,6 +828,15 @@ class LocalReplyTest(unittest.TestCase):
     def test_help_hint_falls_back(self):
         self.assertIsNone(local_reply("friday_hilfe", {"hinweis": "Dazu steht nichts in der eingebauten Hilfe."}))
 
+    def test_diagnose_reply_uses_summary_hint_or_error(self):
+        self.assertEqual(local_reply("friday_diagnose", {"zusammenfassung": "Alles bereit."}), "Alles bereit.")
+        self.assertEqual(local_reply("friday_diagnose", {"hinweis": "Dazu habe ich gerade keine Messwerte."}),
+                         "Dazu habe ich gerade keine Messwerte.")
+        self.assertEqual(local_reply("friday_diagnose",
+                                     {"error": "Die Selbstdiagnose ist gerade nicht verfügbar."}),
+                         "Die Selbstdiagnose ist gerade nicht verfügbar.")
+        self.assertIsNone(local_reply("friday_diagnose", {"befunde": []}))
+
     def test_other_tools_have_no_local_reply(self):
         self.assertIsNone(local_reply("task_status", {"laufend": [], "fertig": []}))
 
@@ -802,6 +883,18 @@ class LocalCommandTest(unittest.TestCase):
         harness.voice.call_tool = boom
         self.assertIsNone(harness.voice.local_command("Ruhemodus"))
 
+
+
+class LocalDiagnoseCommandTest(unittest.TestCase):
+    def test_local_command_speaks_the_summary(self):
+        harness = Harness(diagnostics=lambda: {
+            "befunde": [{"bereich": "mikrofon", "ok": True, "text": "Mikrofon liefert Pegel."}],
+            "zusammenfassung": "Mikrofon liefert Pegel."})
+        self.assertEqual(harness.voice.local_command("Prüf dich"), "Mikrofon liefert Pegel.")
+
+    def test_local_command_without_diagnostics_speaks_the_error(self):
+        self.assertEqual(Harness().voice.local_command("Selbstdiagnose"),
+                         "Die Selbstdiagnose ist gerade nicht verfügbar.")
 
 
 class LocalHelpBeforeSwitchTest(unittest.TestCase):

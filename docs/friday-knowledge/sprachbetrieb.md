@@ -39,3 +39,8 @@ Du kannst den Ruhemodus per Sprache einschalten, etwa mit Ruhemodus für eine St
 Stichworte: beispiele, beispielsätze, sprachbefehle, was kann ich sagen, sätze, formulierungen
 Bereich: sprache
 Nach dem Wake Word kannst du zum Beispiel sagen: Wie spät ist es? Oder: Wie weit sind meine Aufgaben? Was steht heute an? Welche Freigaben sind offen? Ruhemodus für eine Stunde. Recherchiere ein Thema, dann meldet sich der Assistent, sobald das Ergebnis fertig ist. Sprich möglichst in ganzen, klaren Sätzen. Einstellungen ändert der Assistent per Sprache nur bei der Nachtruhe. Alle anderen Einstellungen änderst du im Dashboard.
+
+## Selbstdiagnose: Prüf dich
+Stichworte: selbstdiagnose, selbsttest, prüf dich, hörst mich nicht, antwortest nicht, keine ansagen, funktioniert alles, fehler finden
+Bereich: sprache
+Sag „Prüf dich“ oder „Selbsttest“, dann prüft F.R.I.D.A.Y. sich mit Live-Werten und nennt zuerst, was auffällt: ob das Mikrofon aufnimmt, ob das Wake Word an ist, ob die Sprecherprüfung ein Profil hat oder viele Befehle abgelehnt hat, ob der Qwen-Gesprächsmodus seinen Schlüssel hat, ob das Dashboard erreichbar ist, ob gerade Ruhemodus oder Nachtruhe gilt, wie der Systemstatus aussieht und ob das Gedächtnis Einträge nicht übertragen kann. Findet sie nichts, sagt sie das. Die Antwort kommt direkt, ohne Agent und ohne Rohfehlertexte. Die Prüfschritte zu einem Befund erklärt die Hilfe, etwa mit der Frage „Wie prüfe ich das Mikrofon?“.

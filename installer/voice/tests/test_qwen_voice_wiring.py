@@ -274,7 +274,8 @@ def _classic_quiet_service(jv, state):
     svc = make_service(jv)
     svc.domain_tasks = _QuietTasks(state)
     svc.quiet_gate = jv.QuietGate(svc.domain_tasks.quiet_state)
-    svc.announcer = jv.ConversationOrchestrator(svc.domain_tasks, quiet_gate=svc.quiet_gate)
+    svc.announcer = jv.ConversationOrchestrator(svc.domain_tasks, quiet_gate=svc.quiet_gate,
+                                                diagnostics=svc._self_diagnosis)
     return svc
 
 
@@ -306,6 +307,34 @@ def test_local_router_leaves_other_questions_to_the_model():
     svc = _classic_quiet_service(jv, {"active": False})
     assert svc._local_command("Wie wird das Wetter morgen?") is None
     assert svc._local_command("Sei still") is None
+
+
+def test_self_check_answers_from_live_values_before_the_model():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": False})
+    svc.domain_tasks.read = lambda text: {"kind": "system.status", "status": "answered",
+                                          "answer": "Systemstatus degraded: 6 Komponenten, 5 online; nicht online: Hermes (offline)."}
+    svc.status_payload = lambda: {"audio_transport": "device", "input_stream_active": False,
+                                  "runtime_settings": {"wakeWordEnabled": True, "speakerVerificationRequired": False},
+                                  "wake_phrase": "Hey Friday", "conversation": {"backend": "local"}}
+    decision = svc._route("Prüf dich mal")
+    assert decision["route"] == "local" and decision["intent"] == "local_command"
+    assert decision["answer"].startswith("Mir fällt auf: Das Mikrofon nimmt gerade nicht auf.")
+    assert "Hermes (offline)" in decision["answer"]
+
+
+def test_self_check_reports_an_unreachable_dashboard():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": False})
+
+    def offline():
+        raise OSError("connection refused")
+    svc.domain_tasks.quiet_state = offline
+    svc.domain_tasks.read = lambda text: offline()
+    svc.status_payload = lambda: {"audio_transport": "device", "input_stream_active": True}
+    answer = svc._route("Selbsttest")["answer"]
+    assert "Das Dashboard ist für mich nicht erreichbar." in answer
+    assert "Ruhemodus" not in answer
 
 
 def test_classic_flow_without_quiet_speaks_the_bundle():
