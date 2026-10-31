@@ -66,6 +66,8 @@ jobs:
             installer/voice/tests/test_calendar_voice.py \
             installer/voice/tests/test_domain_task_voice.py \
             installer/voice/tests/test_conversation.py \
+            installer/voice/tests/test_knowledge.py \
+            installer/voice/tests/test_knowledge_questions.py \
             installer/voice/tests/test_qwen_dialog.py \
             installer/voice/tests/test_qwen_voice_wiring.py \
             installer/voice/tests/test_headless_compat.py \
@@ -220,6 +222,10 @@ jobs:
       # PLAN §7.4: OpenAPI/AsyncAPI valid, schemas + examples valid, generated SDK up to date, no breaking change.
       - name: Contracts check
         run: pnpm contracts:check
+
+      # LG-2b.03: the voice help bundle must match the settings schemas, labels, defaults and docs/friday-knowledge.
+      - name: Knowledge base check
+        run: pnpm knowledge:check
 
       - name: Typecheck
         run: pnpm typecheck

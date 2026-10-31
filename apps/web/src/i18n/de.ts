@@ -429,5 +429,5 @@ export const de = {
   "quietSettings.important.appointments": "Termine",
   "quietSettings.textTarget.label": "Textempfänger",
   "quietSettings.textTarget.none": "Kein Textversand",
-  "quietSettings.textTarget.empty": "Noch kein Empfänger registriert. Lege ihn unter Kommunikation → Messenger an.",
+  "quietSettings.textTarget.empty": "Noch kein Empfänger registriert. Öffne Kommunikation, wähle links einen Messenger-Kanal und klicke auf „Empfänger-ID registrieren“.",
 } as const;

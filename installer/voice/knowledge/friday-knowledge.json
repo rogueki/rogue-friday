@@ -1,0 +1,1496 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "id": "ablaeufe#sprachbetrieb-wechseln",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Sprachbetrieb wechseln",
+      "area": "ablauf",
+      "keywords": [
+        "sprachbetrieb wechseln",
+        "qwen aktivieren",
+        "lokal umstellen",
+        "gesprächsmodus",
+        "qwen audio",
+        "token plan",
+        "sprache umschalten"
+      ],
+      "text": "Öffne Einstellungen → Sprache und gehe zum Abschnitt Gespräch. Im Feld Gespräch wählst du Lokal oder Qwen Audio Live-Gespräch. Lokal bedeutet, dass das Gespräch auf diesem PC läuft. Für Qwen brauchst du einen Alibaba-Token-Plan-Schlüssel. Fehlt er, meldet das Feld das, und darunter erscheint das Eingabefeld für den Schlüssel. Trage ihn dort ein und klicke auf Prüfen und speichern. Der Schlüssel wird vor dem Speichern bei Qwen geprüft. Danach speicherst du die Einstellungen unten mit Speichern. Der Statustext zeigt, ob Qwen aktiv ist oder ob lokal geantwortet wird."
+    },
+    {
+      "id": "ablaeufe#stimme-anlernen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Stimme anlernen",
+      "area": "ablauf",
+      "keywords": [
+        "stimme anlernen",
+        "sprecherprofil",
+        "sprecherprüfung",
+        "stimmprofil",
+        "einlernen",
+        "stimme neu aufnehmen",
+        "change voice"
+      ],
+      "text": "Das Einlernen der Stimme läuft über den Installer, nicht über das Dashboard. Öffne im Installationsordner, standardmäßig C:\\Friday\\installer, die Datei change-assistant-name.bat. Sie nimmt Name und Wake Word erneut auf und wiederholt die Stimmaufnahme. Bleiben Name und Wake Word gleich, kannst du nur die Aufnahme wiederholen. Danach prüfst du unter Sprache → Sprecherprofile, ob ein Profil mit Qualität und Schwellwert vorliegt. Zeigt die Anzeige Profilstand unbekannt, kann das Profil trotzdem aktiv sein. Schalte anschließend die Sprecherprüfung im Bereich Sprache ein."
+    },
+    {
+      "id": "ablaeufe#wake-word-im-dashboard-einlernen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Wake Word im Dashboard einlernen",
+      "area": "ablauf",
+      "keywords": [
+        "wake word ändern",
+        "aktivierungswort",
+        "aktivierungsphrase",
+        "einlernen",
+        "hey friday",
+        "sprachaktivierung",
+        "phrase trainieren"
+      ],
+      "text": "Öffne Einstellungen → Sprache und gehe zum Abschnitt Aktivierung. Schalte den Schalter Wake Word aktiv ein. Trage im Feld Wake Word die neue Phrase ein, zum Beispiel Hey Friday. Danach erscheint der Button Aktivierungsphrase einlernen. Im Dialog startest du die Aufnahme und sprichst die Phrase, die Kurzform und ähnliche andere Wörter, bis alle Zähler voll sind. Danach startest du das Training. Das bisherige Wake Word bleibt aktiv, bis du speicherst. Speichere deshalb zum Schluss unten mit Speichern. Die Aufnahmen bleiben lokal und werden nach dem Training gelöscht."
+    },
+    {
+      "id": "ablaeufe#name-und-wake-word-ueber-den-installer-aendern",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Name und Wake Word über den Installer ändern",
+      "area": "ablauf",
+      "keywords": [
+        "name ändern",
+        "wake word installer",
+        "change assistant name",
+        "assistentenname",
+        "installer skript",
+        "wake word neu"
+      ],
+      "text": "Wenn du auch den Namen des Assistenten ändern willst, nutzt du den Installer. Öffne im Installationsordner, standardmäßig C:\\Friday\\installer, die Datei change-assistant-name.bat per Doppelklick. Das Skript fragt den neuen Namen und das neue Wake Word. Mit Enter behältst du den bisherigen Wert. Danach passt es die Persönlichkeit an, wiederholt die Stimmaufnahme und das Training des Wake Words und startet den Sprachdienst neu. Das dauert einige Minuten."
+    },
+    {
+      "id": "ablaeufe#wetterort-festlegen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Wetterort festlegen",
+      "area": "ablauf",
+      "keywords": [
+        "wetter",
+        "wetterort",
+        "standort",
+        "ort festlegen",
+        "stadt",
+        "postleitzahl",
+        "standort aktivieren",
+        "wetter einstellen"
+      ],
+      "text": "Öffne Einstellungen → Dashboard und scrolle zum Abschnitt Standort & Wetter. Du hast zwei Wege. Mit Standort aktivieren bestätigst du zuerst eine Abfrage. Danach ermittelt dein Browser einmal die Position, und der Ortsname wird übernommen. Alternativ tippst du unter Stadt oder Postleitzahl einen Ort ein und klickst auf Ort suchen. Wähle den passenden Treffer aus und bestätige mit Standort übernehmen und speichern. Die automatische Standorterkennung braucht HTTPS oder localhost. Mit Standort entfernen löschst du den gespeicherten Ort wieder. Das Wetter für diesen Ort erscheint danach im Dashboard."
+    },
+    {
+      "id": "ablaeufe#e-mail-konto-verbinden",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "E-Mail-Konto verbinden",
+      "area": "ablauf",
+      "keywords": [
+        "e-mail verbinden",
+        "postfach einrichten",
+        "mail konto",
+        "imap",
+        "smtp",
+        "app-passwort",
+        "gmail",
+        "mail einrichten"
+      ],
+      "text": "Öffne Einstellungen → Skill-Konten und scrolle zu Mail Postfach. Mit Neues Konto startest du den Assistenten. Trage zuerst deine E-Mail-Adresse ein. Bei bekannten Anbietern schlägt der Assistent Server vor, die du prüfen und ändern kannst. Danach folgen Kontoname, Absendername, die IMAP- und SMTP-Server und die Anmeldung mit Passwort oder App-Passwort. Im Schritt Verbindungen prüfen testest du IMAP und SMTP getrennt. Der SMTP-Test sendet keine Nachricht. Gespeichert wird erst im letzten Schritt, mit Postfach übernehmen. OAuth für Gmail und Microsoft richtest du unter Erweitert an einem bestehenden Konto ein."
+    },
+    {
+      "id": "ablaeufe#kalender-verbinden",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Kalender verbinden",
+      "area": "ablauf",
+      "keywords": [
+        "kalender verbinden",
+        "caldav",
+        "ics",
+        "google kalender",
+        "outlook",
+        "termine anzeigen",
+        "kalenderkonto",
+        "abgleich"
+      ],
+      "text": "Öffne Einstellungen → Adapter und wähle in der Liste den Kalender-Adapter aus. Im Abschnitt Kalender verbinden wählst du zuerst die Anbieterhilfe, etwa Google Kalender, Outlook.com, Windows Kalender, einen ICS-Kalender oder CalDAV. Dann öffnet sich der Assistent. Bei einem ICS-Feed trägst du die private Adresse ein, sie wird nur gelesen. Bei CalDAV gibst du die Kalendersammlung, Benutzername und Passwort oder App-Passwort ein. Danach suchst du die Kalender, legst Standard und Abgleich fest und übernimmst. Anschließend klickst du in der Adapterliste auf Verbindung testen. Erst der erfolgreiche Test bestätigt den Zugriff."
+    },
+    {
+      "id": "ablaeufe#telegram-einrichten",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Telegram einrichten",
+      "area": "ablauf",
+      "keywords": [
+        "telegram einrichten",
+        "telegram bot",
+        "botfather",
+        "bot token",
+        "kopplung",
+        "telegram gateway",
+        "telegram nachrichten"
+      ],
+      "text": "Öffne Einstellungen → Skill-Konten und scrolle zu Telegram-Bot für Hermes. Erstelle in Telegram über BotFather einen Bot mit dem Befehl /newbot und kopiere das Token. Füge es in das Feld Bot-Token ein. F.R.I.D.A.Y. prüft das Token bei Telegram, bevor es gespeichert wird. Ein abgelehntes Token ersetzt das bisherige nicht. Optional trägst du deine numerische Telegram-ID ein. Ohne IDs läuft der Bot im Kopplungsmodus. Wer ihm schreibt, bekommt einen Code, und du gibst die Anfrage unter Kopplungsanfragen frei. In Gruppen kannst du festlegen, dass nur auf Erwähnung oder Befehl geantwortet wird."
+    },
+    {
+      "id": "ablaeufe#whatsapp-oder-discord-einrichten",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "WhatsApp oder Discord einrichten",
+      "area": "ablauf",
+      "keywords": [
+        "whatsapp verbinden",
+        "discord bot",
+        "qr code kopplung",
+        "verknüpfte geräte",
+        "discord token",
+        "messenger einrichten"
+      ],
+      "text": "Für Discord öffnest du Einstellungen → Skill-Konten und gehst zum Abschnitt Discord-Gateway für Hermes. Erstelle im Discord Developer Portal einen Bot, aktiviere den Message Content Intent und lade ihn auf deinen Server ein. Trage das Bot-Token und die erlaubten User-IDs ein. Für WhatsApp startest du im Abschnitt WhatsApp-Gateway mit Kopplung starten. Ein QR-Code erscheint, den du in WhatsApp unter Verknüpfte Geräte scannst. Der Code läuft nach kurzer Zeit ab, dann forderst du einen neuen an. Gruppen werden nur freigegeben, wenn du sie ausdrücklich auswählst. Einrichten kann das nur der Owner."
+    },
+    {
+      "id": "ablaeufe#benachrichtigungen-aufs-handy-schicken",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Benachrichtigungen aufs Handy schicken",
+      "area": "ablauf",
+      "keywords": [
+        "benachrichtigungen per telegram",
+        "textempfänger",
+        "kanal aktivieren",
+        "meldungen aufs handy",
+        "nur stimme aus",
+        "messenger ziel"
+      ],
+      "text": "Öffne Einstellungen → Benachrichtigungen. Im Abschnitt Kanäle schaltest du Telegram, WhatsApp, SMS, Anruf oder E-Mail ein und wählst die Priorität, ab der Meldungen dorthin gehen. Bei Telegram und WhatsApp trägst du den Empfänger ein. Für die Stufe Nur Stimme aus brauchst du zusätzlich einen Textempfänger, den du im Feld Textempfänger auswählst. Ist dort noch kein Ziel registriert, öffnest du die Seite Kommunikation, wählst links einen Messenger-Kanal wie Telegram und klickst auf Empfänger-ID registrieren. Speichere danach unten mit Speichern. Ohne Textempfänger wird nichts als Text versendet."
+    },
+    {
+      "id": "ablaeufe#freigaben-bearbeiten",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Freigaben bearbeiten",
+      "area": "ablauf",
+      "keywords": [
+        "freigabe bearbeiten",
+        "genehmigen",
+        "ablehnen",
+        "freigabe erteilen",
+        "entwurf ändern",
+        "kontext anfordern",
+        "approval"
+      ],
+      "text": "Öffne die Seite Freigaben und wähle die Freigabe aus. Die Vorschau zeigt, was ausgeführt werden soll, und die Begründung. Mit Genehmigen erteilst du die Freigabe nach einer Bestätigung im Dialog Freigabe erteilen. Mit Ablehnen beendest du sie. Eine Begründung ist optional, und nichts wird ausgeführt. Mit Bearbeiten und genehmigen änderst du Titel oder Inhalt und gibst die geänderte Fassung frei, sofern die Freigabe bearbeitbar ist. Brauchst du mehr Informationen, fragst du mit Mehr Kontext anfordern nach. Der Agent ergänzt die Freigabe, bis dahin passiert nichts."
+    },
+    {
+      "id": "ablaeufe#ruhemodus-und-nachtruhe-einstellen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Ruhemodus und Nachtruhe einstellen",
+      "area": "ablauf",
+      "keywords": [
+        "ruhemodus",
+        "nachtruhe",
+        "ruhezeit",
+        "nicht stören",
+        "stille",
+        "ansagen aus",
+        "ruhe einstellen",
+        "bis morgen"
+      ],
+      "text": "Für eine befristete Ruhe öffnest du Einstellungen → Benachrichtigungen und gehst zum Abschnitt Ruhemodus. Wähle die Stufe Still oder Nur Stimme aus und die Dauer, zum Beispiel 1 Stunde oder Bis morgen 7:00. Mit Ruhemodus starten beginnt die Ruhe sofort, mit Ruhemodus beenden endet sie. Für eine tägliche Nachtruhe schaltest du im Abschnitt Ruhezeiten die Option Ruhezeiten aktiv ein und trägst Von und Bis ein. Unter Zusammenfassung nach der Nachtruhe legst du fest, ob die gesammelten Meldungen beim ersten Gespräch am Morgen oder am Ende der Nachtruhe kommen. Diese Felder speicherst du mit Speichern."
+    },
+    {
+      "id": "ablaeufe#dashboard-update-installieren",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Dashboard-Update installieren",
+      "area": "ablauf",
+      "keywords": [
+        "update",
+        "dashboard aktualisieren",
+        "github",
+        "update installieren",
+        "version",
+        "neue version",
+        "aktualisieren"
+      ],
+      "text": "Das Update ist dem Owner vorbehalten. Öffne Einstellungen → Dashboard und scrolle zu Dashboard-Updates. Mit Jetzt prüfen holst du den aktuellen Stand von GitHub main. Ist ein Update verfügbar, erscheint der Hinweis Update verfügbar und der Button Update installieren. Im Bestätigungsdialog siehst du die alte und die neue Version. Nach der Bestätigung läuft das Update in festen Schritten: Download, Prüfung, Abhängigkeiten, Build, Sicherung, Installation und Neustart mit Prüfung. Das Dashboard startet dabei kurz neu. Schlägt ein Schritt fehl, stellt das Update den vorherigen Stand wieder her und meldet das."
+    },
+    {
+      "id": "ablaeufe#backup-erstellen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Backup erstellen",
+      "area": "ablauf",
+      "keywords": [
+        "backup",
+        "sicherung",
+        "backup erstellen",
+        "sichern",
+        "wiederherstellung",
+        "zielordner",
+        "backup prüfen"
+      ],
+      "text": "Öffne Einstellungen → Backups. Lege dort den Zielordner fest und die Anzahl der Sicherungen, die bleiben sollen. Speichere mit Speichern. Für automatische Sicherungen schaltest du Automatische Backups ein und trägst den Zeitplan ein. Für eine sofortige Sicherung brauchst du die Owner-Rolle. Im Abschnitt Backup-Prüfung klickst du zuerst auf Ziel und Platz prüfen und danach auf Backup jetzt erstellen. Mit Letztes Backup prüfen kontrollierst du die Integrität. Ein Restore-Test läuft in einem neuen, noch nicht vorhandenen Ordner und verändert deine Daten nicht."
+    },
+    {
+      "id": "ablaeufe#befehl-per-text-geben",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Befehl per Text geben",
+      "area": "ablauf",
+      "keywords": [
+        "befehl eingeben",
+        "textbefehl",
+        "befehlsleiste",
+        "befehlspalette",
+        "tippen",
+        "befehl senden",
+        "schnellsuche"
+      ],
+      "text": "Unten im Dashboard findest du die Befehlsleiste mit dem Feld Befehl eingeben. Schreibe deinen Befehl, zum Beispiel Tagesbriefing, und klicke auf Befehl senden. Die Befehlspalette öffnest du mit Strg und K oder mit dem Schrägstrich, solange du nicht schon in einem Feld tippst. Dort suchst du Seiten, Aktionen und Automationen und führst sie mit Enter aus. Bei Änderungen siehst du vorher eine Vorschau und musst bestätigen. Freitext, der eine Aufgabe auslösen soll, geht nach deiner Bestätigung als Hintergrundauftrag an den passenden Agenten."
+    },
+    {
+      "id": "ablaeufe#mit-der-stimme-sprechen",
+      "file": "docs/friday-knowledge/ablaeufe.md",
+      "title": "Mit der Stimme sprechen",
+      "area": "ablauf",
+      "keywords": [
+        "sprechen",
+        "sprachsteuerung starten",
+        "mit friday sprechen",
+        "push to talk",
+        "mikrofon starten",
+        "sprachbefehl",
+        "stopp"
+      ],
+      "text": "Unten in der Leiste steht die Schaltfläche, die den Namen deines Assistenten trägt, im Standardfall MIT F.R.I.D.A.Y. SPRECHEN. Damit startest du die Sprachsteuerung. Ist das Wake Word aktiv, reicht auch das Wake Word. In der Befehlspalette findest du den Eintrag Sprachsteuerung starten und stoppen. Zum Anhalten nutzt du Stopp in der Leiste oder sagst das Stoppwort. Pause hält alle laufenden Aktivitäten an, Fortsetzen startet sie wieder. Die Push-to-talk-Taste stellst du unter Einstellungen → Sprache ein. Sie funktioniert mit Browser-Audio und auf dem Windows-Gerätedesktop."
+    },
+    {
+      "id": "datenschutz#was-auf-diesem-pc-bleibt",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Was auf diesem PC bleibt",
+      "area": "datenschutz",
+      "keywords": [
+        "lokal",
+        "auf dem pc",
+        "daten lokal",
+        "datenschutz",
+        "wake word lokal",
+        "speicherort",
+        "privat",
+        "eigene daten"
+      ],
+      "text": "Die Kernfunktionen laufen auf deinem PC. Das Wake Word hört lokal zu, und die Sprecherprüfung läuft ebenfalls lokal. Auch die Aufnahmen zum Einlernen des Wake Words bleiben lokal und werden nach dem Training gelöscht. Im lokalen Betrieb läuft die Spracherkennung mit einem lokal vorhandenen Whisper-Modell. Das Dashboard speichert seine Daten in einer lokalen Datenbank, und das Obsidian-Gedächtnis liegt in deinem lokalen Vault. Ins Internet gehen Daten nur für Funktionen, die du wählst oder einrichtest, etwa Qwen, Mail, Kalender, Messenger oder das Wetter, und für Updates."
+    },
+    {
+      "id": "datenschutz#was-an-qwen-audio-geht",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Was an Qwen Audio geht",
+      "area": "datenschutz",
+      "keywords": [
+        "qwen daten",
+        "alibaba",
+        "cloud audio",
+        "token plan",
+        "übertragung",
+        "was wird gesendet",
+        "gast audio"
+      ],
+      "text": "Nur wenn du im Bereich Sprache das Gespräch auf Qwen Audio stellst, geht Sprache an Alibaba Cloud über den Token Plan. Gesendet wird die Äußerung eines bestätigten Sprechers, also die Frage selbst. Die Stimme eines Gastes ohne Sprecherprüfung geht nie an Qwen und bleibt lokal. Ergebnisse von Aufträgen und Antworten aus der Abfrage gehen als Text an das Gesprächsmodell, damit Rückfragen funktionieren. Die Antwort kommt als Text zurück und wird lokal gesprochen. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC."
+    },
+    {
+      "id": "datenschutz#standort-und-wetter",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Standort und Wetter",
+      "area": "datenschutz",
+      "keywords": [
+        "standort",
+        "wetter",
+        "koordinaten",
+        "ortsname",
+        "open-meteo",
+        "bigdatacloud",
+        "position",
+        "ort speichern"
+      ],
+      "text": "Für das Wetter speicherst du einen Ort. Die Ortssuche und die Wetterdaten fragt der Server bei Open-Meteo ab. Wenn du die automatische Standorterkennung nutzt, fragt dein Browser nach deiner Freigabe die Position ab. Für den Ortsnamen sendet der Browser gerundete Koordinaten und seine IP-Adresse an BigDataCloud. Das passiert erst nach deiner ausdrücklichen Bestätigung. Den gespeicherten Ort entfernst du mit Standort entfernen. Danach wird kein Wetter mehr abgefragt."
+    },
+    {
+      "id": "datenschutz#suche-und-recherche",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Suche und Recherche",
+      "area": "datenschutz",
+      "keywords": [
+        "suche",
+        "recherche",
+        "anbieter",
+        "cloud modell",
+        "lokaler suchdienst",
+        "searxng",
+        "anfragen",
+        "modellanbieter"
+      ],
+      "text": "Die Recherche sendet die Suchanfrage an den Anbieter, den du gewählt hast. Dabei werden bis zu drei Seiten abgerufen. Der Suchdienst SearXNG läuft lokal, muss aber eingerichtet sein. Ist für ein Gespräch oder eine Aufgabe ein Cloud-Modell gewählt, gehen die Anfragen an dessen Anbieter. Wählst du ein lokales Modell, bleibt die Anfrage auf deinem PC. Im Bereich Modelle und Routing steht, welches Modell für welche Aufgabenart genutzt wird. So kannst du gezielt steuern, was extern verarbeitet wird."
+    },
+    {
+      "id": "datenschutz#schluessel-und-zugangsdaten",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Schlüssel und Zugangsdaten",
+      "area": "datenschutz",
+      "keywords": [
+        "schlüssel",
+        "passwort",
+        "zugangsdaten",
+        "verschlüsselt",
+        "dpapi",
+        "token",
+        "gespeichert",
+        "geheimnis"
+      ],
+      "text": "Zugangsschlüssel für Sprachdienste speichert Windows verschlüsselt für deinen Benutzer. Unter Linux liegen sie in einer Datei mit eingeschränkten Rechten. Der Qwen-Schlüssel wird erst nach einer erfolgreichen Prüfung gespeichert. Mail- und Kalenderpasswörter werden gespeichert und nie zurückgegeben. Schlüssel für das Content Studio liegen verschlüsselt in der lokalen Datenbank. Das Bot-Token für Telegram bleibt im lokalen Hermes-Profil. Das Dashboard-Passwort wird nur als Hash gespeichert. Der Qwen-Schlüssel erscheint nicht in Logs, im Audit oder in Fehlermeldungen."
+    },
+    {
+      "id": "datenschutz#audit-protokoll",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Audit-Protokoll",
+      "area": "datenschutz",
+      "keywords": [
+        "audit",
+        "protokoll",
+        "nachweis",
+        "was wird protokolliert",
+        "export",
+        "geheimnisse entfernt",
+        "verlauf"
+      ],
+      "text": "Das Audit protokolliert wichtige Aktionen mit Zeit, Akteur und Ergebnis, und die Einträge sind durch eine Hashkette gesichert. Beim Export entfernt das System Passwörter, Tokens, Schlüssel und Stimm-Fingerabdrücke. Die Antwort auf eine Agenten-Rückfrage per Sprache wird ohne ihren Text protokolliert. Ruhemodus-Ansagen werden nicht als Text im Audit festgehalten. Beim Export gelten die Filter der Tabelle nicht, er umfasst immer den ganzen Zeitraum."
+    },
+    {
+      "id": "datenschutz#sprachaufnahmen-und-verlauf",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Sprachaufnahmen und Verlauf",
+      "area": "datenschutz",
+      "keywords": [
+        "aufnahmen",
+        "sprachverlauf",
+        "transkripte",
+        "rohaufnahmen",
+        "voice history",
+        "löschen",
+        "sprachdaten"
+      ],
+      "text": "Standardmäßig speichert F.R.I.D.A.Y. nur Transkripte und keine Rohaufnahmen. Den Sprachverlauf kannst du im Bereich Sprache abschalten. Die gespeicherten Einträge kannst du auf der Seite Sprache löschen, das darf nur der Owner. Das Löschen ist endgültig und wird protokolliert. Sprecherprofile und Einstellungen bleiben dabei erhalten. Die Aufnahmen für das Einlernen eines Wake Words werden nach dem Training oder Verwerfen gelöscht."
+    },
+    {
+      "id": "datenschutz#aufbewahrung-und-bereinigung",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Aufbewahrung und Bereinigung",
+      "area": "datenschutz",
+      "keywords": [
+        "aufbewahrung",
+        "fristen",
+        "bereinigung",
+        "löschen nach tagen",
+        "automatisch",
+        "archiv",
+        "temporäre dateien"
+      ],
+      "text": "Unter Einstellungen → Datenaufbewahrung legst du Fristen in Tagen fest. Sie gelten für Sprachverlauf, Audit im aktiven Speicher, Benachrichtigungen und temporäre Dateien. Vor jedem Lauf zeigt Betroffene Einträge zählen, was entfernt würde. Die automatische Bereinigung ist standardmäßig aus, alte Daten verschwinden also nicht von selbst. Ältere Audit-Einträge gehen in ein dauerhaftes lokales Archiv. Das Obsidian-Gedächtnis wird nicht begrenzt und bleibt erhalten."
+    },
+    {
+      "id": "datenschutz#backups",
+      "file": "docs/friday-knowledge/datenschutz.md",
+      "title": "Backups",
+      "area": "datenschutz",
+      "keywords": [
+        "backup",
+        "sicherung",
+        "inhalt",
+        "konfiguration",
+        "datenbank",
+        "zielordner",
+        "schutz",
+        "wiederherstellung"
+      ],
+      "text": "Ein Backup enthält die Windows-Konfiguration, die SQLite-Datenbank, den Obsidian-Vault und die Daten der Friday-Ubuntu-Konten mit dem Hermes-Zustand. Es landet im Zielordner, den du festlegst. Bewahre diesen Ordner deshalb nur an einem Ort auf, auf den nur du Zugriff hast. Der Restore-Test läuft immer in einem getrennten Ordner und verändert deine echten Daten nicht. Das Dashboard-Update lädt den Quellcode von GitHub main herunter und sichert vor der Installation die geänderten Dateien."
+    },
+    {
+      "id": "einstellungen#profil",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Profil",
+      "area": "einstellungen:profile",
+      "keywords": [
+        "profil",
+        "name",
+        "assistentenname",
+        "anzeigename",
+        "sprache",
+        "zeitzone",
+        "datumsformat",
+        "zeitformat",
+        "wochenbeginn"
+      ],
+      "text": "Im Bereich Profil legst du deinen Anzeigenamen und den Namen des Assistenten fest. Der Assistentenname erscheint im Menü, an den Orb-Beschriftungen und in allen Texten. Lässt du das Feld leer, gilt der Standardname F.R.I.D.A.Y. Eine Vorschau zeigt dir, wie die Marke danach aussieht. Unter Sprache und Format stellst du die Sprache der Oberfläche ein, die Zeitzone, das Datumsformat, das Zeitformat mit 24 oder 12 Stunden und den ersten Tag der Woche. Die Zeitzone gilt auch für Kalenderzeiten und für die Nachtruhe. Änderungen am Assistentennamen wirken nach dem Speichern sofort, ohne Neustart."
+    },
+    {
+      "id": "einstellungen#dashboard",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Dashboard",
+      "area": "einstellungen:dashboard",
+      "keywords": [
+        "dashboard",
+        "darstellung",
+        "schriftgröße",
+        "raster",
+        "kompakt",
+        "startseite",
+        "wetter",
+        "dashboard updates"
+      ],
+      "text": "Der Bereich Dashboard regelt Darstellung und Verhalten der Oberfläche. Du stellst Schriftgröße, Raster, Kompaktmodus und Soundeffekte ein. Die automatische Aktualisierung in Sekunden greift als Rückfall, wenn der Ereignisstrom nicht verfügbar ist. Die Startseite wird zusammen mit der Navigation gespeichert. Mit dem Schalter Content Studio aktivieren erscheint der Menüpunkt Content Studio. Im selben Bereich findest du Standort und Wetter. Darunter stehen die Dashboard-Updates, die nur der Owner sieht. Das aktive Layout der Übersicht bearbeitest du im Bereich Dashboard-Layout."
+    },
+    {
+      "id": "einstellungen#dashboard-layout",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Dashboard-Layout",
+      "area": "einstellungen:layout",
+      "keywords": [
+        "layout",
+        "widgets",
+        "übersicht anordnen",
+        "verschieben",
+        "ausblenden",
+        "größe",
+        "layout datei"
+      ],
+      "text": "Mit dem Layout-Editor ordnest du die Widgets der Übersicht neu an. Du verschiebst Widgets, änderst ihre Größe oder blendest sie aus. Ein Widget, das noch nicht im Layout steht, fügst du hinzu, dann landet es unten. Der Editor zeigt an, wenn sichtbare Widgets sich überlappen, weil sie sonst übereinanderliegen. Das Raster hat zwölf Spalten und höchstens vierzig Zeilen. Ein Layout kannst du als Datei exportieren und wieder importieren. Unbekannte Widgets werden beim Import nicht angezeigt, und ein Layout, das über den Rand ragt, wird abgewiesen."
+    },
+    {
+      "id": "einstellungen#theme",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Theme",
+      "area": "einstellungen:theme",
+      "keywords": [
+        "theme",
+        "farben",
+        "design",
+        "erscheinungsbild",
+        "bibliothek",
+        "vorschau",
+        "import",
+        "export"
+      ],
+      "text": "Der Bereich Theme verwaltet das Erscheinungsbild. Du wählst ein Theme aus der Bibliothek, die eingebaute Themes und Themes vom Server enthält. Im Editor passt du Farben an und siehst die Änderungen sofort in einer Live-Vorschau. Die Vorschau bleibt ein Entwurf, bis du speicherst. Verlässt du die Seite, wird das gespeicherte Theme wiederhergestellt. Eine Theme-Datei importierst du nur, wenn sie das Format einhält und die Farbregeln erfüllt. Ungültige Dateien werden abgewiesen, und das bisherige Theme bleibt aktiv."
+    },
+    {
+      "id": "einstellungen#orb",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Orb",
+      "area": "einstellungen:orb",
+      "keywords": [
+        "orb",
+        "kern",
+        "darstellung",
+        "preset",
+        "2d",
+        "3d",
+        "intensität",
+        "audio reaktion",
+        "partikel"
+      ],
+      "text": "Der Bereich Orb steuert die Darstellung des AI-Core-Orbs. Du wählst ein Preset wie Gold, Bernstein, Ruhig oder Dicht und passt Größe, Intensität, Geschwindigkeit und Partikeldichte an. Die Darstellung kann automatisch zwischen 3D und 2D wechseln, und ohne WebGL zeigt der Orb die zweidimensionale Variante. Mit der Audio-Reaktivität bewegt sich der Orb mit dem Mikrofon- und Sprachpegel. Der goldene Kern bleibt immer erhalten, nur Verhalten und Intensität ändern sich. Ein Leistungs-Overlay zur Diagnose findest du im Bereich Entwickler."
+    },
+    {
+      "id": "einstellungen#navigation",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Navigation",
+      "area": "einstellungen:navigation",
+      "keywords": [
+        "navigation",
+        "menü",
+        "reihenfolge",
+        "sichtbarkeit",
+        "seiten ausblenden",
+        "startseite",
+        "menüpunkte"
+      ],
+      "text": "Im Bereich Navigation bestimmst du, welche Menüpunkte erscheinen und in welcher Reihenfolge. Du kannst Seiten ausblenden. Die Einstellungsseite bleibt immer erreichbar, damit du Ausblendungen wieder rückgängig machen kannst. Das Content Studio erscheint nur, wenn es aktiviert ist. Hier steht auch die Startseite. Nur die Startseite folgt dieser Einstellung beim Öffnen des Dashboards. Direkte Links auf andere Seiten bleiben erhalten. Die Startseite wird zusammen mit diesem Bereich gespeichert."
+    },
+    {
+      "id": "einstellungen#adapter",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Adapter",
+      "area": "einstellungen:adapters",
+      "keywords": [
+        "adapter",
+        "verbindungen",
+        "verbindungstest",
+        "schema",
+        "kalender",
+        "aktivieren",
+        "konfiguration",
+        "dienste"
+      ],
+      "text": "Im Bereich Adapter richtest du die Verbindungen zu externen Diensten ein. Jeder Adapter hat seine Einstellungen, die aus seinem Schema erzeugt werden. Mit dem Schalter Adapter aktiv schaltest du ihn ein oder aus. Verbindungstest prüft die gespeicherte Konfiguration auf dem Server, und Geheimnisse verlassen den Server dabei nie. Für den Kalender gibt es hier den Assistenten Kalender verbinden. Einige Adapter sind nur für den Owner sichtbar. Ist kein Adapter konfigurierbar, zeigt die Seite das ausdrücklich an."
+    },
+    {
+      "id": "einstellungen#skill-konten",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Skill-Konten",
+      "area": "einstellungen:skillAccounts",
+      "keywords": [
+        "skill konten",
+        "mail postfach",
+        "telegram",
+        "discord",
+        "whatsapp",
+        "kopplung",
+        "cloudtalk",
+        "telefonie",
+        "zugänge"
+      ],
+      "text": "Hier hinterlegst du die Konten und Voraussetzungen der Skills. Links stehen die Skills mit ihrem Zustand, rechts ihre Konten. Darunter richtest du E-Mail-Postfächer ein, und zwar mit einem Assistenten, der Servervorschläge macht und die Verbindungen getrennt prüft. Außerdem gibt es die Einrichtung für Telegram, Discord und WhatsApp über Hermes, die Freigabe von Kopplungsanfragen, CloudTalk, Telefonie und den Pfad des lokalen Markdown-Wikis. Telegram, Discord, WhatsApp und die Kopplungen richtet nur der Owner ein. Ein gespeicherter Schlüssel belegt noch keine erfolgreiche Anmeldung."
+    },
+    {
+      "id": "einstellungen#content-studio-zugaenge",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Content Studio Zugänge",
+      "area": "einstellungen:contentStudioKeys",
+      "keywords": [
+        "content studio zugänge",
+        "medienanbieter",
+        "api schlüssel",
+        "anbieter",
+        "verschlüsselt",
+        "zugänge"
+      ],
+      "text": "Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an der Schlüsseldatei auth.key im Datenverzeichnis. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis."
+    },
+    {
+      "id": "einstellungen#modelle-routing",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Modelle & Routing",
+      "area": "einstellungen:modelsRouting",
+      "keywords": [
+        "modelle",
+        "routing",
+        "standardmodell",
+        "routen",
+        "denkstufe",
+        "fallback",
+        "lokal zuerst",
+        "budget"
+      ],
+      "text": "Im Bereich Modelle und Routing legst du das Standardmodell fest. Mit der Option Lokale Verarbeitung zuerst entscheidet der lokale Router, bevor ein Cloud-Aufruf erfolgt. Eine feste Uhrzeitantwort bleibt immer lokal. Unter Routen ordnest du einer Aufgabenart ein Modell zu, dazu eine Denkstufe und optional ein Fallback-Modell im Format Anbieter:Modell. Bei Agentenaufgaben gibt es kein Fallback. Die Zugänge zu den Modellanbietern richtest du unter Hermes-Konfiguration ein."
+    },
+    {
+      "id": "einstellungen#hermes-konfiguration",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Hermes-Konfiguration",
+      "area": "einstellungen:hermesConfig",
+      "keywords": [
+        "hermes",
+        "agent",
+        "zeitpläne",
+        "modellanbieter",
+        "mcp server",
+        "befehlsfreigabe",
+        "gerätecode",
+        "katalog"
+      ],
+      "text": "Dieser Bereich zeigt die wirksamen Einstellungen von Hermes, dem Unterbau der Agenten, und die freigegebenen Änderungen daran. Du findest hier Zeitpläne für wiederkehrende Aufträge, die Zugänge der Modellanbieter mit Schlüsselprüfung, den Modellkatalog und die MCP-Server. Unter KI-Zugänge meldest du Anbieter an, die Hermes per Gerätecode anmeldet. Eine Befehlsfreigabe kannst du vorab prüfen. Die Vorschau führt den Befehl nicht aus und ändert keine Erlaubnis. Ist die installierte Hermes-Version nicht unterstützt, nimmt der Bereich keine Konfigurationsänderungen vor."
+    },
+    {
+      "id": "einstellungen#sprache",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Sprache",
+      "area": "einstellungen:voice",
+      "keywords": [
+        "sprache",
+        "wake word",
+        "aktivierung",
+        "gespräch",
+        "qwen",
+        "spracherkennung",
+        "whisper",
+        "sprecherprüfung",
+        "stimme"
+      ],
+      "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein."
+    },
+    {
+      "id": "einstellungen#benachrichtigungen",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Benachrichtigungen",
+      "area": "einstellungen:notifications",
+      "keywords": [
+        "benachrichtigungen",
+        "ruhemodus",
+        "nachtruhe",
+        "ruhezeiten",
+        "kanäle",
+        "eskalation",
+        "priorität",
+        "schlummern"
+      ],
+      "text": "Hier legst du fest, welche Kanäle Meldungen bekommen und ab welcher Priorität. Verfügbar sind Dashboard, Telegram, WhatsApp, SMS, Anruf und E-Mail. Unter Ruhemodus startest und beendest du die befristete Ruhe, zum Beispiel für 30 Minuten oder bis morgen 7 Uhr. Darunter stellst du die Ruhezeiten ein, also die Nachtruhe, mit Von und Bis. Außerdem legst du fest, welche Arten auch bei Nur Stimme aus als Text kommen, welcher Textempfänger gilt und wie die Standard-Eskalation abläuft. Ohne Textempfänger findet kein Textversand statt."
+    },
+    {
+      "id": "einstellungen#sicherheit",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Sicherheit",
+      "area": "einstellungen:security",
+      "keywords": [
+        "sicherheit",
+        "anmeldung",
+        "sitzung",
+        "timeout",
+        "abmelden",
+        "fernzugriff",
+        "origins",
+        "audit hash"
+      ],
+      "text": "Der Bereich Sicherheit betrifft Anmeldung und Sitzungen. Mit Anmeldung erforderlich verlangst du beim Öffnen des Dashboards eine Anmeldung. Das Sitzungs-Timeout legt fest, wie lange eine Sitzung in Minuten gilt. Das Fenster für erneute Anmeldung bestimmt, wie lange eine erneute Anmeldung gültig bleibt. Mit Alle Sitzungen beenden meldest du alle Sitzungen ab. Der Schalter Fernzugriff ist derzeit nicht umschaltbar und dient nur der Anzeige. Auch die Audit-Hashkette wird nur angezeigt. Vertrauenswürdige Ursprünge trägst du als Adressen ein."
+    },
+    {
+      "id": "einstellungen#freigaben",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Freigaben",
+      "area": "einstellungen:approvals",
+      "keywords": [
+        "freigaben",
+        "ablauf",
+        "frist",
+        "entwurf",
+        "bestätigung",
+        "stufe",
+        "benachrichtigung",
+        "sicherheitsstufe"
+      ],
+      "text": "Hier stellst du ein, wie Freigaben funktionieren. Offene Freigaben haben eine Ablauffrist, die du in Minuten einträgst. Der Schalter Standardmäßig nur Entwürfe legt fest, dass Nachrichten zunächst nur als Entwurf entstehen. Stufe 2 bestätigen verlangt eine ausdrückliche Bestätigung. Stufe 3 verlangt eine erneute Anmeldung, dieser Schalter ist aber fest eingestellt und nicht änderbar. Mit Bei neuer Anfrage benachrichtigen erhältst du eine Meldung, sobald eine neue Freigabe wartet."
+    },
+    {
+      "id": "einstellungen#datenaufbewahrung",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Datenaufbewahrung",
+      "area": "einstellungen:dataRetention",
+      "keywords": [
+        "aufbewahrung",
+        "löschen",
+        "fristen",
+        "bereinigung",
+        "audit archiv",
+        "sprachverlauf",
+        "temporäre dateien",
+        "tage"
+      ],
+      "text": "Hier legst du fest, wie lange Daten bleiben. Du stellst Fristen in Tagen für Sprachverlauf, Audit im aktiven Speicher, Benachrichtigungen und temporäre Dateien ein. Die Standardlebensdauer für Gedächtniseinträge wird hier nur angezeigt. Mit Betroffene Einträge zählen siehst du vorab, was entfernt würde. Mit Bereinigung jetzt ausführen startest du den Lauf. Ältere Audit-Einträge wandern dabei in ein dauerhaftes lokales Archiv und sparen keinen Speicherplatz. Das Obsidian-Gedächtnis bleibt unbegrenzt erhalten. Die automatische Bereinigung ist standardmäßig aus."
+    },
+    {
+      "id": "einstellungen#backups",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Backups",
+      "area": "einstellungen:backups",
+      "keywords": [
+        "backup",
+        "sicherung",
+        "zeitplan",
+        "cron",
+        "zielordner",
+        "aufbewahren",
+        "wiederherstellung",
+        "restore test"
+      ],
+      "text": "Im Bereich Backups schaltest du automatische Sicherungen ein. Du legst den Zeitplan im Cron-Format fest, zum Beispiel täglich um 3 Uhr, den Zielordner und die Anzahl der aufbewahrten Sicherungen. Ältere Sicherungen werden danach automatisch gelöscht. Hier siehst du auch, wann das letzte Backup lief und ob es erfolgreich war. Die Backup-Prüfung sieht nur der Owner. Dort prüfst du Ziel und Platzbedarf, startest eine Sicherung, kontrollierst das letzte Backup oder testest die Wiederherstellung in einem getrennten Ordner. Eine echte Wiederherstellung braucht zusätzlich die Neuinstallation von Hermes."
+    },
+    {
+      "id": "einstellungen#entwickler",
+      "file": "docs/friday-knowledge/einstellungen.md",
+      "title": "Entwickler",
+      "area": "einstellungen:developer",
+      "keywords": [
+        "entwickler",
+        "debug",
+        "rohdaten",
+        "json",
+        "log level",
+        "orb overlay",
+        "leistung",
+        "diagnose"
+      ],
+      "text": "Der Bereich Entwickler enthält Optionen für die Fehlersuche. Mit dem Debug-Modus schaltest du zusätzliche Diagnoseausgaben ein. Der Schalter Rohdaten (JSON) anzeigen macht die Antworten der Oberfläche als Rohdaten sichtbar. Das Orb-Performance-Overlay zeigt die Leistung des Orbs an. Das Log-Level bestimmt, wie ausführlich protokolliert wird. Diese Optionen sind für die Diagnose gedacht. Lass sie im Alltag aus, wenn du sie nicht brauchst."
+    },
+    {
+      "id": "fehlerbilder#f-r-i-d-a-y-hoert-nicht",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "F.R.I.D.A.Y. hört nicht",
+      "area": "fehlerbild",
+      "keywords": [
+        "hört nicht",
+        "mikrofon",
+        "keine reaktion",
+        "audiogerät",
+        "stumm",
+        "mikrofon aus",
+        "sprachsteuerung tot"
+      ],
+      "text": "Prüfe zuerst auf der Seite Sprache, ob das Mikrofon aufnimmt, nicht verbunden ist oder auf ein Audiogerät wartet. Steht dort Wartet auf Audiogerät, ist das gewählte Gerät getrennt. Schließe es an oder wähle unter Einstellungen → Sprache ein anderes Eingabegerät. Mit Audiogeräte neu suchen aktualisierst du die Liste. Prüfe danach, ob unten in der Leiste Pause aktiv ist. Dann klickst du auf Fortsetzen. Steht im Laufzeitstatus des Bereichs Sprache, dass der Sprachdienst nicht verbunden ist, läuft der Dienst nicht. Dann prüfst du den Sprachadapter auf der Systemseite."
+    },
+    {
+      "id": "fehlerbilder#wake-word-reagiert-nicht",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Wake Word reagiert nicht",
+      "area": "fehlerbild",
+      "keywords": [
+        "wake word",
+        "aktivierungswort",
+        "reagiert nicht",
+        "keine antwort auf wake word",
+        "sprecherprüfung",
+        "falsche phrase"
+      ],
+      "text": "Öffne Einstellungen → Sprache und prüfe im Abschnitt Aktivierung, ob der Schalter Wake Word aktiv eingeschaltet ist. Vergleiche die Phrase im Feld Wake Word mit dem, was du sagst. Wurde die Phrase geändert, musst du die Einstellungen speichern, sonst gilt noch die alte Phrase. Ist die Sprecherprüfung eingeschaltet, reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Im Laufzeitstatus steht dann, ob Einstellungen wirken. Erscheint Wirkung nicht bestätigt, speichere erneut oder prüfe den Sprachdienst auf der Systemseite."
+    },
+    {
+      "id": "fehlerbilder#keine-antwort-im-qwen-modus",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Keine Antwort im Qwen-Modus",
+      "area": "fehlerbild",
+      "keywords": [
+        "qwen keine antwort",
+        "qwen fehler",
+        "kontingent",
+        "schlüssel abgelehnt",
+        "qwen audio hängt",
+        "lokal antworten"
+      ],
+      "text": "Öffne Einstellungen → Sprache und lies den Statustext im Abschnitt Gespräch. Dort steht die Ursache, etwa Schlüssel wird nicht akzeptiert, Kontingent aufgebraucht, Anfragen werden gedrosselt oder nicht erreichbar. Bei einem solchen Fehler antwortet der Assistent lokal und sagt die Ursache einmal an. Bei einem abgelehnten Schlüssel klickst du auf Schlüssel ersetzen und trägst einen neuen ein. Der Schlüssel wird vor dem Speichern bei Qwen geprüft. Bei Kontingent oder Drosselung prüfst du das Kontingent beim Anbieter oder wartest ab."
+    },
+    {
+      "id": "fehlerbilder#hermes-oder-agenten-nicht-erreichbar",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Hermes oder Agenten nicht erreichbar",
+      "area": "fehlerbild",
+      "keywords": [
+        "hermes nicht erreichbar",
+        "agenten offline",
+        "agent antwortet nicht",
+        "adapter offline",
+        "verbindung fehlt",
+        "healthcheck"
+      ],
+      "text": "Öffne die Systemseite und suche in der Adapter-Matrix den Eintrag für Hermes oder den Agenten-Adapter. Der Status zeigt, ob er online, eingeschränkt oder offline ist, und der Letzte Fehler nennt die Ursache. Wähle die Zeile aus und starte den Healthcheck. Ist die Aktion ausgegraut, fehlt dir die Berechtigung oder die Funktion. Mit Reconnect oder Adapter neu starten versuchst du die Verbindung neu aufzubauen. Unter Einstellungen → Hermes-Konfiguration siehst du, ob die installierte Hermes-Version unterstützt wird."
+    },
+    {
+      "id": "fehlerbilder#update-fehlgeschlagen",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Update fehlgeschlagen",
+      "area": "fehlerbild",
+      "keywords": [
+        "update fehlgeschlagen",
+        "dashboard update",
+        "rollback",
+        "github update",
+        "update fehler",
+        "vorheriger stand"
+      ],
+      "text": "Öffne Einstellungen → Dashboard und schau in den Abschnitt Dashboard-Updates. Dort steht Letztes Update fehlgeschlagen, zusammen mit der Meldung des fehlgeschlagenen Schritts. Prüfe bei Installiert und GitHub main, welche Version läuft und welche verfügbar ist. Steht dort Vorheriger Stand wird wiederhergestellt, hat das Update zurückgerollt. Ein Klick auf Jetzt prüfen aktualisiert den Status. Versuche das Update erst erneut, wenn die Ursache aus dem Fehlertext behoben ist. Das Update ist nur für den Owner sichtbar."
+    },
+    {
+      "id": "fehlerbilder#kalender-zeigt-keine-termine",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Kalender zeigt keine Termine",
+      "area": "fehlerbild",
+      "keywords": [
+        "kalender leer",
+        "keine termine",
+        "termine fehlen",
+        "abgleich",
+        "kalender verbinden",
+        "zeitraum",
+        "zeitzone"
+      ],
+      "text": "Prüfe auf der Kalenderseite zuerst den Zeitraum. Mit Heute oder Weiter und Zurück stellst du den richtigen Tag ein, denn Keine Termine in diesem Zeitraum bedeutet nur, dass dieser Zeitraum frei ist. Kontrolliere die Zeitzone unter Einstellungen → Profil. Unter Einstellungen → Adapter prüfst du, ob der Kalender-Adapter aktiv ist und Verbindung testen erfolgreich war. Nach dem Speichern eines Kalenderkontos erscheinen Termine erst nach dem nächsten Abgleich."
+    },
+    {
+      "id": "fehlerbilder#nachricht-wird-nicht-versendet",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Nachricht wird nicht versendet",
+      "area": "fehlerbild",
+      "keywords": [
+        "nachricht nicht gesendet",
+        "versand fehlt",
+        "nachricht hängt",
+        "freigabe offen",
+        "telegram sendet nicht",
+        "textempfänger"
+      ],
+      "text": "Prüfe zuerst die Seite Freigaben. Ein Versand von Entwürfen wartet dort auf deine Entscheidung, bis du ihn genehmigst. Dann schaust du auf Mail & Kommunikation, ob der Kanal das Recht Senden hat. Bei Telegram oder WhatsApp kontrollierst du unter Einstellungen → Skill-Konten, ob die Kopplung besteht und die Anfrage freigegeben ist. Liegt die Ruhemodus-Stufe Still an, wird nichts versendet. Beende dann den Ruhemodus unter Einstellungen → Benachrichtigungen."
+    },
+    {
+      "id": "fehlerbilder#ansagen-kommen-nicht-ruhemodus-aktiv",
+      "file": "docs/friday-knowledge/fehlerbilder.md",
+      "title": "Ansagen kommen nicht (Ruhemodus aktiv)",
+      "area": "fehlerbild",
+      "keywords": [
+        "keine ansagen",
+        "ruhemodus aktiv",
+        "nachtruhe",
+        "nichts gesagt",
+        "stumm",
+        "ansage fehlt",
+        "ruhe beenden"
+      ],
+      "text": "Öffne Einstellungen → Benachrichtigungen und lies die Statuszeile im Abschnitt Ruhemodus. Dort steht, bis wann die Ruhe läuft und ob es die Nachtruhe ist. Unter Während der Ruhe findest du die Meldungen, die zurückgehalten wurden. Ist die Stufe Still, wird nichts laut angesagt und nichts versendet. Mit Ruhemodus beenden endet die befristete Ruhe sofort. Für die Nachtruhe schaltest du Ruhezeiten aktiv aus oder passt Von und Bis an. Zurückgehaltene Ansagen kommen danach gesammelt. Nach der Nachtruhe kommen sie erst, wenn du wieder sprichst."
+    },
+    {
+      "id": "seiten#uebersicht",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Übersicht",
+      "area": "seite:/",
+      "keywords": [
+        "startseite",
+        "übersicht",
+        "dashboard",
+        "orb",
+        "ai core",
+        "widgets",
+        "überblick",
+        "modelle und dienste"
+      ],
+      "text": "Die Übersicht ist die Startseite des Command Centers. Oben siehst du den AI-Core-Orb mit dem aktiven Agenten und dem aktuellen Status des Assistenten. Darunter stehen die Live-Intelligenz mit allem, was deine Aufmerksamkeit braucht, die aktiven Agenten, die Mission-Timeline mit den Terminen und Aufgaben von heute, die Schnellbefehle, der Systemmonitor, die Gedächtnis-Einblicke sowie Modelle und Dienste. Die Anordnung dieser Bereiche änderst du unter Einstellungen → Dashboard-Layout. Welche Seite beim Öffnen erscheint, stellst du unter Einstellungen → Dashboard als Startseite ein."
+    },
+    {
+      "id": "seiten#aufgaben",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Aufgaben",
+      "area": "seite:/tasks",
+      "keywords": [
+        "aufgaben",
+        "kanban",
+        "timeline",
+        "liste",
+        "entscheidungen",
+        "neue aufgabe",
+        "priorität",
+        "filter"
+      ],
+      "text": "Auf dieser Seite verwaltest du alle Aufgaben, auch die, die F.R.I.D.A.Y. oder ein Agent übernommen hat. Du wechselst zwischen den Ansichten Kanban, Liste, Timeline und Meine Entscheidungen. Mit der Schaltfläche Neue Aufgabe legst du eine Aufgabe an und vergibst eine Priorität von Kritisch bis Info. Über Filter nach Status, Priorität und Agent sowie über die Suche findest du Einträge schnell. Ein Klick auf eine Aufgabe öffnet die Details. Braucht ein Agent eine Antwort, kannst du sie hier geben. Aufgaben lassen sich auch per Sprache oder über die Befehlsleiste anlegen."
+    },
+    {
+      "id": "seiten#live-aktivitaet",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Live-Aktivität",
+      "area": "seite:/activity",
+      "keywords": [
+        "aktivität",
+        "live",
+        "ereignisse",
+        "verlauf",
+        "protokoll",
+        "was passiert gerade",
+        "agenten aktivität"
+      ],
+      "text": "Die Live-Aktivität zeigt in Echtzeit, was F.R.I.D.A.Y. und die Agenten gerade tun. Die Kennzeichnung LIVE zeigt, dass der Ereignisstrom läuft. Du kannst die Liste nach Agent, Aufgabe, Tool, Modell, Adapter, Schweregrad, Status und Zeitraum filtern. Zusätzlich gibt es eine Suche nach Titel, Ergebnis, Tool oder Korrelations-ID. Mit Automatisch scrollen folgt die Liste den neuen Ereignissen. Ältere Ereignisse lädst du mit Ältere Ereignisse laden nach. Wenn du wissen willst, warum etwas schiefgelaufen ist, beginnst du am besten hier."
+    },
+    {
+      "id": "seiten#gedaechtnis",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Gedächtnis",
+      "area": "seite:/memory",
+      "keywords": [
+        "gedächtnis",
+        "erinnerung",
+        "wissen",
+        "einträge",
+        "speicher",
+        "suche",
+        "export",
+        "vergessen"
+      ],
+      "text": "Hier siehst du, was F.R.I.D.A.Y. sich gemerkt hat. Jeder Eintrag zeigt seine Quelle und die Konfidenz. Du kannst nach Stichwort oder semantisch suchen und nach Typ und Sensibilität filtern. Mit Neuer Eintrag legst du selbst einen Eintrag an. Im Detail stehen die Tabs Details, Herkunft und Nutzung, Verlauf und Konflikte bereit. Über die Aktionen bestätigst, bearbeitest, pinnst oder sperrst du einen Eintrag. Vergessen entfernt ihn endgültig. Mit Alles exportieren lädst du den freigegebenen Bestand als JSON-Datei herunter. Eingeschränkte Einträge und Geheimnisse sind darin nicht enthalten."
+    },
+    {
+      "id": "seiten#agenten",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Agenten",
+      "area": "seite:/agents",
+      "keywords": [
+        "agenten",
+        "status",
+        "aufgabe zuweisen",
+        "bereit",
+        "aktiv",
+        "wartet",
+        "pausiert",
+        "fehler"
+      ],
+      "text": "Diese Seite zeigt alle Agenten, die F.R.I.D.A.Y. nutzen kann. Oben steht eine Übersicht nach Status, zum Beispiel Bereit, Aktiv, Wartet, Pausiert oder Fehler. Mit der Suche findest du einen Agenten nach Name oder Rolle, der Filter nach Status grenzt die Liste ein. Ein Klick öffnet die Details mit der Historie und den zugehörigen Aufgaben. Dort kannst du mit Aufgabe zuweisen direkt einen Auftrag vergeben. Erscheinen keine Agenten, ist meist noch kein Agent-Adapter verbunden. Das prüfst du unter System und in den Einstellungen."
+    },
+    {
+      "id": "seiten#skills",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Skills",
+      "area": "seite:/skills",
+      "keywords": [
+        "skills",
+        "fähigkeiten",
+        "erweiterungen",
+        "registry",
+        "katalog",
+        "suche",
+        "schalter",
+        "skill datei"
+      ],
+      "text": "Auf der Seite Skills siehst du die Fähigkeiten, die F.R.I.D.A.Y. nutzen kann. Mit Registry durchsuchen suchst du im Katalog nach weiteren Skills. Jeder Skill zeigt seine Herkunft und seinen Zustand. In den Details siehst du die Beschreibung aus der SKILL.md-Datei des Skills. Einzelne Skills schaltest du ein oder aus. Viele Skills brauchen ein Konto oder einen Schlüssel. Diese Voraussetzungen pflegst du unter Einstellungen → Skill-Konten. Ein gespeicherter Schlüssel oder ein aktivierter Skill belegt aber noch keine erfolgreiche Anmeldung beim Anbieter."
+    },
+    {
+      "id": "seiten#freigaben",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Freigaben",
+      "area": "seite:/approvals",
+      "keywords": [
+        "freigaben",
+        "genehmigen",
+        "ablehnen",
+        "entscheidung",
+        "risiko",
+        "bestätigen",
+        "kontext",
+        "freigabe erteilen"
+      ],
+      "text": "Freigaben sind Aktionen, die erst nach deiner Entscheidung ausgeführt werden. Die Seite zeigt offene und entschiedene Freigaben. Du filterst nach Status, Art und Risikostufe. Ein Klick öffnet die Vorschau mit Begründung und möglichen Auswirkungen. Dort kannst du Genehmigen, Ablehnen, Bearbeiten und genehmigen oder Mehr Kontext anfordern. Bearbeiten ist nur möglich, wenn die Freigabe es zulässt. Mit Quelle öffnen springst du zur zugehörigen Aufgabe oder zum Agenten. Offene Freigaben haben eine Ablauffrist, die unter Einstellungen → Freigaben festgelegt ist."
+    },
+    {
+      "id": "seiten#mail-kommunikation",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Mail & Kommunikation",
+      "area": "seite:/communication",
+      "keywords": [
+        "mail",
+        "e-mail",
+        "postfach",
+        "nachrichten",
+        "telegram",
+        "whatsapp",
+        "discord",
+        "entwurf",
+        "messenger"
+      ],
+      "text": "Diese Seite bündelt dein Postfach und deine Messenger-Kanäle. Links siehst du die Kanäle, zum Beispiel E-Mail, Telegram, WhatsApp, Discord, SMS, Telefon und Dashboard. Bei jedem Kanal steht, ob er Lesen, Entwürfe und Senden erlaubt. In der Mitte liegt der Posteingang mit Filtern nach Priorität, Status und Markierung sowie einer Suche. Ein Klick öffnet den Verlauf einer Nachricht. Mit Neue Nachricht schreibst du eine neue Nachricht. Für Entwürfe gilt: Der Versand wird als Freigabe angefragt und erst nach deiner Entscheidung ausgeführt."
+    },
+    {
+      "id": "seiten#kalender",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Kalender",
+      "area": "seite:/calendar",
+      "keywords": [
+        "kalender",
+        "termine",
+        "tag",
+        "woche",
+        "monat",
+        "agenda",
+        "konflikte",
+        "freie zeit",
+        "briefing"
+      ],
+      "text": "Der Kalender zeigt deine Termine in den Ansichten Tag, Woche, Monat und Agenda. Mit Heute springst du zum aktuellen Tag, mit Zurück und Weiter wechselst du den Zeitraum. Rechts findest du Konflikte, freie Zeit und Meeting-Briefings. Ein Klick auf einen Termin öffnet seine Details mit den Teilnehmenden. Mit Jetzt Termin anlegen legst du direkt einen Termin an; Änderungen an vorhandenen Terminen schlägst du vor und bestätigst sie über eine Freigabe. Alle Zeiten werden in der Zeitzone angezeigt, die unter Einstellungen → Profil festgelegt ist. Wie du einen Kalender verbindest, steht im Ablauf Kalender verbinden."
+    },
+    {
+      "id": "seiten#automationen",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Automationen",
+      "area": "seite:/automations",
+      "keywords": [
+        "automationen",
+        "regeln",
+        "trigger",
+        "aktionen",
+        "zeitplan",
+        "pausieren",
+        "webhook",
+        "eskalation"
+      ],
+      "text": "Automationen sind Regeln mit Auslöser, Bedingungen, Aktionen und optionaler Eskalation. Die Seite listet alle Regeln mit ihrem Status, also aktiv, pausiert oder inaktiv. Mit Neue Automation legst du eine Regel an. Eine Aktion kann benachrichtigen, anrufen oder einen Webhook aufrufen. Im Detail findest du die Läufe, eine Testfläche und die Versionen einer Regel. Mit Alle pausieren hältst du alle aktiven Regeln an, mit Alle fortsetzen startest du sie wieder. Pausierte Regeln lösen so lange nicht aus, bis du sie fortsetzt."
+    },
+    {
+      "id": "seiten#recherche",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Recherche",
+      "area": "seite:/research",
+      "keywords": [
+        "recherche",
+        "quellen",
+        "belege",
+        "widersprüche",
+        "suche",
+        "projekt",
+        "artefakte",
+        "forschung"
+      ],
+      "text": "Die Recherche sammelt Quellen zu einem Thema. Du gibst ein Recherchethema mit mindestens drei Zeichen ein und startest mit Quellen suchen. Danach siehst du die Belege und Quellen, eventuelle Widersprüche und die erzeugten Artefakte. Eine Datei zu einem Artefakt öffnest du mit In Dateien öffnen. Die Suche läuft über einen lokalen SearXNG-Suchdienst. Ist er nicht eingerichtet, meldet die Seite das. Die Suchanfrage geht an den gewählten Anbieter, und bis zu drei Seiten werden abgerufen."
+    },
+    {
+      "id": "seiten#content-studio",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Content Studio",
+      "area": "seite:/content-studio",
+      "keywords": [
+        "content studio",
+        "inhalte",
+        "ideen",
+        "posting",
+        "planer",
+        "medien",
+        "produktion",
+        "social media"
+      ],
+      "text": "Das Content Studio ist ein optionaler Menüpunkt für Planung und Medienproduktion. Du musst es zuerst unter Einstellungen → Dashboard mit dem Schalter Content Studio aktivieren, sonst erscheint der Punkt nicht. Die Seite hat einen Ideenbereich, in dem du mit Neue Idee Einträge anlegst, einen Posting-Planer für Veröffentlichungen und eine Produktionshilfe für Medien. Die Zugänge für Medienanbieter pflegst du unter Einstellungen → Content Studio Zugänge. Die gespeicherten Schlüssel werden verschlüsselt abgelegt und nicht mehr angezeigt."
+    },
+    {
+      "id": "seiten#dateien-dokumente",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Dateien & Dokumente",
+      "area": "seite:/files",
+      "keywords": [
+        "dateien",
+        "dokumente",
+        "downloads",
+        "dateiansicht",
+        "umbenennen",
+        "löschen",
+        "kategorien",
+        "vorschau"
+      ],
+      "text": "Hier liegen Dokumente, die F.R.I.D.A.Y. erzeugt hat, und Dateien, die als hochgeladen eingestuft sind. Die Dateien sind nach Kategorien geordnet, etwa erzeugt, hochgeladen, Berichte, Präsentationen, Rechnungen, Recherche oder Exporte. Mit Suche, Kategorie und Tag grenzt du die Liste ein. Ein Klick zeigt eine Vorschau mit Versionen und Herkunft. Du kannst eine Datei öffnen, herunterladen oder umbenennen. Löschen geht nur über eine Freigabe, die Datei verschwindet erst danach. Ist eine Aktion für die jeweilige Quelle nicht verfügbar, steht der Grund direkt daneben."
+    },
+    {
+      "id": "seiten#sprache",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Sprache",
+      "area": "seite:/voice",
+      "keywords": [
+        "sprache",
+        "stimme",
+        "mikrofon",
+        "audio",
+        "sprecherprofil",
+        "metriken",
+        "latenz",
+        "sprachverlauf"
+      ],
+      "text": "Die Seite Sprache zeigt den Zustand der Sprachsteuerung. Du siehst, ob das Mikrofon aufnimmt, wartet oder nicht verbunden ist, und welche Audiogeräte für Eingabe und Ausgabe gewählt sind. Die Live-Metriken zeigen Latenzen der Sprachverarbeitung als Mittelwert und P95. Unter Sprecherprofile findest du das eingelernte Profil mit Qualität und Schwellwert. Ein Einlernen aus dem Dashboard ist nur möglich, wenn der Sprachdienst es meldet. Sonst läuft es über den Installer. Den Sprachverlauf kann nur der Owner hier löschen. Die Einstellungen zur Sprache findest du unter Einstellungen → Sprache."
+    },
+    {
+      "id": "seiten#meldungen-alarme",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Meldungen & Alarme",
+      "area": "seite:/alerts",
+      "keywords": [
+        "meldungen",
+        "alarme",
+        "warnungen",
+        "eskalation",
+        "bestätigen",
+        "zurückstellen",
+        "lösen",
+        "kanalstatus"
+      ],
+      "text": "Meldungen sind Hinweise, die deine Aufmerksamkeit brauchen, etwa Störungen oder eskalierte Vorgänge. Die Ansicht Aktiv zeigt die offenen Meldungen, die Ansicht Verlauf die gelösten. Du filterst nach Priorität und Kategorie. Mit Bestätigen zeigst du, dass du die Meldung gesehen hast. Zurückstellen verschiebt sie, und sie erscheint danach erneut. Lösen markiert sie als erledigt und beendet die Eskalation. Jede Meldung zeigt ihre Eskalationskette, und mit Quelle öffnen gelangst du zum Ursprung. Der Kanalstatus zeigt, über welche Wege F.R.I.D.A.Y. eskaliert."
+    },
+    {
+      "id": "seiten#system",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "System",
+      "area": "seite:/system",
+      "keywords": [
+        "system",
+        "hardware",
+        "adapter",
+        "status",
+        "healthcheck",
+        "neustart",
+        "logs",
+        "cpu",
+        "gpu",
+        "arbeitsspeicher"
+      ],
+      "text": "Die Systemseite zeigt Hardware und Dienste. Du siehst CPU, GPU, Arbeitsspeicher, Netzwerk und Temperaturen, soweit der Rechner sie meldet. Darunter steht die Adapter-Matrix mit Status, Latenz, Version und Fähigkeiten jedes Adapters. Wählst du eine Zeile aus, öffnest du die Details. Dort stehen Aktionen wie Healthcheck, Reconnect, Adapter neu starten und Logs öffnen bereit. Nicht verfügbare Aktionen zeigen den Grund an. Neustarts und Verbindungsaktionen werden geprüft und im Audit protokolliert."
+    },
+    {
+      "id": "seiten#audit-verlauf",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Audit & Verlauf",
+      "area": "seite:/audit",
+      "keywords": [
+        "audit",
+        "verlauf",
+        "protokoll",
+        "nachweis",
+        "export",
+        "filter",
+        "hashkette",
+        "integrität"
+      ],
+      "text": "Der Audit-Verlauf ist das Protokoll wichtiger Aktionen. Jede Zeile zeigt Zeit, Akteur, Aktion, Adapter, Ergebnis und Schweregrad. Mit dem Filter grenzt du nach Zeitraum, Akteur, Agent, Aufgabe, Tool, Adapter, Aktion, Kategorie, Schweregrad und Ergebnis ein. Ein Klick öffnet die Details mit Correlation-ID, dem Vergleich vorher und nachher und der Integritätsprüfung über den Hash. Mit Export lädst du die Einträge eines Zeitraums herunter. Der Export umfasst alle Einträge dieses Zeitraums, die Filter der Tabelle gelten dafür nicht. Geheimnisse werden beim Export entfernt."
+    },
+    {
+      "id": "seiten#einstellungen",
+      "file": "docs/friday-knowledge/seiten.md",
+      "title": "Einstellungen",
+      "area": "seite:/settings",
+      "keywords": [
+        "einstellungen",
+        "konfiguration",
+        "bereiche",
+        "speichern",
+        "verwerfen",
+        "export",
+        "import",
+        "optionen"
+      ],
+      "text": "Die Einstellungen sind in Bereiche gegliedert, die links in der Liste stehen. Jeder Bereich hat einen eigenen Titel und eine Beschreibung. Änderungen gelten zunächst nur als Entwurf. Bereiche mit ungespeicherten Änderungen sind in der Liste markiert. Unten speicherst du mit Speichern oder verwirfst alles mit Alle verwerfen. Wechselst du den Bereich mit ungespeicherten Änderungen, fragt F.R.I.D.A.Y. nach. Mit Einstellungen exportieren und Einstellungen importieren sicherst oder übernimmst du eine Einstellungsdatei. Bei einem Konto mit reinem Lesezugriff sind die Felder ausgegraut."
+    },
+    {
+      "id": "sprachbetrieb#so-funktioniert-die-sprache",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "So funktioniert die Sprache",
+      "area": "sprache",
+      "keywords": [
+        "sprache",
+        "sprechen",
+        "wake word",
+        "befehl",
+        "antwort",
+        "ablauf",
+        "sprachsteuerung",
+        "gespräch"
+      ],
+      "text": "Du sprichst das Wake Word, etwa Hey Friday, dann hörst du einen kurzen Piepton. Danach sagst du deine Frage oder deinen Befehl. F.R.I.D.A.Y. antwortet mit Sprache und zeigt den Verlauf im Dashboard. Fragen nach Uhrzeit und Datum beantwortet der Assistent direkt. Fragen nach Wetter, Terminen, offenen Aufgaben, Freigaben oder dem Systemzustand beantwortet er ebenfalls direkt, ohne einen Agenten zu starten. Alles, was etwas erledigt, sucht, sendet oder ändert, gibt er an einen Hintergrundagenten weiter und sagt dir, dass es läuft. Du kannst auch über die Schaltfläche im Dashboard sprechen, statt das Wake Word zu nutzen."
+    },
+    {
+      "id": "sprachbetrieb#wake-word-und-sprecherpruefung",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Wake Word und Sprecherprüfung",
+      "area": "sprache",
+      "keywords": [
+        "wake word",
+        "sprecherprüfung",
+        "stimme erkennen",
+        "gast",
+        "fremde stimme",
+        "befehle",
+        "aktivierungswort"
+      ],
+      "text": "Das Wake Word lauscht lokal auf deinen Aktivierungssatz und löst aus, wenn es erkannt wird. Mit der Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Eine unbekannte Stimme erhält lediglich lokale Antworten, ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste wie Mail oder Kalender. Die Stimme eines Gastes geht nie an Qwen. Ein eigenes Wake Word braucht eigene Aufnahmen, die du im Dashboard unter Sprache einlernst oder im Installer neu aufnimmst."
+    },
+    {
+      "id": "sprachbetrieb#lokal-oder-qwen",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Lokal oder Qwen",
+      "area": "sprache",
+      "keywords": [
+        "lokal",
+        "qwen",
+        "qwen audio",
+        "gesprächsmodus",
+        "cloud",
+        "token plan",
+        "fallback",
+        "antwort lokal"
+      ],
+      "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt."
+    },
+    {
+      "id": "sprachbetrieb#folgefragen-und-unterbrechen",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Folgefragen und Unterbrechen",
+      "area": "sprache",
+      "keywords": [
+        "folgefrage",
+        "unterbrechen",
+        "stopp",
+        "abbrechen",
+        "nachfragen",
+        "gesprächsfenster",
+        "pause"
+      ],
+      "text": "Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 15 Sekunden Zeit. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst."
+    },
+    {
+      "id": "sprachbetrieb#hintergrundauftraege-und-ansagen",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Hintergrundaufträge und Ansagen",
+      "area": "sprache",
+      "keywords": [
+        "ansagen",
+        "ergebnisse",
+        "aufträge",
+        "hintergrund",
+        "zusammenfassung",
+        "recherche",
+        "agent",
+        "ergebnis vorlesen"
+      ],
+      "text": "Gibst du einen Auftrag, etwa Recherchiere, welche Laptops neu erschienen sind, läuft er im Hintergrund bei einem der Agenten für Recherche, Aufgaben, Warnungen oder Prüfung. Bis zu fünf Aufträge laufen parallel. Fertige Ergebnisse sagt F.R.I.D.A.Y. an. Ab drei Ergebnissen fasst er sie zusammen. Lange Ergebnisse werden nach 1.500 Zeichen gekürzt, den Rest findest du im Dashboard. Ergebnisse gelten als Daten und nicht als Anweisungen. Wer gerade spricht, bekommt die Ansage erst nach einer Pause. Während eines Ruhemodus werden Ansagen zurückgehalten und danach mit Hinweis nachgeholt."
+    },
+    {
+      "id": "sprachbetrieb#rueckfragen-von-agenten-beantworten",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Rückfragen von Agenten beantworten",
+      "area": "sprache",
+      "keywords": [
+        "rückfrage",
+        "nachfrage agent",
+        "antworten",
+        "task antwort",
+        "offene frage",
+        "eingabe",
+        "auftrag ergänzen"
+      ],
+      "text": "Braucht ein Agent eine Information, stellt er eine Rückfrage. Der Assistent sagt sie dir einmal an. Du antwortest einfach in deinen Worten, zum Beispiel Ja, nimm die Variante mit Montag. Die Antwort geht an den Agenten, der damit weiterarbeitet. Gibt es mehrere offene Fragen, fragt F.R.I.D.A.Y. nach, zu welcher Aufgabe deine Antwort gehört. Beantwortest du eine Frage im Dashboard, ist das ebenfalls möglich. Nach einem Neustart des Sprachdienstes kennt die Sprachsteuerung offene Fragen nicht mehr. Die Aufgabe wartet aber weiter und lässt sich im Dashboard beantworten."
+    },
+    {
+      "id": "sprachbetrieb#ruhemodus-per-stimme",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Ruhemodus per Stimme",
+      "area": "sprache",
+      "keywords": [
+        "ruhemodus",
+        "nicht stören",
+        "ruhe",
+        "nachtruhe",
+        "stille",
+        "ansagen pausieren",
+        "stimme aus",
+        "heute nacht"
+      ],
+      "text": "Du kannst den Ruhemodus per Sprache einschalten, etwa mit Ruhemodus für eine Stunde oder Ruhemodus bis 15:40. Die Endzeit rechnet das System selbst aus. Mit Läuft gerade der Ruhemodus fragst du den aktuellen Stand ab. Ruhemodus heute Nacht setzt die Ruhe bis morgen 7 Uhr. Die Stufe bestimmst du mit still oder stimme aus. Bei still wird nichts versendet, bei stimme aus kommt Wichtiges als Text an dich. Die tägliche Nachtruhe stellst du per Sprache mit Nachtruhe von 22 bis 7 Uhr ein. Bestätigt wird immer die Endzeit."
+    },
+    {
+      "id": "sprachbetrieb#beispielsaetze",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Beispielsätze",
+      "area": "sprache",
+      "keywords": [
+        "beispiele",
+        "beispielsätze",
+        "sprachbefehle",
+        "was kann ich sagen",
+        "sätze",
+        "formulierungen"
+      ],
+      "text": "Nach dem Wake Word kannst du zum Beispiel sagen: Wie spät ist es? Oder: Wie weit sind meine Aufgaben? Was steht heute an? Welche Freigaben sind offen? Ruhemodus für eine Stunde. Recherchiere ein Thema, dann meldet sich der Assistent, sobald das Ergebnis fertig ist. Sprich möglichst in ganzen, klaren Sätzen. Einstellungen ändert der Assistent per Sprache nur bei der Nachtruhe. Alle anderen Einstellungen änderst du im Dashboard."
+    },
+    {
+      "id": "settings-generated#profile",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Profil",
+      "area": "einstellungen:profile",
+      "keywords": [
+        "profile",
+        "profil",
+        "einstellung"
+      ],
+      "text": "Name, Assistentenname, Sprache und Zeitformat. Zu finden unter Einstellungen → Profil."
+    },
+    {
+      "id": "settings-generated#dashboard",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Dashboard",
+      "area": "einstellungen:dashboard",
+      "keywords": [
+        "dashboard",
+        "einstellung"
+      ],
+      "text": "Schriftgröße, Raster, Töne, Aktualisierung und Startseite. Zu finden unter Einstellungen → Dashboard."
+    },
+    {
+      "id": "settings-generated#layout",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Dashboard-Layout",
+      "area": "einstellungen:layout",
+      "keywords": [
+        "layout",
+        "dashboard",
+        "einstellung"
+      ],
+      "text": "Widgets der Übersicht verschieben, skalieren und ausblenden. Zu finden unter Einstellungen → Dashboard-Layout."
+    },
+    {
+      "id": "settings-generated#theme",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Theme",
+      "area": "einstellungen:theme",
+      "keywords": [
+        "theme",
+        "einstellung"
+      ],
+      "text": "Theme-Bibliothek, Editor mit Live-Vorschau, Import und Export. Zu finden unter Einstellungen → Theme."
+    },
+    {
+      "id": "settings-generated#orb",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Orb",
+      "area": "einstellungen:orb",
+      "keywords": [
+        "orb",
+        "einstellung"
+      ],
+      "text": "Darstellung, Qualität und Statusfarben des Orbs. Zu finden unter Einstellungen → Orb."
+    },
+    {
+      "id": "settings-generated#navigation",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Navigation",
+      "area": "einstellungen:navigation",
+      "keywords": [
+        "navigation",
+        "einstellung"
+      ],
+      "text": "Reihenfolge und Sichtbarkeit der Menüs, Startseite. Zu finden unter Einstellungen → Navigation."
+    },
+    {
+      "id": "settings-generated#adapters",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Adapter",
+      "area": "einstellungen:adapters",
+      "keywords": [
+        "adapters",
+        "adapter",
+        "einstellung"
+      ],
+      "text": "Verbindungen konfigurieren und testen. Zu finden unter Einstellungen → Adapter."
+    },
+    {
+      "id": "settings-generated#skillAccounts",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Skill-Konten",
+      "area": "einstellungen:skillAccounts",
+      "keywords": [
+        "skillaccounts",
+        "skill",
+        "konten",
+        "einstellung"
+      ],
+      "text": "Konten und Voraussetzungen für Friday-Skills. Zu finden unter Einstellungen → Skill-Konten."
+    },
+    {
+      "id": "settings-generated#contentStudioKeys",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Content Studio Zugänge",
+      "area": "einstellungen:contentStudioKeys",
+      "keywords": [
+        "contentstudiokeys",
+        "content",
+        "studio",
+        "zugänge",
+        "einstellung"
+      ],
+      "text": "API-Schlüssel für Medienanbieter im Control-API-Prozess verwalten.. Zu finden unter Einstellungen → Content Studio Zugänge."
+    },
+    {
+      "id": "settings-generated#modelsRouting",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Modelle & Routing",
+      "area": "einstellungen:modelsRouting",
+      "keywords": [
+        "modelsrouting",
+        "modelle",
+        "routing",
+        "einstellung"
+      ],
+      "text": "Standardmodell, lokale Modelle zuerst, Routen und Budget. Zu finden unter Einstellungen → Modelle & Routing."
+    },
+    {
+      "id": "settings-generated#hermesConfig",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Hermes-Konfiguration",
+      "area": "einstellungen:hermesConfig",
+      "keywords": [
+        "hermesconfig",
+        "hermes",
+        "konfiguration",
+        "einstellung"
+      ],
+      "text": "Wirksame Hermes-Werte und installierte Erweiterungen. Zu finden unter Einstellungen → Hermes-Konfiguration."
+    },
+    {
+      "id": "settings-generated#voice",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Sprache",
+      "area": "einstellungen:voice",
+      "keywords": [
+        "voice",
+        "sprache",
+        "einstellung"
+      ],
+      "text": "Wake Word, Push-to-talk, Sprecherprüfung und Audiogeräte. Zu finden unter Einstellungen → Sprache."
+    },
+    {
+      "id": "settings-generated#notifications",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Benachrichtigungen",
+      "area": "einstellungen:notifications",
+      "keywords": [
+        "notifications",
+        "benachrichtigungen",
+        "einstellung"
+      ],
+      "text": "Kanäle, Ruhezeiten und Eskalation. Zu finden unter Einstellungen → Benachrichtigungen."
+    },
+    {
+      "id": "settings-generated#security",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Sicherheit",
+      "area": "einstellungen:security",
+      "keywords": [
+        "security",
+        "sicherheit",
+        "einstellung"
+      ],
+      "text": "Sitzungen, erneute Anmeldung und Netzwerkzugriff. Zu finden unter Einstellungen → Sicherheit."
+    },
+    {
+      "id": "settings-generated#approvals",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Freigaben",
+      "area": "einstellungen:approvals",
+      "keywords": [
+        "approvals",
+        "freigaben",
+        "einstellung"
+      ],
+      "text": "Ablauffristen und Schutzstufen für Freigaben. Zu finden unter Einstellungen → Freigaben."
+    },
+    {
+      "id": "settings-generated#dataRetention",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Datenaufbewahrung",
+      "area": "einstellungen:dataRetention",
+      "keywords": [
+        "dataretention",
+        "datenaufbewahrung",
+        "einstellung"
+      ],
+      "text": "Wie lange Verlauf, Audit und Dateien gespeichert bleiben. Zu finden unter Einstellungen → Datenaufbewahrung."
+    },
+    {
+      "id": "settings-generated#backups",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Backups",
+      "area": "einstellungen:backups",
+      "keywords": [
+        "backups",
+        "einstellung"
+      ],
+      "text": "Zeitplan, Ziel und Aufbewahrung der Sicherungen. Zu finden unter Einstellungen → Backups."
+    },
+    {
+      "id": "settings-generated#developer",
+      "file": "docs/friday-knowledge/settings.generated.json",
+      "title": "Einstellungen: Entwickler",
+      "area": "einstellungen:developer",
+      "keywords": [
+        "developer",
+        "entwickler",
+        "einstellung"
+      ],
+      "text": "Debug-Modus, Rohdaten, Orb-Leistungsanzeige und Protokollstufe. Zu finden unter Einstellungen → Entwickler."
+    }
+  ]
+}

@@ -265,6 +265,10 @@ class _QuietTasks:
     def forget(self, task_id):
         pass
 
+    def set_quiet(self, until, level=None):
+        self.notices.append(("set", until, level))
+        return {"active": True, "until": until, "level": level or "silent"}
+
 
 def _classic_quiet_service(jv, state):
     svc = make_service(jv)
@@ -286,6 +290,22 @@ def test_classic_flow_holds_results_while_quiet_and_reports_them():
     svc.quiet_gate.invalidate()
     text = svc.announcer.take_announcement()
     assert "Drei Anbieter gefunden." in text
+
+
+def test_local_router_answers_quiet_orders_before_the_model():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": False})
+    decision = svc._route("Ruhemodus für zwei Stunden, nur Stimme aus")
+    assert decision["route"] == "local" and decision["intent"] == "local_command"
+    assert decision["answer"].startswith("Ruhemodus bis ")
+    assert svc.domain_tasks.notices[-1][0] == "set" and svc.domain_tasks.notices[-1][2] == "voice_off"
+
+
+def test_local_router_leaves_other_questions_to_the_model():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": False})
+    assert svc._local_command("Wie wird das Wetter morgen?") is None
+    assert svc._local_command("Sei still") is None
 
 
 def test_classic_flow_without_quiet_speaks_the_bundle():

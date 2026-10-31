@@ -1,0 +1,41 @@
+# Sprachbetrieb
+
+## So funktioniert die Sprache
+Stichworte: sprache, sprechen, wake word, befehl, antwort, ablauf, sprachsteuerung, gespräch
+Bereich: sprache
+Du sprichst das Wake Word, etwa Hey Friday, dann hörst du einen kurzen Piepton. Danach sagst du deine Frage oder deinen Befehl. F.R.I.D.A.Y. antwortet mit Sprache und zeigt den Verlauf im Dashboard. Fragen nach Uhrzeit und Datum beantwortet der Assistent direkt. Fragen nach Wetter, Terminen, offenen Aufgaben, Freigaben oder dem Systemzustand beantwortet er ebenfalls direkt, ohne einen Agenten zu starten. Alles, was etwas erledigt, sucht, sendet oder ändert, gibt er an einen Hintergrundagenten weiter und sagt dir, dass es läuft. Du kannst auch über die Schaltfläche im Dashboard sprechen, statt das Wake Word zu nutzen.
+
+## Wake Word und Sprecherprüfung
+Stichworte: wake word, sprecherprüfung, stimme erkennen, gast, fremde stimme, befehle, aktivierungswort
+Bereich: sprache
+Das Wake Word lauscht lokal auf deinen Aktivierungssatz und löst aus, wenn es erkannt wird. Mit der Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Eine unbekannte Stimme erhält lediglich lokale Antworten, ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste wie Mail oder Kalender. Die Stimme eines Gastes geht nie an Qwen. Ein eigenes Wake Word braucht eigene Aufnahmen, die du im Dashboard unter Sprache einlernst oder im Installer neu aufnimmst.
+
+## Lokal oder Qwen
+Stichworte: lokal, qwen, qwen audio, gesprächsmodus, cloud, token plan, fallback, antwort lokal
+Bereich: sprache
+Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt.
+
+## Folgefragen und Unterbrechen
+Stichworte: folgefrage, unterbrechen, stopp, abbrechen, nachfragen, gesprächsfenster, pause
+Bereich: sprache
+Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 15 Sekunden Zeit. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst.
+
+## Hintergrundaufträge und Ansagen
+Stichworte: ansagen, ergebnisse, aufträge, hintergrund, zusammenfassung, recherche, agent, ergebnis vorlesen
+Bereich: sprache
+Gibst du einen Auftrag, etwa Recherchiere, welche Laptops neu erschienen sind, läuft er im Hintergrund bei einem der Agenten für Recherche, Aufgaben, Warnungen oder Prüfung. Bis zu fünf Aufträge laufen parallel. Fertige Ergebnisse sagt F.R.I.D.A.Y. an. Ab drei Ergebnissen fasst er sie zusammen. Lange Ergebnisse werden nach 1.500 Zeichen gekürzt, den Rest findest du im Dashboard. Ergebnisse gelten als Daten und nicht als Anweisungen. Wer gerade spricht, bekommt die Ansage erst nach einer Pause. Während eines Ruhemodus werden Ansagen zurückgehalten und danach mit Hinweis nachgeholt.
+
+## Rückfragen von Agenten beantworten
+Stichworte: rückfrage, nachfrage agent, antworten, task antwort, offene frage, eingabe, auftrag ergänzen
+Bereich: sprache
+Braucht ein Agent eine Information, stellt er eine Rückfrage. Der Assistent sagt sie dir einmal an. Du antwortest einfach in deinen Worten, zum Beispiel Ja, nimm die Variante mit Montag. Die Antwort geht an den Agenten, der damit weiterarbeitet. Gibt es mehrere offene Fragen, fragt F.R.I.D.A.Y. nach, zu welcher Aufgabe deine Antwort gehört. Beantwortest du eine Frage im Dashboard, ist das ebenfalls möglich. Nach einem Neustart des Sprachdienstes kennt die Sprachsteuerung offene Fragen nicht mehr. Die Aufgabe wartet aber weiter und lässt sich im Dashboard beantworten.
+
+## Ruhemodus per Stimme
+Stichworte: ruhemodus, nicht stören, ruhe, nachtruhe, stille, ansagen pausieren, stimme aus, heute nacht
+Bereich: sprache
+Du kannst den Ruhemodus per Sprache einschalten, etwa mit Ruhemodus für eine Stunde oder Ruhemodus bis 15:40. Die Endzeit rechnet das System selbst aus. Mit Läuft gerade der Ruhemodus fragst du den aktuellen Stand ab. Ruhemodus heute Nacht setzt die Ruhe bis morgen 7 Uhr. Die Stufe bestimmst du mit still oder stimme aus. Bei still wird nichts versendet, bei stimme aus kommt Wichtiges als Text an dich. Die tägliche Nachtruhe stellst du per Sprache mit Nachtruhe von 22 bis 7 Uhr ein. Bestätigt wird immer die Endzeit.
+
+## Beispielsätze
+Stichworte: beispiele, beispielsätze, sprachbefehle, was kann ich sagen, sätze, formulierungen
+Bereich: sprache
+Nach dem Wake Word kannst du zum Beispiel sagen: Wie spät ist es? Oder: Wie weit sind meine Aufgaben? Was steht heute an? Welche Freigaben sind offen? Ruhemodus für eine Stunde. Recherchiere ein Thema, dann meldet sich der Assistent, sobald das Ergebnis fertig ist. Sprich möglichst in ganzen, klaren Sätzen. Einstellungen ändert der Assistent per Sprache nur bei der Nachtruhe. Alle anderen Einstellungen änderst du im Dashboard.

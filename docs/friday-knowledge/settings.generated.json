@@ -1,0 +1,833 @@
+{
+  "note": "Generiert von scripts/knowledge/build-friday-knowledge.mjs – nicht von Hand ändern.",
+  "areas": [
+    {
+      "id": "profile",
+      "label": "Profil",
+      "description": "Name, Assistentenname, Sprache und Zeitformat",
+      "route": "/settings?area=profile",
+      "fields": [
+        {
+          "name": "assistantName",
+          "type": "string",
+          "description": "Visible brand name of the assistant (UI, orb labels, voice copy). Optional; clients fall back to \"F.R.I.D.A.Y.\"."
+        },
+        {
+          "name": "dateFormat",
+          "type": "string",
+          "enum": [
+            "dd.MM.yyyy",
+            "yyyy-MM-dd",
+            "MM/dd/yyyy"
+          ]
+        },
+        {
+          "name": "displayName",
+          "type": "string"
+        },
+        {
+          "name": "firstDayOfWeek",
+          "type": "string",
+          "enum": [
+            "monday",
+            "sunday"
+          ]
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "enum": [
+            "de",
+            "en"
+          ]
+        },
+        {
+          "name": "timeFormat",
+          "type": "string",
+          "enum": [
+            "24h",
+            "12h"
+          ]
+        },
+        {
+          "name": "timeZone",
+          "type": "string"
+        }
+      ],
+      "defaults": {
+        "assistantName": "F.R.I.D.A.Y.",
+        "dateFormat": "dd.MM.yyyy",
+        "displayName": "installationsabhängig",
+        "firstDayOfWeek": "monday",
+        "locale": "de",
+        "timeFormat": "24h",
+        "timeZone": "installationsabhängig"
+      }
+    },
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "description": "Schriftgröße, Raster, Töne, Aktualisierung und Startseite",
+      "route": "/settings?area=dashboard",
+      "fields": [
+        {
+          "name": "activeLayoutId",
+          "type": "string"
+        },
+        {
+          "name": "autoRefreshSeconds",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 3600
+        },
+        {
+          "name": "backgroundGrid",
+          "type": "boolean"
+        },
+        {
+          "name": "compact",
+          "type": "boolean"
+        },
+        {
+          "name": "contentStudioEnabled",
+          "type": "boolean",
+          "description": "Enables the optional Content Studio module. Missing on older settings means disabled."
+        },
+        {
+          "name": "fontScale",
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1.4
+        },
+        {
+          "name": "location",
+          "type": "unknown",
+          "description": "Confirmed coarse dashboard location; absent or null means no location was chosen."
+        },
+        {
+          "name": "soundEffects",
+          "type": "boolean"
+        }
+      ],
+      "defaults": {
+        "activeLayoutId": "installationsabhängig",
+        "autoRefreshSeconds": 30,
+        "backgroundGrid": true,
+        "compact": false,
+        "contentStudioEnabled": "installationsabhängig",
+        "fontScale": 1,
+        "soundEffects": false
+      }
+    },
+    {
+      "id": "layout",
+      "label": "Dashboard-Layout",
+      "description": "Widgets der Übersicht verschieben, skalieren und ausblenden",
+      "route": "/settings?area=layout"
+    },
+    {
+      "id": "theme",
+      "label": "Theme",
+      "description": "Theme-Bibliothek, Editor mit Live-Vorschau, Import und Export",
+      "route": "/settings?area=theme",
+      "fields": [
+        {
+          "name": "activeThemeId",
+          "type": "string"
+        },
+        {
+          "name": "cyanIntensity",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "name": "goldIntensity",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "name": "overrides",
+          "type": "object"
+        },
+        {
+          "name": "panelOpacity",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "defaults": {
+        "activeThemeId": "installationsabhängig",
+        "cyanIntensity": 1,
+        "goldIntensity": 1,
+        "panelOpacity": 0.72
+      }
+    },
+    {
+      "id": "orb",
+      "label": "Orb",
+      "description": "Darstellung, Qualität und Statusfarben des Orbs",
+      "route": "/settings?area=orb",
+      "fields": [
+        {
+          "name": "animations",
+          "type": "string",
+          "enum": [
+            "full",
+            "reduced",
+            "off"
+          ]
+        },
+        {
+          "name": "audioReactive",
+          "type": "boolean"
+        },
+        {
+          "name": "bloom",
+          "type": "boolean"
+        },
+        {
+          "name": "intensity",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "name": "mouseParallax",
+          "type": "boolean"
+        },
+        {
+          "name": "particleDensity",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "name": "preset",
+          "type": "string"
+        },
+        {
+          "name": "quality",
+          "type": "string",
+          "enum": [
+            "auto",
+            "low",
+            "medium",
+            "high",
+            "ultra"
+          ]
+        },
+        {
+          "name": "renderMode",
+          "type": "string",
+          "enum": [
+            "auto",
+            "2d",
+            "3d"
+          ]
+        },
+        {
+          "name": "size",
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        {
+          "name": "speed",
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 3
+        },
+        {
+          "name": "statusColors",
+          "type": "object",
+          "description": "Secondary accent color per orb mode; the gold core is invariant."
+        }
+      ],
+      "defaults": {
+        "animations": "full",
+        "audioReactive": true,
+        "bloom": true,
+        "intensity": 70,
+        "mouseParallax": true,
+        "particleDensity": 60,
+        "preset": "gold-reference",
+        "quality": "auto",
+        "renderMode": "auto",
+        "size": 1,
+        "speed": 1,
+        "statusColors": {
+          "listening": "#4DD6FF",
+          "transcribing": "#4DD6FF",
+          "thinking": "#B28CFF",
+          "syncing": "#4DD6FF",
+          "working": "#FFB347",
+          "speaking": "#FFD166",
+          "waiting_approval": "#FFB347",
+          "success": "#7DF9A1",
+          "warning": "#FF9A3D",
+          "error": "#FF5A4D",
+          "offline": "#8A6A3C",
+          "paused": "#A88B55"
+        }
+      }
+    },
+    {
+      "id": "navigation",
+      "label": "Navigation",
+      "description": "Reihenfolge und Sichtbarkeit der Menüs, Startseite",
+      "route": "/settings?area=navigation",
+      "fields": [
+        {
+          "name": "defaultPage",
+          "type": "string"
+        },
+        {
+          "name": "hidden",
+          "type": "array"
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "enum": [
+            "compact",
+            "expanded"
+          ]
+        },
+        {
+          "name": "order",
+          "type": "array"
+        }
+      ],
+      "defaults": {
+        "defaultPage": "overview",
+        "hidden": [],
+        "mode": "expanded",
+        "order": [
+          "overview",
+          "tasks",
+          "activity",
+          "memory",
+          "agents",
+          "approvals",
+          "communication",
+          "calendar",
+          "automations",
+          "research",
+          "content-studio",
+          "files",
+          "voice",
+          "alerts",
+          "system",
+          "audit",
+          "settings"
+        ]
+      }
+    },
+    {
+      "id": "adapters",
+      "label": "Adapter",
+      "description": "Verbindungen konfigurieren und testen",
+      "route": "/settings?area=adapters"
+    },
+    {
+      "id": "skillAccounts",
+      "label": "Skill-Konten",
+      "description": "Konten und Voraussetzungen für Friday-Skills",
+      "route": "/settings?area=skillAccounts"
+    },
+    {
+      "id": "contentStudioKeys",
+      "label": "Content Studio Zugänge",
+      "description": "API-Schlüssel für Medienanbieter im Control-API-Prozess verwalten.",
+      "route": "/settings?area=contentStudioKeys"
+    },
+    {
+      "id": "modelsRouting",
+      "label": "Modelle & Routing",
+      "description": "Standardmodell, lokale Modelle zuerst, Routen und Budget",
+      "route": "/settings?area=modelsRouting",
+      "fields": [
+        {
+          "name": "defaultModel",
+          "type": "string"
+        },
+        {
+          "name": "localFirst",
+          "type": "boolean"
+        },
+        {
+          "name": "monthlyBudgetEur",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        {
+          "name": "routes",
+          "type": "array"
+        }
+      ],
+      "defaults": {
+        "defaultModel": "kimi-coding:kimi-for-coding",
+        "localFirst": true,
+        "monthlyBudgetEur": null,
+        "routes": [
+          {
+            "taskKind": "voice-routine",
+            "model": "kimi-coding:kimi-for-coding",
+            "reasoningLevel": "none",
+            "fallbackModel": null
+          },
+          {
+            "taskKind": "voice-complex",
+            "model": "kimi-coding:k3",
+            "reasoningLevel": "high",
+            "fallbackModel": null
+          },
+          {
+            "taskKind": "voice-critical",
+            "model": "kimi-coding:k3",
+            "reasoningLevel": "max",
+            "fallbackModel": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "hermesConfig",
+      "label": "Hermes-Konfiguration",
+      "description": "Wirksame Hermes-Werte und installierte Erweiterungen",
+      "route": "/settings?area=hermesConfig"
+    },
+    {
+      "id": "voice",
+      "label": "Sprache",
+      "description": "Wake Word, Push-to-talk, Sprecherprüfung und Audiogeräte",
+      "route": "/settings?area=voice",
+      "fields": [
+        {
+          "name": "conversationBackend",
+          "type": "string",
+          "enum": [
+            "local",
+            "qwen"
+          ],
+          "description": "Who leads the spoken conversation: the local pipeline or Qwen Audio over the Alibaba Token Plan (wake word, speaker check and voice stay local)."
+        },
+        {
+          "name": "inputDeviceId",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "name": "outputDeviceId",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "name": "pushToTalkKey",
+          "type": "string"
+        },
+        {
+          "name": "speakerVerificationRequired",
+          "type": "boolean"
+        },
+        {
+          "name": "storeRawRecordings",
+          "type": "boolean"
+        },
+        {
+          "name": "sttLanguage",
+          "type": "string",
+          "enum": [
+            "de",
+            "en"
+          ]
+        },
+        {
+          "name": "sttModel",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "name": "ttsRate",
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        {
+          "name": "ttsVoice",
+          "type": "string"
+        },
+        {
+          "name": "voiceHistoryEnabled",
+          "type": "boolean"
+        },
+        {
+          "name": "wakeWord",
+          "type": "string"
+        },
+        {
+          "name": "wakeWordEnabled",
+          "type": "boolean"
+        }
+      ],
+      "defaults": {
+        "conversationBackend": "local",
+        "inputDeviceId": null,
+        "outputDeviceId": null,
+        "pushToTalkKey": "Ctrl+Space",
+        "speakerVerificationRequired": true,
+        "storeRawRecordings": false,
+        "sttLanguage": "de",
+        "sttModel": null,
+        "ttsRate": 1,
+        "ttsVoice": "",
+        "voiceHistoryEnabled": true,
+        "wakeWord": "Hey Friday",
+        "wakeWordEnabled": true
+      }
+    },
+    {
+      "id": "notifications",
+      "label": "Benachrichtigungen",
+      "description": "Kanäle, Ruhezeiten und Eskalation",
+      "route": "/settings?area=notifications",
+      "fields": [
+        {
+          "name": "channels",
+          "type": "array"
+        },
+        {
+          "name": "defaultEscalation",
+          "type": "array"
+        },
+        {
+          "name": "importantClasses",
+          "type": "array",
+          "description": "Classes that count as important while quiet with level voice_off. Default: [\"agent_questions\", \"approvals\"]."
+        },
+        {
+          "name": "quietHours",
+          "type": "object"
+        },
+        {
+          "name": "quietMode",
+          "type": "object",
+          "description": "Defaults for a temporary quiet mode started by voice or dashboard."
+        },
+        {
+          "name": "quietTextTargetId",
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Registered messenger target (the owner's own recipient) for voice_off texts; null sends nothing. Default: null."
+        },
+        {
+          "name": "snoozeDefaultMinutes",
+          "type": "integer",
+          "minimum": 1
+        }
+      ],
+      "defaults": {
+        "channels": [
+          {
+            "kind": "dashboard",
+            "enabled": true,
+            "minPriority": "P4"
+          },
+          {
+            "kind": "telegram",
+            "enabled": true,
+            "minPriority": "P2"
+          },
+          {
+            "kind": "whatsapp",
+            "enabled": false,
+            "minPriority": "P1"
+          },
+          {
+            "kind": "sms",
+            "enabled": false,
+            "minPriority": "P0"
+          },
+          {
+            "kind": "phone",
+            "enabled": false,
+            "minPriority": "P0"
+          },
+          {
+            "kind": "email",
+            "enabled": true,
+            "minPriority": "P3"
+          }
+        ],
+        "defaultEscalation": [
+          {
+            "afterSeconds": 0,
+            "channel": "dashboard",
+            "description": "Sofort im Dashboard anzeigen",
+            "stopOnAcknowledge": true
+          },
+          {
+            "afterSeconds": 120,
+            "channel": "telegram",
+            "description": "Nach 2 Minuten per Telegram",
+            "stopOnAcknowledge": true
+          },
+          {
+            "afterSeconds": 300,
+            "channel": "whatsapp",
+            "description": "Nach 5 Minuten per WhatsApp",
+            "stopOnAcknowledge": true
+          }
+        ],
+        "importantClasses": [
+          "agent_questions",
+          "approvals"
+        ],
+        "quietHours": {
+          "enabled": true,
+          "from": "22:00",
+          "to": "07:00",
+          "level": "silent",
+          "summaryAt": "first_interaction"
+        },
+        "quietMode": {
+          "level": "silent"
+        },
+        "quietTextTargetId": null,
+        "snoozeDefaultMinutes": 30
+      }
+    },
+    {
+      "id": "security",
+      "label": "Sicherheit",
+      "description": "Sitzungen, erneute Anmeldung und Netzwerkzugriff",
+      "route": "/settings?area=security",
+      "fields": [
+        {
+          "name": "allowRemoteAccess",
+          "type": "boolean"
+        },
+        {
+          "name": "auditHashChain",
+          "type": "boolean"
+        },
+        {
+          "name": "loginRequired",
+          "type": "boolean"
+        },
+        {
+          "name": "reauthWindowMinutes",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "sessionTimeoutMinutes",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "trustedOrigins",
+          "type": "array"
+        }
+      ],
+      "defaults": {
+        "allowRemoteAccess": "installationsabhängig",
+        "auditHashChain": true,
+        "loginRequired": true,
+        "reauthWindowMinutes": "installationsabhängig",
+        "sessionTimeoutMinutes": "installationsabhängig",
+        "trustedOrigins": "installationsabhängig"
+      }
+    },
+    {
+      "id": "approvals",
+      "label": "Freigaben",
+      "description": "Ablauffristen und Schutzstufen für Freigaben",
+      "route": "/settings?area=approvals",
+      "fields": [
+        {
+          "name": "confirmTier2",
+          "type": "boolean"
+        },
+        {
+          "name": "defaultExpiryMinutes",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "draftOnlyByDefault",
+          "type": "boolean"
+        },
+        {
+          "name": "notifyOnRequest",
+          "type": "boolean"
+        },
+        {
+          "name": "reauthTier3",
+          "type": "boolean"
+        }
+      ],
+      "defaults": {
+        "confirmTier2": true,
+        "defaultExpiryMinutes": 60,
+        "draftOnlyByDefault": true,
+        "notifyOnRequest": true,
+        "reauthTier3": true
+      }
+    },
+    {
+      "id": "dataRetention",
+      "label": "Datenaufbewahrung",
+      "description": "Wie lange Verlauf, Audit und Dateien gespeichert bleiben",
+      "route": "/settings?area=dataRetention",
+      "fields": [
+        {
+          "name": "activityDays",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "auditDays",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "memoryDefaultTtlDays",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        {
+          "name": "notificationDays",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "temporaryFileDays",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "voiceHistoryDays",
+          "type": "integer",
+          "minimum": 0
+        }
+      ],
+      "defaults": {
+        "activityDays": 90,
+        "auditDays": 365,
+        "memoryDefaultTtlDays": null,
+        "notificationDays": 60,
+        "temporaryFileDays": 7,
+        "voiceHistoryDays": 30
+      }
+    },
+    {
+      "id": "backups",
+      "label": "Backups",
+      "description": "Zeitplan, Ziel und Aufbewahrung der Sicherungen",
+      "route": "/settings?area=backups",
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "boolean"
+        },
+        {
+          "name": "lastBackupAt",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "name": "lastBackupStatus",
+          "type": "string",
+          "enum": [
+            "success",
+            "failed",
+            "never"
+          ]
+        },
+        {
+          "name": "retentionCount",
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "name": "schedule",
+          "type": "string",
+          "description": "Cron expression."
+        },
+        {
+          "name": "targetPath",
+          "type": "string"
+        }
+      ],
+      "defaults": {
+        "enabled": true,
+        "lastBackupAt": null,
+        "lastBackupStatus": "never",
+        "retentionCount": 14,
+        "schedule": "0 3 * * *",
+        "targetPath": "installationsabhängig"
+      }
+    },
+    {
+      "id": "developer",
+      "label": "Entwickler",
+      "description": "Debug-Modus, Rohdaten, Orb-Leistungsanzeige und Protokollstufe",
+      "route": "/settings?area=developer",
+      "fields": [
+        {
+          "name": "debugMode",
+          "type": "boolean"
+        },
+        {
+          "name": "logLevel",
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ]
+        },
+        {
+          "name": "orbPerfOverlay",
+          "type": "boolean"
+        },
+        {
+          "name": "scenarioConsole",
+          "type": "boolean"
+        },
+        {
+          "name": "showRawJson",
+          "type": "boolean"
+        }
+      ],
+      "defaults": {
+        "debugMode": false,
+        "logLevel": "installationsabhängig",
+        "orbPerfOverlay": false,
+        "scenarioConsole": "installationsabhängig",
+        "showRawJson": false
+      }
+    }
+  ]
+}
