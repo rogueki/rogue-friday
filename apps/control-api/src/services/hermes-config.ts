@@ -742,6 +742,9 @@ export class HermesConfigService {
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
       if (action === "update" && error instanceof Error) {
+        if (error.message.includes("skill_root_missing"))
+          throw conflict("Ein Skill-Ordner aus skills.external_dirs ist nicht erreichbar (Laufwerk nicht verbunden?). " +
+            "Skills lassen sich erst wieder umschalten, wenn er erreichbar ist; die Deaktivierungsliste bleibt unverändert.");
         if (error.message.includes("custom_provider_required"))
           throw validationFailed("Die Basis-URL gilt nur für den eigenen Anbieter (custom). Zuerst den Anbieter auf custom umstellen.");
         if (error.message.includes("profile_snapshot_cleanup_failed"))

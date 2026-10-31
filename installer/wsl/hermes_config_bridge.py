@@ -1511,7 +1511,10 @@ def locked_main(home, source, cli):
                     env_lock.close()
             if key == "skills.disabled":
                 roots, root_errors = inventory_roots(home, call)
-                names, scan_errors = installed_skills(roots)
+                names, scan_errors = installed_skills(roots, report_missing=True)
+                # Ein abgezogenes Laufwerk versteckt Skills; die Deaktivierungsliste darf dann nicht umgeschrieben werden.
+                if "skill_root_missing" in scan_errors:
+                    raise ValueError("skill_root_missing")
                 if root_errors or scan_errors or "hermes-agent" in value or not set(value) <= set(names):
                     raise ValueError("invalid_value")
             if credential_update:
@@ -1701,7 +1704,7 @@ if __name__ == "__main__":
             "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
             "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
             "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
-            "profile_pin_required", "custom_provider_required", "pairing_unavailable"}
+            "profile_pin_required", "custom_provider_required", "pairing_unavailable", "skill_root_missing"}
         # "hermes_unavailable" used to swallow the real reason (missing binary, broken profile, parse error) and the
         # operator only saw an unreachable distro. Keep the canonical code, add what actually happened.
         payload = {"error": message if canonical else "hermes_unavailable"}

@@ -383,6 +383,27 @@ class BridgeTest(unittest.TestCase):
                          "revision": bridge.revision(self.config)})
         self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
 
+    def test_unplugged_skill_drive_blocks_activation_writes_and_is_reported(self):
+        # Abgezogenes Laufwerk: Inventar meldet es, die Deaktivierungsliste bleibt unveraendert.
+        self.values["skills.external_dirs"] = [str(self.home / "unplugged" / "skills")]
+        self.values["skills.disabled"] = ["drive-skill"]
+        code, status = self.invoke()
+        self.assertEqual(code, 0)
+        self.assertFalse(status["inventory"]["skillsComplete"])
+        self.assertIn("skill_root_missing", status["inventory"]["reasons"])
+        self.calls.clear()
+        with self.assertRaisesRegex(ValueError, "skill_root_missing"):
+            self.invoke({"key": "skills.disabled", "value": ["drive-skill", "sample"],
+                         "revision": bridge.revision(self.config)})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+        self.assertEqual(self.values["skills.disabled"], ["drive-skill"])
+        (self.home / "unplugged" / "skills" / "drive-skill").mkdir(parents=True)
+        (self.home / "unplugged" / "skills" / "drive-skill" / "SKILL.md").write_text("synthetic")
+        code, result = self.invoke({"key": "skills.disabled", "value": ["drive-skill", "sample"],
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(self.values["skills.disabled"], ["drive-skill", "sample"])
+
     def test_plugin_activation_only_targets_installed_selection_and_reads_back(self):
         current = bridge.revision(self.config)
         code, result = self.invoke({"pluginId": "example", "enabled": False, "revision": current})

@@ -182,6 +182,13 @@ const COMPRESSION_TAIL_MODE_OPTIONS: ReadonlyArray<readonly [string, string]> = 
   ["lean", "Kompakt"],
   ["legacy", "Verbatim-Verlauf"],
 ];
+const INVENTORY_REASON_TEXT: Record<string, string> = {
+  skill_root_missing: "ein Skill-Ordner aus skills.external_dirs ist nicht erreichbar, Laufwerk prüfen",
+  skill_root_unreadable: "ein Skill-Ordner ist nicht lesbar",
+  skill_roots_unknown: "Skill-Ordner konnten nicht gelesen werden",
+  skill_activation_unknown: "Aktivierungsstand unbekannt",
+};
+
 const REASONING_EFFORT_OPTIONS: ReadonlyArray<readonly [string, string]> = [
   ["", "Anbietervorgabe"], ["none", "Aus"], ["minimal", "Minimal"], ["low", "Niedrig"],
   ["medium", "Mittel"], ["high", "Hoch"], ["xhigh", "Sehr hoch"], ["max", "Maximal"], ["ultra", "Ultra"],
@@ -594,7 +601,8 @@ export function HermesConfigArea() {
       </p>
       <p role={data.inventory.skillsComplete && data.inventory.pluginsComplete ? "status" : "alert"}>
         Profil-Inventar: {data.inventory.skillsComplete && data.inventory.pluginsComplete ? "vollständig" : "unvollständig"}
-        {data.inventory.reasons.length ? ` (${data.inventory.reasons.join(", ")})` : ""}.
+        {data.inventory.reasons.length
+          ? ` (${data.inventory.reasons.map((reason) => INVENTORY_REASON_TEXT[reason] ?? reason).join(", ")})` : ""}.
       </p>
       <p>
         Diese Bereiche sind für die angegebenen Pakete vorgemerkt. Ihre einzelnen Felder, Voraussetzungen und
