@@ -5,6 +5,7 @@ import { createIdempotencyKey, FridayApiError, type ContentIdea, type ContentPro
 import { useEffect, useMemo, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
+import { contentStudioMediaApi } from "@/lib/api/domains/contentStudioMedia";
 
 const voiceKey = "friday.content-studio.voice-id";
 const pendingKey = "friday.content-studio.pending-production";
@@ -111,9 +112,9 @@ export function ProductionWorkspace({ ideas, revision }: { ideas: ContentIdea[];
     if (!job?.artifactReady || busy) return;
     setBusy(true);
     try {
-      const response = await fetch(`/api/v1/content-studio/production-jobs/${encodeURIComponent(job.id)}/artifact`, { credentials: "include" });
-      if (!response.ok || !response.headers.get("content-type")?.includes("video/mp4")) throw new Error("Die fertige MP4-Datei ist derzeit nicht abrufbar.");
-      const url = URL.createObjectURL(await response.blob());
+      const blob = await contentStudioMediaApi.downloadProductionArtifact(job.id);
+      if (!blob.type.includes("video/mp4")) throw new Error("Die fertige MP4-Datei ist derzeit nicht abrufbar.");
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a"); link.href = url; link.download = `friday-content-${job.id}.mp4`; link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Download fehlgeschlagen."); }

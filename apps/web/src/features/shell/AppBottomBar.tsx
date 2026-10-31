@@ -13,6 +13,8 @@ import { useT } from "@/i18n";
 import { useCommandControl } from "@/lib/api/domains/commands";
 import { useCapability } from "@/lib/capabilities";
 import { useSettings } from "@/lib/api/domains/settings";
+import { healthApi } from "@/lib/api/domains/health";
+import { weatherApi } from "@/lib/api/domains/weather";
 
 const CHIP_ICON = { size: 16, strokeWidth: 1.5 } as const;
 
@@ -29,10 +31,8 @@ export function AppBottomBar() {
     queryKey: ["context-weather", location?.latitude, location?.longitude],
     enabled: !!location && pathname === "/",
     queryFn: async () => {
-      const response = await fetch("/api/v1/weather/current", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(7_000) });
-      if (!response.ok) throw new Error("Wetterdienst nicht erreichbar");
-      const data = (await response.json() as { data: { location: { latitude: number; longitude: number }; temperatureC: number; weatherCode: number;
-        observedAt: string; fetchedAt: string; stale: boolean; provider: string } | null }).data;
+      const body = await weatherApi.currentWeather(AbortSignal.timeout(7_000));
+      const data = body.data;
       if (!data || data.location.latitude !== location?.latitude || data.location.longitude !== location?.longitude)
         throw new Error("Wetter wird nach dem Speichern des Standorts geladen");
       return data;
@@ -46,8 +46,7 @@ export function AppBottomBar() {
     enabled: pathname === "/",
     queryFn: async () => {
       const start = performance.now();
-      const response = await fetch("/api/v1/health", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(5_000) });
-      if (!response.ok) throw new Error("Dashboard nicht erreichbar");
+      await healthApi.fetchHealth(AbortSignal.timeout(5_000));
       return Math.max(0, Math.round(performance.now() - start));
     },
     retry: false,

@@ -7,12 +7,24 @@ import { queryKeys } from "@/lib/api/queryKeys";
 import { adapterInfoOf, capabilitiesOf, jsonResponse, NEVER_RESOLVES, renderWithProviders } from "@/test/render";
 import { AppBottomBar } from "./AppBottomBar";
 
+const apiMocks = vi.hoisted(() => ({
+  currentWeather: vi.fn(),
+  fetchHealth: vi.fn(),
+  searchLocations: vi.fn(),
+}));
+vi.mock("@/lib/api/domains/weather", () => ({
+  weatherApi: { searchLocations: apiMocks.searchLocations, currentWeather: apiMocks.currentWeather },
+}));
+vi.mock("@/lib/api/domains/health", () => ({
+  healthApi: { fetchHealth: apiMocks.fetchHealth },
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/",
 }));
 
-afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
+afterEach(() => { setApiClient(null); apiMocks.currentWeather.mockReset(); apiMocks.fetchHealth.mockReset(); apiMocks.searchLocations.mockReset(); vi.unstubAllGlobals(); });
 
 const COMMAND_ID = "cmd_01HZZZZZZZZZZZZZZZZZZZZZZZ";
 
@@ -68,7 +80,10 @@ describe("AppBottomBar text input", () => {
 
   it("shows measured dashboard connectivity and reports a failed health request", async () => {
     let connected = true;
-    vi.stubGlobal("fetch", vi.fn(async () => connected ? jsonResponse({ status: "ok" }) : jsonResponse({}, 503)));
+    apiMocks.fetchHealth.mockImplementation(async () => {
+      if (!connected) throw new Error("Dashboard nicht erreichbar");
+      return { status: "ok" };
+    });
     const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
     expect(await screen.findByText(/Verbunden · \d+ ms/)).toBeInTheDocument();
     connected = false;
@@ -77,11 +92,8 @@ describe("AppBottomBar text input", () => {
   });
 
   it("does not display weather returned for a different saved location", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).endsWith("/weather/current")) return jsonResponse({ data: { location: { latitude: 48.86, longitude: 2.35 },
-        temperatureC: 25, weatherCode: 0, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale: false, provider: "Open-Meteo" } });
-      return jsonResponse({ status: "ok" });
-    }));
+    apiMocks.currentWeather.mockResolvedValue({ data: { location: { latitude: 48.86, longitude: 2.35 },
+      temperatureC: 25, weatherCode: 0, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale: false, provider: "Open-Meteo" } });
     const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
     queryClient.setQueryData(queryKeys.settings.root, { data: { dashboard: { location: { label: "Berlin", latitude: 52.52, longitude: 13.41 } } } });
     await waitFor(() => expect(screen.getByRole("button", { name: "Wetter: —. Wetterdienst nicht erreichbar" })).toBeInTheDocument());
@@ -90,11 +102,8 @@ describe("AppBottomBar text input", () => {
 
   it("shows current weather and visibly marks a later stale result", async () => {
     let stale = false;
-    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).endsWith("/weather/current")) return jsonResponse({ data: { location: { latitude: 52.52, longitude: 13.41 },
-        temperatureC: 17.4, weatherCode: 2, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale, provider: "Open-Meteo" } });
-      return jsonResponse({ status: "ok" });
-    }));
+    apiMocks.currentWeather.mockImplementation(async () => ({ data: { location: { latitude: 52.52, longitude: 13.41 },
+      temperatureC: 17.4, weatherCode: 2, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale, provider: "Open-Meteo" } }));
     const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
     queryClient.setQueryData(queryKeys.settings.root, { data: { dashboard: { location: { label: "Berlin", latitude: 52.52, longitude: 13.41 } } } });
     expect(await screen.findByText("17 °C")).toBeInTheDocument();

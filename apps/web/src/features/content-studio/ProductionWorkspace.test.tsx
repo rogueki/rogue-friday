@@ -1,9 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CONTRACT_VERSION, createFridayClient, type ContentIdea } from "@friday/sdk";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { ProductionWorkspace } from "./ProductionWorkspace";
+
+vi.mock("@/lib/api/domains/contentStudioMedia", () => ({
+  contentStudioMediaApi: { createSpeech: vi.fn(), downloadProductionArtifact: vi.fn() },
+}));
 
 const idea: ContentIdea = {
   id: "idea-1", titel: "Produktstart", plattform: "LinkedIn", format: "LinkedIn-Video",

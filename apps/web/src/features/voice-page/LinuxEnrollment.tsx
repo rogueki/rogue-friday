@@ -2,29 +2,16 @@
 
 import { Button, Dialog } from "@friday/ui";
 import { useEffect, useRef, useState } from "react";
-import { getCsrfToken } from "@/lib/api/client";
+import { linuxEnrollmentApi, type LinuxEnrollmentKind, type LinuxEnrollmentStatus } from "@/lib/api/domains/linuxEnrollment";
 import { BrowserAudioResampler } from "@/features/voice/browserAudioResampler";
 
-type Kind = "wake" | "short" | "negatives" | "speech";
-type Status = { available: boolean; state: "pending" | "training" | "activating" | "complete" | "failed"; phrase: string; shortPhrase: string | null; counts: Record<Kind, number>; required: Record<Kind, number>; error: string | null };
-const labels: Record<Kind, string> = { wake: "Aktivierungsphrase", short: "Kurzform", negatives: "Ähnliche andere Wörter", speech: "Lesetext" };
-const samples: Record<Kind, string> = {
+const labels: Record<LinuxEnrollmentKind, string> = { wake: "Aktivierungsphrase", short: "Kurzform", negatives: "Ähnliche andere Wörter", speech: "Lesetext" };
+const samples: Record<LinuxEnrollmentKind, string> = {
   wake: "Sprich die angezeigte Aktivierungsphrase deutlich.",
   short: "Sprich nur die angezeigte Kurzform.",
   negatives: "Sprich ein anderes Wort oder einen ähnlichen Namen, aber nicht die Aktivierungsphrase.",
   speech: "Lies laut: Heute plane ich meinen Tag und bestätige meine Termine mit Friday.",
 };
-
-async function request(path: string, body?: unknown): Promise<Status> {
-  const csrf = getCsrfToken();
-  const response = await fetch(`/api/v1/voice/linux-enrollment${path}`, {
-    method: body === undefined ? "GET" : "POST", credentials: "same-origin", cache: "no-store",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json", ...(csrf ? { "X-CSRF-Token": csrf } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`Einrichtung fehlgeschlagen (HTTP ${response.status}).`);
-  return response.json() as Promise<Status>;
-}
 
 export async function captureEnrollmentPcm(): Promise<string> {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode) throw new Error("Mikrofon benötigt HTTPS oder localhost und AudioWorklet.");
@@ -58,29 +45,29 @@ export async function captureEnrollmentPcm(): Promise<string> {
   }
 }
 
-export function LinuxEnrollment() {
-  const [status, setStatus] = useState<Status | null>(null);
+export function LinuxEnrollment({ capture = captureEnrollmentPcm }: { capture?: typeof captureEnrollmentPcm } = {}) {
+  const [status, setStatus] = useState<LinuxEnrollmentStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    const refresh = () => { void request("").then((next) => { if (mounted.current) setStatus(next); }).catch(() => {}); };
+    const refresh = () => { void linuxEnrollmentApi.status().then((next) => { if (mounted.current) setStatus(next); }).catch(() => {}); };
     refresh(); const timer = setInterval(refresh, 5000);
     return () => { mounted.current = false; clearInterval(timer); };
   }, []);
   if (!status?.available) return null;
-  const next = (Object.keys(labels) as Kind[]).find((kind) => status.counts[kind] < status.required[kind]);
-  const record = async (kind: Kind) => {
+  const next = (Object.keys(labels) as LinuxEnrollmentKind[]).find((kind) => status.counts[kind] < status.required[kind]);
+  const record = async (kind: LinuxEnrollmentKind) => {
     setBusy(true); setError(null);
-    try { const pcmBase64 = await captureEnrollmentPcm(); const result = await request("/samples", { kind, pcmBase64 }); if (mounted.current) setStatus(result); }
+    try { const pcmBase64 = await capture(); const result = await linuxEnrollmentApi.addSample({ kind, pcmBase64 }); if (mounted.current) setStatus(result); }
     catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : "Aufnahme fehlgeschlagen."); }
     finally { if (mounted.current) setBusy(false); }
   };
   const train = async () => {
     setBusy(true); setError(null);
-    try { const result = await request("/train", {}); if (mounted.current) setStatus(result); }
+    try { const result = await linuxEnrollmentApi.train(); if (mounted.current) setStatus(result); }
     catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : "Training fehlgeschlagen."); }
     finally { if (mounted.current) setBusy(false); }
   };
@@ -90,7 +77,7 @@ export function LinuxEnrollment() {
     <Dialog open={open} onOpenChange={setOpen} title="Friday Stimme einrichten" description="Aufnahmen bleiben auf diesem Server und werden nach dem Training gelöscht.">
       <div className="mc-stack">
         <p className="mc-note">Aktivierungsphrase: <strong>{status.phrase}</strong>{status.shortPhrase ? ` · Kurzform: ${status.shortPhrase}` : ""}</p>
-        {(Object.keys(labels) as Kind[]).filter((kind) => status.required[kind] > 0).map((kind) => <p key={kind} className="mc-note">{labels[kind]}: {status.counts[kind]}/{status.required[kind]}</p>)}
+        {(Object.keys(labels) as LinuxEnrollmentKind[]).filter((kind) => status.required[kind] > 0).map((kind) => <p key={kind} className="mc-note">{labels[kind]}: {status.counts[kind]}/{status.required[kind]}</p>)}
         {next && status.state !== "training" && status.state !== "activating" ? <><p className="mc-note">{samples[next]}</p><Button variant="primary" disabled={busy} onClick={() => void record(next)}>{busy ? "Aufnahme läuft …" : `Probe aufnehmen (${labels[next]})`}</Button></> : null}
         {!next && status.state !== "complete" && status.state !== "training" ? <Button variant="primary" disabled={busy} onClick={() => void train()}>{status.state === "activating" ? "Aktivierung erneut versuchen" : "Modelle trainieren"}</Button> : null}
         {error || status.error ? <p className="vp-fail" role="alert">{error ?? status.error}</p> : null}

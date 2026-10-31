@@ -7,6 +7,7 @@ import { Section } from "./controls";
 import { useAreaDraft, useSettingsDrafts } from "./SettingsDrafts";
 import { nameCurrentBrowserLocation } from "./reverseLocation";
 import { useT } from "@/i18n";
+import { weatherApi } from "@/lib/api/domains/weather";
 
 interface Candidate { label: string; region?: string; country: string; countryCode: string; latitude: number; longitude: number }
 type Choice = { label: string; latitude: number; longitude: number; countryCode?: string };
@@ -43,9 +44,7 @@ export function LocationWeatherArea() {
   const search = async () => {
     setBusy("search"); setError(null); setResults([]); setSearched(false); setSavedNotice(false);
     try {
-      const response = await fetch(`/api/v1/location/search?q=${encodeURIComponent(query.trim())}&language=${locale}`, { credentials: "same-origin", cache: "no-store" });
-      if (!response.ok) throw new Error();
-      const body = await response.json() as { data?: { items?: Candidate[] } };
+      const body = await weatherApi.searchLocations(query.trim(), locale);
       setResults(Array.isArray(body.data?.items) ? body.data.items : []);
       setSearched(true);
     } catch { setError(t("settings.location.searchFailed")); }

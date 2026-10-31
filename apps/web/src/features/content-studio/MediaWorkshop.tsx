@@ -4,9 +4,8 @@ import { Button, HudPanel } from "@friday/ui";
 import { createIdempotencyKey, type KieTask } from "@friday/sdk";
 import { useState } from "react";
 import { call } from "@/lib/api/call";
-import { getApiClient, getCsrfToken } from "@/lib/api/client";
-
-const apiPath = "/api/v1/content-studio/elevenlabs/speech";
+import { getApiClient } from "@/lib/api/client";
+import { contentStudioMediaApi } from "@/lib/api/domains/contentStudioMedia";
 
 export function MediaWorkshop() {
   const [kind, setKind] = useState<"image" | "video">("image");
@@ -53,17 +52,11 @@ export function MediaWorkshop() {
     if (speechPreview !== JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }) || busy) return;
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(apiPath, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": createIdempotencyKey(), "X-CSRF-Token": getCsrfToken() ?? "" },
-        body: JSON.stringify({ text: script.trim(), voiceId: voiceId.trim(), confirmed: true }),
-      });
-      if (!response.ok) {
-        const failure = await response.json().catch(() => null) as { error?: { message?: string } } | null;
-        throw new Error(failure?.error?.message ?? `Sprachauftrag fehlgeschlagen (HTTP ${response.status}).`);
-      }
-      if (!response.headers.get("content-type")?.includes("audio/mpeg")) throw new Error("Der Server hat keine MP3-Datei geliefert.");
-      const blob = await response.blob();
+      const blob = await contentStudioMediaApi.createSpeech(
+        { text: script.trim(), voiceId: voiceId.trim(), confirmed: true },
+        createIdempotencyKey(),
+      );
+      if (!blob.type.includes("audio/mpeg")) throw new Error("Der Server hat keine MP3-Datei geliefert.");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a"); link.href = url; link.download = "friday-speech.mp3"; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
