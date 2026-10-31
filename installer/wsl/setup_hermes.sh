@@ -102,7 +102,7 @@ case "$PROVIDER" in
         BASE_URL=""
         ;;
     anthropic)
-        [ -n "$MODEL" ] || MODEL=claude-sonnet-4-5
+        [ -n "$MODEL" ] || MODEL=claude-sonnet-5-5
         BASE_URL=""
         ;;
     kimi-coding)

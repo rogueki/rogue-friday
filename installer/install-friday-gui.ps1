@@ -38,6 +38,7 @@ Add-Type -AssemblyName System.Drawing
 
 $script:cancelGraceSeconds = 25
 $script:fields = @{}
+$script:captions = @{}
 
 # Die Anzeigeskalierung kommt aus dem System, nicht aus einer Annahme: bei 150 % waechst das Fenster
 # mit und alle Abstaende und Schriften wachsen mit.
@@ -63,6 +64,7 @@ function Add-Row($panel, [string]$name, [string]$label, [int]$y, [string]$value 
     $caption.BackColor = [Drawing.Color]::Transparent
     $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $panel.Controls.Add($caption)
+    $script:captions[$name] = $caption
     $input = New-Object Windows.Forms.TextBox
     $input.Name = $name; $input.Text = $value
     $input.Location = New-Object Drawing.Point($script:inputLeft, $y)
@@ -89,6 +91,7 @@ function Add-Choice($panel, [string]$name, [string]$label, [int]$y, [string[]]$i
     $caption.BackColor = [Drawing.Color]::Transparent
     $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $panel.Controls.Add($caption)
+    $script:captions[$name] = $caption
     $box = New-Object Windows.Forms.ComboBox
     $box.Name = $name; $box.DropDownStyle = 'DropDownList'; $box.Location = New-Object Drawing.Point($script:inputLeft, $y)
     $box.Size = New-Object Drawing.Size($script:inputWidth, [int](25 * $script:dpiScale))
@@ -105,6 +108,21 @@ function Add-Text($panel, [string]$text, [int]$y, [int]$height = 42) {
     $label.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $panel.Controls.Add($label)
     return $label
+}
+function Set-ReadOnlyPath($box) {
+    # Pfade nur per Durchsuchen: ein Tippfehler im Pfad faellt sonst erst im Installer auf.
+    $box.ReadOnly = $true
+    $box.BackColor = Get-GuiColor '#1A2433'
+    $box.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+}
+function Get-WslDistroNames {
+    # wsl.exe schreibt ohne WSL_UTF8 UTF-16 mit Nullbytes in die Pipe.
+    $previous = $env:WSL_UTF8
+    try {
+        $env:WSL_UTF8 = '1'
+        $names = @(& wsl.exe -l -q 2>$null | ForEach-Object { ([string]$_).Replace([string][char]0, '').Trim() } | Where-Object { $_ })
+    } catch { $names = @() } finally { $env:WSL_UTF8 = $previous }
+    return @($names | Where-Object { $_ -match '^[A-Za-z][A-Za-z0-9._-]{0,63}$' } | Sort-Object -Unique)
 }
 function Get-FocusedControl($root) {
     # WinForms meldet am Formular nur den obersten Container; fuer die Tastaturpruefung wird das
@@ -190,6 +208,12 @@ function Test-VoiceReferenceAnswer([int]$ModeIndex, [int]$ChoiceIndex, [string]$
         throw 'Für die eigene Stimme bitte eine MP3/WAV-Datei (3 bis 30 Sekunden) wählen.'
     }
 }
+function Get-VoiceIdValue {
+    $text = Value 'voiceId'
+    if ($text -eq '(Standardstimme des Kontos)') { return '' }
+    if ($text -match '\(([A-Za-z0-9]{10,64})\)$') { return $Matches[1] }
+    return $text
+}
 function Test-Wizard {
     $root = Value 'installRoot'; $location = Value 'distroLocation'; $distro = Value 'distroName'
     if ($root -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $root -match '[\\/]\.\.?([\\/]|$)') { throw 'Installationsordner: absoluten Windows-Pfad wählen.' }
@@ -209,8 +233,14 @@ function Test-Wizard {
     $done = if ($state) { @($state.done) } else { @() }
     if ($done -notcontains 'linuxuser' -and ($script:fields.linuxPassword.Text -eq '' -or
         $script:fields.linuxPassword.Text -cne $script:fields.linuxPasswordRepeat.Text)) { throw 'Linux-Passwort fehlt oder die Wiederholung stimmt nicht.' }
-    $hasKimiEnvironment = [bool][Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
-    if ($done -notcontains 'hermes' -and ((-not (Checked 'useExistingKimi')) -or -not $hasKimiEnvironment) -and (Value 'kimiKey') -eq '') { throw 'Kimi-API-Schlüssel fehlt.' }
+    if ($done -notcontains 'hermes' -and -not ($state -and $state.model_provider)) {
+        $preset = Get-ProviderPreset
+        $usesKimiEnvironment = $preset.Backend -eq '4' -and [bool]$kimiEnvironment -and (Checked 'useExistingKimi')
+        if (-not $usesKimiEnvironment -and $script:fields.providerKey.Text.Trim() -eq '') { throw "$($preset.KeyLabel) fehlt." }
+        if ($preset.BaseUrl -eq 'custom' -and (Value 'modelBaseUrl') -notmatch '^https?://[^\s/]+') { throw 'Server-Adresse: vollständige URL mit https:// eintragen.' }
+        if ($preset.Backend -ne '4' -and (Value 'modelName') -eq '') { throw 'Bitte ein Modell wählen.' }
+        if ((Value 'modelName').Length -gt 200) { throw 'Der Modellname ist zu lang.' }
+    }
     if ($script:fields['voiceMode'].SelectedIndex -eq 1 -and (Value 'elevenlabsKey') -eq '') {
         $existingCloudKey = Test-Path -LiteralPath (Join-Path $root 'config\elevenlabs_api.key.dpapi') -PathType Leaf
         if (-not $existingCloudKey) { throw 'ElevenLabs-API-Schlüssel fehlt.' }
@@ -229,7 +259,7 @@ function Test-Wizard {
         ($script:fields.inputDevice.SelectedIndex -gt 0 -or $script:fields.outputDevice.SelectedIndex -gt 0)) {
         throw 'Die Gerätewahl gilt bei neuer Spracheinrichtung.'
     }
-    if ($script:fields.voiceMode.SelectedIndex -eq 1 -and (Value 'voiceId') -and (Value 'voiceId') -notmatch '^[A-Za-z0-9]{10,64}$') {
+    if ($script:fields.voiceMode.SelectedIndex -eq 1 -and (Get-VoiceIdValue) -and (Get-VoiceIdValue) -notmatch '^[A-Za-z0-9]{10,64}$') {
         throw 'ElevenLabs Voice ID: 10 bis 64 Buchstaben oder Zahlen.'
     }
     return $state
@@ -273,6 +303,7 @@ $refresh.Add_Click({
 $pathsPage = New-WizardPage 'pathsPage' 'Installationsort' 'Bei einer vorhandenen Installation werden die gespeicherten Werte übernommen; nichts wird still überschrieben.'
 [void](Add-Text $pathsPage.Panel 'Installationsordner und WSL-Distribution. Ein anderer Ordner verlangt einen eigenen Distributionsnamen.' 0 44)
 [void](Add-Row $pathsPage.Panel 'installRoot' 'Installationsordner' 50 'C:\Friday')
+Set-ReadOnlyPath $script:fields.installRoot
 $browseRoot = New-Object Windows.Forms.Button; $browseRoot.Text = 'Ordner wählen'
 $browseRoot.Location = New-Object Drawing.Point(196, 78); $browseRoot.Size = New-Object Drawing.Size(130, 26)
 $pathsPage.Panel.Controls.Add($browseRoot)
@@ -286,14 +317,29 @@ $browseRoot.Add_Click({
         Update-PathFields; Load-RootState; $refresh.PerformClick()
     }
 })
-[void](Add-Row $pathsPage.Panel 'distroName' 'WSL-Distributionsname' 112 'Ubuntu')
+$script:wslDistros = @(Get-WslDistroNames)
+$distroBox = Add-Choice $pathsPage.Panel 'distroName' 'WSL-Distributionsname' 112 (@('Ubuntu') + @($script:wslDistros | Where-Object { $_ -ne 'Ubuntu' }))
+$distroBox.DropDownStyle = 'DropDown'
 [void](Add-Row $pathsPage.Panel 'distroLocation' 'WSL-Ablageort' 150 '(Windows-Standardort)')
-[void](Add-Check $pathsPage.Panel 'migrateLegacy' 'Vorhandenes C:\Jarvis nach C:\Friday übernehmen' 190 $true)
-[void](Add-Check $pathsPage.Panel 'disableLegacy' 'Bei frischer Installation alte JARVIS-Dienste deaktivieren' 220 $true)
-[void](Add-Check $pathsPage.Panel 'reuseDistro' 'Vorhandene passende WSL-Distribution verwenden' 250 $true)
-[void](Add-Check $pathsPage.Panel 'disableForeignTasks' 'Bei Migration kollidierende alte Aufgaben deaktivieren' 280 $true)
-[void](Add-Check $pathsPage.Panel 'overwriteDashboardConfig' 'Abweichende Dashboard-Vorgabe nach Sicherung überschreiben' 310 $false)
-[void](Add-Text $pathsPage.Panel 'Bestehende Daten, Stimmprofile und Konfigurationen werden bei Fortsetzung berücksichtigt. Eine frühere JARVIS-Installation bleibt als Sicherung erhalten.' 346 56)
+Set-ReadOnlyPath $script:fields.distroLocation
+$browseLocation = New-Object Windows.Forms.Button; $browseLocation.Text = 'Ordner wählen'
+$browseLocation.Location = New-Object Drawing.Point(196, 178); $browseLocation.Size = New-Object Drawing.Size(130, 26)
+$pathsPage.Panel.Controls.Add($browseLocation)
+$browseLocation.Add_Click({
+    $picker = New-Object Windows.Forms.FolderBrowserDialog
+    $picker.Description = 'Ordner für die WSL-Ablage wählen (gleiches Laufwerk wie die Installation)'
+    $picker.ShowNewFolderButton = $true
+    if ($picker.ShowDialog() -eq 'OK') {
+        $selectedFolder = $picker.SelectedPath
+        $script:fields.distroLocation.Text = if ((Split-Path $selectedFolder -Leaf) -ieq 'Friday-Ubuntu') { $selectedFolder } else { Join-Path $selectedFolder 'Friday-Ubuntu' }
+    }
+})
+[void](Add-Check $pathsPage.Panel 'migrateLegacy' 'Vorhandenes C:\Jarvis nach C:\Friday übernehmen' 216 $true)
+[void](Add-Check $pathsPage.Panel 'disableLegacy' 'Bei frischer Installation alte JARVIS-Dienste deaktivieren' 216 $true)
+[void](Add-Check $pathsPage.Panel 'reuseDistro' 'Vorhandene passende WSL-Distribution verwenden' 216 $true)
+[void](Add-Check $pathsPage.Panel 'disableForeignTasks' 'Bei Migration kollidierende alte Aufgaben deaktivieren' 216 $true)
+[void](Add-Check $pathsPage.Panel 'overwriteDashboardConfig' 'Abweichende Dashboard-Vorgabe nach Sicherung überschreiben' 216 $false)
+$script:legacyNote = Add-Text $pathsPage.Panel 'Bestehende Daten, Stimmprofile und Konfigurationen werden bei Fortsetzung berücksichtigt. Eine frühere JARVIS-Installation bleibt als Sicherung erhalten.' 346 56
 # Beim Verlassen des Ordnerfelds wird die Systempruefung nur bei echter Aenderung neu gerechnet.
 $script:fields.installRoot.Add_Leave({
     Update-PathFields
@@ -312,7 +358,32 @@ function Update-PathFields {
         $script:fields.distroName.Text = 'Ubuntu'
         $script:fields.distroLocation.Text = '(Windows-Standardort)'
     }
+    $browseLocation.Enabled = $custom
+    Update-LegacyOptions
 }
+# Einmal beim Start: die Aufgabenplanung ist zu langsam fuer jeden Tastendruck.
+$script:legacyTasksPresent = [bool](Get-ScheduledTask -TaskName 'JARVIS*' -ErrorAction SilentlyContinue)
+function Update-LegacyOptions {
+    # Nur zutreffende Fragen zeigen; ausgeblendete behalten ihren sicheren Standardwert.
+    $root = Value 'installRoot'
+    $legacyRoot = Test-Path -LiteralPath 'C:\Jarvis'
+    $legacyTasks = $script:legacyTasksPresent
+    $visible = [ordered]@{
+        migrateLegacy = $legacyRoot
+        disableLegacy = $legacyTasks
+        reuseDistro = $script:wslDistros -contains (Value 'distroName')
+        disableForeignTasks = $legacyRoot -or $legacyTasks
+        overwriteDashboardConfig = Test-Path -LiteralPath (Join-Path $root 'config\dashboard.yaml')
+    }
+    $y = 216
+    foreach ($name in $visible.Keys) {
+        $script:fields[$name].Visible = [bool]$visible[$name]
+        if ($visible[$name]) { $script:fields[$name].Top = $y; $y += 30 }
+    }
+    $script:legacyNote.Visible = $legacyRoot -or $legacyTasks -or [bool]$visible.overwriteDashboardConfig
+    $script:legacyNote.Top = $y + 6
+}
+$script:fields.distroName.Add_TextChanged({ Update-LegacyOptions })
 
 
 $voicePage = New-WizardPage 'voicePage' 'Sprache & Stimme' 'Lokale Stimmen bleiben auf deinem PC; ElevenLabs braucht Internet und einen passenden Tarif.'
@@ -320,25 +391,45 @@ $voicePage = New-WizardPage 'voicePage' 'Sprache & Stimme' 'Lokale Stimmen bleib
 [void](Add-Choice $voicePage.Panel 'voiceMode' 'Sprachbetrieb' 50 @('Lokal (NVIDIA 6 GB VRAM)', 'ElevenLabs Cloud'))
 [void](Add-Choice $voicePage.Panel 'voiceChoice' 'Lokale Ausgabestimme' 88 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)', 'Eigene Stimme (eigene MP3/WAV)'))
 [void](Add-Row $voicePage.Panel 'voiceReference' 'Eigene MP3/WAV' 126)
+Set-ReadOnlyPath $script:fields.voiceReference
 $browse = New-Object Windows.Forms.Button; $browse.Text = 'Datei wählen'
 $browse.Location = New-Object Drawing.Point(196, 154); $browse.Size = New-Object Drawing.Size(120, 26)
 $voicePage.Panel.Controls.Add($browse)
 $browse.Add_Click({ $picker = New-Object Windows.Forms.OpenFileDialog; $picker.Filter = 'Audio (*.wav;*.mp3)|*.wav;*.mp3'; if ($picker.ShowDialog() -eq 'OK') { $script:fields.voiceReference.Text = $picker.FileName } })
-[void](Add-Row $voicePage.Panel 'voiceId' 'ElevenLabs Voice ID (optional)' 188)
+[void](Add-Row $voicePage.Panel 'elevenlabsKey' 'ElevenLabs-API-Schlüssel' 188 '' $true)
+$voiceIdBox = Add-Choice $voicePage.Panel 'voiceId' 'ElevenLabs-Stimme' 226 @('(Standardstimme des Kontos)')
+$voiceIdBox.DropDownStyle = 'DropDown'
+$loadVoices = New-Object Windows.Forms.Button; $loadVoices.Text = 'Stimmen laden'
+$loadVoices.Location = New-Object Drawing.Point(196, 254); $loadVoices.Size = New-Object Drawing.Size(130, 26)
+$voicePage.Panel.Controls.Add($loadVoices)
+$loadVoices.Add_Click({
+    $key = $script:fields.elevenlabsKey.Text.Trim()
+    if (-not $key) { Show-Error 'Bitte zuerst den ElevenLabs-API-Schlüssel eintragen.'; return }
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $response = Invoke-RestMethod -Uri 'https://api.elevenlabs.io/v1/voices' -Headers @{ 'xi-api-key' = $key } -TimeoutSec 20
+        $box = $script:fields.voiceId
+        $box.Items.Clear(); [void]$box.Items.Add('(Standardstimme des Kontos)')
+        foreach ($voice in @($response.voices)) { [void]$box.Items.Add("$($voice.name) ($($voice.voice_id))") }
+        $box.SelectedIndex = 0
+    } catch { Show-Error 'Die Stimmen konnten nicht geladen werden. Schlüssel und Internetverbindung prüfen.' }
+})
 $audioEndpoints = @(Get-PnpDevice -Class AudioEndpoint -Status OK -ErrorAction SilentlyContinue)
 $inputs = @('Windows-Standardmikrofon') + @($audioEndpoints | Where-Object { $_.InstanceId -match '\{0\.0\.1\.' } |
     Select-Object -ExpandProperty FriendlyName -Unique)
 $outputs = @('Windows-Standardlautsprecher') + @($audioEndpoints | Where-Object { $_.InstanceId -match '\{0\.0\.0\.' } |
     Select-Object -ExpandProperty FriendlyName -Unique)
-[void](Add-Choice $voicePage.Panel 'inputDevice' 'Mikrofon' 226 $inputs)
-[void](Add-Choice $voicePage.Panel 'outputDevice' 'Lautsprecher' 264 $outputs)
-$voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.' 302 72
+[void](Add-Choice $voicePage.Panel 'inputDevice' 'Mikrofon' 292 $inputs)
+[void](Add-Choice $voicePage.Panel 'outputDevice' 'Lautsprecher' 330 $outputs)
+$voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.' 368 72
 
 $script:fields.voiceId.Enabled = $false
+$script:fields.elevenlabsKey.Enabled = $false; $loadVoices.Enabled = $false
 $script:fields.voiceMode.Add_SelectedIndexChanged({
     $local = $script:fields.voiceMode.SelectedIndex -eq 0
     $script:fields.voiceChoice.Enabled = $local; $script:fields.voiceReference.Enabled = $local
     $browse.Enabled = $local; $script:fields.voiceId.Enabled = -not $local
+    $script:fields.elevenlabsKey.Enabled = -not $local; $loadVoices.Enabled = -not $local
     $voiceHelp.Text = if ($local) {
         'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.'
     } else {
@@ -353,47 +444,122 @@ $identityPage = New-WizardPage 'identityPage' 'Persönlichkeit' 'Name, Anrede un
 [void](Add-Choice $identityPage.Panel 'address' 'Anrede' 114 @('Sir und Sie','Vorname und Sie','Vorname und Du'))
 [void](Add-Choice $identityPage.Panel 'character' 'Charakter' 152 @('Britischer Butler','Freundlich','Sachlich'))
 [void](Add-Choice $identityPage.Panel 'length' 'Antwortlänge' 190 @('Kurz','Ausführlicher'))
-[void](Add-Row $identityPage.Panel 'about' 'Über dich (optional)' 228)
-[void](Add-Check $identityPage.Panel 'keepIdentity' 'Bestehenden Namen und Wake Word beibehalten' 266 $true)
-[void](Add-Check $identityPage.Panel 'repeatEnrollment' 'Stimmaufnahme bei unverändertem Namen wiederholen' 296 $false)
-[void](Add-Text $identityPage.Panel 'Für ein persönliches Wake Word werden später Sprachproben aufgenommen. Die Aufnahme führt dich mit sichtbaren Dialogen und Hörsignalen durch die Sätze.' 332 56)
+[void](Add-Check $identityPage.Panel 'keepIdentity' 'Bestehenden Namen und Wake Word beibehalten' 228 $true)
+[void](Add-Check $identityPage.Panel 'repeatEnrollment' 'Stimmaufnahme bei unverändertem Namen wiederholen' 258 $false)
+[void](Add-Text $identityPage.Panel 'Für ein persönliches Wake Word werden später Sprachproben aufgenommen. Die Aufnahme führt dich mit sichtbaren Dialogen und Hörsignalen durch die Sätze.' 294 56)
 $script:fields.assistantName.Add_Leave({ if ($script:fields.wakePhrase.Text -eq 'Hey Friday') { $script:fields.wakePhrase.Text = 'Hey ' + $script:fields.assistantName.Text.Trim() } })
 
 $modelPage = New-WizardPage 'modelPage' 'KI-Zugang' 'Der Schlüssel wird verdeckt eingegeben und nur an den Installer übergeben.'
-[void](Add-Choice $modelPage.Panel 'providerChoice' 'Anbieter' 0 @(
-    'OpenAI (empfohlen)', 'Anthropic (Claude)', 'Erweitert: Kimi, DeepSeek, OpenRouter oder eigener Server'))
-[void](Add-Row $modelPage.Panel 'modelBaseUrl' 'Basis-URL (nur Erweitert, z. B. https://api.deepseek.com/v1)' 38)
-[void](Add-Row $modelPage.Panel 'modelName' 'Modellname (leer = Standard des Anbieters)' 76)
-[void](Add-Row $modelPage.Panel 'openaiKey' 'OpenAI-API-Key' 114 '' $true)
-[void](Add-Row $modelPage.Panel 'anthropicKey' 'Anthropic-API-Key' 152 '' $true)
-[void](Add-Row $modelPage.Panel 'customKey' 'API-Key des erweiterten Anbieters' 190 '' $true)
-$modelHelp = Add-Text $modelPage.Panel 'Der Schlüssel landet ausschließlich in der WSL-Installation unter ~/.hermes/.env. Ein hier gefundener Kimi-Code-Schlüssel (sk-kimi-…) richtet automatisch den Kimi-Coding-Zugang ein.' 232 80
+# Sichtbare Anbieter; Backend kennt nur 1 OpenAI, 2 Anthropic, 3 OpenAI-kompatibel (Basis-URL), 4 Kimi Coding.
+$script:providerPresets = @(
+    @{ Label = 'OpenAI'; Backend = '1'; BaseUrl = ''; Models = @('gpt-5', 'gpt-5-mini'); KeyLabel = 'OpenAI-API-Schlüssel'; Probe = 'https://api.openai.com/v1' }
+    @{ Label = 'Anthropic (Claude)'; Backend = '2'; BaseUrl = ''; Models = @('claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'); KeyLabel = 'Anthropic-API-Schlüssel'; Probe = 'anthropic' }
+    @{ Label = 'Alibaba Cloud Qwen (Token Plan)'; Backend = '3'; BaseUrl = 'alibaba'; Models = @('qwen3.7-plus', 'qwen3.8-max', 'qwen3.8-flash', 'deepseek-v4-pro', 'glm-5.2', 'kimi-k2.5'); KeyLabel = 'Token-Plan-API-Schlüssel'; Probe = 'base' }
+    @{ Label = 'Kimi Coding (Moonshot)'; Backend = '4'; BaseUrl = ''; Models = @('k3'); KeyLabel = 'Kimi-API-Schlüssel'; Probe = '' }
+    @{ Label = 'DeepSeek'; Backend = '3'; BaseUrl = 'https://api.deepseek.com/v1'; Models = @('deepseek-chat', 'deepseek-reasoner'); KeyLabel = 'DeepSeek-API-Schlüssel'; Probe = 'base' }
+    @{ Label = 'OpenRouter'; Backend = '3'; BaseUrl = 'https://openrouter.ai/api/v1'; Models = @('openrouter/auto'); KeyLabel = 'OpenRouter-API-Schlüssel'; Probe = 'base' }
+    @{ Label = 'Eigener OpenAI-kompatibler Server'; Backend = '3'; BaseUrl = 'custom'; Models = @(); KeyLabel = 'API-Schlüssel des Servers'; Probe = 'base' }
+)
+$script:alibabaRegions = @(
+    @{ Label = 'International (Singapur)'; Url = 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1' }
+    @{ Label = 'China (Peking)'; Url = 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1' }
+)
+[void](Add-Choice $modelPage.Panel 'providerChoice' 'Anbieter' 0 @($script:providerPresets | ForEach-Object { $_.Label }))
+[void](Add-Choice $modelPage.Panel 'alibabaRegion' 'Region' 38 @($script:alibabaRegions | ForEach-Object { $_.Label }))
+$modelBox = Add-Choice $modelPage.Panel 'modelName' 'Modell' 76 @('gpt-5')
+$modelBox.DropDownStyle = 'DropDown'
+[void](Add-Row $modelPage.Panel 'modelBaseUrl' 'Server-Adresse (https://…/v1)' 114)
+[void](Add-Row $modelPage.Panel 'providerKey' 'API-Schlüssel' 152 '' $true)
+[void](Add-Check $modelPage.Panel 'useExistingKimi' 'Auf diesem PC gefundenen Kimi-Schlüssel verwenden' 190 $true)
+$testKey = New-Object Windows.Forms.Button; $testKey.Name = 'testKey'; $testKey.Text = 'Schlüssel prüfen'
+$testKey.Location = New-Object Drawing.Point(196, 222); $testKey.Size = New-Object Drawing.Size(150, 28)
+$modelPage.Panel.Controls.Add($testKey)
+$script:keyResult = Add-Text $modelPage.Panel '' 256 40
+$modelHelp = Add-Text $modelPage.Panel 'Der Schlüssel landet ausschließlich in der WSL-Installation unter ~/.hermes/.env. Modell und Anbieter lassen sich später im Command Center ändern.' 300 60
+$kimiEnvironment = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
 
+function Get-ProviderPreset { return $script:providerPresets[[Math]::Max(0, $script:fields.providerChoice.SelectedIndex)] }
+function Get-ProviderBaseUrl {
+    $preset = Get-ProviderPreset
+    if ($preset.BaseUrl -eq 'alibaba') { return $script:alibabaRegions[[Math]::Max(0, $script:fields.alibabaRegion.SelectedIndex)].Url }
+    if ($preset.BaseUrl -eq 'custom') { return (Value 'modelBaseUrl') }
+    return $preset.BaseUrl
+}
 function Update-ProviderFields {
-    $choice = $script:fields.providerChoice.SelectedIndex
-    $script:fields.openaiKey.Enabled = $choice -eq 0
-    $script:fields.anthropicKey.Enabled = $choice -eq 1
-    foreach ($name in @('customKey', 'modelBaseUrl', 'modelName')) { $script:fields[$name].Enabled = $choice -eq 2 }
+    $preset = Get-ProviderPreset
+    $locked = [bool]$script:providerLocked
+    $script:fields.alibabaRegion.Visible = $preset.BaseUrl -eq 'alibaba'
+    $script:captions.alibabaRegion.Visible = $script:fields.alibabaRegion.Visible
+    $script:fields.modelBaseUrl.Visible = $preset.BaseUrl -eq 'custom'
+    $script:captions.modelBaseUrl.Visible = $script:fields.modelBaseUrl.Visible
+    $box = $script:fields.modelName
+    $box.Items.Clear()
+    foreach ($model in $preset.Models) { [void]$box.Items.Add($model) }
+    if ($box.Items.Count -gt 0) { $box.SelectedIndex = 0 } else { $box.Text = '' }
+    $box.Enabled = -not $locked -and $preset.Backend -ne '4'
+    $useKimi = $preset.Backend -eq '4' -and [bool]$kimiEnvironment
+    $script:fields.useExistingKimi.Visible = $useKimi
+    # Nur sichtbare Zeilen belegen Platz; .Visible taugt nicht, solange die Seite selbst verborgen ist.
+    $shown = [ordered]@{
+        alibabaRegion = $preset.BaseUrl -eq 'alibaba'
+        modelName = $true
+        modelBaseUrl = $preset.BaseUrl -eq 'custom'
+        providerKey = $true
+        useExistingKimi = $useKimi
+    }
+    $y = 38
+    foreach ($name in $shown.Keys) {
+        if (-not $shown[$name]) { continue }
+        $script:fields[$name].Top = $y
+        if ($script:captions.ContainsKey($name)) { $script:captions[$name].Top = $y + 3 }
+        $y += 38
+    }
+    $testKey.Top = $y + 4
+    $script:keyResult.Top = $y + 40
+    $modelHelp.Top = $y + 84
+    $script:fields.providerKey.Enabled = -not $locked -and -not ($useKimi -and $script:fields.useExistingKimi.Checked)
+    $script:captions.providerKey.Text = $preset.KeyLabel
+    $testKey.Enabled = -not $locked -and [bool]$preset.Probe
+    $script:keyResult.Text = if ($preset.Probe) { '' } else { 'Der Kimi-Zugang wird während der Installation geprüft.' }
+    foreach ($name in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'useExistingKimi')) { $script:fields[$name].Enabled = -not $locked }
+}
+function Test-ProviderKey {
+    $preset = Get-ProviderPreset
+    $key = $script:fields.providerKey.Text.Trim()
+    if (-not $key) { $script:keyResult.Text = 'Bitte zuerst den Schlüssel eintragen.'; return }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    if ($preset.Probe -eq 'anthropic') {
+        $uri = 'https://api.anthropic.com/v1/models'; $headers = @{ 'x-api-key' = $key; 'anthropic-version' = '2023-06-01' }
+    } else {
+        $base = if ($preset.Probe -eq 'base') { Get-ProviderBaseUrl } else { $preset.Probe }
+        if ($base -notmatch '^https://') { $script:keyResult.Text = 'Bitte eine Server-Adresse mit https:// eintragen.'; return }
+        $uri = $base.TrimEnd('/') + '/models'; $headers = @{ Authorization = "Bearer $key" }
+    }
+    $form.Cursor = [Windows.Forms.Cursors]::WaitCursor
+    try {
+        $null = Invoke-WebRequest -Uri $uri -Headers $headers -UseBasicParsing -TimeoutSec 20
+        $script:keyResult.Text = '✓ Schlüssel gültig.'
+    } catch {
+        $code = 0
+        if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+        $script:keyResult.Text = if ($code -in @(401, 403)) { '✗ Der Anbieter lehnt diesen Schlüssel ab.' }
+                                 elseif ($code -gt 0) { "Prüfung nicht möglich (HTTP $code); der Zugang wird während der Installation getestet." }
+                                 else { 'Keine Verbindung zum Anbieter; der Zugang wird während der Installation getestet.' }
+    } finally { $form.Cursor = [Windows.Forms.Cursors]::Default }
 }
 $script:fields.providerChoice.Add_SelectedIndexChanged({ Update-ProviderFields })
+$script:fields.useExistingKimi.Add_CheckedChanged({ Update-ProviderFields })
+$testKey.Add_Click({ Test-ProviderKey })
+$script:providerLocked = $false
 Update-ProviderFields
 
 $keysPage = New-WizardPage 'keysPage' 'Zugänge' 'Zugangsdaten werden verdeckt eingegeben, verschlüsselt übergeben und nicht in Argumenten gespeichert.'
 [void](Add-Row $keysPage.Panel 'linuxUser' 'Linux-Benutzername' 0 'friday')
 [void](Add-Row $keysPage.Panel 'linuxPassword' 'Linux-Passwort' 38 '' $true)
 [void](Add-Row $keysPage.Panel 'linuxPasswordRepeat' 'Linux-Passwort wiederholen' 76 '' $true)
-[void](Add-Check $keysPage.Panel 'useExistingKimi' 'Vorhandenen Kimi-Schlüssel verwenden, falls verfügbar' 116 $true)
-[void](Add-Row $keysPage.Panel 'kimiKey' 'Kimi-API-Schlüssel' 152 '' $true)
-[void](Add-Row $keysPage.Panel 'elevenlabsKey' 'ElevenLabs-API-Schlüssel' 190 '' $true)
-[void](Add-Check $keysPage.Panel 'openBrowser' 'Dashboard nach der Installation öffnen' 230 $true)
-[void](Add-Text $keysPage.Panel 'Das Dashboard-Besitzerkonto legst du beim ersten Öffnen an. Diese Angaben gelten nur für diesen Windows-Benutzer.' 266 56)
-$script:fields.useExistingKimi.Add_CheckedChanged({ $script:fields.kimiKey.Enabled = -not $script:fields.useExistingKimi.Checked })
-$kimiEnvironment = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
-if (-not $kimiEnvironment) {
-    $script:fields.useExistingKimi.Checked = $false
-    $script:fields.useExistingKimi.Enabled = $false
-    $script:fields.kimiKey.Enabled = $true
-}
+[void](Add-Check $keysPage.Panel 'openBrowser' 'Dashboard nach der Installation öffnen' 124 $true)
+[void](Add-Text $keysPage.Panel 'Das Dashboard-Besitzerkonto legst du beim ersten Öffnen an. Diese Angaben gelten nur für diesen Windows-Benutzer.' 160 56)
+
 
 $summaryPage = New-WizardPage 'summaryPage' 'Zusammenfassung' 'Prüfe die Angaben; geändert wird erst nach deinem Klick auf Installieren.'
 $summaryText = New-Object Windows.Forms.TextBox
@@ -431,9 +597,8 @@ function Load-RootState {
     $script:fields.wakePhrase.Text = if ($saved -and $saved.wake_phrase) { $saved.wake_phrase } else { 'Hey Friday' }
     $script:fields.ownerName.Text = $env:USERNAME
     $script:fields.linuxUser.Text = if ($saved -and $saved.linux_user) { $saved.linux_user } else { 'friday' }
-    $script:fields.about.Text = ''
     $script:fields.address.SelectedIndex = 0; $script:fields.character.SelectedIndex = 0; $script:fields.length.SelectedIndex = 0
-    foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey')) { $script:fields[$field].Clear() }
+    foreach ($field in @('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey')) { $script:fields[$field].Clear() }
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
     $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } elseif ($saved -and $saved.voice_choice -eq 'custom') { 2 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
@@ -443,7 +608,6 @@ function Load-RootState {
     if ($pending) {
         if (-not (@($saved.done) -contains 'persona')) {
             if ($pending.ownerName) { $script:fields.ownerName.Text = [string]$pending.ownerName }
-            $script:fields.about.Text = [string]$pending.about
             foreach ($fieldName in @('address','character','length')) {
                 $number = 0
                 if ([int]::TryParse([string]$pending.$fieldName, [ref]$number) -and
@@ -497,7 +661,6 @@ function Load-RootState {
                 if ($addressIndex -ge 0) { $script:fields.address.SelectedIndex = $addressIndex }
                 if ($characterIndex -ge 0) { $script:fields.character.SelectedIndex = $characterIndex }
                 if ($lengthIndex -ge 0) { $script:fields.length.SelectedIndex = $lengthIndex }
-                if ($persona.about) { $script:fields.about.Text = $persona.about }
             } catch { }
         }
     }
@@ -507,16 +670,14 @@ function Load-RootState {
     }
     foreach ($choice in @('inputDevice','outputDevice')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'voicepython') }
     $browse.Enabled = $script:fields.voiceReference.Enabled
-    foreach ($choice in @('ownerName','address','character','length','about')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'persona') }
+    foreach ($choice in @('ownerName','address','character','length')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'persona') }
     $script:fields.linuxUser.Enabled = -not ($saved -and $saved.linux_user)
     $script:fields.keepIdentity.Enabled = $script:fields.assistantName.Enabled
     $script:fields.repeatEnrollment.Enabled = $script:fields.assistantName.Enabled
-    if ($saved -and @($saved.done) -contains 'hermes') {
-        $script:fields.useExistingKimi.Enabled = $false; $script:fields.kimiKey.Enabled = $false
-    } else {
-        $script:fields.useExistingKimi.Enabled = [bool]$kimiEnvironment
-        $script:fields.kimiKey.Enabled = -not $script:fields.useExistingKimi.Checked
-    }
+    # Ein eingerichteter KI-Zugang wird im Installer nicht erneut abgefragt (Aenderung im Command Center).
+    $script:providerLocked = [bool]($saved -and (@($saved.done) -contains 'hermes' -or $saved.model_provider))
+    Update-ProviderFields
+    $script:keyResult.Text = if ($script:providerLocked) { 'Der KI-Zugang ist bereits eingerichtet und bleibt unverändert.' } else { $script:keyResult.Text }
 }
 if ($ResumeRoot) { $script:fields.installRoot.Text = $ResumeRoot }
 Update-PathFields
@@ -526,7 +687,7 @@ $refresh.PerformClick()
 function Update-Summary {
     $mode = if ($script:fields.voiceMode.SelectedIndex -eq 0) { 'Lokal (NVIDIA-GPU)' } else { 'ElevenLabs Cloud (mögliche Anbieter-Kosten)' }
     $voiceName = if ($script:fields.voiceMode.SelectedIndex -eq 1) {
-        if (Value 'voiceId') { 'ElevenLabs Voice ID ' + (Value 'voiceId') } else { 'ElevenLabs Standardstimme' }
+        if (Get-VoiceIdValue) { 'ElevenLabs Voice ID ' + (Get-VoiceIdValue) } else { 'ElevenLabs Standardstimme' }
     } elseif ($script:fields.voiceChoice.SelectedIndex -eq 1) { 'J.A.R.V.I.S. klassisch' } elseif ($script:fields.voiceChoice.SelectedIndex -eq 2) { 'Eigene Stimme' } else { 'F.R.I.D.A.Y. weiblich' }
     $state = Existing-State (Value 'installRoot')
     $previous = if ($state) { "Vorhandene Installation: erledigte Schritte werden übernommen ($(@($state.done).Count) Schritte)." } else { 'Neuinstallation: WSL, Hermes, Sprache und Dashboard werden eingerichtet.' }
@@ -537,13 +698,14 @@ Installationsordner: $(Value 'installRoot')
 WSL: $(Value 'distroName') · $(Value 'distroLocation')
 Assistent: $(Value 'assistantName') · Wake Word: $(Value 'wakePhrase')
 Person: $(Value 'ownerName')
+KI-Anbieter: $(if ($script:providerLocked) { 'bereits eingerichtet' } else { (Get-ProviderPreset).Label + ' · ' + $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' }) })
 Sprachbetrieb: $mode
 Stimme: $voiceName
 Referenz: $(if ($script:fields.voiceMode.SelectedIndex -eq 1) { 'ElevenLabs (keine lokale Referenz)' } elseif (Value 'voiceReference') { Value 'voiceReference' } else { 'automatische Auswahl' })
 Mikrofon: $(Value 'inputDevice')
 Lautsprecher: $(Value 'outputDevice')
 
-Es werden nur benötigte Komponenten installiert: WSL/Ubuntu, Hermes/Kimi,
+Es werden nur benötigte Komponenten installiert: WSL/Ubuntu, Hermes mit KI-Anbieter,
 Sprachdienst und Command Center. Der Installer zeigt jeden tatsächlichen Schritt
 und laufende Meldungen. Downloads benötigen Internet und etwa 45–90 Minuten.
 Nach einer neuen WSL-Einrichtung kann ein Windows-Neustart erforderlich sein.
@@ -815,9 +977,9 @@ function Start-Backend {
     try { $state = Test-Wizard } catch { Show-Error $_.Exception.Message; return }
     $answers = @{
         assistantName = Value 'assistantName'; wakePhrase = Value 'wakePhrase'; ownerName = Value 'ownerName'
-        about = Value 'about'; linuxUser = Value 'linuxUser'; voiceMode = [string]($script:fields.voiceMode.SelectedIndex + 1)
+        about = ''; linuxUser = Value 'linuxUser'; voiceMode = [string]($script:fields.voiceMode.SelectedIndex + 1)
         voiceChoice = [string]($script:fields.voiceChoice.SelectedIndex + 1); voiceReference = Value 'voiceReference'
-        voiceId = Value 'voiceId'
+        voiceId = Get-VoiceIdValue
         inputDevice = $(if ($script:fields.inputDevice.SelectedIndex -gt 0) { Value 'inputDevice' } else { '' })
         outputDevice = $(if ($script:fields.outputDevice.SelectedIndex -gt 0) { Value 'outputDevice' } else { '' })
         address = [string]($script:fields.address.SelectedIndex + 1)
@@ -828,16 +990,21 @@ function Start-Backend {
         keepIdentity = BoolText (Checked 'keepIdentity'); repeatEnrollment = BoolText (Checked 'repeatEnrollment')
         retryEnrollment = 'false'; openBrowser = BoolText (Checked 'openBrowser')
         useExistingKimi = BoolText (Checked 'useExistingKimi'); restartNow = 'false'
-        providerChoice = [string]($script:fields.providerChoice.SelectedIndex + 1)
-        modelBaseUrl = Value 'modelBaseUrl'; modelName = Value 'modelName'
+        providerChoice = [string](Get-ProviderPreset).Backend
+        modelBaseUrl = $(if ((Get-ProviderPreset).Backend -eq '3') { Get-ProviderBaseUrl } else { '' })
+        modelName = $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' })
     }
+    $backendChoice = [string](Get-ProviderPreset).Backend
+    $providerSecret = Secure-Field 'providerKey'
     $secrets = @{
         linuxPassword = Secure-Field 'linuxPassword'; linuxPasswordRepeat = Secure-Field 'linuxPasswordRepeat'
-        kimiKey = Secure-Field 'kimiKey'; elevenlabsKey = Secure-Field 'elevenlabsKey'
-        openaiKey = Secure-Field 'openaiKey'; anthropicKey = Secure-Field 'anthropicKey'
-        customKey = Secure-Field 'customKey'
+        elevenlabsKey = Secure-Field 'elevenlabsKey'
+        openaiKey = $(if ($backendChoice -eq '1') { $providerSecret } else { '' })
+        anthropicKey = $(if ($backendChoice -eq '2') { $providerSecret } else { '' })
+        customKey = $(if ($backendChoice -eq '3') { $providerSecret } else { '' })
+        kimiKey = $(if ($backendChoice -eq '4') { $providerSecret } else { '' })
     }
-    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey') |
+    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey') |
         ForEach-Object { $script:fields[$_].Text } | Where-Object { $_ })
     $config = @{ protocol = 1; answers = $answers; secrets = $secrets }
     if ($Simulation) { $config.simulation = $Simulation }
@@ -867,8 +1034,7 @@ function Start-Backend {
         $script:stdoutTask = $script:process.StandardOutput.ReadLineAsync()
         $script:stderrTask = $script:process.StandardError.ReadLineAsync()
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
-        $script:fields.kimiKey.Clear(); $script:fields.elevenlabsKey.Clear()
-        foreach ($name in @('openaiKey','anthropicKey','customKey')) { $script:fields[$name].Clear() }
+        $script:fields.elevenlabsKey.Clear(); $script:fields.providerKey.Clear()
         $script:details.Clear(); $status.Text = 'Installation läuft …'
         Show-GuiPage 7
         $shell.ProgressBar.Value = 0
@@ -974,7 +1140,7 @@ if ($Simulation) {
                 voiceReference=''; voiceId=''; openBrowser='false' } } |
                 ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $stateFile -Encoding UTF8
             $script:fields.installRoot.Text = $testRoot; Load-RootState
-            if ((Value 'ownerName') -cne 'Testnutzer' -or (Value 'about') -cne 'synthetisch' -or
+            if ((Value 'ownerName') -cne 'Testnutzer' -or
                 $script:fields.address.SelectedIndex -ne 2 -or $script:fields.character.SelectedIndex -ne 1 -or
                 $script:fields.length.SelectedIndex -ne 1 -or $script:fields.voiceMode.SelectedIndex -ne 1 -or
                 (Value 'inputDevice') -cne 'Testmikrofon' -or (Value 'outputDevice') -cne 'Testlautsprecher' -or
@@ -1000,7 +1166,7 @@ if ($Simulation) {
                 Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-        foreach ($required in @('providerChoice', 'modelBaseUrl', 'modelName', 'openaiKey', 'anthropicKey', 'customKey')) {
+        foreach ($required in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'modelName', 'providerKey', 'useExistingKimi', 'elevenlabsKey')) {
             if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
         }
         if ($script:pages.Count -ne 8 -or $script:pages[4].Title -ne 'KI-Zugang') { throw 'GUI provider page missing.' }
@@ -1068,7 +1234,7 @@ if ($Simulation) {
         $script:focusSummary = ($focusSummary -join ',')
         # Geheimnisse erst jetzt: Load-RootState im Tastaturdurchlauf leert Passwort- und Schluesselfelder.
         $script:fields.useExistingKimi.Checked = $false
-        $script:fields.kimiKey.Text = 'synthetic-test-key'
+        $script:fields.providerKey.Text = 'synthetic-test-key'
         $script:fields.linuxPassword.Text = 'synthetic-test-password'
         $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
         # Aufnahme-Interaktion: eine Anfrage im Lauf-Ordner muss die Aufnahmenseite zeigen und die Antwort schreiben.

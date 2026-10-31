@@ -1,7 +1,7 @@
 # Project Status & Continuation Guide
 
 **Read this first in every new session** (then `docs/IMPLEMENTATION_CONVENTIONS.md`, then `docs/PLAN.md`).
-Last updated: 2026-10-31 (Mock aus dem Produkt entfernt, siehe letzter Abschnitt; physical clean-install drill open).
+Last updated: 2026-10-31 (Mock entfernt; Installer-Assistent nur noch mit Klick-Steuerelementen, siehe letzte Abschnitte; physical clean-install drill open).
 
 ## Goal
 
@@ -1290,3 +1290,30 @@ Entscheidung des Operators: Friday wird ohne Simulationsdaten ausgeliefert; Mock
 
 **Offen (Reihenfolge):** W2 Installer-GUI nur mit Klick-Steuerelementen, W3 Live-Gespräch (Qwen Audio) laut
 `PLAN_LIVE_GESPRAECH_QWEN_AUDIO.md`, W4 robustes GitHub-Update, W5 Neuinstallations- und Update-Test mit dem Operator.
+
+## 2026-10-31 Installer-Assistent nur mit Klick-Steuerelementen (Branch `feat/installer-click-gui`)
+
+Vorgabe des Operators: Einstellungen per Dropdown, Durchsuchen, Haken oder Auswahl; Freitext nur für Namen, Zugangsdaten
+und die Adresse eines eigenen Servers.
+
+- **Installationsort:** Ordner nur per Ordnerdialog (Feld schreibgeschützt), WSL-Ablageort ebenso; Distributionsname als
+  bearbeitbare Auswahl der vorhandenen WSL-Distributionen. Die Altinstallations-Haken erscheinen nur, wenn sie zutreffen
+  (C:\Jarvis, JARVIS-Aufgaben, vorhandene Distribution, vorhandene `dashboard.yaml`).
+- **Sprache:** Stimmreferenz nur per Dateidialog; ElevenLabs-Schlüssel auf dieser Seite (nur im ElevenLabs-Modus aktiv),
+  Stimme als Auswahl, die per „Stimmen laden“ aus dem eigenen ElevenLabs-Konto gefüllt wird.
+- **Persönlichkeit:** Freitext „Über dich“ entfernt (Persona-Feld `about` bleibt leer; Pflege im Dashboard ist offen).
+- **KI-Zugang:** Anbieter OpenAI, Anthropic, **Alibaba Cloud Qwen (Token Plan, Region International/China)**, Kimi Coding,
+  DeepSeek, OpenRouter, eigener Server; Modell als Auswahl je Anbieter; ein Schlüsselfeld für den gewählten Anbieter mit
+  „Schlüssel prüfen“ (`GET …/models`). Ein eingerichteter Zugang wird bei Fortsetzung nicht erneut abgefragt.
+- **Behobene Blocker:** Kimi-Schlüssel war bei jeder Neuinstallation Pflicht; ungültige Basis-URL oder Anbieterwahl
+  führte im GUI-Modus zur Endlosschleife; die Rückfrage „zweite Installation“ brach im GUI-Modus mit „Unbekannte
+  GUI-Entscheidung“ ab (jetzt klare Meldung mit dem vorhandenen Ordner). Ein auf dem PC gefundener Kimi-Schlüssel
+  überschreibt im GUI-Modus nicht mehr still die Anbieterwahl. Anthropic-Standardmodell `claude-sonnet-5-5`.
+- **Test:** neuer CI-Test `installer/tests/gui-controls.Tests.ps1` (Freitextfelder, Pfade nur per Dialog, Auswahlfelder,
+  Anbieter, Pflichtangaben, keine `Read-Host`-Abfrage und keine Schleife im GUI-Modus).
+
+**Zuletzt verifiziert (lokal, Windows):** alle 44 Installer-Tests inkl. der hostgebundenen (`gui-wizard-pages` mit
+Simulationslauf, acht gezeichneten Seiten und Tastaturdurchlauf), `data-mode.test.ps1`; Parser ohne Fehler, BOM/CRLF.
+
+**Offen:** dritter Sprachmodus „Qwen Audio (Alibaba)“ mit Schlüssel-Wiederverwendung wird mit W3 (Live-Gespräch) gebaut,
+damit die Option nicht vor dem Backend erscheint; „Über dich“ im Dashboard-Profil.
