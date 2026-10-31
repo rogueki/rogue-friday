@@ -1894,6 +1894,13 @@ class VoiceService:
             self.conversation.task_finished(job)
         return self.conversation.take_announcement()
 
+    def _forget_announced(self, jobs: list[dict]) -> None:
+        # A waiting task asked a question and is still running: it must stay registered so the next question and
+        # its final result are reported, also after a restart.
+        for job in jobs:
+            if job.get("status") in FINAL_DOMAIN_STATUSES:
+                self.domain_tasks.forget(job["taskId"])
+
     def _announce_domain_results(self) -> None:
         while True:
             try:
@@ -1903,8 +1910,7 @@ class VoiceService:
                 while self.tts.speaking.is_set():
                     time.sleep(0.05)  # never cut off a running announcement
                 text = self._announcement_text(jobs)
-                for job in jobs:
-                    self.domain_tasks.forget(job["taskId"])
+                self._forget_announced(jobs)
                 if not text:
                     continue
                 print(f"< {text}", flush=True)

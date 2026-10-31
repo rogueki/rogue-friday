@@ -1441,7 +1441,7 @@ entfernt) rot; pyflakes ohne Befund.
   ändert. Gegenproben rot (leere Startseite; entfernter Schlüssel).
 - **Rückfragen per Stimme (LG-2.01):** Blockiert ein Agent eine Sprachaufgabe mit `needs_input`, liefert
   `getVoiceDomainTask` die Frage (`VoiceDomainTask.question`). Der Sprachdienst sagt sie sofort an, einmal je Frage; der Wächter
-  läuft danach bis zum Endstatus weiter. Der Orchestrator nimmt sie in seine Anweisungen auf (als Daten markiert), und das Werkzeug
+  läuft danach bis zum Endstatus weiter, und die Aufgabe bleibt im Register (vergessen werden nur Aufträge mit Endstatus). Der Orchestrator nimmt sie in seine Anweisungen auf (als Daten markiert), und das Werkzeug
   `task_antwort` gibt die Antwort über die neue Operation `replyVoiceDomainTask` (POST `/api/v1/voice/tasks/{taskId}/reply`, nur
   Voice-Bridge, Idempotency-Key Pflicht, Audit `tasks.voice_task_reply` ohne Antworttext) weiter; bei mehreren offenen Fragen fragt es
   nach. Der Hermes-Adapter kann jetzt `provideTaskInput` (Fähigkeit `tasks.input`): Besitzer-Kommentar über die Upstream-Route
