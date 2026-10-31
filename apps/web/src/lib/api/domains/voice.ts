@@ -171,6 +171,14 @@ export function usePlayVoiceSample() {
 }
 
 /** POST /voice/tour/speak (owner): der Sprachdienst erklärt einen Bereich der Tour. */
+/** POST /voice/mode-switch (owner): öffnet am PC den Installer für den Wechsel des Sprachbetriebs. */
+export function useStartVoiceModeSwitch() {
+  return useApiMutation<ActionResult, IntentVars & { target: "local" | "elevenlabs" }>({
+    label: "Sprachbetrieb wechseln",
+    mutationFn: ({ idempotencyKey: _key, target }) => call(getApiClient().POST("/api/v1/voice/mode-switch", { body: { target } })),
+  });
+}
+
 export function useSpeakVoiceTourStep() {
   return useApiMutation<ActionResult, IntentVars & { area: DashboardArea }>({
     label: "Tour-Schritt vorlesen",

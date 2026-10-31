@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-mode-switch-request.schema.json",
+  "target": "elevenlabs"
+}

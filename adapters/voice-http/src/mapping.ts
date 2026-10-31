@@ -169,6 +169,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(output ? { output_audio: output } : {}),
     ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
     ...(raw.host_platform === "windows" || raw.host_platform === "linux" ? { host_platform: raw.host_platform } : {}),
+    ...(raw.voice_mode === "local" || raw.voice_mode === "elevenlabs" ? { voice_mode: raw.voice_mode } : {}),
     ...(typeof raw.trusted_remaining_s === "number" && Number.isFinite(raw.trusted_remaining_s) && raw.trusted_remaining_s >= 0
       ? { trusted_remaining_s: raw.trusted_remaining_s } : {}),
     ...(isSpeakerDecision(raw.speaker_decision) ? { speaker_decision: raw.speaker_decision } : {}),
@@ -331,6 +332,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       // The service only stores command audio when the owner has enabled recording.
       rawRecordingEnabled: raw.runtime_settings?.storeRawRecordings ?? false,
       voiceHistoryEnabled: raw.runtime_settings?.voiceHistoryEnabled ?? true,
+      ...(raw.voice_mode ? { voiceMode: raw.voice_mode } : {}),
       ...(raw.conversation
         ? { conversation: { backend: raw.conversation.backend, keyConfigured: raw.conversation.key_configured,
             consent: raw.conversation.consent, lastError: raw.conversation.last_error } }

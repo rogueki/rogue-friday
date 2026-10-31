@@ -1,5 +1,6 @@
 ﻿#Requires -Version 5.1
-param([string]$ResumeRoot = '', [ValidateSet('','success','failure','restart')][string]$Simulation = '')
+param([string]$ResumeRoot = '', [ValidateSet('','success','failure','restart')][string]$Simulation = '',
+      [switch]$ChangeVoice, [ValidateSet('','local','elevenlabs')][string]$VoiceTarget = '')
 
 # Simulation nur im lokalen Testmodus: ohne Marker keine Trockenlaeufe, die einen Erfolg vortaeuschen.
 if ($Simulation -and $env:FRIDAY_GUI_TEST -ne '1') {
@@ -15,6 +16,8 @@ if (-not $isAdmin) {
     $forward = @()
     if ($ResumeRoot) { $forward += @('-ResumeRoot', ('"' + $ResumeRoot + '"')) }
     if ($Simulation) { $forward += @('-Simulation', $Simulation) }
+    if ($ChangeVoice) { $forward += '-ChangeVoice' }
+    if ($VoiceTarget) { $forward += @('-VoiceTarget', $VoiceTarget) }
     $elevation = Start-ElevatedPowerShell -ScriptPath $PSCommandPath -ForwardedArguments $forward -Sta
     if ($elevation.Canceled) { exit 3 }
     if (-not $elevation.Started) { [Console]::Error.WriteLine('Start mit Administratorrechten fehlgeschlagen: ' + $elevation.Message); exit 4 }
@@ -262,10 +265,10 @@ function Test-Wizard {
         -not (Use-ProviderKeyForQwen)) {
         throw 'Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel: auf der Seite „Sprache & Stimme“ eintragen oder beim KI-Zugang „Diesen Schlüssel auch für Qwen Audio verwenden“ anhaken.'
     }
-    if (-not ($state -and $state.voice_mode)) {
+    if (-not ($state -and $state.voice_mode) -or $ChangeVoice) {
         Test-VoiceReferenceAnswer $script:fields.voiceMode.SelectedIndex $script:fields.voiceChoice.SelectedIndex (Value 'voiceReference')
     }
-    if ((Value 'voiceReference') -and -not ($state -and $state.voice_mode) -and
+    if ((Value 'voiceReference') -and (-not ($state -and $state.voice_mode) -or $ChangeVoice) -and
         -not (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) { throw 'Die gewählte Stimmreferenz wurde nicht gefunden.' }
     if ((Value 'voiceReference') -and (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) {
         $referenceFile = Get-Item -LiteralPath (Value 'voiceReference')
@@ -295,6 +298,11 @@ function New-WizardPage([string]$key, [string]$title, [string]$body) {
     $page = [ordered]@{ Key = $key; Title = $title; Body = $body; Panel = $panel }
     [void]$script:pages.Add($page)
     return $page
+}
+
+function Get-PageIndex([string]$key) {
+    for ($i = 0; $i -lt $script:pages.Count; $i++) { if ($script:pages[$i].Key -eq $key) { return $i } }
+    return -1
 }
 
 $systemPage = New-WizardPage 'systemPage' 'Systemprüfung' 'Prüft Windows, WSL2, Speicher, Rechte und Grafik, bevor etwas verändert wird.'
@@ -761,6 +769,24 @@ if ($ResumeRoot) { $script:fields.installRoot.Text = $ResumeRoot }
 Update-PathFields
 Load-RootState
 $refresh.PerformClick()
+if ($ChangeVoice) {
+    # Nur der Sprachbetrieb aendert sich; alles andere bleibt, wie die vorhandene Installation es gespeichert hat.
+    $changeState = if ($ResumeRoot) { Existing-State $ResumeRoot } else { $null }
+    if (-not ($changeState -and $changeState.voice_mode)) {
+        [void][Windows.Forms.MessageBox]::Show('Sprachbetrieb wechseln geht nur bei einer vorhandenen Installation. Bitte den Installationsordner im Dashboard prüfen.',
+            'F.R.I.D.A.Y.', 'OK', 'Error')
+        exit 5
+    }
+    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId')) { $script:fields[$choice].Enabled = $true }
+    $browse.Enabled = $true
+    if ($VoiceTarget -eq 'elevenlabs') { $script:fields.voiceMode.SelectedIndex = 1 } elseif ($VoiceTarget -eq 'local') { $script:fields.voiceMode.SelectedIndex = 0 }
+    $keep = @('voicePage', 'summaryPage', 'progressPage')
+    foreach ($page in @($script:pages | Where-Object { $keep -notcontains $_.Key })) {
+        $page.Panel.Visible = $false
+        $script:pages.Remove($page)
+    }
+    $form.Text = 'F.R.I.D.A.Y. – Sprachbetrieb wechseln'
+}
 
 function Update-Summary {
     $mode = if ($script:fields.voiceMode.SelectedIndex -eq 0) { 'Lokal (NVIDIA-GPU)' } else { 'ElevenLabs Cloud (mögliche Anbieter-Kosten)' }
@@ -768,7 +794,7 @@ function Update-Summary {
         if (Get-VoiceIdValue) { 'ElevenLabs Voice ID ' + (Get-VoiceIdValue) } else { 'ElevenLabs Standardstimme' }
     } elseif ($script:fields.voiceChoice.SelectedIndex -eq 1) { 'J.A.R.V.I.S. klassisch' } elseif ($script:fields.voiceChoice.SelectedIndex -eq 2) { 'Eigene Stimme' } else { 'F.R.I.D.A.Y. weiblich' }
     $state = Existing-State (Value 'installRoot')
-    $previous = if ($state) { "Vorhandene Installation: erledigte Schritte werden übernommen ($(@($state.done).Count) Schritte)." } else { 'Neuinstallation: WSL, Hermes, Sprache und Dashboard werden eingerichtet.' }
+    $previous = if ($ChangeVoice) { 'Sprachbetrieb wechseln: nur die Sprachteile werden neu eingerichtet. Name, Konten, KI-Zugang und Dashboard bleiben unverändert.' + $(if ($script:fields.voiceMode.SelectedIndex -eq 0) { "`nLokal braucht eine NVIDIA-Grafikkarte mit mindestens 6 GB Speicher; fehlende Sprachmodelle werden geladen (mehrere GB)." } else { '' }) } elseif ($state) { "Vorhandene Installation: erledigte Schritte werden übernommen ($(@($state.done).Count) Schritte)." } else { 'Neuinstallation: WSL, Hermes, Sprache und Dashboard werden eingerichtet.' }
     $summaryText.Text = (@"
 $previous
 
@@ -812,7 +838,7 @@ function Show-GuiPage([int]$index) {
     $shell.BackButton.Enabled = $shell.BackButton.Visible -and (-not $running)
     $shell.PrimaryButton.Visible = (-not $isProgress)
     $shell.PrimaryButton.Enabled = -not $running
-    $shell.PrimaryButton.Text = if ($isSummary) { 'Installieren' } else { 'Weiter' }
+    $shell.PrimaryButton.Text = if ($isSummary -and $ChangeVoice) { 'Wechseln' } elseif ($isSummary) { 'Installieren' } else { 'Weiter' }
     $shell.CancelButton.Text = if ($running) { 'Abbrechen' } elseif ($isProgress) { 'Schließen' } else { 'Abbrechen' }
     if ($isSummary) { Update-Summary }
 }
@@ -899,7 +925,7 @@ function Complete-GuiInteraction([string]$Action) {
     else { Append-Log "[AUFNAHME] Die Antwort '$Action' konnte nicht zugestellt werden." }
     $script:interactionId = ''
     $script:interactionPage.Visible = $false
-    if ($script:process -and -not $script:process.HasExited) { Show-GuiPage 7 }
+    if ($script:process -and -not $script:process.HasExited) { Show-GuiPage (Get-PageIndex 'progressPage') }
 }
 $script:interactionTimer = New-Object Windows.Forms.Timer
 $script:interactionTimer.Interval = 200
@@ -1010,7 +1036,7 @@ function Receive-BackendLine([string]$Line) {
         if ($percent -ge 0) { $shell.ProgressBar.Value = [math]::Min(100, $percent) }
         $stepNumber = [array]::IndexOf($script:GuiStepOrder, [string]$parsed.Event.step) + 1
         if ($stepNumber -gt 0) { $shell.StepLabel.Text = "Schritt $stepNumber von $($script:GuiStepOrder.Count)" }
-        if ($script:pageIndex -eq 7) { $shell.BodyLabel.Text = $text }
+        if ($script:pageIndex -eq (Get-PageIndex 'progressPage')) { $shell.BodyLabel.Text = $text }
     }
     Append-Log $text
 }
@@ -1021,7 +1047,7 @@ function Append-Log([string]$line) {
     }
     $script:details.AppendText($line + "`r`n")
     if ($line -match '^\s*(Schritt \d+|\[GUI\]|\[FEHLER\]|\[OK\])') {
-        if ($script:pageIndex -eq 7) { $shell.BodyLabel.Text = $line.Trim() }
+        if ($script:pageIndex -eq (Get-PageIndex 'progressPage')) { $shell.BodyLabel.Text = $line.Trim() }
     }
 }
 function Request-GuiCancel([string]$Reason) {
@@ -1107,6 +1133,7 @@ function Start-Backend {
         $psi.StandardOutputEncoding = [Text.Encoding]::UTF8; $psi.StandardErrorEncoding = [Text.Encoding]::UTF8
         $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $backend + '" -GuiConfigPath "' + $script:configPath + '" -InstallRoot "' + (Value 'installRoot') + '"'
         if ((Value 'installRoot') -ine 'C:\Friday') { $psi.Arguments += ' -DistroName "' + (Value 'distroName') + '" -DistroLocation "' + (Value 'distroLocation') + '"' }
+        if ($ChangeVoice) { $psi.Arguments += ' -ChangeVoice' }
         if ($Simulation) { $psi.Arguments += ' -GuiSimulation'; $psi.EnvironmentVariables['FRIDAY_GUI_TEST'] = '1' }
         $script:process = New-Object Diagnostics.Process
         $script:process.StartInfo = $psi
@@ -1121,7 +1148,7 @@ function Start-Backend {
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
         $script:fields.elevenlabsKey.Clear(); $script:fields.providerKey.Clear(); $script:fields.qwenAudioKey.Clear()
         $script:details.Clear(); $status.Text = 'Installation läuft …'
-        Show-GuiPage 7
+        Show-GuiPage (Get-PageIndex 'progressPage')
         $shell.ProgressBar.Value = 0
         $timer.Start(); $retry.Enabled = $false
         $shell.CancelButton.Text = 'Abbrechen'
@@ -1134,7 +1161,7 @@ function Start-Backend {
         Show-Error "Installation konnte nicht starten: $($_.Exception.Message)"
     }
 }
-$retry.Add_Click({ Show-GuiPage 6; Update-Summary })
+$retry.Add_Click({ Show-GuiPage (Get-PageIndex 'summaryPage'); Update-Summary })
 $timer.Add_Tick({
     foreach ($stream in @('stdout','stderr')) {
         $taskName = $stream + 'Task'

@@ -1607,6 +1607,18 @@ entfernt) rot; pyflakes ohne Befund.
   gespeichert ist (Gegenprobe rot). 306 Operationen. Das Anlernen einer eigenen Cloud-Stimme entfällt (P0-01, D-08). Der
   Installer erkennt `BAILIAN_API_KEY`/`DASHSCOPE_API_KEY` im Benutzerprofil wie den Kimi-Schlüssel: GUI-Haken „Auf diesem PC
   gefundenen Alibaba-Schlüssel verwenden“ (verschlüsselt übergeben, im Laufprotokoll geschwärzt), Konsole fragt einmal.
+- **Sprachbetrieb wechseln aus dem Dashboard (LG-4.03/LG-5.01):** `VoiceStatus.voiceMode` (`local`/`elevenlabs`, vom
+  Sprachdienst als `voice_mode` gemeldet) zeigt Einstellungen → Sprache → Sprachbetrieb. Der Knopf fragt mit allen Folgen nach
+  (Administratorrechte, lokal ≥ 6 GB NVIDIA und Modell-Downloads, ElevenLabs-Schlüssel und Datenweitergabe) und ruft
+  `POST /api/v1/voice/mode-switch` (Owner, `settings.update`, nur Windows) auf. Die Control API startet
+  `<root>\installer\install-friday-gui.ps1 -ChangeVoice -ResumeRoot <root> -VoiceTarget <ziel>` losgelöst; die GUI hebt sich per
+  UAC an und zeigt im Wechselmodus nur Sprachseite, Zusammenfassung und Fortschritt (Seitenindizes per Schlüssel statt fest).
+  Der Installer erledigt dann nur die Sprachschritte. Bricht er ab, bleibt der bisherige Sprachbetrieb aktiv: Die Sicherung
+  von Status, `voice.json` und Referenzen entsteht jetzt vor der Moduswahl (vorher danach, sie enthielt schon den neuen Modus,
+  und `FRIDAY_Qwen` war bereits abgeschaltet). `Stop-Install` stellt alles wieder her, setzt `FRIDAY_Qwen` auf den alten
+  Zustand und startet den Sprachdienst neu; Test `installer/tests/voice-change-rollback.Tests.ps1`. Fehlender Installer, ein
+  anderes System oder ein Startfehler führen zu 503, ein zweiter Klick binnen 60 s zu 409. Das Dashboard erkennt den
+  Abschluss am Status, der ohnehin alle 10 s neu geladen wird. Ohne vorhandene Installation beendet sich die GUI mit Exit 5.
 - **Dashboard-Tour und Bereiche per Stimme öffnen (LG-5.07):** Tour (`apps/web/src/features/tour/`) durch alle sichtbaren
   Seiten in Reihenfolge der Seitenleiste; Schritttexte aus `docs/friday-knowledge/seiten.md`, von `knowledge:build` nach
   `tourSteps.generated.json` erzeugt (Bundle-Prüfung gegen Server-Schlüsseldateien wie bei der Hilfe). Start über den Kompass

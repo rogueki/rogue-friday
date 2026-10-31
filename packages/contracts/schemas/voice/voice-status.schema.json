@@ -200,6 +200,11 @@
     "audioOutputDeviceId": {
       "type": ["string", "null"]
     },
+    "voiceMode": {
+      "type": "string",
+      "enum": ["local", "elevenlabs"],
+      "description": "Voice mode chosen at installation: local speech models on the NVIDIA GPU or ElevenLabs cloud speech. Changed only by the installer (startVoiceModeSwitch)."
+    },
     "conversation": {
       "type": "object",
       "description": "Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; consent whether the owner agreed to the data transfer to Alibaba Cloud (Qwen stays off without it); lastError is the failure kind of the last Qwen turn (null after a successful turn).",
