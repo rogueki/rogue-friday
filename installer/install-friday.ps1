@@ -43,7 +43,7 @@ if ($GuiMode) {
     finally { Remove-Item -LiteralPath $configFull -Force -ErrorAction SilentlyContinue }
     if ($GuiConfig.protocol -ne 1 -or -not $GuiConfig.answers -or -not $GuiConfig.secrets) { throw 'Unbekanntes GUI-Protokoll.' }
     foreach ($key in @('assistantName','wakePhrase','ownerName','about','linuxUser','voiceMode','voiceChoice',
-                      'voiceReference','voiceId','conversationBackend','qwenRegion','inputDevice','outputDevice','address','character','length','migrateLegacy','disableLegacy',
+                      'voiceReference','voiceId','conversationBackend','qwenRegion','qwenConsent','inputDevice','outputDevice','address','character','length','migrateLegacy','disableLegacy',
                       'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
                       'repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
         if (-not $GuiConfig.answers.PSObject.Properties[$key]) { throw "GUI-Antwort fehlt: $key" }
@@ -65,7 +65,7 @@ if ($GuiMode) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2','3')) { throw "Ungültige GUI-Auswahl: $key" }
     }
     foreach ($key in @('migrateLegacy','disableLegacy','reuseDistro','disableForeignTasks','overwriteDashboardConfig',
-                      'keepIdentity','repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
+                      'keepIdentity','repeatEnrollment','qwenConsent','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
         if ([string]$GuiConfig.answers.$key -notin @('true','false')) { throw "Ungültige GUI-Entscheidung: $key" }
     }
 }
@@ -279,6 +279,7 @@ function YesNo($question, $defaultYes = $true) {
             '^Aufnahme fortsetzen' { 'retryEnrollment'; break }
             '^Mit der Vorgabe überschreiben' { 'overwriteDashboardConfig'; break }
             '^Command Center jetzt im Browser' { 'openBrowser'; break }
+            '^Zustimmung Qwen Audio' { 'qwenConsent'; break }
             '^Jetzt neu starten' { 'restartNow'; break }
             default { throw "Unbekannte GUI-Entscheidung: $question" }
         }
@@ -1269,7 +1270,7 @@ if ($GuiMode -and -not (IsDone 'voicepython')) {
     # nonsecret answers so a WSL reboot can restore decisions made in the wizard.
     $State.gui_pending = @{}
     foreach ($key in @('ownerName','about','address','character','length','inputDevice','outputDevice',
-                      'voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend','qwenRegion','migrateLegacy','disableLegacy',
+                      'voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend','qwenRegion','qwenConsent','migrateLegacy','disableLegacy',
                       'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
                       'repeatEnrollment','openBrowser')) {
         $State.gui_pending[$key] = [string]$GuiConfig.answers.$key
@@ -1414,12 +1415,19 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
             if (-not $answer) { $answer = $defaultRegion }
         } while ($answer -notin @('1', '2'))
         $newRegion = if ($answer -eq '2') { 'cn-beijing' } else { 'ap-southeast-1' }
+        Info 'Qwen Audio sendet für das Live-Gespräch Sprache und Gesprächsinhalte an Alibaba Cloud (Token Plan). Wake Word, Sprecherprüfung und Stimme bleiben auf diesem PC.'
+        if (-not (YesNo 'Zustimmung Qwen Audio: Sprache und Gesprächsinhalte an Alibaba Cloud übertragen?' $false)) {
+            Warn 'Ohne Zustimmung bleibt das Gespräch lokal.'
+            $newConversation = 'local'
+        }
     }
-    if ([string]$State.conversation_backend -ne $newConversation -or [string]$State.qwen_region -ne $newRegion) {
+    $newConsent = ($newConversation -eq 'qwen')
+    if ([string]$State.conversation_backend -ne $newConversation -or [string]$State.qwen_region -ne $newRegion -or [bool]$State.qwen_consent -ne $newConsent) {
         # voice.json entsteht im Schritt voicepython; danach muss der Sprachdienst neu starten.
         $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
     }
     $State.conversation_backend = $newConversation
+    $State.qwen_consent = $newConsent
     $State.qwen_region = $newRegion
     Save-State
 }
@@ -2075,6 +2083,7 @@ if (-not (IsDone 'voicepython')) {
     if ($State.voice_mode -eq 'elevenlabs') { $voiceArgs += @('--elevenlabs-voice-id', $State.elevenlabs_voice_id) }
     if ($State.conversation_backend -eq 'qwen') {
         $voiceArgs += @('--conversation-backend', 'qwen', '--qwen-region', [string]$State.qwen_region)
+        if ($State.qwen_consent) { $voiceArgs += @('--qwen-consent') }
     }
     if ($State.voice_reference -and $State.voice_mode -eq 'local') { $voiceArgs += @('--voice-reference', $State.voice_reference) }
     $ttsPort = [int]$Ports.Voice + 1

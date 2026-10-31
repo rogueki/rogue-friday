@@ -13,29 +13,29 @@ beforeEach(() => {
 
 it("blockiert Qwen ohne hinterlegten Schlüssel", () => {
   const onSelect = vi.fn();
-  const view = render(<ConversationBackendControl value="local" status={{ backend: "local", keyConfigured: false, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} onSelect={onSelect} />);
   fireEvent.change(screen.getByLabelText("Gespräch"), { target: { value: "qwen" } });
   expect(onSelect).not.toHaveBeenCalled();
   expect(screen.getByRole("alert").textContent).toContain("Token-Plan-Schlüssel");
   view.unmount();
 });
 
-it("gibt Qwen bei hinterlegtem Schlüssel weiter", () => {
+it("gibt Qwen bei hinterlegtem Schlüssel und Zustimmung weiter", () => {
   const onSelect = vi.fn();
-  const view = render(<ConversationBackendControl value="local" status={{ backend: "local", keyConfigured: true, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  const view = render(<ConversationBackendControl value="local" consent={true} status={{ backend: "local", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={onSelect} />);
   fireEvent.change(screen.getByLabelText("Gespräch"), { target: { value: "qwen" } });
-  expect(onSelect).toHaveBeenCalledWith("qwen");
+  expect(onSelect).toHaveBeenCalledWith("qwen", true);
   view.unmount();
 });
 
 it("nennt den Grund, wenn Qwen ausfällt", () => {
-  const view = render(<ConversationBackendControl value="qwen" status={{ backend: "qwen", keyConfigured: true, lastError: "quota" }} readOnly={false} onSelect={vi.fn()} />);
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: "quota" }} readOnly={false} onSelect={vi.fn()} />);
   expect(screen.getByRole("status").textContent).toContain("Kontingent aufgebraucht");
   view.unmount();
 });
 
 it("nimmt einen neuen Schlüssel erst ab acht Zeichen an", () => {
-  const view = render(<ConversationBackendControl value="local" status={{ backend: "local", keyConfigured: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
   const input = screen.getByLabelText("Alibaba-Token-Plan-Schlüssel");
   const button = screen.getByRole("button", { name: "Prüfen und speichern" }) as HTMLButtonElement;
   fireEvent.change(input, { target: { value: "kurz1" } });
@@ -51,7 +51,7 @@ it("nimmt einen neuen Schlüssel erst ab acht Zeichen an", () => {
 });
 
 it("zeigt das Feld bei hinterlegtem Schlüssel erst nach Ersetzen", () => {
-  const view = render(<ConversationBackendControl value="qwen" status={{ backend: "qwen", keyConfigured: true, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
   expect(screen.queryByLabelText("Alibaba-Token-Plan-Schlüssel")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Schlüssel ersetzen" }));
   expect(screen.getByLabelText("Alibaba-Token-Plan-Schlüssel")).not.toBeNull();
@@ -59,14 +59,14 @@ it("zeigt das Feld bei hinterlegtem Schlüssel erst nach Ersetzen", () => {
 });
 
 it("zeigt in der Nur-Lese-Ansicht weder Feld noch Ersetzen-Schaltfläche", () => {
-  const view = render(<ConversationBackendControl value="qwen" status={{ backend: "qwen", keyConfigured: true, lastError: null }} readOnly onSelect={vi.fn()} />);
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: null }} readOnly onSelect={vi.fn()} />);
   expect(screen.queryByLabelText("Alibaba-Token-Plan-Schlüssel")).toBeNull();
   expect(screen.queryByRole("button", { name: "Schlüssel ersetzen" })).toBeNull();
   view.unmount();
 });
 
 it("zeigt die Ablehnung der Schlüsselprüfung an", () => {
-  const view = render(<ConversationBackendControl value="local" status={{ backend: "local", keyConfigured: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
   fireEvent.change(screen.getByLabelText("Alibaba-Token-Plan-Schlüssel"), { target: { value: "good-key-1234" } });
   fireEvent.click(screen.getByRole("button", { name: "Prüfen und speichern" }));
   const callbacks = mockMutation.mutate.mock.calls[0]?.[1] as { onError?: (error: Error) => void } | undefined;
@@ -74,5 +74,51 @@ it("zeigt die Ablehnung der Schlüsselprüfung an", () => {
     callbacks?.onError?.(new Error("Qwen Audio hat den Schlüssel abgelehnt."));
   });
   expect(screen.getByRole("alert").textContent).toContain("Qwen Audio hat den Schlüssel abgelehnt.");
+  view.unmount();
+});
+
+it("asks for consent when selecting Qwen with a stored key but no consent", () => {
+  const onSelect = vi.fn();
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: true, consent: false, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  fireEvent.change(screen.getByLabelText("Gespräch"), { target: { value: "qwen" } });
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert").textContent).toContain("Zustimmung zur Datenübertragung");
+  view.unmount();
+});
+
+it("selects Qwen with consent after ticking the checkbox", () => {
+  const onSelect = vi.fn();
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: true, consent: false, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.change(screen.getByLabelText("Gespräch"), { target: { value: "qwen" } });
+  expect(onSelect).toHaveBeenCalledWith("qwen", true);
+  view.unmount();
+});
+
+it("withdraws consent and switches to local when unticking while Qwen is active", () => {
+  const onSelect = vi.fn();
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={{ backend: "qwen", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(onSelect).toHaveBeenCalledWith("local", false);
+  view.unmount();
+});
+
+it("saves a withdrawn consent also while the conversation is local", () => {
+  const onSelect = vi.fn();
+  const view = render(<ConversationBackendControl value="local" consent={true} status={{ backend: "local", keyConfigured: true, consent: true, lastError: null }} readOnly={false} onSelect={onSelect} />);
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(onSelect).toHaveBeenCalledWith("local", false);
+  view.unmount();
+});
+
+it("shows that Qwen waits for consent when the service reports no consent", () => {
+  const view = render(<ConversationBackendControl value="qwen" consent={false} status={{ backend: "qwen", keyConfigured: true, consent: false, lastError: null }} readOnly={false} onSelect={vi.fn()} />);
+  expect(screen.getByRole("status").textContent).toContain("wartet auf deine Zustimmung");
+  view.unmount();
+});
+
+it("hides the consent checkbox in read-only mode", () => {
+  const view = render(<ConversationBackendControl value="qwen" consent={false} status={{ backend: "qwen", keyConfigured: true, consent: false, lastError: null }} readOnly onSelect={vi.fn()} />);
+  expect(screen.queryByRole("checkbox")).toBeNull();
   view.unmount();
 });

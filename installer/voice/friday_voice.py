@@ -224,6 +224,8 @@ def conversation_backend(cfg: dict) -> str:
     backend = cfg.get("conversation_backend", "local")
     if backend not in CONVERSATION_BACKENDS:
         raise SystemExit("conversation_backend muss local oder qwen sein")
+    if backend == "qwen" and cfg.get("qwen_consent") is not True:
+        return "local"  # F-10: nothing goes to Alibaba without the owner's consent
     return backend
 
 
@@ -2336,6 +2338,7 @@ class VoiceService:
                 "runtime_settings": runtime_settings.effective(self.cfg),
                 "conversation": {"backend": runtime_settings.effective(self.cfg)["conversationBackend"],
                                  "key_configured": bool(self.cfg.get("qwen_key_file")) and os.path.isfile(self.cfg["qwen_key_file"]),
+                                 "consent": self.cfg.get("qwen_consent") is True,
                                  "last_error": self.status.get("qwen_error")},
                 "config_revision": getattr(self, "config_disk_hash", None),
                 "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
@@ -2662,7 +2665,8 @@ class VoiceService:
                         if conversation_change:
                             try:
                                 prepared_conversation = service._build_conversation(
-                                    {**service.cfg, "conversation_backend": requested["conversationBackend"]})
+                                    {**service.cfg, "conversation_backend": requested["conversationBackend"],
+                                     "qwen_consent": requested["conversationConsent"]})
                             except (RuntimeError, OSError) as exc:
                                 raise ValueError("Qwen Audio key cannot be read") from exc
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:

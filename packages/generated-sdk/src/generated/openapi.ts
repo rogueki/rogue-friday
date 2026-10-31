@@ -11645,6 +11645,8 @@ export interface components {
              * @enum {string}
              */
             conversationBackend?: "local" | "qwen";
+            /** @description The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local. */
+            conversationConsent?: boolean;
             inputDeviceId: string | null;
             outputDeviceId: string | null;
             pushToTalkKey: string;
@@ -11675,10 +11677,11 @@ export interface components {
                 /** @enum {string} */
                 transport: "device" | "browser";
             };
-            /** @description Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; lastError is the failure kind of the last Qwen turn (null after a successful turn). */
+            /** @description Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; consent whether the owner agreed to the data transfer to Alibaba Cloud (Qwen stays off without it); lastError is the failure kind of the last Qwen turn (null after a successful turn). */
             conversation?: {
                 /** @enum {string} */
                 backend: "local" | "qwen";
+                consent: boolean;
                 keyConfigured: boolean;
                 /** @enum {string|null} */
                 lastError: "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null;

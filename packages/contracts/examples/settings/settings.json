@@ -90,6 +90,7 @@
     "sttLanguage": "de",
     "sttModel": "small",
     "conversationBackend": "local",
+    "conversationConsent": false,
     "ttsVoice": "de_DE-thorsten",
     "ttsRate": 1,
     "inputDeviceId": null,

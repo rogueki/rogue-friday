@@ -250,6 +250,7 @@ function Test-Wizard {
         $existingCloudKey = Test-Path -LiteralPath (Join-Path $root 'config\elevenlabs_api.key.dpapi') -PathType Leaf
         if (-not $existingCloudKey) { throw 'ElevenLabs-API-Schlüssel fehlt.' }
     }
+    if ($script:fields.conversationBackend.SelectedIndex -eq 1 -and -not (Checked 'qwenConsent')) { throw 'Für Qwen Audio ist deine Zustimmung zur Datenübertragung an Alibaba Cloud nötig. Sonst „Lokal“ wählen.' }
     if ($script:fields.conversationBackend.SelectedIndex -eq 1 -and (Value 'qwenAudioKey') -eq '' -and
         -not (Test-Path -LiteralPath (Join-Path $root 'config\alibaba_tokenplan.key.dpapi') -PathType Leaf) -and
         -not (Use-ProviderKeyForQwen)) {
@@ -436,9 +437,11 @@ $voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis
 [void](Add-Choice $voicePage.Panel 'qwenRegion' 'Alibaba-Region' 484 @('International (Singapur)', 'China (Peking)'))
 [void](Add-Row $voicePage.Panel 'qwenAudioKey' 'Token-Plan-API-Schlüssel' 522 '' $true)
 [void](Add-Text $voicePage.Panel 'Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf deinem PC. Fällt Qwen aus, antwortet der Assistent lokal. Schlüssel leer lassen, wenn beim KI-Zugang Alibaba Cloud Qwen (Token Plan) gewählt ist.' 560 72)
+[void](Add-Check $voicePage.Panel 'qwenConsent' 'Ich stimme zu: Für das Live-Gespräch gehen Sprache und Gesprächsinhalte an Alibaba Cloud (Qwen Audio, Token Plan).' 636 $false)
 function Update-ConversationFields {
     $qwen = $script:fields.conversationBackend.Enabled -and $script:fields.conversationBackend.SelectedIndex -eq 1
     $script:fields.qwenRegion.Enabled = $qwen; $script:fields.qwenAudioKey.Enabled = $qwen
+    $script:fields.qwenConsent.Enabled = $qwen
 }
 $script:fields.conversationBackend.Add_SelectedIndexChanged({ Update-ConversationFields })
 Update-ConversationFields
@@ -647,7 +650,7 @@ function Load-RootState {
             if ($pending.qwenRegion -in @('1','2')) { $script:fields.qwenRegion.SelectedIndex = [int]$pending.qwenRegion - 1 }
         }
         foreach ($fieldName in @('migrateLegacy','disableLegacy','reuseDistro','disableForeignTasks',
-                                 'overwriteDashboardConfig','keepIdentity','repeatEnrollment','openBrowser')) {
+                                 'overwriteDashboardConfig','keepIdentity','repeatEnrollment','openBrowser','qwenConsent')) {
             if ($pending.$fieldName -in @('true','false')) { $script:fields[$fieldName].Checked = $pending.$fieldName -eq 'true' }
         }
     }
@@ -725,7 +728,7 @@ Assistent: $(Value 'assistantName') · Wake Word: $(Value 'wakePhrase')
 Person: $(Value 'ownerName')
 KI-Anbieter: $(if ($script:providerLocked) { 'bereits eingerichtet' } else { (Get-ProviderPreset).Label + ' · ' + $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' }) })
 Sprachbetrieb: $mode
-Gespräch: $(if ($script:fields.conversationBackend.SelectedIndex -eq 1) { 'Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet)' } else { 'Lokal' })
+Gespräch: $(if ($script:fields.conversationBackend.SelectedIndex -eq 1) { 'Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet), Zustimmung erteilt' } else { 'Lokal' })
 Stimme: $voiceName
 Referenz: $(if ($script:fields.voiceMode.SelectedIndex -eq 1) { 'ElevenLabs (keine lokale Referenz)' } elseif (Value 'voiceReference') { Value 'voiceReference' } else { 'automatische Auswahl' })
 Mikrofon: $(Value 'inputDevice')
@@ -1008,6 +1011,7 @@ function Start-Backend {
         voiceId = Get-VoiceIdValue
         conversationBackend = [string]($script:fields.conversationBackend.SelectedIndex + 1)
         qwenRegion = $(if (Use-ProviderKeyForQwen) { [string]($script:fields.alibabaRegion.SelectedIndex + 1) } else { [string]($script:fields.qwenRegion.SelectedIndex + 1) })
+        qwenConsent = BoolText (Checked 'qwenConsent')
         inputDevice = $(if ($script:fields.inputDevice.SelectedIndex -gt 0) { Value 'inputDevice' } else { '' })
         outputDevice = $(if ($script:fields.outputDevice.SelectedIndex -gt 0) { Value 'outputDevice' } else { '' })
         address = [string]($script:fields.address.SelectedIndex + 1)

@@ -1543,6 +1543,17 @@ entfernt) rot; pyflakes ohne Befund.
   ihn. Je Lauf genau einmal (Schlüssel `notifications.update_result_handled`), damit ein Neustart einen quittierten Alarm nicht
   wieder öffnet. Nur ohne Mock-Welt. Tests: Erzeuger (3), `backup-jobs.test.ts` (1), Live-Test `update-result-alert.test.ts`
   (Alarm, Quittung übersteht Neustart); Gegenprobe (Schlüssel nicht gelesen) rot.
+- **Zustimmung für Qwen Audio (F-10):** Qwen ließ sich bisher ohne Hinweis auf die Datenübertragung einschalten. Neues
+  Laufzeitfeld `voice.conversationConsent` (Sprachkonfiguration `qwen_consent`) und `VoiceStatus.conversation.consent`. Der
+  Sprachdienst ist das Tor: `conversation_backend()` und `runtime_settings.effective()` melden ohne Zustimmung „local“,
+  `validate()` lehnt Qwen ohne Zustimmung mit 422 ab (vor der Schlüsselprüfung), Laufzeitwechsel übergibt die Zustimmung an den
+  Dialogaufbau. Installer-GUI: Pflicht-Haken unter dem Gesprächs-Hinweis, nur bei Qwen aktiv, ohne Haken bricht „Weiter“ mit Meldung
+  ab; Konsole fragt j/n (nein ⇒ lokal); `voice_setup.py --qwen-consent` setzt die Zustimmung nur, wenn sie gegeben wurde, eine im
+  Dashboard erteilte bleibt bei einem Stimmwechsel erhalten. Dashboard: Haken unter Einstellungen → Sprache → Gespräch; Qwen ohne
+  Haken zeigt eine Meldung, Entfernen des Hakens widerruft sofort und schaltet auf lokal. Altinstallationen mit Qwen laufen nach dem
+  Update lokal, bis der Haken gesetzt ist. Wissensbasis `datenschutz.md` ergänzt, Einstellungsmatrix +1 Zeile (117).
+  Tests: Python (5 neu, Laufzeitwechsel mit Zustimmung/Ablehnung), Adapter-Mapping, Control API, Dashboard (6 neu), Installer
+  (GUI- und Ablaufprüfungen); Gegenproben (Tor im Dienst entfernt: 3 rot; Dashboard-Prüfung entfernt: 1 rot).
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 

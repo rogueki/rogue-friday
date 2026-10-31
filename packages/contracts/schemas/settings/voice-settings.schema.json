@@ -30,6 +30,10 @@
       "enum": ["local", "qwen"],
       "description": "Who leads the spoken conversation: the local pipeline or Qwen Audio over the Alibaba Token Plan (wake word, speaker check and voice stay local)."
     },
+    "conversationConsent": {
+      "type": "boolean",
+      "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local."
+    },
     "ttsVoice": {
       "type": "string"
     },

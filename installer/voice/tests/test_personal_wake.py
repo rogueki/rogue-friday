@@ -1267,8 +1267,10 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     orchestrator = types.SimpleNamespace(drain_announcements=lambda: [])
 
     def build(cfg):
-        built.append(cfg["conversation_backend"])
-        return (orchestrator, dialog) if cfg["conversation_backend"] == "qwen" else None
+        # Decides like the real builder: the consent travels with the requested backend (F-10).
+        backend = jv.conversation_backend(cfg)
+        built.append(backend)
+        return (orchestrator, dialog) if backend == "qwen" else None
 
     monkeypatch.setattr(svc, "_build_conversation", build)
     with socket.socket() as sock:
@@ -1289,14 +1291,17 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
             return error.code
 
     current = jv.runtime_settings.effective(svc.cfg)
-    assert post({**current, "conversationBackend": "qwen"}) == 422
+    assert post({**current, "conversationBackend": "qwen", "conversationConsent": True}) == 422
     assert built == []
     (tmp_path / "config" / "alibaba_tokenplan.key.dpapi").write_text("x", encoding="utf-8")
     current = jv.runtime_settings.effective(svc.cfg)
-    assert post({**current, "conversationBackend": "qwen"}) == 200
+    assert post({**current, "conversationBackend": "qwen", "conversationConsent": False}) == 422
+    assert built == []
+    assert post({**current, "conversationBackend": "qwen", "conversationConsent": True}) == 200
     assert svc.qwen_dialog is dialog and svc.conversation is orchestrator
     assert json.load(open(svc.config_path, encoding="utf-8"))["conversation_backend"] == "qwen"
-    assert svc.status_payload()["conversation"] == {"backend": "qwen", "key_configured": True, "last_error": None}
+    assert svc.status_payload()["conversation"] == {"backend": "qwen", "key_configured": True,
+                                                    "consent": True, "last_error": None}
     assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "local"}) == 200
     assert svc.qwen_dialog is None
     assert dialog.closed.wait(2) is True
@@ -1365,6 +1370,7 @@ def test_conversation_key_endpoint_verifies_before_storing(monkeypatch, tmp_path
     assert stored == [(svc.cfg["qwen_key_file"], "good-key-1234")]
 
     svc.cfg["conversation_backend"] = "qwen"
+    svc.cfg["qwen_consent"] = True
     builds = []
     dialog = types.SimpleNamespace(close=lambda: None)
     orchestrator = types.SimpleNamespace(drain_announcements=lambda: [])

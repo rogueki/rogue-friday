@@ -56,5 +56,16 @@ Assert-True ($installer -match "if \(\`$GuiMode\) \{\s+Stop-Install `"F\.R\.I\.D
 Assert-True ($installer -match "'4' \{ 'kimi-coding' \}") 'Kimi Coding ist im Backend nicht wählbar.'
 Assert-True ($installer -match "-notin @\('1','2','3','4'\)\) \{ throw 'Ungültige GUI-Auswahl: providerChoice' \}") 'Die Anbieterwahl der Oberfläche wird nicht geprüft.'
 
+# --- 6. Qwen Audio: Zustimmung als eigener Haken, erst mit Qwen aktiv
+Assert-True ($gui -match '(?m)^\[void\]\(Add-Check \$voicePage\.Panel ''qwenConsent''[^\r\n]* 636 \$false\)') 'Der Zustimmungshaken qwenConsent fehlt oder ist vorbelegt.'
+Assert-True ($gui -match '\$script:fields\.qwenConsent\.Enabled = \$qwen') 'qwenConsent wird nicht mit der Qwen-Wahl aktiviert.'
+Assert-True ($gui -match 'deine Zustimmung zur Datenübertragung an Alibaba Cloud') 'Die Zustimmung wird vor dem Qwen-Schlüssel nicht geprüft.'
+Assert-True ($installer -match "'conversationBackend','qwenRegion','qwenConsent'") 'qwenConsent fehlt in den Pflichtantworten der Oberfläche.'
+Assert-True ($installer -match "'keepIdentity','repeatEnrollment','qwenConsent','retryEnrollment'") 'qwenConsent fehlt in der Liste der Ja/Nein-Antworten.'
+Assert-True ($installer -match "'\^Zustimmung Qwen Audio' \{ 'qwenConsent'; break \}") 'Die Ja/Nein-Zuordnung für Qwen Audio fehlt.'
+Assert-True ($installer -match "'--qwen-consent'") 'voice_setup.py erhält keine Qwen-Zustimmung.'
+Assert-True ($installer -match 'Ohne Zustimmung bleibt das Gespräch lokal') 'Die Ablehnung der Zustimmung wird nicht gemeldet.'
+Assert-True ($installer -match '\$newConversation = ''local''') 'Die Ablehnung der Zustimmung schaltet das Gespräch nicht auf lokal.'
+
 Write-Host "Klick-Bedienung: $($script:checks) Prüfungen bestanden"
 Write-Host 'Klick-Bedienung: PASS'
