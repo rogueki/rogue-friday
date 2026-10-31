@@ -1484,6 +1484,12 @@ entfernt) rot; pyflakes ohne Befund.
   Bereichsübersicht. Installation kopiert `voice` jetzt rekursiv, beide Update-Dateilisten enthalten `knowledge.py` und das Bündel.
   Tests: `test_knowledge.py` (7), `test_knowledge_questions.py` (20 Hilfefragen, P0-12), `test_conversation.py`; Gegenprobe (Stamm-
   vergleich aus) rot; WSL-Voice-Liste 291 bestanden.
+- **Kein `fetch()` mehr in Komponenten (Repo-Regel):** Wake- und Linux-Einlernen, STT-Modelle, Ortssuche, Wetter/Health in der
+  Fußleiste, Browser-Audio-Verfügbarkeit und die MP3/MP4-Downloads im Content Studio riefen die Control API direkt per `fetch()` auf.
+  Neue typisierte Domänenmodule in `lib/api/domains` (`wakeEnrollment`, `linuxEnrollment`, `sttModels`, `weather`, `health`,
+  `contentStudioMedia`; Binärantworten über `parseAs: "blob"`, Idempotency-Key bleibt), Texte und Zeitlimits unverändert, Tests
+  auf den FakeApi umgestellt. Wächter `tests/unit/web-no-raw-fetch.test.ts` schlägt fehl, sobald `fetch(` in `features/` oder
+  `app/` auftaucht (einzige Ausnahme: die browserseitige Rückwärts-Geokodierung bei BigDataCloud); Gegenprobe rot.
 - **Selbstdiagnose „Prüf dich“ (LG-2b.06):** `installer/voice/self_check.py` bewertet nur Live-Werte: Dienststatus (Mikrofon-Stream und
   -Fehler, Wake Word an/aus, Sprecherprüfung ohne Profil bzw. ≥ 3 Ablehnungen, Qwen-Schlüssel/-Fehler, Gedächtnis-Rückstau), Ruhemodus
   und Erreichbarkeit über `GET /quiet-mode` sowie den Systemstatus über `/voice/read`. Feste deutsche Sätze, keine Rohfehlertexte; Probleme
