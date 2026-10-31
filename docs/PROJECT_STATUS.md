@@ -1416,7 +1416,15 @@ entfernt) rot; pyflakes ohne Befund.
   (Testdateien wie beim Erstinstaller ausgenommen) als letzten Schritt vor dem Revisionsmarker; lokal geänderte Dateien
   bleiben erhalten und werden gemeldet; bei einem Fehler wird die Kopie aus `updates\installer-copy-<RunId>`
   wiederhergestellt. Test `dashboard-update-installer-copy.Tests.ps1` (Git-Fixture, Fehlerfall); Gegenprobe rot.
-- **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+- **Schlüssel im Dashboard (LG-3b):** Im Abschnitt „Gespräch“ lässt sich der Alibaba-Token-Plan-Schlüssel eingeben oder
+  ersetzen (`setVoiceConversationKey`, POST `/api/v1/voice/conversation-key`, owner, CSRF). Der Sprachdienst prüft ihn mit einer
+  kurzen Qwen-Audio-Sitzung (`qwen_realtime.verify_key`) und speichert ihn nur bei Erfolg per DPAPI für den Windows-Benutzer
+  (`cloud_secret.save_secret`, Schlüssel nur über stdin, atomarer Austausch); eine laufende Qwen-Sitzung wird mit dem neuen
+  Schlüssel neu aufgebaut. Abgelehnt/Kontingent/nicht erreichbar → 422 mit deutscher Meldung, gespeicherter Schlüssel bleibt.
+  Linux: nur über den Installer. Der Schlüssel erscheint in keinem Log, Audit oder Fehlertext (Test prüft die Log-Ereignisse).
+- **WSL-Update-Hülle:** `test_update_wsl_dependency_closure.py` prüft jetzt auch, dass jedes lokal importierte Nachbarmodul eines
+  ausgelieferten WSL-Helfers mitkopiert wird.
+- **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;

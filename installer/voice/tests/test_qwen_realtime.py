@@ -5,7 +5,7 @@ import pathlib
 import sys
 import unittest
 from http import HTTPStatus
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from websockets.asyncio.client import connect as ws_connect
 from websockets.asyncio.server import serve
@@ -60,6 +60,29 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(qwen_realtime.load_key("x"), "k")
         load.assert_called_once_with("x", linux_file=qwen_realtime.LINUX_SECRET_FILE,
                                      label="Alibaba-Token-Plan")
+
+
+class VerifyKeyTest(unittest.TestCase):
+    def test_verify_key_reports_auth_error_and_closes(self):
+        with patch.object(QwenRealtimeSession, "connect", side_effect=RealtimeError("auth", "x")):
+            with patch.object(QwenRealtimeSession, "close", new=AsyncMock()) as close:
+                with self.assertRaises(RealtimeError) as caught:
+                    qwen_realtime.verify_key("k" * 10)
+        self.assertEqual(caught.exception.kind, "auth")
+        close.assert_awaited_once()
+
+    def test_verify_key_closes_after_success(self):
+        with patch.object(QwenRealtimeSession, "connect", new=AsyncMock()):
+            with patch.object(QwenRealtimeSession, "close", new=AsyncMock()) as close:
+                qwen_realtime.verify_key("k" * 10)
+        close.assert_awaited_once()
+
+    def test_save_key_is_windows_only_and_hides_key(self):
+        key = "k" * 10
+        with patch.object(qwen_realtime.cloud_secret.os, "name", "posix"):
+            with self.assertRaises(RuntimeError) as caught:
+                qwen_realtime.save_key("x", key)
+        self.assertNotIn(key, str(caught.exception))
 
 
 class MissingWebsocketsTest(unittest.IsolatedAsyncioTestCase):

@@ -1847,6 +1847,23 @@ class VoiceService:
         if getattr(self, "qwen_dialog", None) is not None:
             self.qwen_dialog.close()
 
+    def store_conversation_key(self, key: str) -> dict:
+        """Prueft den Schluessel bei Qwen, speichert ihn und baut eine laufende Qwen-Sitzung neu auf."""
+        if not isinstance(key, str) or not 8 <= len(key) <= 4096 or not all(33 <= ord(c) <= 126 for c in key):
+            raise ValueError("Invalid key")
+        qwen_realtime.verify_key(key, region=self.cfg.get("qwen_region", "ap-southeast-1"))
+        qwen_realtime.save_key(self.cfg["qwen_key_file"], key)
+        log_event(event="qwen_key_stored")
+        if conversation_backend(self.cfg) == "qwen":
+            # Die laufende Sitzung haelt noch den alten Schluessel.
+            try:
+                self._use_conversation(self._build_conversation(self.cfg))
+            except (RuntimeError, OSError) as exc:
+                # Gespeichert ist er trotzdem; der Status zeigt den Fehler, der Assistent antwortet lokal.
+                log_event(event="qwen_unavailable", error=type(exc).__name__)
+                self.status["qwen_error"] = "auth"
+        return {"keyConfigured": True}
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2395,10 +2412,27 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/conversation-key", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
+                    return
+                if self.path == "/control/conversation-key":
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 4200:
+                            raise ValueError("Invalid key request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict) or set(request) != {"apiKey"} or not isinstance(request["apiKey"], str):
+                            raise ValueError("Expected apiKey")
+                        status = service.store_conversation_key(request["apiKey"])
+                    except qwen_realtime.RealtimeError as exc:
+                        self.send_error(422, "Qwen Audio rejected the key" if exc.kind == "auth" else f"Qwen Audio check failed: {exc.kind}")
+                        return
+                    except (ValueError, RuntimeError, OSError, json.JSONDecodeError) as exc:
+                        self.send_error(422, type(exc).__name__)
+                        return
+                    self._json(status)
                     return
                 if self.path in ("/control/stt-models/download", "/control/stt-models/cancel"):
                     try:

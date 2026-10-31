@@ -1309,6 +1309,76 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     assert svc.cfg["conversation_backend"] == "local"
 
 
+def test_conversation_key_endpoint_verifies_before_storing(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-conversation-key"
+    svc.cfg.update(wake_phrase=svc.phrase, conversation_backend="local")
+    svc.cfg["qwen_key_file"] = str(tmp_path / "config" / "alibaba_tokenplan.key.dpapi")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    svc.conversation = None
+    svc.qwen_dialog = None
+    svc.domain_tasks = object()
+    stored = []
+    monkeypatch.setattr(jv.qwen_realtime, "save_key", lambda path, key: stored.append((path, key)))
+
+    def verify_key(key, **kwargs):
+        if key == "bad-key-123":
+            raise jv.qwen_realtime.RealtimeError("auth", "x")
+
+    monkeypatch.setattr(jv.qwen_realtime, "verify_key", verify_key)
+    events = []
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: events.append(kwargs))
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/conversation-key"
+
+    def post(payload):
+        request = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    assert post({"apiKey": "bad-key-123"})[0] == 422
+    assert stored == []
+    assert post({"apiKey": "kurz"})[0] == 422
+    assert post({"apiKey": "good-key-1234", "extra": True})[0] == 422
+    assert stored == []
+    status, body = post({"apiKey": "good-key-1234"})
+    assert status == 200 and body == {"keyConfigured": True}
+    assert stored == [(svc.cfg["qwen_key_file"], "good-key-1234")]
+
+    svc.cfg["conversation_backend"] = "qwen"
+    builds = []
+    dialog = types.SimpleNamespace(close=lambda: None)
+    orchestrator = types.SimpleNamespace(drain_announcements=lambda: [])
+
+    def build(cfg):
+        builds.append(cfg["conversation_backend"])
+        return orchestrator, dialog
+
+    monkeypatch.setattr(svc, "_build_conversation", build)
+    status, body = post({"apiKey": "good-key-1234"})
+    assert status == 200 and body == {"keyConfigured": True}
+    assert builds == ["qwen"] and svc.qwen_dialog is dialog
+    assert "good-key-1234" not in repr(events)
+
+
 if __name__ == "__main__":
     import tempfile
 

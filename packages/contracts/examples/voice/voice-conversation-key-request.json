@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-conversation-key-request.schema.json",
+  "apiKey": "example-token-plan-key"
+}
