@@ -1,6 +1,7 @@
 import json
 import sys
 import tempfile
+import types
 import unittest
 import shutil
 import hashlib
@@ -110,7 +111,11 @@ class VoicePersonaTest(unittest.TestCase):
             custom_text = refs / "friday-female-reference.txt"
             custom_text.write_text("Lokal eingestellter Referenztext\n", encoding="utf-8")
             original = hashlib.sha256(custom.read_bytes()).digest()
-            available = prepare_voice_pairs.prepare(root, package)
+            # Installed models mean no download; the stub fails the test if one is attempted.
+            hub = types.ModuleType("huggingface_hub")
+            hub.hf_hub_download = lambda *args, **kwargs: self.fail("unexpected model download")
+            with patch.dict(sys.modules, {"huggingface_hub": hub}):
+                available = prepare_voice_pairs.prepare(root, package)
             # Der eigene Platz entsteht nur aus einer Aufnahme des Nutzers; ohne sie meldet prepare False.
             self.assertEqual(available, {"friday-female": True, "classic": True, "custom": False})
             self.assertEqual(hashlib.sha256(custom.read_bytes()).digest(), original)

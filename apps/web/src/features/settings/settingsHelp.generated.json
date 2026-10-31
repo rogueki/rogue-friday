@@ -1,0 +1,161 @@
+{
+  "note": "Generiert von scripts/knowledge/build-friday-knowledge.mjs – nicht von Hand ändern.",
+  "areas": {
+    "profile": [
+      {
+        "title": "Profil",
+        "text": "Im Bereich Profil legst du deinen Anzeigenamen und den Namen des Assistenten fest. Der Assistentenname erscheint im Menü, an den Orb-Beschriftungen und in allen Texten. Lässt du das Feld leer, gilt der Standardname F.R.I.D.A.Y. Eine Vorschau zeigt dir, wie die Marke danach aussieht. Unter Sprache und Format stellst du die Sprache der Oberfläche ein, die Zeitzone, das Datumsformat, das Zeitformat mit 24 oder 12 Stunden und den ersten Tag der Woche. Die Zeitzone gilt auch für Kalenderzeiten und für die Nachtruhe. Änderungen am Assistentennamen wirken nach dem Speichern sofort, ohne Neustart."
+      }
+    ],
+    "dashboard": [
+      {
+        "title": "Dashboard",
+        "text": "Der Bereich Dashboard regelt Darstellung und Verhalten der Oberfläche. Du stellst Schriftgröße, Raster, Kompaktmodus und Soundeffekte ein. Die automatische Aktualisierung in Sekunden greift als Rückfall, wenn der Ereignisstrom nicht verfügbar ist. Die Startseite wird zusammen mit der Navigation gespeichert. Mit dem Schalter Content Studio aktivieren erscheint der Menüpunkt Content Studio. Im selben Bereich findest du Standort und Wetter. Darunter stehen die Dashboard-Updates, die nur der Owner sieht. Das aktive Layout der Übersicht bearbeitest du im Bereich Dashboard-Layout."
+      },
+      {
+        "title": "Wetterort festlegen",
+        "text": "Öffne Einstellungen → Dashboard und scrolle zum Abschnitt Standort & Wetter. Du hast zwei Wege. Mit Standort aktivieren bestätigst du zuerst eine Abfrage. Danach ermittelt dein Browser einmal die Position, und der Ortsname wird übernommen. Alternativ tippst du unter Stadt oder Postleitzahl einen Ort ein und klickst auf Ort suchen. Wähle den passenden Treffer aus und bestätige mit Standort übernehmen und speichern. Die automatische Standorterkennung braucht HTTPS oder localhost. Mit Standort entfernen löschst du den gespeicherten Ort wieder. Das Wetter für diesen Ort erscheint danach im Dashboard."
+      },
+      {
+        "title": "Dashboard-Update installieren",
+        "text": "Das Update ist dem Owner vorbehalten. Öffne Einstellungen → Dashboard und scrolle zu Dashboard-Updates. Mit Jetzt prüfen holst du den aktuellen Stand von GitHub main. Ist ein Update verfügbar, erscheint der Hinweis Update verfügbar und der Button Update installieren. Im Bestätigungsdialog siehst du die alte und die neue Version. Nach der Bestätigung läuft das Update in festen Schritten: Download, Prüfung, Abhängigkeiten, Build, Sicherung, Installation und Neustart mit Prüfung. Das Dashboard startet dabei kurz neu. Schlägt ein Schritt fehl, stellt das Update den vorherigen Stand wieder her und meldet das."
+      }
+    ],
+    "layout": [
+      {
+        "title": "Dashboard-Layout",
+        "text": "Mit dem Layout-Editor ordnest du die Widgets der Übersicht neu an. Du verschiebst Widgets, änderst ihre Größe oder blendest sie aus. Ein Widget, das noch nicht im Layout steht, fügst du hinzu, dann landet es unten. Der Editor zeigt an, wenn sichtbare Widgets sich überlappen, weil sie sonst übereinanderliegen. Das Raster hat zwölf Spalten und höchstens vierzig Zeilen. Ein Layout kannst du als Datei exportieren und wieder importieren. Unbekannte Widgets werden beim Import nicht angezeigt, und ein Layout, das über den Rand ragt, wird abgewiesen."
+      }
+    ],
+    "theme": [
+      {
+        "title": "Theme",
+        "text": "Der Bereich Theme verwaltet das Erscheinungsbild. Du wählst ein Theme aus der Bibliothek, die eingebaute Themes und Themes vom Server enthält. Im Editor passt du Farben an und siehst die Änderungen sofort in einer Live-Vorschau. Die Vorschau bleibt ein Entwurf, bis du speicherst. Verlässt du die Seite, wird das gespeicherte Theme wiederhergestellt. Eine Theme-Datei importierst du nur, wenn sie das Format einhält und die Farbregeln erfüllt. Ungültige Dateien werden abgewiesen, und das bisherige Theme bleibt aktiv."
+      }
+    ],
+    "orb": [
+      {
+        "title": "Orb",
+        "text": "Der Bereich Orb steuert die Darstellung des AI-Core-Orbs. Du wählst ein Preset wie Gold, Bernstein, Ruhig oder Dicht und passt Größe, Intensität, Geschwindigkeit und Partikeldichte an. Die Darstellung kann automatisch zwischen 3D und 2D wechseln, und ohne WebGL zeigt der Orb die zweidimensionale Variante. Mit der Audio-Reaktivität bewegt sich der Orb mit dem Mikrofon- und Sprachpegel. Der goldene Kern bleibt immer erhalten, nur Verhalten und Intensität ändern sich. Ein Leistungs-Overlay zur Diagnose findest du im Bereich Entwickler."
+      }
+    ],
+    "navigation": [
+      {
+        "title": "Navigation",
+        "text": "Im Bereich Navigation bestimmst du, welche Menüpunkte erscheinen und in welcher Reihenfolge. Du kannst Seiten ausblenden. Die Einstellungsseite bleibt immer erreichbar, damit du Ausblendungen wieder rückgängig machen kannst. Das Content Studio erscheint nur, wenn es aktiviert ist. Hier steht auch die Startseite. Nur die Startseite folgt dieser Einstellung beim Öffnen des Dashboards. Direkte Links auf andere Seiten bleiben erhalten. Die Startseite wird zusammen mit diesem Bereich gespeichert."
+      }
+    ],
+    "adapters": [
+      {
+        "title": "Adapter",
+        "text": "Im Bereich Adapter richtest du die Verbindungen zu externen Diensten ein. Jeder Adapter hat seine Einstellungen, die aus seinem Schema erzeugt werden. Mit dem Schalter Adapter aktiv schaltest du ihn ein oder aus. Verbindungstest prüft die gespeicherte Konfiguration auf dem Server, und Geheimnisse verlassen den Server dabei nie. Für den Kalender gibt es hier den Assistenten Kalender verbinden. Einige Adapter sind nur für den Owner sichtbar. Ist kein Adapter konfigurierbar, zeigt die Seite das ausdrücklich an."
+      },
+      {
+        "title": "Kalender verbinden",
+        "text": "Öffne Einstellungen → Adapter und wähle in der Liste den Kalender-Adapter aus. Im Abschnitt Kalender verbinden wählst du zuerst die Anbieterhilfe, etwa Google Kalender, Outlook.com, Windows Kalender, einen ICS-Kalender oder CalDAV. Dann öffnet sich der Assistent. Bei einem ICS-Feed trägst du die private Adresse ein, sie wird nur gelesen. Bei CalDAV gibst du die Kalendersammlung, Benutzername und Passwort oder App-Passwort ein. Danach suchst du die Kalender, legst Standard und Abgleich fest und übernimmst. Anschließend klickst du in der Adapterliste auf Verbindung testen. Erst der erfolgreiche Test bestätigt den Zugriff."
+      }
+    ],
+    "skillAccounts": [
+      {
+        "title": "Skill-Konten",
+        "text": "Hier hinterlegst du die Konten und Voraussetzungen der Skills. Links stehen die Skills mit ihrem Zustand, rechts ihre Konten. Darunter richtest du E-Mail-Postfächer ein, und zwar mit einem Assistenten, der Servervorschläge macht und die Verbindungen getrennt prüft. Außerdem gibt es die Einrichtung für Telegram, Discord und WhatsApp über Hermes, die Freigabe von Kopplungsanfragen, CloudTalk, Telefonie und den Pfad des lokalen Markdown-Wikis. Telegram, Discord, WhatsApp und die Kopplungen richtet nur der Owner ein. Ein gespeicherter Schlüssel belegt noch keine erfolgreiche Anmeldung."
+      },
+      {
+        "title": "E-Mail-Konto verbinden",
+        "text": "Öffne Einstellungen → Skill-Konten und scrolle zu Mail Postfach. Mit Neues Konto startest du den Assistenten. Trage zuerst deine E-Mail-Adresse ein. Bei bekannten Anbietern schlägt der Assistent Server vor, die du prüfen und ändern kannst. Danach folgen Kontoname, Absendername, die IMAP- und SMTP-Server und die Anmeldung mit Passwort oder App-Passwort. Im Schritt Verbindungen prüfen testest du IMAP und SMTP getrennt. Der SMTP-Test sendet keine Nachricht. Gespeichert wird erst im letzten Schritt, mit Postfach übernehmen. OAuth für Gmail und Microsoft richtest du unter Erweitert an einem bestehenden Konto ein."
+      },
+      {
+        "title": "Telegram einrichten",
+        "text": "Öffne Einstellungen → Skill-Konten und scrolle zu Telegram-Bot für Hermes. Erstelle in Telegram über BotFather einen Bot mit dem Befehl /newbot und kopiere das Token. Füge es in das Feld Bot-Token ein. F.R.I.D.A.Y. prüft das Token bei Telegram, bevor es gespeichert wird. Ein abgelehntes Token ersetzt das bisherige nicht. Optional trägst du deine numerische Telegram-ID ein. Ohne IDs läuft der Bot im Kopplungsmodus. Wer ihm schreibt, bekommt einen Code, und du gibst die Anfrage unter Kopplungsanfragen frei. In Gruppen kannst du festlegen, dass nur auf Erwähnung oder Befehl geantwortet wird."
+      },
+      {
+        "title": "WhatsApp oder Discord einrichten",
+        "text": "Für Discord öffnest du Einstellungen → Skill-Konten und gehst zum Abschnitt Discord-Gateway für Hermes. Erstelle im Discord Developer Portal einen Bot, aktiviere den Message Content Intent und lade ihn auf deinen Server ein. Trage das Bot-Token und die erlaubten User-IDs ein. Für WhatsApp startest du im Abschnitt WhatsApp-Gateway mit Kopplung starten. Ein QR-Code erscheint, den du in WhatsApp unter Verknüpfte Geräte scannst. Der Code läuft nach kurzer Zeit ab, dann forderst du einen neuen an. Gruppen werden nur freigegeben, wenn du sie ausdrücklich auswählst. Einrichten kann das nur der Owner."
+      }
+    ],
+    "contentStudioKeys": [
+      {
+        "title": "Content Studio Zugänge",
+        "text": "Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an einer Schlüsseldatei im Datenverzeichnis des Dashboards. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis."
+      }
+    ],
+    "modelsRouting": [
+      {
+        "title": "Modelle & Routing",
+        "text": "Im Bereich Modelle und Routing legst du das Standardmodell fest. Mit der Option Lokale Verarbeitung zuerst entscheidet der lokale Router, bevor ein Cloud-Aufruf erfolgt. Eine feste Uhrzeitantwort bleibt immer lokal. Unter Routen ordnest du einer Aufgabenart ein Modell zu, dazu eine Denkstufe und optional ein Fallback-Modell im Format Anbieter:Modell. Bei Agentenaufgaben gibt es kein Fallback. Die Zugänge zu den Modellanbietern richtest du unter Hermes-Konfiguration ein."
+      }
+    ],
+    "hermesConfig": [
+      {
+        "title": "Hermes-Konfiguration",
+        "text": "Dieser Bereich zeigt die wirksamen Einstellungen von Hermes, dem Unterbau der Agenten, und die freigegebenen Änderungen daran. Du findest hier Zeitpläne für wiederkehrende Aufträge, die Zugänge der Modellanbieter mit Schlüsselprüfung, den Modellkatalog und die MCP-Server. Unter KI-Zugänge meldest du Anbieter an, die Hermes per Gerätecode anmeldet. Eine Befehlsfreigabe kannst du vorab prüfen. Die Vorschau führt den Befehl nicht aus und ändert keine Erlaubnis. Ist die installierte Hermes-Version nicht unterstützt, nimmt der Bereich keine Konfigurationsänderungen vor."
+      }
+    ],
+    "voice": [
+      {
+        "title": "Sprache",
+        "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein."
+      },
+      {
+        "title": "Sprachbetrieb wechseln",
+        "text": "Öffne Einstellungen → Sprache und gehe zum Abschnitt Gespräch. Im Feld Gespräch wählst du Lokal oder Qwen Audio Live-Gespräch. Lokal bedeutet, dass das Gespräch auf diesem PC läuft. Für Qwen brauchst du einen Alibaba-Token-Plan-Schlüssel. Fehlt er, meldet das Feld das, und darunter erscheint das Eingabefeld für den Schlüssel. Trage ihn dort ein und klicke auf Prüfen und speichern. Der Schlüssel wird vor dem Speichern bei Qwen geprüft. Danach speicherst du die Einstellungen unten mit Speichern. Der Statustext zeigt, ob Qwen aktiv ist oder ob lokal geantwortet wird."
+      },
+      {
+        "title": "Wake Word im Dashboard einlernen",
+        "text": "Öffne Einstellungen → Sprache und gehe zum Abschnitt Aktivierung. Schalte den Schalter Wake Word aktiv ein. Trage im Feld Wake Word die neue Phrase ein, zum Beispiel Hey Friday. Danach erscheint der Button Aktivierungsphrase einlernen. Im Dialog startest du die Aufnahme und sprichst die Phrase, die Kurzform und ähnliche andere Wörter, bis alle Zähler voll sind. Danach startest du das Training. Das bisherige Wake Word bleibt aktiv, bis du speicherst. Speichere deshalb zum Schluss unten mit Speichern. Die Aufnahmen bleiben lokal und werden nach dem Training gelöscht."
+      },
+      {
+        "title": "Mit der Stimme sprechen",
+        "text": "Unten in der Leiste steht die Schaltfläche, die den Namen deines Assistenten trägt, im Standardfall MIT F.R.I.D.A.Y. SPRECHEN. Damit startest du die Sprachsteuerung. Ist das Wake Word aktiv, reicht auch das Wake Word. In der Befehlspalette findest du den Eintrag Sprachsteuerung starten und stoppen. Zum Anhalten nutzt du Stopp in der Leiste oder sagst das Stoppwort. Pause hält alle laufenden Aktivitäten an, Fortsetzen startet sie wieder. Die Push-to-talk-Taste stellst du unter Einstellungen → Sprache ein. Sie funktioniert mit Browser-Audio und auf dem Windows-Gerätedesktop."
+      }
+    ],
+    "notifications": [
+      {
+        "title": "Benachrichtigungen",
+        "text": "Hier legst du fest, welche Kanäle Meldungen bekommen und ab welcher Priorität. Verfügbar sind Dashboard, Telegram, WhatsApp, SMS, Anruf und E-Mail. Unter Ruhemodus startest und beendest du die befristete Ruhe, zum Beispiel für 30 Minuten oder bis morgen 7 Uhr. Darunter stellst du die Ruhezeiten ein, also die Nachtruhe, mit Von und Bis. Außerdem legst du fest, welche Arten auch bei Nur Stimme aus als Text kommen, welcher Textempfänger gilt und wie die Standard-Eskalation abläuft. Ohne Textempfänger findet kein Textversand statt."
+      },
+      {
+        "title": "Benachrichtigungen aufs Handy schicken",
+        "text": "Öffne Einstellungen → Benachrichtigungen. Im Abschnitt Kanäle schaltest du Telegram, WhatsApp, SMS, Anruf oder E-Mail ein und wählst die Priorität, ab der Meldungen dorthin gehen. Bei Telegram und WhatsApp trägst du den Empfänger ein. Für die Stufe Nur Stimme aus brauchst du zusätzlich einen Textempfänger, den du im Feld Textempfänger auswählst. Ist dort noch kein Ziel registriert, öffnest du die Seite Kommunikation, wählst links einen Messenger-Kanal wie Telegram und klickst auf Empfänger-ID registrieren. Speichere danach unten mit Speichern. Ohne Textempfänger wird nichts als Text versendet."
+      },
+      {
+        "title": "Ruhemodus und Nachtruhe einstellen",
+        "text": "Für eine befristete Ruhe öffnest du Einstellungen → Benachrichtigungen und gehst zum Abschnitt Ruhemodus. Wähle die Stufe Still oder Nur Stimme aus und die Dauer, zum Beispiel 1 Stunde oder Bis morgen 7:00. Mit Ruhemodus starten beginnt die Ruhe sofort, mit Ruhemodus beenden endet sie. Für eine tägliche Nachtruhe schaltest du im Abschnitt Ruhezeiten die Option Ruhezeiten aktiv ein und trägst Von und Bis ein. Unter Zusammenfassung nach der Nachtruhe legst du fest, ob die gesammelten Meldungen beim ersten Gespräch am Morgen oder am Ende der Nachtruhe kommen. Diese Felder speicherst du mit Speichern."
+      }
+    ],
+    "security": [
+      {
+        "title": "Sicherheit",
+        "text": "Der Bereich Sicherheit betrifft Anmeldung und Sitzungen. Mit Anmeldung erforderlich verlangst du beim Öffnen des Dashboards eine Anmeldung. Das Sitzungs-Timeout legt fest, wie lange eine Sitzung in Minuten gilt. Das Fenster für erneute Anmeldung bestimmt, wie lange eine erneute Anmeldung gültig bleibt. Mit Alle Sitzungen beenden meldest du alle Sitzungen ab. Der Schalter Fernzugriff ist derzeit nicht umschaltbar und dient nur der Anzeige. Auch die Audit-Hashkette wird nur angezeigt. Vertrauenswürdige Ursprünge trägst du als Adressen ein."
+      }
+    ],
+    "approvals": [
+      {
+        "title": "Freigaben",
+        "text": "Hier stellst du ein, wie Freigaben funktionieren. Offene Freigaben haben eine Ablauffrist, die du in Minuten einträgst. Der Schalter Standardmäßig nur Entwürfe legt fest, dass Nachrichten zunächst nur als Entwurf entstehen. Stufe 2 bestätigen verlangt eine ausdrückliche Bestätigung. Stufe 3 verlangt eine erneute Anmeldung, dieser Schalter ist aber fest eingestellt und nicht änderbar. Mit Bei neuer Anfrage benachrichtigen erhältst du eine Meldung, sobald eine neue Freigabe wartet."
+      }
+    ],
+    "dataRetention": [
+      {
+        "title": "Datenaufbewahrung",
+        "text": "Hier legst du fest, wie lange Daten bleiben. Du stellst Fristen in Tagen für Sprachverlauf, Audit im aktiven Speicher, Benachrichtigungen und temporäre Dateien ein. Die Standardlebensdauer für Gedächtniseinträge wird hier nur angezeigt. Mit Betroffene Einträge zählen siehst du vorab, was entfernt würde. Mit Bereinigung jetzt ausführen startest du den Lauf. Ältere Audit-Einträge wandern dabei in ein dauerhaftes lokales Archiv und sparen keinen Speicherplatz. Das Obsidian-Gedächtnis bleibt unbegrenzt erhalten. Die automatische Bereinigung ist standardmäßig aus."
+      }
+    ],
+    "backups": [
+      {
+        "title": "Backups",
+        "text": "Im Bereich Backups schaltest du automatische Sicherungen ein. Du legst den Zeitplan im Cron-Format fest, zum Beispiel täglich um 3 Uhr, den Zielordner und die Anzahl der aufbewahrten Sicherungen. Ältere Sicherungen werden danach automatisch gelöscht. Hier siehst du auch, wann das letzte Backup lief und ob es erfolgreich war. Die Backup-Prüfung sieht nur der Owner. Dort prüfst du Ziel und Platzbedarf, startest eine Sicherung, kontrollierst das letzte Backup oder testest die Wiederherstellung in einem getrennten Ordner. Eine echte Wiederherstellung braucht zusätzlich die Neuinstallation von Hermes."
+      },
+      {
+        "title": "Backup erstellen",
+        "text": "Öffne Einstellungen → Backups. Lege dort den Zielordner fest und die Anzahl der Sicherungen, die bleiben sollen. Speichere mit Speichern. Für automatische Sicherungen schaltest du Automatische Backups ein und trägst den Zeitplan ein. Für eine sofortige Sicherung brauchst du die Owner-Rolle. Im Abschnitt Backup-Prüfung klickst du zuerst auf Ziel und Platz prüfen und danach auf Backup jetzt erstellen. Mit Letztes Backup prüfen kontrollierst du die Integrität. Ein Restore-Test läuft in einem neuen, noch nicht vorhandenen Ordner und verändert deine Daten nicht."
+      }
+    ],
+    "developer": [
+      {
+        "title": "Entwickler",
+        "text": "Der Bereich Entwickler enthält Optionen für die Fehlersuche. Mit dem Debug-Modus schaltest du zusätzliche Diagnoseausgaben ein. Der Schalter Rohdaten (JSON) anzeigen macht die Antworten der Oberfläche als Rohdaten sichtbar. Das Orb-Performance-Overlay zeigt die Leistung des Orbs an. Das Log-Level bestimmt, wie ausführlich protokolliert wird. Diese Optionen sind für die Diagnose gedacht. Lass sie im Alltag aus, wenn du sie nicht brauchst."
+      }
+    ]
+  }
+}

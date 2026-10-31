@@ -8,9 +8,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DOCS = join(ROOT, "docs", "friday-knowledge");
 const SETTINGS_OUT = join(DOCS, "settings.generated.json");
+const HELP_OUT = join(ROOT, "apps", "web", "src", "features", "settings", "settingsHelp.generated.json");
 // Only installer/ is copied to the user's machine, so the voice service gets its own bundle.
 const BUNDLE_OUT = join(ROOT, "installer", "voice", "knowledge", "friday-knowledge.json");
 const AREAS = new Set(["ablauf", "fehlerbild", "sprache", "datenschutz"]);
+const BROWSER_FORBIDDEN = /auth\.key|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsk-[A-Za-z0-9]{20,}/;
 
 const { de } = await import(pathToFileURL(join(ROOT, "apps", "web", "src", "i18n", "de.ts")).href);
 const { defaultSettingsAreas } = await import(pathToFileURL(join(ROOT, "apps", "control-api", "src", "services", "settings.ts")).href);
@@ -113,19 +115,42 @@ function settingsSections(settings) {
   }));
 }
 
+function buildHelp(settings, sections) {
+  const areas = Object.fromEntries(settings.areas.map((area) => {
+    const own = sections
+      .filter((section) => section.area === `einstellungen:${area.id}`)
+      .map(({ title, text }) => ({ title, text }));
+    const steps = sections
+      .filter((section) => section.area === "ablauf" && section.text.includes(`Einstellungen → ${area.label}`))
+      .map(({ title, text }) => ({ title, text }));
+    const entries = [...own, ...steps];
+    if (entries.length === 0) throw new Error(`missing help for settings area ${area.id}`);
+    // The help ships in the browser bundle; the security gate on that bundle only runs after a build.
+    for (const entry of entries) {
+      if (BROWSER_FORBIDDEN.test(entry.text)) throw new Error(`help for settings area ${area.id} names a server secret file: ${entry.title}`);
+    }
+    return [area.id, entries];
+  }));
+  return {
+    note: "Generiert von scripts/knowledge/build-friday-knowledge.mjs – nicht von Hand ändern.",
+    areas,
+  };
+}
+
 function json(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 const settings = buildSettings();
 const markdownFiles = existsSync(DOCS) ? readdirSync(DOCS).filter((file) => file.endsWith(".md")).sort() : [];
-const sections = [...markdownFiles.flatMap(parseMarkdown), ...settingsSections(settings)];
+const markdownSections = markdownFiles.flatMap(parseMarkdown);
+const sections = [...markdownSections, ...settingsSections(settings)];
 const ids = new Set();
 for (const section of sections) {
   if (ids.has(section.id)) throw new Error(`doppelter Abschnitt ${section.id}`);
   ids.add(section.id);
 }
-const outputs = [[SETTINGS_OUT, json(settings)], [BUNDLE_OUT, json({ version: 1, sections })]];
+const outputs = [[SETTINGS_OUT, json(settings)], [BUNDLE_OUT, json({ version: 1, sections })], [HELP_OUT, json(buildHelp(settings, markdownSections))]];
 
 if (process.argv.includes("--check")) {
   const stale = outputs.filter(([file, content]) => !existsSync(file) || readFileSync(file, "utf8").replace(/\r\n/g, "\n") !== content);

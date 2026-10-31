@@ -11,6 +11,12 @@ output=$(bash "$script" --dry-run)
 cloud=$(bash "$script" --dry-run --voice-mode elevenlabs --elevenlabs-voice-id SyntheticVoiceId12345 --key-stdin)
 [[ "$cloud" == *'Voice selection: elevenlabs'* ]]
 [[ "$cloud" == *'Dry-run: no user, files, build, provider call or systemd service changed.'* ]]
+qwen=$(bash "$script" --dry-run --conversation qwen --qwen-consent --qwen-region cn-beijing --qwen-key-file /root/qwen.key)
+[[ "$qwen" == *'Conversation: qwen'* ]]
+if bash "$script" --dry-run --conversation local --qwen-consent >/dev/null 2>&1; then exit 1; fi
+if bash "$script" --dry-run --conversation qwen --qwen-key-file relative.key >/dev/null 2>&1; then exit 1; fi
+grep -Fq 'alibaba-tokenplan.key' "$script"
+if bash "$script" --dry-run --voice-mode local --conversation qwen --qwen-consent --qwen-key-file /root/qwen.key >/dev/null 2>&1; then exit 1; fi
 if command -v nvidia-smi >/dev/null 2>&1; then
   : # GPU-equipped CI hosts may accept local mode.
 else

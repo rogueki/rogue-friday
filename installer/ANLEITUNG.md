@@ -4,7 +4,7 @@
 
 1. [Das vollständige GitHub-Paket als ZIP laden](https://github.com/rogueki/rogue-friday/archive/refs/heads/main.zip) und mit **Alle extrahieren** entpacken.
 2. Im entpackten **Hauptordner** auf **Friday installieren.bat** doppelklicken. Die Windows-Abfrage nach Administratorrechten mit **Ja** beantworten.
-3. Im Assistenten Systemprüfung, Installationsort und WSL-Distribution, lokalen Sprachbetrieb oder ElevenLabs, Stimme, Assistentennamen, Wake Word, Persönlichkeit und Zugangsdaten wählen. Die klassische J.A.R.V.I.S.-Referenz ist enthalten; eine eigene MP3/WAV kann gewählt werden. Lokale Sprache erfordert eine NVIDIA-GPU mit mindestens 6 GB VRAM; ElevenLabs benötigt Internet und einen eigenen API-Zugang, der Kosten verursachen kann.
+3. Im Assistenten Systemprüfung, Installationsort und WSL-Distribution, lokalen Sprachbetrieb oder ElevenLabs, Stimme, Assistentennamen, Wake Word, Persönlichkeit und Zugangsdaten wählen; optional das Live-Gespräch mit Qwen Audio (siehe unten). Die klassische J.A.R.V.I.S.-Referenz ist enthalten; eine eigene MP3/WAV kann gewählt werden. Lokale Sprache erfordert eine NVIDIA-GPU mit mindestens 6 GB VRAM; ElevenLabs benötigt Internet und einen eigenen API-Zugang, der Kosten verursachen kann.
 4. Die **Zusammenfassung** lesen und **Installieren** wählen. Der Fortschritt zeigt die tatsächlichen Schritte und Protokollmeldungen. Bei Fehlern bleibt der Zustand gespeichert; mit **Erneut versuchen** kann fortgesetzt werden.
 5. Falls WSL einen Neustart benötigt, Windows neu starten. Der grafische Assistent öffnet sich nach der Anmeldung erneut. Bei der Stimmaufnahme erscheinen Dialoge mit den zu sprechenden Sätzen und Hörsignale. Im Dashboard beim ersten Aufruf ein Besitzerkonto anlegen.
 
@@ -114,7 +114,7 @@ Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kal
 ## Benutzung
 
 - **Dein Wake Word** (z. B. „Hey Friday“) → kurzer Piepton → deine Frage, z. B. *„Wie spät ist es?“*
-- **Folgefragen** gehen 15 Sekunden nach der Antwort ohne erneutes Wake Word.
+- **Folgefragen** gehen 20 Sekunden nach der Antwort ohne erneutes Wake Word; „Danke, das war's“ beendet das Gespräch sofort.
 - **Unterbrechen:** während dein Assistent spricht einfach das Wake Word sagen.
 - Uhrzeit und Datum beantwortet Friday direkt. Bei lokaler Sprache übernimmt Qwen die schnelle Vorauswahl; im Cloud-Modus wählt ein leichter Router zwischen Routine, komplex und kritisch. Standardmäßig nutzt Routine `kimi-for-coding`, anspruchsvolle Aufgaben `k3`. Unter **Einstellungen → Modelle & Routing** kannst du die drei Sprachrouten mit `anbieter:modell-id` ändern; OpenAI- oder Anthropic-Modelle brauchen einen separat eingerichteten Hermes-API-Zugang.
 - **Command Center:** <http://127.0.0.1:3100> – beim ersten Öffnen richtest du deinen Zugang ein. Danach kannst du
@@ -210,6 +210,33 @@ Der Owner kann unter **Einstellungen → Skill-Konten → CloudTalk Desktop und 
 Der Installer aktiviert für Hermes den read-only Skill `friday_calendar_events`. Er verwendet den im Friday Dashboard eingerichteten Kalender über eine eigene lokale Dienstkennung. Hermes erhält weder Kalender-URL noch Anbieterpasswort; ohne funktionierendes Dashboard meldet das Tool einen Fehler statt erfundener Termine.
 
 Öffne als Besitzer **Einstellungen → Adapter → Kalender verbinden**. Für einen freigegebenen Kalender wähle **iCalendar/ICS** und gib die private HTTPS-ICS-URL ein. Bei Google steht sie unter „Kalender integrieren → Geheimadresse im iCal-Format“, bei Outlook.com unter „Freigegebene Kalender → Kalender veröffentlichen → ICS“. Die URL ist wie ein Passwort zu behandeln; besonders ein veröffentlichter Outlook-Link kann von jedem mit dem Link gelesen werden. Für einen kompatiblen privaten CalDAV-Server wähle **CalDAV** und gib die HTTPS-URL der Kalendersammlung mit abschließendem `/`, Benutzername und Passwort oder App-Passwort ein. Friday speichert diese Angaben lokal verschlüsselt. ICS bleibt lesend. Mit CalDAV kann der Besitzer nach Vorschau und eigener Bestätigung einen neuen Termin anlegen; die allgemeine Freigabeseite führt diese Live-Aktion noch nicht aus. Bei unklarem Ergebnis erst den Kalender beim Anbieter prüfen, denn Friday wiederholt denselben Schreibversuch nicht automatisch. Bestehende Termine ändern oder löschen ist noch nicht möglich. Google Calendar verlangt für direkten CalDAV-Zugriff OAuth 2.0; private Outlook-Kalender benötigen Microsoft Graph/OAuth. Diese Konten lassen sich mit der CalDAV-Passwortmaske nicht direkt anmelden. Die frühere Windows-Kalender-App ist kein eigener Kalenderdienst.
+
+## Live-Gespräch mit Qwen Audio (optional)
+
+Standardmäßig führt F.R.I.D.A.Y. das Gespräch lokal. Mit **Qwen Audio** sprichst du stattdessen live mit einem Alibaba-Modell über
+das Internet: Du kannst mitten in die Antwort hineinreden, Rückfragen stellen und Ergebnisse von Aufträgen nachfragen.
+
+**Was du brauchst:** einen Alibaba-**Token-Plan**-Zugang mit API-Schlüssel und eine Internetverbindung. Die Nutzung zählt auf das
+Kontingent deines Token Plans.
+
+**Bei der Installation:** Auf der Sprachseite unter **Gespräch** „Qwen Audio Live-Gespräch (Alibaba Token Plan)“ wählen, dann die
+**Alibaba-Region** (International/Singapur oder China/Peking) und den **Token-Plan-API-Schlüssel**. Hast du beim KI-Zugang schon
+„Alibaba Cloud Qwen (Token Plan)“ gewählt, bleibt das Schlüsselfeld leer – der Installer verwendet denselben Schlüssel. Zum Schluss den
+Haken **„Ich stimme zu …“** setzen; ohne diese Zustimmung lässt sich Qwen nicht auswählen. Der Schlüssel wird vor dem Speichern
+geprüft und nur auf diesem PC verschlüsselt abgelegt.
+
+**Später im Dashboard:** **Einstellungen → Sprache → Gespräch**. Dort kannst du den Schlüssel eingeben oder ersetzen („Prüfen und
+speichern“), den Zustimmungshaken setzen und zwischen „Lokal“ und „Qwen Audio“ wechseln – ohne Neustart. Entfernst du den Haken,
+ist die Zustimmung widerrufen und das Gespräch läuft sofort wieder lokal.
+
+**Was übertragen wird:** nur die Sprache einer bestätigten Sprecherin bzw. eines bestätigten Sprechers sowie Auftragsergebnisse als
+Text, damit Rückfragen funktionieren. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC; die Stimme eines Gastes ohne
+Sprecherprüfung geht nie an Qwen.
+
+**Grenzen:** Ist Qwen nicht erreichbar, das Kontingent aufgebraucht oder der Schlüssel ungültig, antwortet der Assistent lokal weiter
+und nennt den Grund; der Status steht unter **Einstellungen → Sprache → Gespräch**. Ein Dashboard-Update behält Gesprächsart,
+Zustimmung und Schlüssel bei. Installationen, die Qwen schon vor der Zustimmungsabfrage nutzten, laufen nach dem Update lokal, bis
+der Haken gesetzt ist.
 
 ## Command Center aktualisieren
 

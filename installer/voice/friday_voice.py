@@ -144,6 +144,18 @@ STOP_PROBE_S = 1.6
 STOP_WORDS = re.compile(r"^\s*(stopp?|stop|abbrechen|halt|ruhe|sei still)[\s.!]*$", re.IGNORECASE)
 
 
+# Closes the conversation (plan D-03); the next request needs the wake word again.
+GOODBYE_WORDS = re.compile(
+    r"^\s*(?:(?:ok(?:ay)?|gut|super|prima)[\s,]+)?(?:danke(?:\s+(?:schön|schoen|dir))?[\s,.!]+)?"
+    r"(?:das\s+wars|das\s+war's|das\s+war\s+es|das\s+wär's|das\s+wärs|das\s+ist\s+alles|tschüss|tschuess|bis\s+später|bis\s+spaeter|auf\s+wiedersehen)"
+    r"(?:\s+(?:für|fuer)\s+(?:jetzt|heute))?[\s.!]*$", re.IGNORECASE)
+GOODBYE_REPLY = "Gern. Ich bin da, wenn du mich rufst."
+
+
+def is_goodbye(text: str) -> bool:
+    return bool(GOODBYE_WORDS.fullmatch((text or "").replace("’", "'").strip()))
+
+
 def log_event(**fields) -> None:
     fields["ts"] = datetime.datetime.now().isoformat(timespec="milliseconds")
     with open(LOG_PATH, "a", encoding="utf-8") as f:
@@ -737,7 +749,7 @@ class VoiceService:
         self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.cloudtalk_voice = CloudTalkVoice()
         self.skills_onboarding_voice = SkillsOnboardingVoice(
-            INSTALL_ROOT, pending_seconds=cfg.get("followup_window_s", 15))
+            INSTALL_ROOT, pending_seconds=cfg.get("followup_window_s", 20))
 
         print("Lade Modelle ...", flush=True)
         self.verifier = SpeakerVerifier(cfg["speaker_profile"], cfg["speaker_threshold"])
@@ -1477,6 +1489,15 @@ class VoiceService:
             self.tts.say(text)
             return True
 
+    def _end_conversation_by_phrase(self, generation: int) -> None:
+        self.conversation_ended = True
+        self.trusted_until = 0.0
+        conversation = getattr(self, "conversation", None)
+        if conversation is not None:
+            conversation.end_conversation()
+        log_event(event="conversation_end", reason="phrase", generation=generation)
+        self._say_if_current(GOODBYE_REPLY, generation)
+
     def _qwen_turn(self, audio: np.ndarray, generation: int) -> bool:
         """Qwen Audio beantwortet eine gepruefte Aeusserung; False uebergibt sie dem lokalen Weg (Rueckfall)."""
         self.processing = "thinking"
@@ -1550,6 +1571,9 @@ class VoiceService:
                     self.cancel_active_interaction()
                     log_event(event="stop", generation=generation)
                     return
+                if is_goodbye(short):
+                    self._end_conversation_by_phrase(generation)
+                    return
             if self._qwen_turn(audio, generation):
                 return
         t_stt = time.monotonic()
@@ -1569,6 +1593,9 @@ class VoiceService:
         if STOP_WORDS.fullmatch(text):
             self.cancel_active_interaction()
             log_event(event="stop", generation=generation)
+            return
+        if is_goodbye(text):
+            self._end_conversation_by_phrase(generation)
             return
         if not owner_required:
             # No speaker identity is asserted. Guest chat receives no owner history, memories or tools.
@@ -2180,6 +2207,7 @@ class VoiceService:
         Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
         cfg = self.cfg
         generation = self.control_generation
+        self.conversation_ended = False
         if hasattr(self, "memory_capture_error"):
             self.memory_session_id = "ses_" + uuid.uuid4().hex
         self.status["state"] = "command"
@@ -2205,7 +2233,7 @@ class VoiceService:
             self._handle_command(audio, wake_audio)
         self.processing = None
         while (self.tts.speaking.is_set() or time.monotonic() < self.trusted_until or
-               self.background_jobs or self.background_reply_ready.is_set()) and not self.control_cancel.is_set() and generation == self.control_generation:
+               self.background_jobs or self.background_reply_ready.is_set()) and not self.control_cancel.is_set() and generation == self.control_generation and not getattr(self, "conversation_ended", False):
             self.status["state"] = "speaking"
             interrupted = False
             self._drain()  # waehrend der Verarbeitung aufgelaufenes Audio nicht als Barge-In auswerten
@@ -2258,6 +2286,9 @@ class VoiceService:
                     continue
                 break
             self._handle_command(audio, None)
+            if getattr(self, "conversation_ended", False):
+                self.processing = None
+                break
             self.processing = None
         self._drain()
         self.calendar_voice.pending = None

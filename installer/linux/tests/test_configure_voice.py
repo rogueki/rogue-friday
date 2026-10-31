@@ -22,8 +22,12 @@ class ConfigureVoiceTest(unittest.TestCase):
         sys.path.insert(0, str(voice_dir))
         with patch.dict(sys.modules, {"numpy": numpy_stub}):
             import importlib
+            import importlib.util
             import elevenlabs_cloud
             importlib.reload(elevenlabs_cloud)
+        if importlib.util.find_spec("numpy") is not None:
+            # The stubbed module object would leak into later tests in the same process.
+            self.addCleanup(importlib.reload, elevenlabs_cloud)
         with tempfile.TemporaryDirectory() as root:
             directory = Path(root) / "secrets"
             directory.mkdir(mode=0o700)
@@ -146,6 +150,208 @@ class ConfigureVoiceTest(unittest.TestCase):
             self.assertEqual(config["voice_mode"], "streaming_qwen")
             self.assertIsNone(config["elevenlabs_key_file"])
             self.assertIsNone(config["elevenlabs_voice_id"])
+
+    def test_qwen_conversation_writes_private_key_and_config(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            input_file = config_dir / "qwen.key"
+            input_file.write_text("qwen-test-key\n", encoding="ascii")
+            input_file.chmod(0o600)
+            with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                  patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown"),
+                  patch.dict(configure_voice.os.environ, {"SUDO_UID": str(os.getuid())})):
+                configure_voice.configure("local", None, None, None, conversation="qwen",
+                                          qwen_consent=True, qwen_key_source="file",
+                                          qwen_key_file=str(input_file))
+            config = json.loads((config_dir / "voice.json").read_text())
+            self.assertEqual(config["conversation_backend"], "qwen")
+            self.assertIs(config["qwen_consent"], True)
+            self.assertEqual(config["qwen_region"], "ap-southeast-1")
+            self.assertEqual(config["qwen_key_file"], str(qwen_key))
+            self.assertNotIn("qwen-test-key", json.dumps(config))
+            self.assertEqual(qwen_key.read_text(), "qwen-test-key\n")
+            self.assertEqual(qwen_key.stat().st_mode & 0o777, 0o600)
+
+    def test_qwen_conversation_requires_consent(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            input_file = config_dir / "qwen.key"
+            input_file.write_text("qwen-test-key\n", encoding="ascii")
+            input_file.chmod(0o600)
+            with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                  patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown"),
+                  patch.dict(configure_voice.os.environ, {"SUDO_UID": str(os.getuid())})):
+                with self.assertRaisesRegex(ValueError, "consent"):
+                    configure_voice.configure("local", None, None, None, conversation="qwen",
+                                              qwen_key_source="file", qwen_key_file=str(input_file))
+            self.assertFalse(qwen_key.exists())
+            self.assertFalse((config_dir / "voice.json").exists())
+
+    def test_qwen_reinstall_keeps_existing_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            input_file = config_dir / "qwen.key"
+            input_file.write_text("qwen-test-key\n", encoding="ascii")
+            input_file.chmod(0o600)
+
+            def stored_config(service_gid):
+                path = config_dir / "voice.json"
+                return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+            with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                  patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice, "existing_config", side_effect=stored_config),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown"),
+                  patch.dict(configure_voice.os.environ, {"SUDO_UID": str(os.getuid())})):
+                with self.assertRaisesRegex(ValueError, "--qwen-key-file"):
+                    configure_voice.configure("local", None, None, None, conversation="qwen", qwen_consent=True)
+                configure_voice.configure("local", None, None, None, conversation="qwen", qwen_consent=True,
+                                          qwen_key_source="file", qwen_key_file=str(input_file))
+                configure_voice.configure("local", None, None, None, conversation="qwen", qwen_consent=True)
+            self.assertEqual(qwen_key.read_text(), "qwen-test-key\n")
+            config = json.loads((config_dir / "voice.json").read_text())
+            self.assertEqual(config["conversation_backend"], "qwen")
+
+    def test_qwen_rejects_invalid_key_input(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            for content in ("short\n", "qwen key with space\n"):
+                input_file = config_dir / "qwen.key"
+                input_file.write_text(content, encoding="ascii")
+                input_file.chmod(0o600)
+                with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                      patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                      patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                      patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                          pw_uid=os.getuid(), pw_gid=os.getgid())),
+                      patch.object(configure_voice.os, "geteuid", return_value=0),
+                      patch.object(configure_voice.os, "fchown"),
+                      patch.dict(configure_voice.os.environ, {"SUDO_UID": str(os.getuid())})):
+                    with self.assertRaisesRegex(ValueError, "Invalid Alibaba Token Plan key input"):
+                        configure_voice.configure("local", None, None, None, conversation="qwen",
+                                                  qwen_consent=True, qwen_key_source="file",
+                                                  qwen_key_file=str(input_file))
+            self.assertFalse(qwen_key.exists())
+
+    def test_qwen_options_require_qwen_conversation(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            (config_dir / "secrets").mkdir(mode=0o700)
+            with (patch.object(configure_voice, "SECRET_PATH", config_dir / "secrets/elevenlabs.key"),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown")):
+                for conversation in ("local", None):
+                    with self.assertRaisesRegex(ValueError, "require --conversation-backend qwen"):
+                        configure_voice.configure("local", None, None, None, conversation=conversation,
+                                                  qwen_consent=True)
+                with self.assertRaisesRegex(ValueError, "require --conversation-backend qwen"):
+                    configure_voice.configure("local", None, None, None, qwen_region="cn-beijing")
+            self.assertFalse((config_dir / "voice.json").exists())
+
+    def test_rejects_two_keys_from_stdin(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            (config_dir / "secrets").mkdir(mode=0o700)
+            with (patch.object(configure_voice, "SECRET_PATH", config_dir / "secrets/elevenlabs.key"),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown")):
+                with self.assertRaisesRegex(ValueError, "Only one key can be read from stdin"):
+                    configure_voice.configure("elevenlabs", "SyntheticVoiceId12345", "stdin", None,
+                                              conversation="qwen", qwen_consent=True,
+                                              qwen_key_source="stdin")
+            self.assertFalse((config_dir / "voice.json").exists())
+
+    def test_reinstall_without_conversation_keeps_qwen_choice(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            qwen_key.write_text("previous-qwen-key\n")
+            qwen_key.chmod(0o600)
+            existing = {"conversation_backend": "qwen", "qwen_consent": True,
+                        "qwen_region": "cn-beijing", "qwen_key_file": str(qwen_key)}
+            with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                  patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice, "existing_config", return_value=existing),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown")):
+                configure_voice.configure("local", None, None, None)
+            config = json.loads((config_dir / "voice.json").read_text())
+            self.assertEqual(config["conversation_backend"], "qwen")
+            self.assertIs(config["qwen_consent"], True)
+            self.assertEqual(config["qwen_region"], "cn-beijing")
+            self.assertEqual(qwen_key.read_text(), "previous-qwen-key\n")
+
+    def test_qwen_key_rotation_rolls_back_when_config_write_fails(self):
+        with tempfile.TemporaryDirectory() as root:
+            config_dir = Path(root)
+            secret_dir = config_dir / "secrets"
+            secret_dir.mkdir(mode=0o700)
+            qwen_key = secret_dir / "alibaba-tokenplan.key"
+            input_file = config_dir / "qwen.key"
+            input_file.write_text("qwen-test-key\n", encoding="ascii")
+            input_file.chmod(0o600)
+            original_write = configure_voice.atomic_private_write
+
+            def fail_config(path, data, owner, group, mode):
+                if path == config_dir / "voice.json":
+                    raise OSError("simulated config failure")
+                return original_write(path, data, owner, group, mode)
+
+            with (patch.object(configure_voice, "SECRET_PATH", secret_dir / "elevenlabs.key"),
+                  patch.object(configure_voice, "QWEN_SECRET_PATH", qwen_key),
+                  patch.object(configure_voice, "CONFIG_PATH", config_dir / "voice.json"),
+                  patch.object(configure_voice.pwd, "getpwnam", return_value=SimpleNamespace(
+                      pw_uid=os.getuid(), pw_gid=os.getgid())),
+                  patch.object(configure_voice.os, "geteuid", return_value=0),
+                  patch.object(configure_voice.os, "fchown"),
+                  patch.object(configure_voice, "atomic_private_write", side_effect=fail_config),
+                  patch.dict(configure_voice.os.environ, {"SUDO_UID": str(os.getuid())})):
+                with self.assertRaisesRegex(OSError, "simulated config failure"):
+                    configure_voice.configure("local", None, None, None, conversation="qwen",
+                                              qwen_consent=True, qwen_key_source="file",
+                                              qwen_key_file=str(input_file))
+            self.assertFalse(qwen_key.exists())
+
+    def test_qwen_secret_path_matches_voice_service_constant(self):
+        source = (Path(__file__).resolve().parents[2] / "voice" / "qwen_realtime.py").read_text()
+        self.assertIn(str(configure_voice.QWEN_SECRET_PATH), source)
 
 
 if __name__ == "__main__":

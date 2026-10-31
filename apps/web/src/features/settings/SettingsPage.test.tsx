@@ -6,6 +6,7 @@ import { setApiClient } from "@/lib/api/client";
 import { AppSettingsProvider } from "@/lib/settings";
 import { capabilitiesOf, jsonResponse, renderWithProviders } from "@/test/render";
 import { SettingsPage } from "./SettingsPage";
+import { settingsHelpFor } from "./SettingsHelp";
 import { createFakeApi, makeSettings, type FakeApiOptions } from "./testApi";
 
 // The pages load several resources through the fake API; slow CI machines need more than the 1 s default.
@@ -325,6 +326,28 @@ describe("settings export and import", () => {
     await user.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(api.find("POST", "/settings/import")).toHaveLength(1));
     expect(api.find("POST", "/settings/import")[0]?.body).toMatchObject({ settings: { approvals: { defaultExpiryMinutes: 60 } } });
+  });
+});
+
+describe("settings help", () => {
+  it("shows the help of the open area only after pressing Hilfe", async () => {
+    const user = userEvent.setup();
+    setup();
+    const open = await screen.findByRole("button", { name: "Hilfe" });
+    expect(open).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Hilfe" })).toBeNull();
+
+    await user.click(open);
+    const close = screen.getByRole("button", { name: "Hilfe schließen" });
+    expect(close).toHaveAttribute("aria-expanded", "true");
+    const region = screen.getByRole("region", { name: "Hilfe" });
+    const first = settingsHelpFor("profile")[0];
+    expect(first).toBeDefined();
+    expect(within(region).getByRole("heading", { name: first!.title })).toBeInTheDocument();
+
+    await user.click(close);
+    expect(screen.queryByRole("region", { name: "Hilfe" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Hilfe" })).toHaveAttribute("aria-expanded", "false");
   });
 });
 

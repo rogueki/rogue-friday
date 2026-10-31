@@ -1554,8 +1554,38 @@ entfernt) rot; pyflakes ohne Befund.
   Update lokal, bis der Haken gesetzt ist. Wissensbasis `datenschutz.md` ergänzt, Einstellungsmatrix +1 Zeile (117).
   Tests: Python (5 neu, Laufzeitwechsel mit Zustimmung/Ablehnung), Adapter-Mapping, Control API, Dashboard (6 neu), Installer
   (GUI- und Ablaufprüfungen); Gegenproben (Tor im Dienst entfernt: 3 rot; Dashboard-Prüfung entfernt: 1 rot).
-- **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
-  Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
+- **Qwen Audio unter Linux (LG-6.05):** `install-friday-linux.sh` bietet im Browser-Sprachmodus (`--voice-mode elevenlabs`)
+  das Live-Gespräch an: `--conversation qwen`, `--qwen-region`, `--qwen-consent`, Schlüssel per `--qwen-key-file` oder Abfrage
+  (nie als Argument). `configure_voice.py` prüft alles vor dem ersten Schreiben (Qwen nur mit Zustimmung, Schlüssel 8–4096
+  druckbare Zeichen), legt den Schlüssel mit 0600 unter `/etc/friday/secrets/alibaba-tokenplan.key` ab und rollt bei Fehler
+  zurück; Sicherung, Wiederherstellung und Deinstallation kennen die Datei. Im lokalen Sprachmodus lehnt der Installer Qwen
+  mit Hinweis ab (dort läuft kein Sprachdienst im Browser). CI: `test_configure_voice.py` (15) und neuer Schritt
+  `test_installer_modes.sh`. `docs/LINUX_VOICE.md` ergänzt.
+- **Anleitung und Update (LG-7.01/7.02):** `installer/ANLEITUNG.md` beschreibt Qwen Audio (Zustimmung, Schlüssel, Rückfall,
+  Umschalten im Dashboard). Pester-Test sichert, dass das Stimm-Update nur Programmdateien kopiert und `voice.json` sowie den
+  Qwen-Schlüssel nie anfasst; Gegenprobe rot.
+- **Keine Wirkung aus eingeschleusten Daten (LG-2.06):** Hat das Gesprächsmodell in einem Zug Agenten- oder Lesedaten
+  (`task_status`, `friday_lesen`) erhalten, lehnt der Orchestrator im selben Zug jedes Werkzeug mit Wirkung (`task_create`,
+  `task_cancel`, `task_antwort`, `ruhemodus`) ab und bittet um eine eigene Anweisung; jede neue Äußerung des Owners
+  (Qwen-Zug oder lokaler Befehl) setzt das zurück. Tests: 5 Orchestrator-Fälle plus ein Ende-zu-Ende-Fall im Qwen-Dialog;
+  Gegenprobe 4 rot.
+- **Gesprächsende (LG-1.03, D-03):** „Danke, das war's“, „Das ist alles“, „Tschüss“ u. ä. beenden das Gespräch sofort
+  (Antwort „Gern. Ich bin da, wenn du mich rufst.“, Gesprächsfenster zu, nächster Auftrag braucht das Wake Word). Im
+  Qwen-Modus fängt die lokale Kurzprüfung den Satz ab, er erreicht das Modell nicht. Stille bis Gesprächsende jetzt 20 s
+  (Windows und Linux); Installationen mit 8 oder 15 s werden beim nächsten Stimm-Setup angehoben, eigene Werte bleiben.
+  Wissensbasis und Anleitung angepasst. Tests: Phrasentabelle, Qwen- und Lokalweg, Folgefragen-Schleife endet; Gegenprobe 2 rot.
+- **Hilfe in jedem Einstellungsbereich (LG-5.08):** Knopf „Hilfe“ im Kopf jedes der 18 Bereiche zeigt die passenden
+  Abschnitte der Wissensbasis (Bereichsbeschreibung aus `einstellungen.md` plus jede Anleitung aus `ablaeufe.md`, die auf den
+  Bereich verweist). Der Wissensbasis-Build erzeugt dafür `settingsHelp.generated.json`; das Dashboard braucht keinen
+  API-Aufruf, `knowledge:check` meldet einen veralteten Stand, und ein Bereich ohne Hilfe bricht den Build ab.
+- **Sprachtests vollständig in der CI (LG-1.05):** Elf Testdateien lagen neben der CI-Liste und waren teils veraltet. Jetzt in
+  der Liste; repariert: Onboarding-Tests setzen unter Linux `FRIDAY_DATA_DIR` auf das Testverzeichnis (sonst schrieb der Dienst
+  nach `/var/lib/friday`), Dispatcher-Test kennt `record_latency`, Persona-Test stubbt `huggingface_hub` und schlägt bei einem
+  Download fehl; CI installiert `soundfile` (Version der Sprachumgebung). Dabei gefunden: `test_configure_voice` lud
+  `elevenlabs_cloud` gegen einen numpy-Stub neu und ließ das Modul so zurück, nachfolgende ElevenLabs-Tests scheiterten; lädt jetzt
+  echtes numpy nach. WSL, komplette CI-Liste: 800 bestanden, 16 übersprungen.
+- **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
+  Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
 Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);

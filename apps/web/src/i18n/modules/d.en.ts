@@ -73,6 +73,8 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.state.off": "Off",
   "settings.unsaved": "Unsaved changes",
   "settings.unsaved.local": "Unsaved changes in this area",
+  "settings.help.open": "Help",
+  "settings.help.close": "Close help",
   "settings.save": "Save",
   "settings.blocked.saving": "Saving …",
   "settings.blocked.clean": "No unsaved changes.",

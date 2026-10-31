@@ -16,9 +16,9 @@ Bereich: sprache
 Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt.
 
 ## Folgefragen und Unterbrechen
-Stichworte: folgefrage, unterbrechen, stopp, abbrechen, nachfragen, gesprächsfenster, pause
+Stichworte: folgefrage, unterbrechen, stopp, abbrechen, nachfragen, gesprächsfenster, pause, gespräch beenden, danke das war's, tschüss
 Bereich: sprache
-Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 15 Sekunden Zeit. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst.
+Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 20 Sekunden Zeit. Mit „Danke, das war's“, „Das ist alles“ oder „Tschüss“ beendest du das Gespräch sofort; danach brauchst du wieder das Wake Word. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst.
 
 ## Hintergrundaufträge und Ansagen
 Stichworte: ansagen, ergebnisse, aufträge, hintergrund, zusammenfassung, recherche, agent, ergebnis vorlesen

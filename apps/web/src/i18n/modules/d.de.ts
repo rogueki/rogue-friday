@@ -72,6 +72,8 @@ export const deD = {
   "settings.state.off": "Aus",
   "settings.unsaved": "Ungespeicherte Änderungen",
   "settings.unsaved.local": "Ungespeicherte Änderungen in diesem Bereich",
+  "settings.help.open": "Hilfe",
+  "settings.help.close": "Hilfe schließen",
   "settings.save": "Speichern",
   "settings.blocked.saving": "Wird gespeichert …",
   "settings.blocked.clean": "Keine ungespeicherten Änderungen.",

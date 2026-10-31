@@ -21,6 +21,10 @@
 
 .st-content { min-width: 0; }
 .st-content--bare { display: flex; flex-direction: column; gap: 10px; }
+.st-help { margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); }
+.st-help h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.st-help p { margin: 0 0 8px; line-height: 1.5; }
+.st-help-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .st-content .jv-panel__body { display: flex; flex-direction: column; gap: 14px; }
 .st-panel { min-width: 0; }
 .st-panel .jv-panel__body { display: flex; flex-direction: column; gap: 14px; }

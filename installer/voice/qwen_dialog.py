@@ -84,6 +84,7 @@ class QwenDialog:
         async with self._turn_lock:
             self._cancel_idle()
             self._orchestrator.touch()
+            self._orchestrator.begin_user_turn()
             await self._connect()
             try:
                 await self._session.append_audio(pcm16)

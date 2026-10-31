@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Bell,
   CircleDot,
+  CircleHelp,
   Code2,
   Cpu,
   Clapperboard,
@@ -36,6 +37,7 @@ import { LayoutArea } from "./LayoutArea";
 import { NavigationArea } from "./NavigationArea";
 import { OrbArea } from "./OrbArea";
 import { SettingsDraftsProvider, useSettingsDrafts } from "./SettingsDrafts";
+import { SettingsHelp, settingsHelpFor } from "./SettingsHelp";
 import { SettingsTransfer } from "./SettingsTransfer";
 import { ThemeArea } from "./ThemeArea";
 import { DashboardUpdateArea } from "./DashboardUpdateArea";
@@ -194,6 +196,10 @@ function SettingsBody() {
   const area: SettingsAreaId = isSettingsArea(requested) ? requested : adapterParam ? "adapters" : "profile";
   // Leaving an area or an adapter with unsaved edits asks first instead of dropping the draft silently.
   const [pending, setPending] = useState<{ kind: "area"; id: SettingsAreaId } | { kind: "adapter"; id: string } | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => {
+    setHelpOpen(false);
+  }, [area]);
 
   const go = (next: SettingsAreaId, extra?: Record<string, string>): void => {
     const query = new URLSearchParams({ area: next, ...extra });
@@ -261,6 +267,19 @@ function SettingsBody() {
     content = AREA_COMPONENTS[area]?.() ?? <EmptyState title={t("common.empty")} />;
   }
   const framed = area === "adapters" || area === "layout";
+  const helpToggle = settingsHelpFor(area).length > 0 ? (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      icon={<CircleHelp size={15} />}
+      aria-expanded={helpOpen}
+      aria-controls="st-help"
+      onClick={() => setHelpOpen((open) => !open)}
+    >
+      {t(helpOpen ? "settings.help.close" : "settings.help.open")}
+    </Button>
+  ) : null;
 
   return (
     <div className="st-page">
@@ -297,6 +316,8 @@ function SettingsBody() {
         </nav>
         {framed ? (
           <div className="st-content st-content--bare" role="region" aria-label={t(`settings.area.${area}` as MessageKey)}>
+            {helpToggle ? <div className="st-help-bar">{helpToggle}</div> : null}
+            {helpOpen ? <SettingsHelp area={area} id="st-help" /> : null}
             {content}
           </div>
         ) : (
@@ -308,7 +329,9 @@ function SettingsBody() {
             icon={AREA_ICONS[area]}
             padding="lg"
             scroll
+            actions={helpToggle}
           >
+            {helpOpen ? <SettingsHelp area={area} id="st-help" /> : null}
             {content}
           </HudPanel>
         )}

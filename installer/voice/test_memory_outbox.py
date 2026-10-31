@@ -103,7 +103,7 @@ class MemoryOutboxTests(unittest.TestCase):
                 arg.annotation = None
         namespace = {"time": time, "uuid": uuid, "datetime": datetime, "private_intent": private_intent,
                      "np": types.SimpleNamespace(concatenate=lambda arrays: arrays[1]), "SR": 16000,
-                     "STOP_WORDS": re.compile(r"^stopp?$", re.I), "log_event": lambda **kwargs: None,
+                     "STOP_WORDS": re.compile(r"^stopp?$", re.I), "is_goodbye": lambda text: False, "log_event": lambda **kwargs: None,
                      "record_latency": lambda *args: None,
                      "INSTALL_ROOT": self.temp.name, "os": __import__("os")}
         exec(compile(ast.fix_missing_locations(ast.Module(body=[command, methods["_queue_memory_event"]], type_ignores=[])),
