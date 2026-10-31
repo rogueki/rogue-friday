@@ -14,9 +14,9 @@ Control API (apps/control-api, ein Port, Standard 127.0.0.1:3100)
    │  Anfragepipeline: Auth, Rollen, CSRF, Validierung, Idempotenz, Audit
    │  Ports (@friday/adapter-core) über die Adapter-Registry
    ▼
-Adapter ── mock-* (Simulation)  │  hermes-*  │  friday-voice-http  │  local-system  │  example-http
+Adapter ── hermes-*  │  friday-voice-http  │  local-system  │  example-http
    ▼
-Fremdsysteme (Hermes, Voice-Dienst, Qwen, lokaler Rechner) bzw. MockWorld (@friday/mock-data)
+Fremdsysteme (Hermes, Voice-Dienst, Qwen, lokaler Rechner); Test-/E2E-Simulation nur injiziert (RuntimeSimulation), nicht im ausgelieferten Bundle
 ```
 
 Die Verträge (`packages/contracts`: OpenAPI 3.1.1, AsyncAPI 3.1.0, JSON Schema) sind die Quelle der Wahrheit. Aus ihnen
@@ -77,7 +77,6 @@ src/
     api/                    SDK client, query keys, stale times, QueryClient factory, mutation helper, domain modules
     realtime/               framework-free RealtimeClient, transports, event -> cache reducer, provider, store
     session.tsx settings.tsx capabilities.tsx uiStore.ts
-    mock/                   standalone MSW mode (bootstrap, runtime, empty stub)
   i18n/                     de.ts (default), en.ts, t()/useT()
   test/                     vitest setup, fixtures, render helper
 ```
@@ -86,8 +85,8 @@ src/
 
 Order, outermost first: `QueryClientProvider` -> `ClientOnly` (tree mounts after hydration; the server HTML is the boot
 screen because the UI library renders portals) -> `ToastProvider` -> `ErrorSinkBridge` (QueryClient errors -> toasts) ->
-`MockGate` (starts MSW when `NEXT_PUBLIC_FRIDAY_MSW=1`) -> `AppSettingsProvider` -> `CapabilitiesProvider` ->
-`RealtimeProvider`. The three last ones only run for an authenticated session.
+`AppSettingsProvider` -> `CapabilitiesProvider` -> `RealtimeProvider`. The three last ones only run for an authenticated
+session.
 
 | Provider         | Source                              | What it does                                                                                                                                                                                                                              |
 | ---------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -142,7 +141,7 @@ export function useUpdateTask() {
 Export the module from `lib/api/index.ts`. Existing domains: `core` (meta, session, health, capabilities, overview, status, orb),
 auth, tasks, activity (+ `fetchActivitySince`), agents, approvals, notifications, communication, calendar, system (inkl. Adapter-Status,
 Logs, Neustart), voice, memory (+ `searchMemory`), files, automations, settings (+ Layouts, Themes, Adapter-Einstellungen),
-commands, research, audit, dev (Szenario-Konsole); `cursorPages.ts` hilft beim Paging.
+commands, research, audit, dev (nur mit injizierter Simulation); `cursorPages.ts` hilft beim Paging.
 
 `useApiMutation` exposes `mutate`/`mutateAsync` that pin the Idempotency-Key at call time: pass the same `idempotencyKey` again
 to replay a request (retry button), omit it for a new intent.
@@ -163,8 +162,8 @@ to replay a request (retry button), omit it for a new intent.
 - `navigator.onLine` (offline stops retrying, online reconnects immediately) and page visibility (visible -> reconnect/ping now).
 - `useRealtimeStatus()` -> `{ state: connecting|online|degraded|offline|polling, roundtripMs, lastEventAt, sequence }`
   ("Event-Stream online · 28 ms · vor 2 s" in the top bar).
-- Transport interface (`transport.ts`): `WebSocketTransport` in production, the same class over `@friday/mock-data`'s in-memory
-  socket in standalone mock mode (`lib/mock/bootstrap.ts`). The client never knows the difference.
+- Transport interface (`transport.ts`): `WebSocketTransport` (also against the E2E server); unit tests pass their own transport
+  factory. The client never knows the difference.
 
 `applyEvent(queryClient, event)` (`applyEvent.ts`) is the deterministic event -> cache reducer, exhaustive over all 44 event types
 (a new contract event is a compile error until handled). Rules: replace only with an equal-or-newer `version`; patch lists and
@@ -216,13 +215,6 @@ single `GET /overview` payload feeds all panels; `degradedSections` decides per 
 6. Strings: add the keys to `i18n/de.ts` and `i18n/en.ts` (the key sets must match).
 7. Tests next to the code (`*.test.ts(x)`); `renderWithProviders` (`src/test/render.tsx`) seeds the cache and a fake-fetch SDK client.
 
-## Standalone mock mode
-
-`pnpm --filter @friday/web dev:mock` (or `build:mock`) sets `NEXT_PUBLIC_FRIDAY_MSW=1`: `MockStarter` (client-only dynamic import)
-calls `setupBrowserMocks()` from `@friday/mock-data` (msw service worker, in mock runs copied from `apps/web/mock-worker/` to
-`public/mockServiceWorker.js`; normal runs delete it, so production exports never contain it) plus the in-memory event socket.
-`window.__fridayMock` exposes the platform (scenario engine) to the browser console and the screenshot script.
-
 ## Type checking
 
 `pnpm --filter @friday/web typecheck` runs `tsc -p tsconfig.json --noEmit` against the real workspace packages. Next's own type
@@ -233,8 +225,7 @@ export. The former compiler shim (`src/shims/friday-orb.d.ts` and `tsconfig.type
 
 | Command                                        | Purpose                                                                                                                                 |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm --filter @friday/web dev`                | `next dev` on :3000, `/api/*` rewritten to `FRIDAY_API_ORIGIN` (default `http://127.0.0.1:3100`)                                        |
-| `pnpm --filter @friday/web dev:mock`           | standalone with MSW + mock event stream                                                                                                 |
+| `pnpm --filter @friday/web dev`                | `next dev` on :3000, needs a running Control API; `/api/*` rewritten to `FRIDAY_API_ORIGIN` (default `http://127.0.0.1:3100`)           |
 | `pnpm --filter @friday/web build`              | typecheck + static export to `apps/web/out`                                                                                             |
 | `pnpm --filter @friday/web typecheck` / `test` | tsc / vitest (jsdom)                                                                                                                    |
 | `pnpm --filter @friday/web screenshots`        | Playwright screenshots of the overview into `apps/web/screenshots/` (needs a running server, `--base`, default `http://localhost:3000`) |
@@ -244,8 +235,9 @@ export. The former compiler shim (`src/shims/friday-orb.d.ts` and `tsconfig.type
 Die Control API ist der einzige Server des Command Centers. Sie ist eine Fastify-Anwendung (Fastify 5) unter einer
 NestJS-12-Hülle (`@nestjs/platform-fastify`) und wird mit `tsup` zu einem Bundle (`apps/control-api/dist/main.js`) gebaut.
 Sie liefert auf einem Port die REST-Operationen unter `/api/v1`, den Ereignisstrom unter `/api/v1/events` und das statische Web aus
-`apps/web/out`. Standard: `127.0.0.1:3100`. Alle Fachdaten kommen über Adapter-Ports (`@friday/adapter-core`); im Mock-Modus liefert
-`@friday/adapter-mock` die Daten aus `@friday/mock-data`.
+`apps/web/out`. Standard: `127.0.0.1:3100`. Alle Fachdaten kommen über Adapter-Ports (`@friday/adapter-core`); Mock-Welt,
+Szenario-Engine und Mock-Adapter kommen nur über die injizierte `simulation` (`RuntimeSimulation`), das ausgelieferte Bundle
+enthält keinen Mock-Code.
 
 Verbindliche Regeln: Modelle kommen aus `@friday/sdk` (nie von Hand). Abhängigkeiten werden über explizite Injection-Tokens
 verdrahtet (`@Inject(TOKEN)`), weil die Anwendung unter `tsx` und `tsup` (esbuild) läuft und keine Decorator-Metadaten braucht.
@@ -263,21 +255,22 @@ Antworten werden in Dev/Test gegen das Vertragsschema geprüft (`dev.responseVal
 | `src/handlers/*`                    | Handler je Operation; portbasierte Operationen werden aus `PORT_SPEC` abgeleitet. Sonderfälle liegen in eigenen Dateien: `approvals.ts`, `auth.ts`, `commands.ts`, `settings.ts`, `dev.ts`, `adapters.ts`, `domain-ops.ts` |
 | `src/security/*`                    | Sitzungen, Login-Drosselung, Re-Auth, Aktionsmatrix (`action-map.ts`), Guards                                                                                                                                              |
 | `src/realtime/hub.ts`               | Ereignis-Hub: globale Sequenz, Ringpuffer, Replay, Heartbeat, Backpressure                                                                                                                                                 |
-| `src/runtime/*`                     | Verdrahtung: Konfiguration, Welt, Adapter-Registry (`adapter-wiring.ts`), Dienste, Datenbank, Timer                                                                                                                        |
+| `src/runtime/*`                     | Verdrahtung: Konfiguration, `RuntimeSimulation` (nur injiziert), Adapter-Registry (`adapter-wiring.ts`), Dienste, Datenbank, Timer                                                                                         |
 | `src/services/*`                    | Einstellungen, Adapter-Einstellungen, Orb-/Status-/Overview-Ableitung, Befehls-Intents, Frontend-Telemetrie, Log-Ringpuffer                                                                                                |
 | `src/db/*`                          | `node:sqlite`: Migrationen, Stores, Audit-Kette, Kopf-Anker                                                                                                                                                                |
 
 ## Starten
 
 ```bash
-pnpm dev:api                                  # tsx watch, Mock-Modus, Dev-Login
+pnpm dev:api                                  # tsx watch, lokaler Dev-Server
 pnpm --filter @friday/control-api build       # tsup -> apps/control-api/dist/main.js
 pnpm start                                    # node apps/control-api/dist/main.js
 ```
 
-Ohne `config/dashboard.yaml` gelten Standardwerte (Mock-Modus, Loopback). Ohne Owner-Passwort-Hash schaltet der Start im
-Mock-Modus auf Loopback auf feste Dev-Konten um (`dev-owner`, `dev-operator`, `dev-viewer`) und warnt dabei. In allen anderen Fällen
-gibt es keinen Dev-Login. Umgebungsvariablen und Betriebsdetails stehen in `apps/control-api/README.md` und `docs/DEPLOYMENT.md`.
+Ohne `config/dashboard.yaml` gelten Standardwerte (live, Loopback). Der einzige Betriebsmodus ist `live`; eine alte Konfiguration
+mit `mock` oder `hybrid` wird mit einer Warnung im Log als `live` ausgeführt. Ein ausgelieferter Server lehnt `auth.mode: dev` beim
+Start ab; Dev-Konten (`dev-owner`, `dev-operator`, `dev-viewer`) gibt es nur mit injizierter Simulation in Tests und auf dem
+E2E-Server. Umgebungsvariablen und Betriebsdetails stehen in `apps/control-api/README.md` und `docs/DEPLOYMENT.md`.
 
 ## Anfragepipeline
 
@@ -361,8 +354,9 @@ Die Adapter-Einstellungen führen eine `version`, die bei jeder gespeicherten Ä
 - **Sitzungsende** schließt die Verbindung mit 4401. Beim Herunterfahren gehen alle Verbindungen mit 1001 weg, bevor der HTTP-Server schließt.
 - **Sequenz über Neustarts**: Der Stand wird in der Tabelle `kv` (Schlüssel `hub.sequence`) alle 50 Ereignisse und beim Beenden
   gesichert. Nach dem Start zählt der Hub mit einem Sicherheitsabstand weiter, damit Cursor nie rückwärts laufen.
-- Im Mock-Modus nummeriert die Welt ihre Aktivität mit derselben Sequenz (`MockWorld({ nextSequence })`). Der Umschlag von
-  `friday.activity.appended` und `ActivityEvent.sequence` stimmen dadurch überein.
+- Mit injizierter Simulation nummeriert die Mock-Welt ihre Aktivität mit derselben Sequenz (`MockWorld({ nextSequence })`). Der
+  Umschlag von `friday.activity.appended` und `ActivityEvent.sequence` stimmen dadurch überein; das gilt nur für Tests und den
+  E2E-Server, nicht für das ausgelieferte Dashboard.
 
 ## Audit und Manipulationsschutz
 
@@ -406,12 +400,11 @@ SPA-Hülle zurück. `/api/*` wird nie statisch beantwortet, und Pfade dürfen da
   angelegt), `audit-head.json`.
 - Geheimnisse werden nie gespeichert. Adapter-Secrets, die über die Oberfläche eingegeben wurden, bleiben nur im Speicher (`RuntimeSecrets`).
 
-## Dev-Konsole und Szenarien
+## Dev-Endpunkte und Szenarien
 
-`/api/v1/dev/*` existiert nur mit Mock-Daten und `dev.scenarioConsole: true` (sonst `404`) und nur für `owner`. Die CLI
-`apps/mock-console` (`pnpm scenario -- <befehl>`) meldet sich als `dev-owner` an. Befehle: `list`, `state`, `select`/`play`,
-`advance`, `offline`/`online`, `latency`, `error-rate`, `capability`, `event`, `orb`, `release-orb`, `play-event`, `reset`, `status`,
-`watch`. Hilfe: `pnpm scenario -- --help`.
+`/api/v1/dev/*` existiert nur mit injizierter Simulation, also in Tests und auf dem E2E-Server (sonst `404`), und nur für `owner`.
+Ein ausgelieferter Server lehnt `auth.mode: dev` beim Start ab. Die Szenario-CLI `apps/mock-console` (`pnpm scenario -- ...`) und
+die Browser-Konsole sind entfernt; die E2E-Specs steuern Szenarien über `support/api.ts` (REST), nicht über eine UI.
 
 ## Tests
 
@@ -437,10 +430,11 @@ pnpm --filter @friday/control-api test        # vitest, test/*.test.ts
 | `secrets.test.ts`                                   | keine Secrets in Antworten, Audit, Ereignissen, Logs und Datenbank                                               |
 | `static.test.ts`                                    | SPA-Fallback, CSP-Hashes, Path-Traversal                                                                         |
 | `real-adapters.test.ts`                             | reale Adapter in der Registry: Registrierung, Mock-Fallbacks, `file:`-Secrets, Platzhalter-Kollision             |
-| `branding-commands.test.ts`, `mock-console.test.ts` | Branding, Befehls-Intents, Szenario-CLI gegen den echten Server                                                  |
+| `branding-commands.test.ts`                         | Branding, Befehls-Intents                                                                                        |
 
 `test/helpers.ts` startet die komplette App in einem temporären Verzeichnis (`startTestApi`) mit einstellbarer Uhr,
-Ringpuffer, Heartbeat und Log-Mitschnitt.
+Ringpuffer, Heartbeat und Log-Mitschnitt; die Simulation wird injiziert, `withoutSimulation: true` startet wie ein ausgelieferter
+Server.
 
 # Adapter und Integration
 
@@ -461,17 +455,18 @@ erreichen die Control API nie; kanonische Schemas verbieten zusätzliche Felder 
 
 ## Betriebsmodi
 
-`dataMode` in `dashboard.yaml`, überschreibbar mit `FRIDAY_DATA_MODE`. Die Auflösung je Kategorie steht in `packages/config/src/load.ts`:
+`dataMode` in `dashboard.yaml`, überschreibbar mit `FRIDAY_DATA_MODE`. Der einzige Betriebsmodus ist `live`; die Auflösung je
+Kategorie steht in `packages/config/src/load.ts`:
 
-| Modus    | Kategorie in `adapters.yaml` genannt                                           | Kategorie nicht genannt                                                 | Provider `mock-*` in `adapters.yaml` |
-| -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------ |
-| `mock`   | Nicht-Mock-Provider werden ignoriert (Warnung), stattdessen `mock-<kategorie>` | `mock-<kategorie>`                                                      | Standard                             |
-| `hybrid` | Provider wie konfiguriert                                                      | `mock-<kategorie>` (Simulation, in der Oberfläche als solche erkennbar) | erlaubt                              |
-| `live`   | Provider wie konfiguriert                                                      | deaktiviert, kein Adapter (keine Simulation)                            | erlaubt, mit Warnung                 |
+| Modus  | Kategorie in `adapters.yaml` genannt | Kategorie nicht genannt                                      | Provider `mock-*` in `adapters.yaml` |
+| ------ | ------------------------------------ | ----------------------------------------------------------- | ------------------------------------ |
+| `live` | Provider wie konfiguriert            | deaktiviert, kein Adapter; die Oberfläche meldet "nicht eingerichtet" | nicht im Produkt (nur Testfixtures)  |
 
-Gespeicherte Überschreibungen der Adapter-Einstellungen (`adapter_overrides`, über `PATCH /settings/adapters/{id}`) wirken auf Schalter
-und Konfiguration in allen Modi. Den Provider ersetzen sie nur in `hybrid` und `live` und nur, wenn der konfigurierte Eintrag kein
-Mock-Provider ist. Im Modus `mock` bleibt es bei den Mock-Adaptern.
+Eine ausgelieferte Installation führt eine alte Konfiguration mit `mock` oder `hybrid` mit einer Warnung im Log als `live` aus. Der
+Linux-Installer schreibt `dataMode: live` und migriert bestehende `mock`/`hybrid`-Einträge nach `live` (vorher Sicherung
+`dashboard.yaml.bak-dataMode-<UTC>`). Gespeicherte Überschreibungen der Adapter-Einstellungen (`adapter_overrides`, über
+`PATCH /settings/adapters/{id}`) wirken auf Schalter und Konfiguration in `live`; den Provider ersetzen sie nur, wenn der
+konfigurierte Eintrag kein Mock-Provider ist.
 
 ## Allowlist und Factories
 
@@ -495,7 +490,7 @@ bekommen automatisch den echten Adapter mit derselben Provider-ID (Warnung im Lo
 | `friday-voice-http`  | `voice`    | `@friday/adapter-voice-http`   | Statusdokument des Voice-Dienstes (`127.0.0.1:43694`), nur lesend                |
 | `local-system`       | `system`   | `@friday/adapter-system-local` | Host-Metriken, Dienstprobes und Modelllisten auf dem Rechner der Control API     |
 | `example-tasks-http` | `tasks`    | `@friday/adapter-example-http` | Referenz für eine fiktive REST-API, nicht verdrahtet                             |
-| `mock-*`             | alle       | `@friday/adapter-mock`         | Simulation aus `@friday/mock-data`, 15 Port-Wrapper                              |
+| `mock-*`             | alle       | `@friday/adapter-mock`         | Nur Testfixture über die injizierte Simulation, nicht im ausgelieferten Bundle   |
 
 Capabilities, Verifikationsstand und offene Annahmen je Adapter stehen in [`HANDOFF.md`](HANDOFF.md) (Abschnitt 3) und in den
 READMEs unter `adapters/`.
@@ -546,10 +541,10 @@ Die Oberfläche bleibt in jedem Fall bedienbar (PLAN §57: „Adapter-Ausfälle 
 ## Mock-Adapter (`adapters/mock`)
 
 `createMockFactories({ world })` erzeugt je Kategorie den Adapter `mock-<kategorie>` über die `MockWorld`. Die Welt liefert Daten,
-Latenz, Fehlerquoten, Ausfälle und Capabilities für die Szenario-Konsole. Mock-Adapter werden im Modus `mock` immer geladen und im
-Modus `hybrid` für alle Kategorien ohne eigene Anbindung.
+Latenz, Fehlerquoten, Ausfälle und Capabilities für Tests und den E2E-Server. Die Mock-Adapter sind Testfixtures und werden nur
+über die injizierte Simulation geladen, nie im ausgelieferten Dashboard.
 
 ## Integrationsnachweis
 
-Der Hybrid-Lauf gegen Fake-Upstreams (Hermes, Voice, Qwen auf den Installer-Ports) ist in `tests/integration` beschrieben und in
+Der Integrationslauf gegen Fake-Upstreams (Hermes, Voice, Qwen auf den Installer-Ports) ist in `tests/integration` beschrieben und in
 `docs/evidence/integration/` dokumentiert. Kommandos und Fehlersuche stehen in [`HANDOFF.md`](HANDOFF.md).

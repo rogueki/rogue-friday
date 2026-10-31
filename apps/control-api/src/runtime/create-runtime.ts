@@ -11,7 +11,7 @@ import {
   loadOrCreateServerKey,
 } from "@friday/auth";
 import type { FridayConfig } from "@friday/config";
-import { ScenarioEngine, type MockWorld } from "@friday/mock-data";
+import type { MockWorld } from "@friday/mock-data";
 import {
   canonicalJson,
   createFridayMetrics,
@@ -77,6 +77,7 @@ import { OnboardingService } from "../services/onboarding";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
+import type { RuntimeSimulation } from "./simulation";
 import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 
 export interface CreateRuntimeOptions {
@@ -91,6 +92,8 @@ export interface CreateRuntimeOptions {
   /** `:memory:` for tests. Defaults to `<dataDir>/dashboard.sqlite`. */
   dbPath?: string;
   responseValidation?: ResponseValidationMode;
+  /** Mock world, scenario engine and mock adapters; only tests and the e2e server pass it. */
+  simulation?: RuntimeSimulation;
   /** The mock world follows the wall clock (dev/prod mock). Tests keep it off and drive the clock. */
   realTimeWorld?: boolean;
   healthIntervalMs?: number;
@@ -116,7 +119,10 @@ const HEALTH_GAUGE: Record<string, "healthy" | "degraded" | "down" | "unknown"> 
 };
 
 export async function createRuntime(options: CreateRuntimeOptions): Promise<Runtime> {
-  const { config } = options;
+  const simulation = options.simulation;
+  // Without a simulation (every shipped server) mock and hybrid configs from older installs run as live.
+  const config: FridayConfig = simulation || options.config.dataMode === "live" ? options.config : { ...options.config, dataMode: "live" };
+  if (!simulation && config.auth.mode === "dev") throw new Error("Dev-Login ist nur in Testumgebungen verfügbar; auth.mode auf local stellen.");
   const env = options.env ?? process.env;
   const startedAt = new Date();
   const buildVersion = options.buildVersion ?? process.env.FRIDAY_BUILD_VERSION ?? "1.0.0";
@@ -134,6 +140,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     });
   // Every log call also lands (redacted) in the ring buffer that serves the adapter logs of the System page.
   const logger = withLogBuffer(baseLogger, logBuffer);
+  if (config !== options.config) logger.warn("Simulationsdaten gibt es nicht mehr: dataMode wird als live ausgeführt", { configured: options.config.dataMode });
   const metrics: FridayMetrics = createFridayMetrics();
   for (const warning of config.warnings) logger.warn(warning);
 
@@ -234,7 +241,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   });
 
   // ---- adapters -----------------------------------------------------------------------------------------------
-  const world: MockWorld | undefined = createWorld(config, {
+  const world: MockWorld | undefined = createWorld(config, simulation, {
     realTime: options.realTimeWorld ?? true,
     // One global sequence: the mock world numbers its events (and `ActivityEvent.sequence`) with the hub's counter, so
     // an activity item's sequence equals the envelope sequence of its `friday.activity.appended` event.
@@ -249,13 +256,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   });
   // Seeded activity is numbered before the hub existed; keep every live event above it.
   if (world) hub.ensureSequenceAtLeast(world.state.sequence);
-  const engine = world && config.dataMode === "mock" ? ScenarioEngine.for(world) : undefined;
+  const engine = world && simulation && config.dataMode === "mock" ? simulation.engineFor(world) : undefined;
   const secrets = createRuntimeSecrets(db, deriveKey(serverKey.key, "calendar-feed"));
   const wiring = wireAdapters({
     config,
     logger,
     hub,
     world,
+    simulation,
     overrides: adapterOverrides,
     secrets,
     env,
@@ -553,6 +561,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     registry,
     world,
     engine,
+    simulation,
     stores: { audit, idempotency, commands, library, adapterOverrides },
     auth,
     voiceBridgeKey: voiceBridgeKey.key,

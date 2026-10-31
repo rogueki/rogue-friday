@@ -243,9 +243,6 @@ importers:
       '@friday/adapter-mail-placeholder':
         specifier: workspace:*
         version: link:../../adapters/mail-placeholder
-      '@friday/adapter-mock':
-        specifier: workspace:*
-        version: link:../../adapters/mock
       '@friday/adapter-system-local':
         specifier: workspace:*
         version: link:../../adapters/system-local
@@ -264,9 +261,6 @@ importers:
       '@friday/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@friday/mock-data':
-        specifier: workspace:*
-        version: link:../../packages/mock-data
       '@friday/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -304,6 +298,12 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
+      '@friday/adapter-mock':
+        specifier: workspace:*
+        version: link:../../adapters/mock
+      '@friday/mock-data':
+        specifier: workspace:*
+        version: link:../../packages/mock-data
       '@swc/core':
         specifier: ^1.16.18
         version: 1.16.18(@swc/helpers@0.5.23)
@@ -313,19 +313,6 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.18(@swc/helpers@0.5.23))(postcss@8.5.30)(tsx@4.23.15)(typescript@5.9.3)(yaml@2.9.1)
-
-  apps/mock-console:
-    dependencies:
-      '@friday/sdk':
-        specifier: workspace:*
-        version: link:../../packages/generated-sdk
-      ws:
-        specifier: ^8.22.0
-        version: 8.22.0
-    devDependencies:
-      '@types/ws':
-        specifier: ^8.18.2
-        version: 8.18.2
 
   apps/storybook:
     dependencies:

@@ -54,6 +54,7 @@ import type { TelephonyService } from "../services/telephony";
 import type { CloudTalkService } from "../services/cloudtalk";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
+import type { RuntimeSimulation } from "./simulation";
 
 export type ResponseValidationMode = "off" | "log" | "throw";
 
@@ -78,6 +79,7 @@ export interface Runtime {
   registry: AdapterRegistry;
   world: MockWorld | undefined;
   engine: ScenarioEngine | undefined;
+  simulation: RuntimeSimulation | undefined;
   stores: {
     audit: AuditStore;
     idempotency: IdempotencyStore;

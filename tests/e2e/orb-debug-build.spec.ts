@@ -32,6 +32,12 @@ test.describe("production build", () => {
     expect(hits).toEqual([]);
   });
 
+  test("the shipped Control API bundle contains no mock world, scenario engine or mock adapters", () => {
+    const server = resolve(import.meta.dirname, "../../apps/control-api/dist/main.js");
+    const code = readFileSync(server, "utf8");
+    for (const marker of ["MockWorld", "ScenarioEngine", "createMockFactories"]) expect(code.includes(marker), marker).toBe(false);
+  });
+
   test("the orb controller reaches the main bundle only as types: three.js stays in the lazily loaded orb chunk", () => {
     const entry = [...files(join(OUT, "_next", "static", "chunks"))].filter((file) => /(main-app|webpack|main)-[\w-]+\.js$/.test(file));
     for (const file of entry) expect(readFileSync(file, "utf8"), file.slice(OUT.length)).not.toMatch(/WebGLRenderer/);

@@ -331,13 +331,13 @@ describe('mode presets', () => {
     expect(config.warnings.some((w) => w.includes('adapters.memory.provider "mock-memory" is a mock provider'))).toBe(true);
   });
 
-  it('warns when a production run keeps a simulated data mode', () => {
+  it('warns when a production run keeps a retired data mode', () => {
     const simulated = load({ dashboard: 'dataMode: hybrid\n', adapters }, { NODE_ENV: 'production' });
-    expect(simulated.warnings.some((warning) => warning.includes('in a production run'))).toBe(true);
+    expect(simulated.warnings.some((warning) => warning.includes('is no longer supported'))).toBe(true);
     const live = load({ dashboard: 'dataMode: live\n', adapters }, { NODE_ENV: 'production' });
-    expect(live.warnings.some((warning) => warning.includes('in a production run'))).toBe(false);
+    expect(live.warnings.some((warning) => warning.includes('is no longer supported'))).toBe(false);
     const development = load({ dashboard: 'dataMode: hybrid\n', adapters }, { NODE_ENV: 'development' });
-    expect(development.warnings.some((warning) => warning.includes('in a production run'))).toBe(false);
+    expect(development.warnings.some((warning) => warning.includes('is no longer supported'))).toBe(false);
   });
 
   it('applies adapter resilience defaults and overrides', () => {

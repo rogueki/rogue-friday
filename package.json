@@ -26,8 +26,7 @@
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
     "test:integration": "playwright test --config playwright.integration.config.ts",
-    "storybook": "pnpm --filter @friday/storybook dev",
-    "scenario": "pnpm --filter @friday/mock-console start --"
+    "storybook": "pnpm --filter @friday/storybook dev"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

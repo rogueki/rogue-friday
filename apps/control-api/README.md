@@ -3,22 +3,23 @@
 Entwurf für das Kapitel "Control API" der Projektdokumentation. Die Control API ist der einzige Server des Command
 Centers: eine Fastify-Anwendung (NestJS-Hülle), die die REST-Operationen aus `packages/contracts/openapi`, den
 WebSocket-Ereignisstrom und das statische Web (`apps/web/out`) auf **einem Port** ausliefert (Standard
-`127.0.0.1:3100`). Alle Daten kommen über Adapter-Ports (`@friday/adapter-core`); im Mock-Modus liefert
-`@friday/adapter-mock` die Daten aus einer simulierten Welt (`@friday/mock-data`).
+`127.0.0.1:3100`). Alle Daten kommen über Adapter-Ports (`@friday/adapter-core`); Mock-Welt, Szenario-Engine und
+Mock-Adapter kommen nur über die injizierte `simulation` (`RuntimeSimulation`, Implementierung in `test-support/simulation.ts`).
+Das ausgelieferte Bundle `dist/main.js` enthält keinen Mock-Code.
 
 ## Aufbau
 
 | Pfad | Aufgabe |
 |---|---|
-| `src/main.ts` | Start: Konfiguration laden, Dev-Fallback, `listen`, geordnetes Beenden (SIGINT/SIGTERM) |
+| `src/main.ts` | Start: Konfiguration laden, optional injizierte Simulation (nur `test-support/e2e-server.ts`), `listen`, geordnetes Beenden (SIGINT/SIGTERM) |
 | `src/app.ts` | Nest-Modul mit expliziten Tokens (läuft unter `tsx` und `tsup`), schließt WebSockets vor dem HTTP-Server |
 | `src/http/route-table.generated.ts` | **generiert** aus dem gebündelten OpenAPI (`pnpm --filter @friday/control-api generate:routes`): 122 Operationen mit Rolle, Capability, CSRF, Body-Limit, Body-/Antwortschema |
 | `src/http/pipeline.ts` | Anfragepipeline je Operation: Korrelations-ID, Sitzung, Rollenmatrix, CSRF, Query-/Body-Validierung, `If-Match`, `Idempotency-Key`, Audit, Antwortvalidierung |
 | `src/http/server.ts`, `static.ts` | Host-/Origin-Prüfung, Security-Header, CSP mit Hashes der Inline-Skripte, SPA-Fallback ohne Ausbruch aus dem Web-Root |
-| `src/handlers/*` | Handler je Operation; portbasierte Operationen werden aus `PORT_SPEC` (`@friday/adapter-core`) abgeleitet, Sonderfälle (Freigaben, Auth, Befehle, Einstellungen, Dev-Konsole, Adapter-Neustart/-Logs in `adapters.ts`, Audit-Hinweise und Durchsetzung in `domain-ops.ts`) liegen in eigenen Dateien |
+| `src/handlers/*` | Handler je Operation; portbasierte Operationen werden aus `PORT_SPEC` (`@friday/adapter-core`) abgeleitet, Sonderfälle (Freigaben, Auth, Befehle, Einstellungen, Dev-Endpunkte (nur mit injizierter Simulation), Adapter-Neustart/-Logs in `adapters.ts`, Audit-Hinweise und Durchsetzung in `domain-ops.ts`) liegen in eigenen Dateien |
 | `src/security/*` | Sitzungen, Login-Drosselung, Re-Auth, Approval-Tokens (`@friday/auth`); Aktion-Berechtigungsmatrix |
 | `src/realtime/hub.ts` | Ereignis-Hub: globale Sequenz, Ringpuffer, Replay (`?since=`), `resync_required`, Heartbeat, Backpressure |
-| `src/runtime/*` | Verdrahtung: Konfiguration, Welt, Adapter-Registry, Dienste, SQLite, Timer |
+| `src/runtime/*` | Verdrahtung: Konfiguration, `RuntimeSimulation` (nur injiziert), Adapter-Registry, Dienste, SQLite, Timer |
 | `src/services/*` | Einstellungen, Adapter-Einstellungen (Secrets write-only, Version/`If-Match`), Orb-/Status-/Overview-Ableitung, Befehls-Intents, Frontend-Telemetrie, Log-Ringpuffer (`log-buffer.ts`) |
 | `src/db/*` | `node:sqlite`: Einstellungen, Sitzungen, Audit-Hashkette samt Kopf-Anker (`audit-anchor.ts`), Idempotenz-Schlüssel, Befehlsverlauf, Themes/Layouts |
 
@@ -28,25 +29,27 @@ Vertragsschema geprüft (`dev.responseValidation`), interne Namen (`@friday/*`, 
 ## Starten
 
 ```bash
-pnpm dev:api                                  # tsx watch, Mock-Modus, Dev-Login
+pnpm dev:api                                  # tsx watch, lokaler Dev-Server
 pnpm --filter @friday/control-api build       # tsup -> apps/control-api/dist/main.js (ein Bundle)
 pnpm start                                    # node apps/control-api/dist/main.js
-pnpm scenario -- list                         # Szenario-CLI (apps/mock-console), siehe unten
 ```
 
-Ohne `config/dashboard.yaml` laufen Standardwerte (Mock-Modus, Loopback). Ohne `FRIDAY_OWNER_PASSWORD_HASH` schaltet der
-Start im Mock-Modus auf Loopback auf feste Dev-Konten um (`dev-owner`, `dev-operator`, `dev-viewer`, Passwort `dev`) und
-warnt dabei. Für den Echtbetrieb: `auth.mode: local` und den Hash mit `pnpm --filter @friday/auth hash-password` erzeugen.
+Ohne `config/dashboard.yaml` laufen Standardwerte (live, Loopback). Der einzige Betriebsmodus ist `live`; eine alte Konfiguration
+mit `mock` oder `hybrid` wird mit einer Warnung im Log als `live` ausgeführt. Der Linux-Installer schreibt `dataMode: live` und
+migriert bestehende `mock`/`hybrid`-Einträge nach `live` (vorher Sicherung `dashboard.yaml.bak-dataMode-<UTC>`). Ohne
+`FRIDAY_OWNER_PASSWORD_HASH` gibt es keinen Dev-Login; feste Dev-Konten (`dev-owner`, `dev-operator`, `dev-viewer`) existieren
+nur mit injizierter Simulation in Tests und auf dem E2E-Server. Für den Echtbetrieb: `auth.mode: local` und den Hash mit
+`pnpm --filter @friday/auth hash-password` erzeugen.
 
 ### Umgebungsvariablen
 
 | Variable | Wirkung |
 |---|---|
 | `FRIDAY_CONFIG_DIR` | Verzeichnis mit `dashboard.yaml` / `adapters.yaml` (Standard `<Projektwurzel>/config`) |
-| `FRIDAY_DATA_MODE` | `mock` \| `hybrid` \| `live` (überschreibt `dataMode`) |
+| `FRIDAY_DATA_MODE` | `live` (einziger Modus, überschreibt `dataMode`); `mock`/`hybrid` werden mit Warnung als `live` ausgeführt |
 | `FRIDAY_HOST`, `FRIDAY_PORT` | Bind-Adresse (nur Loopback, sonst `server.allowRemote: true` + TLS/VPN) |
 | `FRIDAY_DATA_DIR`, `FRIDAY_LOG_DIR` | SQLite-Datenbank (`dashboard.sqlite`, `auth.key`) und Logdateien |
-| `FRIDAY_AUTH_MODE` | `dev` erzwingt Dev-Login (nur Mock + Loopback) |
+| `FRIDAY_AUTH_MODE` | `dev` nur mit injizierter Simulation (Tests/E2E), ein ausgelieferter Server lehnt den Modus beim Start ab |
 | `FRIDAY_OWNER_PASSWORD_HASH` | scrypt-Hash des Owner-Passworts (Standardreferenz `env:FRIDAY_OWNER_PASSWORD_HASH`) |
 | `FRIDAY_BUILD_VERSION` | Versionsanzeige in `/meta` und `/status` |
 
@@ -83,14 +86,15 @@ Adapter-Secrets stehen nie im Klartext in Dateien: `env:NAME` oder `wincred:ZIEL
   die Datenbank bewusst aus einem Backup wiederherstellt, löscht `audit-head.json` vor dem Start. Grenze: wer Datenbank
   **und** beide Anker löscht oder den `auth.key` kennt, kann die Spur unbemerkt kürzen.
 - **Branding**: `settings.profile.assistantName` (Standard "F.R.I.D.A.Y.") steuert servergenerierte Texte
-  (Orb-Aktivitätstexte, Statuszeile); Änderungen wirken sofort. Die Mock-Welt formuliert diese Texte selbst mit dem
-  konfigurierten Namen (`MockWorld({ assistantName })`), `brandText()` ist nur noch ein Sicherheitsnetz für fremde Adapter.
-- **Sequenz**: Im Mock-Modus nummeriert die Welt Ereignisse und `ActivityEvent.sequence` mit der globalen Sequenz des
-  Ereignis-Hubs (`MockWorld({ nextSequence })`). Der Umschlag von `friday.activity.appended` trägt dieselbe Zahl wie
-  `data.sequence`, und `GET /activity?sinceSequence=` füllt Lücken mit den Zahlen des Stroms. Die Mock-Welt-Daten aus dem
-  Seed liegen unter jeder Live-Nummer.
+  (Orb-Aktivitätstexte, Statuszeile); Änderungen wirken sofort. Die Mock-Welt der injizierten Simulation formuliert diese
+  Texte mit dem konfigurierten Namen (`MockWorld({ assistantName })`), `brandText()` ist nur noch ein Sicherheitsnetz für
+  fremde Adapter.
+- **Sequenz**: Mit injizierter Simulation nummeriert die Mock-Welt Ereignisse und `ActivityEvent.sequence` mit der globalen
+  Sequenz des Ereignis-Hubs (`MockWorld({ nextSequence })`). Der Umschlag von `friday.activity.appended` trägt dieselbe Zahl
+  wie `data.sequence`, und `GET /activity?sinceSequence=` füllt Lücken mit den Zahlen des Stroms. Die Mock-Welt-Daten aus dem
+  Seed sind Testfixtures und liegen unter jeder Live-Nummer.
 - **Befehls-Intents**: `POST /commands` mit dem Text "Sprachaufnahme starten" bzw. "Fokus-Modus umschalten" steuert die
-  Sprachpipeline (Mock-Modus), alle anderen Texte gehen als Auftrag an den Befehls-Adapter.
+  Sprachpipeline (nur mit injizierter Simulation), alle anderen Texte gehen als Auftrag an den Befehls-Adapter.
 
 ## Adapter-Neustart, Logs und weitere Funktionen (Vertragslücken geschlossen)
 
@@ -98,8 +102,7 @@ Adapter-Secrets stehen nie im Klartext in Dateien: `env:NAME` oder `wincred:ZIEL
   API stoppt den Adapter über die Registry (`registry.restart`), erzeugt eine frische Instanz und initialisiert sie. Antwort `200`
   mit `ActionResult` (`status: completed`); startet der Adapter nicht wieder, `503 ADAPTER_UNAVAILABLE`. Der Audit-Eintrag
   (`adapter.restarted`, Kategorie `system`, Schweregrad `warning`) enthält Adapter-ID und Lebenszyklus vorher/nachher. Die Capability
-  `system.restartAdapter`/`system.openLogs` stellt die Control API selbst bereit (`registry.provideControlPlaneCapabilities`) und
-  nimmt sie nur im Mock-Modus mit Szenario-Konsole zurück, damit die Konsole sie schalten kann.
+  `system.restartAdapter`/`system.openLogs` stellt die Control API selbst bereit (`registry.provideControlPlaneCapabilities`).
 - **Adapter-Logs** `GET /adapters/{id}/logs?limit&level` (nur `owner`, Capability `system.openLogs`): die letzten Zeilen aus einem
   Ringpuffer (`LogBuffer`, 2000 Zeilen) des Control-API-Loggers, gefiltert nach Adapter (Feld `adapterId` oder Kategorie der
   Operation) und Mindest-Level, älteste zuerst. Zeilen ab `info` landen unabhängig vom konfigurierten Log-Level im Puffer. Jede Zeile
@@ -141,11 +144,11 @@ Adapter-Secrets stehen nie im Klartext in Dateien: `env:NAME` oder `wincred:ZIEL
   Meldungstexte werden serverseitig bereinigt (URLs, E-Mail-Adressen, Zahlenfolgen, Tokens) und nur als Logzeile
   festgehalten; in Metriken und Audit landet kein Text. Telemetrie erzeugt keine Audit-Einträge.
 
-## Dev-Konsole und Szenarien
+## Dev-Endpunkte und Szenarien
 
-`/api/v1/dev/*` existiert nur mit Mock-Daten und `dev.scenarioConsole` (sonst `404`) und nur für `owner`. Die CLI
-`apps/mock-console` (`pnpm scenario -- <befehl>`) meldet sich als `dev-owner` an und steuert Szenarien, Uhr, Adapter-
-Ausfälle, Latenz/Fehlerquote, Capabilities, Orb und Reset (`pnpm scenario -- --help`; `watch` liest den Ereignisstrom).
+`/api/v1/dev/*` existiert nur mit injizierter Simulation, also in Tests und auf dem E2E-Server (sonst `404`), und nur für `owner`.
+Ein ausgelieferter Server lehnt `auth.mode: dev` beim Start ab. Die Szenario-CLI `apps/mock-console` (`pnpm scenario -- ...`) und
+die Browser-Konsole sind entfernt; die E2E-Specs steuern Szenarien über `support/api.ts` (REST), nicht über eine UI.
 
 ## Tests
 
@@ -160,7 +163,7 @@ pnpm --filter @friday/control-api test        # vitest, test/*.test.ts
 | `security.test.ts` | Sitzungen, Cookies, CSRF, Origin/Host, Rollenmatrix über alle Operationen, Login-Drosselung, Sitzungsablauf |
 | `mutations.test.ts` | Idempotenz (Replay, Konflikt, parallel, Neustart), `If-Match`, `assistantName` |
 | `approvals.test.ts` | Approval-Token, Einmaligkeit, Ablauf, Doppel-Approve, Tier 3 mit Re-Auth, Sprachkanal, Rollen |
-| `degradation.test.ts` | Teilausfall (Mock und Hybrid), Capability fehlt, Latenz/Fehlerquote |
+| `degradation.test.ts` | Teilausfall (mit injizierter Simulation), Capability fehlt, Latenz/Fehlerquote |
 | `realtime.test.ts` | WebSocket: Umschläge, `?since`, `resync_required`, Ping/Pong, Sitzungsende, Sequenz über Neustarts |
 | `audit.test.ts` | Hashkette, Manipulationserkennung, abgeschnittenes Ende (Kopf-Anker), Neustart mit manipulierter Datenbank |
 | `observability.test.ts` | `/metrics` (Format, Rollen, Reihen), Frontend-Telemetrie (Validierung, Größe, Rate, Bereinigung) |
@@ -170,10 +173,11 @@ pnpm --filter @friday/control-api test        # vitest, test/*.test.ts
 | `config-files.test.ts` | alle Dateien in `config/layouts` und `config/themes` gegen ihre Schemas, Start ohne Warnung |
 | `secrets.test.ts` | keine Secrets in Antworten, Audit, Ereignissen, Logs und Datenbank |
 | `static.test.ts` | statisches Web: SPA-Fallback, CSP-Hashes, Path-Traversal |
-| `branding-commands.test.ts`, `mock-console.test.ts` | Branding, Befehls-Intents, Szenario-CLI gegen den echten Server |
+| `branding-commands.test.ts` | Branding, Befehls-Intents |
 
 `test/helpers.ts` startet die komplette App in einem temporären Verzeichnis (`startTestApi`) mit einstellbarer Uhr
-(`now`), Ringpuffer, Heartbeat und Log-Mitschnitt.
+(`now`), Ringpuffer, Heartbeat und Log-Mitschnitt. Die Simulation wird injiziert; `withoutSimulation: true` startet wie ein
+ausgelieferter Server.
 
 ## Bekannte Lücken (Vertrag und Betrieb)
 

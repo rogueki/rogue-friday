@@ -1,5 +1,5 @@
 import { CONTRACT_VERSION, type Freshness, type ScenarioControlRequest } from "@friday/sdk";
-import { isMockApiError, type ScenarioEngine } from "@friday/mock-data";
+import type { ScenarioEngine } from "@friday/mock-data";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { ApiError, notFound } from "../util/errors";
@@ -39,7 +39,7 @@ export const devHandlers: Partial<Record<OperationId, Handler>> = {
       state = engine.control(request);
     } catch (error) {
       // Keep the field-level details of the mock's validation errors (unknown event type, payload violates its schema).
-      if (isMockApiError(error)) throw new ApiError({ code: error.code, message: error.message, details: error.details });
+      if (ctx.runtime.simulation?.isApiError(error)) throw new ApiError({ code: error.code, message: error.message, details: error.details });
       throw error;
     }
     ctx.audit.action = `dev.${request.action}`;

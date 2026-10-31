@@ -77,6 +77,7 @@ export default defineConfig([
   globalIgnores([
     "**/node_modules/**",
     "**/dist/**",
+    "**/.e2e-dist/**",
     "**/out/**",
     "**/.next/**",
     "**/.next-*/**",

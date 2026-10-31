@@ -1,5 +1,7 @@
 ﻿# Mock-Szenarien (`@friday/mock-data`)
 
+Die Szenarien sind Testfixtures für Vitest und den E2E-Server; im ausgelieferten Dashboard gibt es sie nicht (Entscheidung 2026-10-31).
+
 Verbindliche Mock-Szenarien nach PLAN §44/§45. Alle Szenarien sind **deklarative Zeitleisten** (`packages/mock-data/src/scenarios/definitions.ts`):
 Schritte mit einem Offset `at` (ms auf der `MockClock`) und Aktionen auf der `MockWorld`. Dieses Dokument wird aus denselben Definitionen
 erzeugt, die Tests (`test/scenarios.test.ts`) prüfen die hier genannten Orb-Folgen gegen die Implementierung.
@@ -8,16 +10,14 @@ erzeugt, die Tests (`test/scenarios.test.ts`) prüfen die hier genannten Orb-Fol
 
 | Weg | Aufruf |
 |---|---|
-| **REST (Control API / MSW)** | `GET /api/v1/dev/scenarios` (Liste), `POST /api/v1/dev/scenarios/{id}/play` (optional `?speed=2`), `GET /api/v1/dev/scenarios/state`, `POST /api/v1/dev/scenarios/control` mit einem `ScenarioControlRequest` |
-| **Browser-Konsole** (MSW-Modus, `setupBrowserMocks()`) | `__FRIDAY_MOCK__.engine.play("voice-pipeline", { speed: 2 })`, `__FRIDAY_MOCK__.engine.control({ action: "adapter_offline", adapterId: "mock-calendar", offline: true })` |
+| **REST (nur E2E-/Testserver, injizierte Simulation)** | `GET /api/v1/dev/scenarios` (Liste), `POST /api/v1/dev/scenarios/{id}/play` (optional `?speed=2`), `GET /api/v1/dev/scenarios/state`, `POST /api/v1/dev/scenarios/control` mit einem `ScenarioControlRequest` |
 | **TypeScript / Tests** | `const engine = ScenarioEngine.for(world); engine.play(id); engine.runToCompletion();` oder `world.clock.advance(ms)` |
-| **CLI (`pnpm scenario …`)** | `@friday/mock-console` ist ein dünner Wrapper um `ScenarioEngine`: `list` → `engine.list()`, `play <id> [--speed n]` → `engine.play`, `stop`, `reset`, `advance <ms>` → `engine.advanceClock`, `offline <adapter>` → `engine.setAdapterState`, `latency <ms> [adapter]`, `errors <rate> [adapter]`, `capability <modul> <fähigkeit> on\|off`, `orb <mode>\|off` → `engine.forceOrbState`, `emit <json>` → `engine.emitEvent` |
 
 `play(id, { speed, reset })` lädt zuerst das Profil des Szenarios (`default`, `empty`, `highLoad`, `longGerman`), stellt den Basis-Snapshot wieder her
 (`reset: false` lässt den aktuellen Zustand stehen) und beruhigt bei `baseline: "quiet"` die Welt (offene Freigaben/Alerts, laufende Arbeit und Voice-Aktivität werden entfernt).
 Anschließend werden alle Schritte als Timer auf der Mock-Uhr geplant. `speed` skaliert Schritt-Offsets und Aktionsdauern (auch Eskalationsverzögerungen).
 
-## 2. Steuerung (Szenario-Konsole, PLAN §44.6)
+## 2. Steuerung (`ScenarioEngine`, PLAN §44.6)
 
 | Funktion | `ScenarioEngine` | `ScenarioControlRequest` |
 |---|---|---|
