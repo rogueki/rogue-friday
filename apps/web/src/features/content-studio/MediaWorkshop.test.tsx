@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { MediaWorkshop } from "./MediaWorkshop";
 
+vi.mock("@/lib/api/domains/contentStudioMedia", () => ({
+  contentStudioMediaApi: { createSpeech: vi.fn(), downloadProductionArtifact: vi.fn() },
+}));
+
 afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
 
 describe("Content Studio media controls", () => {

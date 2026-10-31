@@ -2,6 +2,8 @@
 import { createBrowserVoiceBridge } from "@/features/orb/bridge/browserVoiceBridge";
 import { loadOrbRuntime, orbAudioHandle, orbBridgeHandle } from "@/features/orb/orbHub";
 import { BrowserAudioResampler } from "./browserAudioResampler";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
 
 type AudioState = { available: boolean; active: boolean; paused: boolean; speaking: boolean; error: string | null };
 const FRAME_SAMPLES = 1_280;
@@ -49,9 +51,7 @@ export const browserAudio = {
     if (Date.now() - lastCheck < 10_000) return;
     readiness = (async () => {
       try {
-        const response = await fetch("/api/v1/voice/browser-audio-availability", { credentials: "same-origin", cache: "no-store" });
-        if (!response.ok) return;
-        const data = await response.json() as { available?: boolean };
+        const data = await call(getApiClient().GET("/api/v1/voice/browser-audio-availability"));
         if (!state.active) publish({ available: data.available === true });
       } catch { /* Windows and offline dashboards retain their existing voice controls. */ }
       finally { lastCheck = Date.now(); readiness = null; }

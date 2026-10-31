@@ -62,14 +62,9 @@ afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
 
 it("saves only the selected city and preserves other unsaved dashboard changes", async () => {
   const user = userEvent.setup();
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-    const url = new URL(String(input), "http://friday.test");
-    if (url.pathname === "/api/v1/location/search") return Response.json({ data: { items: [
-      { label: "Berlin", region: "Berlin", country: "Deutschland", countryCode: "DE", latitude: 52.52, longitude: 13.41 },
-    ] } });
-    throw new Error(`Unexpected raw fetch: ${url}`);
-  }));
-  const { api, unmount } = setup({ area: "area=dashboard" });
+  const { api, unmount } = setup({ area: "area=dashboard", extra: ({ path }) => path === "/location/search" ? Response.json({ data: { items: [
+    { label: "Berlin", region: "Berlin", country: "Deutschland", countryCode: "DE", latitude: 52.52, longitude: 13.41 },
+  ] } }) : undefined });
   await user.click(await screen.findByRole("switch", { name: "Kompakte Darstellung" }));
   await user.type(screen.getByRole("textbox", { name: "Stadt oder Postleitzahl" }), "10115");
   await user.click(screen.getByRole("button", { name: "Ort suchen" }));
@@ -92,10 +87,9 @@ it("saves only the selected city and preserves other unsaved dashboard changes",
 
 it("keeps a chosen city available after a version conflict and saves it on retry", async () => {
   const user = userEvent.setup();
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: { items: [
+  const { api } = setup({ area: "area=dashboard", conflictOnce: true, extra: ({ path }) => path === "/location/search" ? Response.json({ data: { items: [
     { label: "Köln", country: "Deutschland", countryCode: "DE", latitude: 50.94, longitude: 6.96 },
-  ] } })));
-  const { api } = setup({ area: "area=dashboard", conflictOnce: true });
+  ] } }) : undefined });
   await user.type(await screen.findByRole("textbox", { name: "Stadt oder Postleitzahl" }), "Köln");
   await user.click(screen.getByRole("button", { name: "Ort suchen" }));
   await user.click(await screen.findByRole("button", { name: "Köln, Deutschland" }));

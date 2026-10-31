@@ -1,27 +1,15 @@
 "use client";
 
+import type { WakeEnrollmentSample } from "@friday/sdk";
 import { Button, Dialog } from "@friday/ui";
 import { useEffect, useRef, useState } from "react";
-import { getCsrfToken } from "@/lib/api/client";
 import { captureEnrollmentPcm } from "@/features/voice-page/LinuxEnrollment";
+import { wakeEnrollmentApi, type WakeEnrollmentStatus } from "@/lib/api/domains/wakeEnrollment";
 
-type Kind = "wake" | "short" | "negatives" | "speech";
-type Status = { state: "idle" | "capturing" | "training" | "ready" | "failed" | "cancelled";
-  jobId: string | null; phrase: string | null; shortPhrase: string | null; required: Record<Kind, number>;
-  counts: Record<Kind, number>; quality: string | null; error: string | null };
+type Status = WakeEnrollmentStatus;
+type Kind = WakeEnrollmentSample["kind"];
 const kinds: Kind[] = ["wake", "short", "negatives", "speech"];
 const labels: Record<Kind, string> = { wake: "Aktivierungsphrase", short: "Kurzform", negatives: "andere ähnliche Wörter", speech: "Lesetext" };
-
-async function request(path: string, body?: object): Promise<Status> {
-  const csrf = getCsrfToken();
-  const response = await fetch(`/api/v1/voice/wake-enrollment${path}`, {
-    method: body === undefined ? "GET" : "POST", credentials: "same-origin", cache: "no-store",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json", ...(csrf ? { "X-CSRF-Token": csrf } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`Wake-Training fehlgeschlagen (HTTP ${response.status}).`);
-  return response.json() as Promise<Status>;
-}
 
 export function WakeEnrollment({ phrase, activePhrase, readOnly }: { phrase: string; activePhrase: string; readOnly: boolean }) {
   const [status, setStatus] = useState<Status | null>(null);
@@ -31,13 +19,13 @@ export function WakeEnrollment({ phrase, activePhrase, readOnly }: { phrase: str
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    const refresh = () => { void request("").then((next) => { if (mounted.current) setStatus(next); }).catch(() => {}); };
+    const refresh = () => { void wakeEnrollmentApi.status().then((next) => { if (mounted.current) setStatus(next); }).catch(() => {}); };
     refresh(); const timer = setInterval(refresh, 3000);
     return () => { mounted.current = false; clearInterval(timer); };
   }, []);
-  const run = async (path: string, body: object) => {
+  const run = async (action: () => Promise<Status>) => {
     setBusy(true); setError(null);
-    try { const next = await request(path, body); if (mounted.current) setStatus(next); }
+    try { const next = await action(); if (mounted.current) setStatus(next); }
     catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : "Wake-Training fehlgeschlagen."); }
     finally { if (mounted.current) setBusy(false); }
   };
@@ -50,7 +38,7 @@ export function WakeEnrollment({ phrase, activePhrase, readOnly }: { phrase: str
     setBusy(true); setError(null);
     try {
       const pcmBase64 = await captureEnrollmentPcm();
-      const next = await request("/samples", { jobId: status.jobId, kind, pcmBase64 });
+      const next = await wakeEnrollmentApi.addSample({ jobId: status.jobId ?? "", kind, pcmBase64 });
       if (mounted.current) setStatus(next);
     } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : "Aufnahme fehlgeschlagen."); }
     finally { if (mounted.current) setBusy(false); }
@@ -65,7 +53,7 @@ export function WakeEnrollment({ phrase, activePhrase, readOnly }: { phrase: str
       <div className="mc-stack">
         <p>Ausgewählte Phrase: <strong>{phrase}</strong></p>
         {status.jobId && !matches ? <p role="alert">Ein Training für „{status.phrase}“ ist offen. Bitte zuerst verwerfen oder die Phrase im Formular wiederherstellen.</p> : null}
-        {startable ? <Button variant="primary" disabled={busy || readOnly} onClick={() => void run("/start", { phrase })}>Aufnahme starten</Button> : null}
+        {startable ? <Button variant="primary" disabled={busy || readOnly} onClick={() => void run(() => wakeEnrollmentApi.start(phrase))}>Aufnahme starten</Button> : null}
         {status.jobId ? <>
           {kinds.filter((kind) => status.required[kind] > 0).map((kind) =>
             <p key={kind}>{labels[kind]}: {status.counts[kind]}/{status.required[kind]}</p>)}
@@ -77,9 +65,9 @@ export function WakeEnrollment({ phrase, activePhrase, readOnly }: { phrase: str
               {busy ? "Aufnahme läuft…" : `Probe aufnehmen (${labels[nextKind]})`}</Button>
           </> : null}
           {!nextKind && matches && ["capturing", "failed"].includes(status.state) ?
-            <Button variant="primary" disabled={busy || readOnly} onClick={() => void run("/train", { jobId: status.jobId })}>
+            <Button variant="primary" disabled={busy || readOnly} onClick={() => void run(() => wakeEnrollmentApi.train(status.jobId ?? ""))}>
               {status.state === "failed" ? "Training erneut versuchen" : "Modell trainieren"}</Button> : null}
-          <Button variant="ghost" disabled={busy || readOnly || status.state === "cancelled"} onClick={() => void run("/discard", { jobId: status.jobId })}>
+          <Button variant="ghost" disabled={busy || readOnly || status.state === "cancelled"} onClick={() => void run(() => wakeEnrollmentApi.discard(status.jobId ?? ""))}>
             Aufnahmen und vorbereitetes Modell verwerfen</Button>
         </> : null}
         {status.error || error ? <p role="alert">{error ?? status.error}</p> : null}

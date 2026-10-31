@@ -5,13 +5,18 @@ import { LocationWeatherArea } from "./LocationWeatherArea";
 
 const mocks = vi.hoisted(() => ({
   saveLocation: vi.fn(async () => undefined),
+  searchLocations: vi.fn(),
+  currentWeather: vi.fn(),
   settings: { dashboard: { location: null as null | { label: string; latitude: number; longitude: number } } },
 }));
 vi.mock("./SettingsDrafts", () => ({
   useAreaDraft: () => ({ value: mocks.settings.dashboard, readOnly: false }),
   useSettingsDrafts: () => ({ settings: mocks.settings, saveLocation: mocks.saveLocation, conflicts: [] }),
 }));
-afterEach(() => { mocks.saveLocation.mockClear(); mocks.settings.dashboard.location = null; vi.unstubAllGlobals(); });
+vi.mock("@/lib/api/domains/weather", () => ({
+  weatherApi: { searchLocations: mocks.searchLocations, currentWeather: mocks.currentWeather },
+}));
+afterEach(() => { mocks.saveLocation.mockClear(); mocks.searchLocations.mockReset(); mocks.currentWeather.mockReset(); mocks.settings.dashboard.location = null; vi.unstubAllGlobals(); });
 
 const confirm = () => {
   fireEvent.click(screen.getByRole("button", { name: "Standort aktivieren" }));
@@ -69,12 +74,13 @@ it("shows progress, resolves an actual city, then persists only on the explicit 
 });
 
 it("saves a selected postal-code result directly without requiring the global settings button", async () => {
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: { items: [
+  mocks.searchLocations.mockResolvedValue({ data: { items: [
     { label: "Paris", region: "Texas", country: "USA", countryCode: "US", latitude: 33.66, longitude: -95.56 },
-  ] } })));
+  ] } });
   render(<LocationWeatherArea />);
   fireEvent.change(screen.getByRole("textbox", { name: "Stadt oder Postleitzahl" }), { target: { value: "Paris" } });
   fireEvent.click(screen.getByRole("button", { name: "Ort suchen" }));
+  await waitFor(() => expect(mocks.searchLocations).toHaveBeenCalledWith("Paris", expect.any(String)));
   fireEvent.click(await screen.findByRole("button", { name: "Paris, Texas, USA" }));
   expect(mocks.saveLocation).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
