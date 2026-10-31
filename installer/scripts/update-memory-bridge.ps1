@@ -39,7 +39,7 @@ $paths = @('installer\setup-obsidian.ps1', 'installer\find-obsidian-install.ps1'
     'installer\wsl\powerpoint_runner.py', 'installer\wsl\configure_skill_keys.py', 'installer\wsl\configure_wiki_path.py',
     'installer\wsl\hermes_provider_auth.py',
     'installer\wsl\patch_hermes_run_stop.py', 'installer\wsl\patch_hermes_cron_lock.py', 'installer\wsl\setup_hermes.sh',
-    'installer\wsl\hermes_mcp_oauth_transport.py', 'installer\wsl\hermes_mcp_oauth_worker.py',
+    'installer\wsl\hermes_mcp_oauth_transport.py', 'installer\wsl\hermes_mcp_oauth_worker.py', 'installer\wsl\hermes_provider_oauth.py',
     'installer\wsl\configure_messenger_inbound_bridge.py', 'installer\wsl\setup_messenger_inbound_bridge.sh',
     'installer\wsl\setup_searxng.sh', 'installer\wsl\research_searxng_settings.py', 'installer\wsl\research_hermes_synthesis.py',
     'installer\scripts\update-memory-bridge.ps1', 'installer\scripts\update-dashboard-github.ps1',

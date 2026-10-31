@@ -429,7 +429,7 @@ def apply_env_value(home, source, key, value):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test", "pairing"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "skill-mutate", "skill-command", "skill-governance", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test", "pairing", "provider-oauth-start", "provider-oauth-status", "provider-oauth-cancel"):
         # An empty stdout with exit 2 looked like a broken adapter; the caller could not tell a typo from a crash.
         print(json.dumps({"error": "invalid_request",
                           "detail": "unknown action " + (sys.argv[1] if len(sys.argv) > 1 else "<missing>")}))
@@ -1223,6 +1223,16 @@ def locked_main(home, source, cli):
                 fcntl.flock(state_lock, fcntl.LOCK_UN)
                 state_lock.close()
         print(json.dumps({"flowId": request["flowId"], **state}))
+        return 0
+    if sys.argv[1] in ("provider-oauth-start", "provider-oauth-status", "provider-oauth-cancel"):
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        import hermes_provider_oauth
+        request = read_request()
+        if sys.argv[1] == "provider-oauth-start":
+            print(json.dumps(hermes_provider_oauth.start(home, source, request)))
+        else:
+            print(json.dumps(hermes_provider_oauth.status(home, request, cancel=sys.argv[1] == "provider-oauth-cancel")))
         return 0
     if sys.argv[1] == "mcp-probe":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":

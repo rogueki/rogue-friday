@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-provider-oauth-request.schema.json",
+  "title": "HermesProviderOAuthRequest",
+  "oneOf": [
+    { "type": "object", "properties": {
+      "action": { "const": "start" },
+      "provider": { "enum": ["nous", "openai-codex", "xai-oauth", "minimax-oauth"] }
+    }, "required": ["action", "provider"], "additionalProperties": false },
+    { "type": "object", "properties": {
+      "action": { "enum": ["status", "cancel"] },
+      "flowId": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+    }, "required": ["action", "flowId"], "additionalProperties": false }
+  ]
+}

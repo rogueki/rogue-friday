@@ -488,6 +488,19 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(status["failureClass"], "oauth_worker_unconfirmed")
         self.assertFalse((flow_dir / "stage").exists())
 
+    def test_provider_oauth_actions_dispatch_to_the_device_code_module(self):
+        import hermes_provider_oauth
+        flow = {"flowId": "a" * 32, "provider": "nous", "status": "starting"}
+        with patch.object(hermes_provider_oauth, "start", return_value=flow) as start:
+            code, result = self.invoke({"provider": "nous", "ownerId": "owner-1"}, "provider-oauth-start")
+        self.assertEqual((code, result), (0, flow))
+        self.assertEqual(start.call_args.args[2], {"provider": "nous", "ownerId": "owner-1"})
+        with patch.object(hermes_provider_oauth, "status", return_value={**flow, "status": "cancelling"}) as status:
+            code, result = self.invoke({"flowId": "a" * 32, "ownerId": "owner-1"}, "provider-oauth-cancel")
+            self.invoke({"flowId": "a" * 32, "ownerId": "owner-1"}, "provider-oauth-status")
+        self.assertEqual(result["status"], "cancelling")
+        self.assertEqual([call.kwargs["cancel"] for call in status.call_args_list], [True, False])
+
     def test_mcp_bearer_secret_is_redacted_and_revision_bound(self):
         self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
                      "revision": bridge.revision(self.config)})

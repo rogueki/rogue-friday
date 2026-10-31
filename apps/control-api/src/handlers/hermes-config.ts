@@ -4,7 +4,7 @@ import type { OperationId } from "../http/route-types";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 import { HERMES_MODEL_CREDENTIALS, type HermesPluginPatch, type HermesMcpPatch, type HermesMcpActivationPatch, type HermesMcpBearerPatch, type HermesModelCredentialPatch,
-  type GatewayPairingPlatform, type HermesConfigPatch as ServiceHermesConfigPatch } from "../services/hermes-config";
+  type GatewayPairingPlatform, type HermesConfigPatch as ServiceHermesConfigPatch, type HermesProviderOAuthRequest } from "../services/hermes-config";
 
 const single = <T>(data: T) => ({
   contractVersion: CONTRACT_VERSION,
@@ -132,6 +132,13 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
     const result = await ctx.runtime.hermesConfig.manageMcpOAuth(body, ctx.mutation.ifMatchVersion, ctx.principal!.userId);
     ctx.audit.action = "settings.hermes_mcp_oauth";
     ctx.audit.after = { action: body.action, status: result.status, flowId: result.flowId };
+    return { status: 200, body: single(result) };
+  },
+  async manageHermesProviderOAuth(ctx) {
+    const body = ctx.body as HermesProviderOAuthRequest;
+    const result = await ctx.runtime.hermesConfig.manageProviderOAuth(body, ctx.principal!.userId);
+    ctx.audit.action = "settings.hermes_provider_oauth";
+    ctx.audit.after = { action: body.action, provider: result.provider, status: result.status, flowId: result.flowId };
     return { status: 200, body: single(result) };
   },
   async patchHermesConfig(ctx) {

@@ -235,7 +235,7 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/hermes_mcp_protocol_probe.py', 'installer/wsl/hermes_mcp_bearer_apply.py',
         'installer/wsl/hermes_mcp_auth_probe.py',
         'installer/wsl/patch_hermes_run_stop.py', 'installer/wsl/patch_hermes_cron_lock.py', 'installer/wsl/hermes_cron_mutate.py', 'installer/wsl/setup_hermes.sh',
-        'installer/wsl/hermes_mcp_oauth_transport.py', 'installer/wsl/hermes_mcp_oauth_worker.py',
+        'installer/wsl/hermes_mcp_oauth_transport.py', 'installer/wsl/hermes_mcp_oauth_worker.py', 'installer/wsl/hermes_provider_oauth.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh',
         'installer/wsl/setup_searxng.sh', 'installer/wsl/research_searxng_settings.py', 'installer/wsl/research_hermes_synthesis.py',
         'installer/wsl/telephony_runner.py', 'installer/wsl/configure_himalaya.py', 'installer/wsl/change_himalaya.py',
