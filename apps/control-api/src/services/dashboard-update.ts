@@ -120,7 +120,7 @@ export class DashboardUpdateService {
     await rename(temporary, this.progressFile);
   }
 
-  private async lastResult(): Promise<DashboardUpdateStatus["lastResult"]> {
+  async lastResult(): Promise<DashboardUpdateStatus["lastResult"]> {
     try {
       const value = JSON.parse(await readFile(join(this.config.paths.dataDir, "dashboard-update-result.json"), "utf8"));
       if (!SHA.test(value.commit) || !["success", "failed"].includes(value.status) || typeof value.time !== "string") return null;

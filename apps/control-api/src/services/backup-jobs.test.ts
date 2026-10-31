@@ -28,3 +28,21 @@ it("runs once per repeated local DST slot and persists the job result", async ()
   expect(jobs.status().last).toMatchObject({ status: "success", path: "synthetic/snapshot" });
   db.close();
 });
+
+it("reports a failed backup to the callback and keeps the original error when the callback throws", async () => {
+  const db = openDatabase(":memory:");
+  const settings = { area(name: string) {
+    return name === "profile" ? { timeZone: "Europe/Paris" } :
+      { enabled: true, schedule: "0 3 * * *", targetPath: "synthetic", retentionCount: 2 };
+  } } as SettingsService;
+  const failure = new Error("Ziel nicht erreichbar");
+  const backup = { create: async () => { throw failure; }, coverage: () => "windows-and-memory" } as unknown as SystemBackupService;
+  const results: Array<{ status: string; error: string | null }> = [];
+  const jobs = new BackupJobsService(db, settings, backup, (result) => {
+    results.push(result);
+    throw new Error("alert failed");
+  });
+  await expect(jobs.run()).rejects.toBe(failure);
+  expect(results).toEqual([expect.objectContaining({ status: "failed", error: "Ziel nicht erreichbar" })]);
+  db.close();
+});

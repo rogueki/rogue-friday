@@ -2,7 +2,7 @@ import { kvGet, kvSet, type Db } from "../db/database";
 import type { SettingsService } from "./settings";
 import type { SystemBackupService } from "./system-backup";
 
-interface LastResult {
+export interface LastResult {
   at: string;
   status: "success" | "failed";
   path: string | null;
@@ -63,7 +63,8 @@ export function backupDue(schedule: string, date: Date, zone: string): { due: bo
 export class BackupJobsService {
   private running = false;
 
-  constructor(private readonly db: Db, private readonly settings: SettingsService, private readonly backup: SystemBackupService) {}
+  constructor(private readonly db: Db, private readonly settings: SettingsService, private readonly backup: SystemBackupService,
+    private readonly onResult?: (result: LastResult) => void) {}
 
   status(): { enabled: boolean; schedule: string; timeZone: string; targetPath: string; last: LastResult | null; running: boolean;
     coverage: "windows-and-memory" | "windows-wsl-and-memory"; restoreMode: "isolated-verification-only";
@@ -106,5 +107,8 @@ export class BackupJobsService {
   verify(path: string) { return this.backup.verifyPublished(path); }
   restoreTest(path: string, targetPath: string) { return this.backup.restoreIsolated(path, targetPath); }
 
-  private record(result: LastResult): void { kvSet(this.db, "system_backup.last_result", JSON.stringify(result)); }
+  private record(result: LastResult): void {
+    kvSet(this.db, "system_backup.last_result", JSON.stringify(result));
+    try { this.onResult?.(result); } catch { /* an alert must never fail the backup */ }
+  }
 }
