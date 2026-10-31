@@ -1221,6 +1221,13 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   (#159). Der Sprachdienst misst Antwortbeginn (Ende der Aufnahme bis erstes Audio), STT, Router, Sprecherpruefung und
   Modellantwort ueber die letzten 200 Befehle; die Sprachseite zeigt aktuell/Mittel/p95 (#160). Die Live-Messung
   "p95 <= 2 s" bleibt eine Owner-Abnahme. REL-01-Gates auf 988ed638 in `docs/agent-work/finalization/rel-01-gates.md`.
+- DASH-07.04/10.06/11.05/12.05, KEEP-01 (2026-10-31, N-186..N-190): Anbieter lassen sich unter "KI-Zugaenge" ueber
+  Hermes' eigenen Device-Code-Ablauf anmelden (nous, openai-codex, xai-oauth, minimax-oauth); Friday zeigt nur Code,
+  Link und Ablaufzeit, Hermes speichert den Zugang (#165). Ein abgezogenes Skill-Laufwerk wird klar gemeldet und
+  sperrt das Umschalten, statt die Liste umzuschreiben (#166). Ein abgebrochenes Sprecher-Training stellt das
+  bisherige Profil wieder her (#162). Tests fuer Sprachseiten-Resync (#163) und Gedaechtnis MEM-03/05 (#164).
+  Aufgabenstatus je Task in `docs/agent-work/finalization/task-status.md` (DASH-20.02). Echte Logins und Live-Tests
+  bleiben Owner-Abnahmen.
 - KEEP-03 (2026-10-30, N-181): Kanalwechsel-Regel fuer Vorschauen getestet und festgeschrieben (#156): ein zweiter
   Owner-Tab darf die identische Vorschau abschliessen, eine geaenderte Aktion, ein Viewer oder die Sprachbruecke nicht;
   Rueckfragen bleiben an die Sitzung gebunden.

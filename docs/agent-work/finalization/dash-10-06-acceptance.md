@@ -59,3 +59,10 @@ die Installation des Operators unberührt bleibt; das Profil und sein Wrapper si
 neuen Prozess, und ein modifizierter Skill wird nachweislich nicht still überschrieben. Offen bleiben das
 fehlende Laufwerk, die Fehlertexte bei `diff`/`inspect` (N-053, N-054) und der Nachweis am laufenden
 Operator-System (dort wurde nichts verändert).
+
+
+Nachtrag 2026-10-31 (#166, N-190): Fehlt ein Ordner aus `skills.external_dirs`, meldet das Inventar
+"Skill-Ordner nicht erreichbar"; jede Aenderung an `skills.disabled` wird mit 409 und dem Hinweis "Laufwerk nicht
+verbunden?" abgelehnt, die Liste bleibt unveraendert; nach Rueckkehr des Laufwerks gelingt das Schreiben wieder
+(`test_unplugged_skill_drive_blocks_activation_writes_and_is_reported`). N-053/N-054 sind CLOSED_VERIFIED. Offen
+bleibt nur der Nachweis am laufenden Operator-System.
