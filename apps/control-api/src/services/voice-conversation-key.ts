@@ -1,5 +1,8 @@
 import type { Runtime } from "../runtime/types";
 import { ApiError, validationFailed } from "../util/errors";
+import { readRuntimeVoiceSettings } from "./voice-settings";
+
+const REGION_LABEL = { "ap-southeast-1": "International (Singapur)", "cn-beijing": "Festlandchina (Peking)" } as const;
 
 export async function setConversationKey(runtime: Runtime, apiKey: string): Promise<{ keyConfigured: boolean }> {
   const adapter = runtime.config.adapters.voice;
@@ -34,4 +37,13 @@ export async function setConversationKey(runtime: Runtime, apiKey: string): Prom
   if (!data || typeof data !== "object" || Array.isArray(data) || (data as { keyConfigured?: unknown }).keyConfigured !== true)
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat den Schlüssel nicht bestätigt." });
   return { keyConfigured: true };
+}
+
+export async function adoptBrainConversationKey(runtime: Runtime): Promise<{ keyConfigured: boolean }> {
+  const brain = await runtime.hermesConfig.brainQwenKey();
+  const { settings } = await readRuntimeVoiceSettings(runtime);
+  // The voice service checks the key against its saved region; a mismatch would look like a rejected key.
+  if (settings.conversationRegion !== brain.region)
+    throw validationFailed(`Das Denkmodell nutzt die Region ${REGION_LABEL[brain.region]}. Zuerst unter Gespräch die Qwen-Region darauf stellen und speichern.`);
+  return setConversationKey(runtime, brain.key);
 }
