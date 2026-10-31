@@ -48,6 +48,8 @@ export interface RawVoiceStatus {
   wake_calibration?: RawWakeCalibration | null;
   /** Additive: output voice artifact (slot, clone/preset/cloud, slots with a reference); never paths or audio. */
   output_voice?: RawOutputVoice;
+  /** Additive: sliding windows (last 200 commands) of measured latencies; numbers only. */
+  latency?: RawLatency;
   game_mode?: string | null;
   /** Additive fields of the personalized installer (assistant name / wake phrase chosen at install time). */
   assistant_name?: string;
@@ -95,6 +97,16 @@ export interface RawWakeCalibration {
   calibrated_at: string | null;
   format?: number | null;
 }
+
+export interface RawLatencyStat {
+  current_ms: number | null;
+  avg_ms: number | null;
+  p95_ms: number | null;
+  count: number;
+}
+
+export const RAW_LATENCY_KEYS = ["speaker", "stt", "router", "model", "answer_start"] as const;
+export type RawLatency = Partial<Record<(typeof RAW_LATENCY_KEYS)[number], RawLatencyStat>>;
 
 export interface RawOutputVoice {
   choice: string | null;

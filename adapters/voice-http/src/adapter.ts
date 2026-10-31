@@ -19,6 +19,7 @@ import {
 import { DEFAULT_BASE_URL, DEFAULT_LOCAL_MODEL_URL, PROVIDER_SYSTEM, manifest } from "./manifest";
 import {
   emptyVoiceMetricsMapper,
+  voiceMetricsMapper,
   parseRawVoiceStatus,
   toVoicePhase,
   voiceStatusMapper,
@@ -290,18 +291,19 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     }]);
   }
 
-  async getVoiceMetrics(_params: Record<string, never>, _call: CallContext): Promise<Single<VoiceMetrics>> {
-    const { context } = this.ready();
+  async getVoiceMetrics(_params: Record<string, never>, call: CallContext): Promise<Single<VoiceMetrics>> {
+    const { voiceHttp, context } = this.ready();
+    const raw = await this.fetchRawStatus(voiceHttp, true, call);
     const mapContext = createMapContext({
       adapterId: manifest.id,
       system: PROVIDER_SYSTEM,
       clock: context.clock,
     });
-    return {
-      // No latency data source: all statistics are empty (sampleCount 0), freshness is "unknown".
-      data: emptyVoiceMetricsMapper.map(null, mapContext),
-      freshness: { state: "unknown", asOf: mapContext.syncedAt },
-    };
+    if (!raw.latency) {
+      // An older service measures nothing: all statistics stay empty (sampleCount 0), freshness is "unknown".
+      return { data: emptyVoiceMetricsMapper.map(null, mapContext), freshness: { state: "unknown", asOf: mapContext.syncedAt } };
+    }
+    return { data: voiceMetricsMapper.map(raw.latency, mapContext), freshness: { state: "fresh", asOf: mapContext.syncedAt } };
   }
 
   // ---- events (voice phases, TTS, audio level) ----------------------------------------------------------------------

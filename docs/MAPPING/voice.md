@@ -272,9 +272,13 @@ verbunden) -> `microphone.state = "off"`, Wake Word `disabled`, Modus `idle`. Ku
 
 ## 5. Metriken (`VoiceMetrics`) aus `command`-Ereignissen
 
-`sttLatency` <- `stt_ms`, `routerLatency` <- `router_ms`, `firstToken`/`ttsFirstAudio` <- Bridge (nicht geloggt).
-`wakeWordLatency`, `speakerVerificationLatency`: nicht im Log -> `{currentMs: null, ...}` bis die Bridge sie liefert.
-`current/avg/p95/sampleCount` berechnet der Adapter über ein gleitendes Fenster der letzten 200 Befehle.
+Der Dienst fuehrt je Messgroesse ein Fenster der letzten 200 Werte und meldet es im Status als `latency`
+(`current_ms`, `avg_ms`, `p95_ms` nach Nearest-Rank, `count`). Abbildung im Adapter:
+`speakerVerificationLatency` <- `speaker`, `sttLatency` <- `stt`, `routerLatency` <- `router`,
+`firstToken` <- `model` (komplette Hermes-Antwort, Hermes streamt hier nicht; externe Modelllatenz),
+`ttsFirstAudio` <- `answer_start` (Ende der Aufnahme bis zum ersten ausgegebenen Audio = Antwortbeginn).
+`wakeWordLatency` wird nicht gemessen und bleibt `{currentMs: null, ..., sampleCount: 0}`. Aeltere Dienste ohne
+`latency` liefern ueberall `sampleCount: 0` ("keine Datenquelle").
 
 ## 6. Geräte und Profile
 

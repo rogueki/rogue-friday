@@ -179,6 +179,28 @@ def post_json(url: str, payload: dict, headers: dict | None = None, timeout: flo
         return json.loads(resp.read().decode("utf-8"))
 
 
+LATENCY_WINDOW = 200          # gleitendes Fenster je Messgroesse (letzte Befehle)
+ANSWER_START_MAX_S = 120      # aeltere offene Antwortuhr gilt als verworfen (Abbruch, leere Erkennung)
+
+
+def latency_summary(samples) -> dict:
+    """current/avg/p95 (Nearest-Rank) in ganzen Millisekunden; ohne Werte alles None und count 0."""
+    values = [float(value) for value in samples]
+    if not values:
+        return {"current_ms": None, "avg_ms": None, "p95_ms": None, "count": 0}
+    ordered = sorted(values)
+    rank = max(1, -(-95 * len(ordered) // 100))
+    return {"current_ms": round(values[-1]), "avg_ms": round(sum(values) / len(values)),
+            "p95_ms": round(ordered[rank - 1]), "count": len(values)}
+
+
+def record_latency(service, name: str, value_ms: float) -> None:
+    """Haengt einen Messwert an, wenn der Dienst das Fenster fuehrt (schlanke Testobjekte haben keins)."""
+    samples = getattr(service, "latency", {}).get(name)
+    if samples is not None:
+        samples.append(value_ms)
+
+
 class Speaker:
     """Gewählte Stimme mit unterbrechbarer Wiedergabe und Piper als Ausfallreserve."""
 
@@ -212,6 +234,9 @@ class Speaker:
         self.level = LevelMeter()  # nur ein Pegelwert 0..1 fuer das Status-JSON, kein Audio
         self.echo_reference: collections.deque[tuple[float, np.ndarray]] = collections.deque()
         self.echo_lock = threading.Lock()
+        # Antwortbeginn: der Dienst setzt die Uhr beim Befehl, das erste ausgegebene Audio stoppt sie.
+        self.answer_clock: float | None = None
+        self.answer_start_ms: collections.deque[float] = collections.deque(maxlen=LATENCY_WINDOW)
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _note_output(self, audio: np.ndarray, rate: int) -> None:
@@ -221,6 +246,11 @@ class Speaker:
         if rate != SR:
             samples = np.interp(np.arange(0, len(samples), rate / SR), np.arange(len(samples)), samples).astype(np.float32)
         now = time.monotonic()
+        clock = getattr(self, "answer_clock", None)
+        if clock is not None:
+            self.answer_clock = None
+            if now - clock <= ANSWER_START_MAX_S:
+                self.answer_start_ms.append((now - clock) * 1000)
         with self.echo_lock:
             self.echo_reference.append((now, samples.copy()))
             while self.echo_reference and self.echo_reference[0][0] < now - 8:
@@ -685,6 +715,7 @@ class VoiceService:
                            cfg.get("tts_film_filter", False), cfg.get("tts_speaker_id"), cfg,
                            browser_audio=self.browser_audio)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
+        self.latency = {name: collections.deque(maxlen=LATENCY_WINDOW) for name in ("speaker", "stt", "router", "model")}
         if not self.cloud_voice:
             self._route("Hallo")  # lokaler Router-Warmup
 
@@ -1312,6 +1343,7 @@ class VoiceService:
             resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
                              timeout=900)
             answer = resp["choices"][0]["message"]["content"].strip()
+            record_latency(self, "model", (time.monotonic() - t) * 1000)
             log_event(event="hermes_done", task_id=task_id, route=route, model=model, provider=provider,
                       duration_s=round(time.monotonic() - t, 2), success=True)
             return answer
@@ -1341,6 +1373,14 @@ class VoiceService:
             self.memory_search_error = type(exc).__name__
             return []
 
+    def latency_payload(self) -> dict:
+        """Messwerte fuer das Dashboard: nur Zahlen, nie Text oder Audio."""
+        latency = getattr(self, "latency", {})
+        tts = getattr(self, "tts", None)
+        payload = {name: latency_summary(latency.get(name, ())) for name in ("speaker", "stt", "router", "model")}
+        payload["answer_start"] = latency_summary(getattr(tts, "answer_start_ms", ()))
+        return payload
+
     def _say_if_current(self, text: str, generation: int) -> bool:
         if getattr(self, "memory_dialog_id", None) and text not in (self.cfg.get("ack_wait", DEFAULT_ACK_WAIT), self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)):
             self._queue_memory_event("assistant_response", {"kind": "text", "text": text},
@@ -1363,6 +1403,8 @@ class VoiceService:
         command_score = self.verifier.score(audio) if owner_required and wake_audio is not None and len(audio) >= SR else -1.0
         # A verified question is sufficient when the longer wake window contains stale/noisy audio.
         score = max(combined_score, command_score)
+        if owner_required:
+            record_latency(self, "speaker", (time.monotonic() - t0) * 1000)
         probe_details = {"wake_s": round(len(wake_audio) / SR, 2) if wake_audio is not None else 0,
                          "command_s": round(len(audio) / SR, 2),
                          "command_score": round(command_score, 3) if command_score >= 0 else None}
@@ -1385,6 +1427,8 @@ class VoiceService:
             self.speaker_decision = {"decision": "verified", "score": round(score, 3),
                                      "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
+        if getattr(self, "tts", None) is not None:
+            self.tts.answer_clock = t0
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:
@@ -1395,6 +1439,7 @@ class VoiceService:
         if self.control_cancel.is_set() or generation != self.control_generation:
             return
         stt_ms = (time.monotonic() - t_stt) * 1000
+        record_latency(self, "stt", stt_ms)
         if not text:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
             return
@@ -1604,6 +1649,7 @@ class VoiceService:
         if self.control_cancel.is_set() or generation != self.control_generation:
             return
         route_ms = (time.monotonic() - t_route) * 1000
+        record_latency(self, "router", route_ms)
         task_id = uuid.uuid4().hex[:8]
         log_event(event="command", task_id=task_id, channel="voice", intent=decision.get("intent"),
                   route=decision["route"], background=decision.get("background"),
@@ -2039,6 +2085,7 @@ class VoiceService:
             self.memory_capture_error = type(exc).__name__
         return {**self.status, "speaking": speaking,
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
+                "latency": self.latency_payload(),
                 "runtime_settings": runtime_settings.effective(self.cfg),
                 "config_revision": getattr(self, "config_disk_hash", None),
                 "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
