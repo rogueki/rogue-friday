@@ -324,7 +324,7 @@ describe("speaker verification from the service (DASH-11.03)", () => {
     conversationBackend: "local",
     conversationConsent: false,
     conversationSilenceSeconds: 20,
-    proactiveAnnouncements: true,
+    proactiveAnnouncements: true, conversationRegion: "ap-southeast-1",
     ttsRate: 1,
   });
 

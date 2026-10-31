@@ -285,6 +285,7 @@ export function VoiceArea() {
   const integration = useVoiceIntegrationStatus();
   const saved = useSettings();
   if (!value) return null;
+  const regionPending = (saved.data?.data.voice.conversationRegion ?? "ap-southeast-1") !== (value.conversationRegion ?? "ap-southeast-1");
   const options = (kind: "input" | "output", current: string | null) => voiceDeviceOptions(devices.data?.items ?? [], kind, current,
     { systemDefault: t("settings.voice.systemDefault"), missing: t("settings.voice.deviceMissing") });
   return (
@@ -305,6 +306,7 @@ export function VoiceArea() {
             ["ttsRate", t("settings.voice.ttsRate")],
             ["sttLanguage", "Erkennungssprache"], ["sttModel", "Whisper-Modell"],
             ["conversationBackend", "Gesprächsmodus"],
+            ["conversationRegion", t("settings.voice.region")],
             ["conversationSilenceSeconds", t("settings.voice.silence")], ["proactiveAnnouncements", t("settings.voice.proactive")],
           ] as const).map(([field, label]) => <li key={field}>{label}: {
             integration.data.data.settings[field]?.verification === "verified" ? "Laufzeit bestätigt" : "Wirkung nicht bestätigt"
@@ -323,8 +325,11 @@ export function VoiceArea() {
       </Section>
       <Section title="Gespräch" description="Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf diesem PC. Fällt Qwen aus, antwortet der Assistent lokal.">
         <ConversationBackendControl value={value.conversationBackend ?? "local"} consent={value.conversationConsent ?? false} status={voiceStatus.data?.data.conversation}
-          readOnly={readOnly} onSelect={(conversationBackend, conversationConsent) => update({ conversationBackend, conversationConsent })} />
+          readOnly={readOnly} regionPending={regionPending} onSelect={(conversationBackend, conversationConsent) => update({ conversationBackend, conversationConsent })} />
         <FieldGrid>
+          <Select label={t("settings.voice.region")} value={value.conversationRegion ?? "ap-southeast-1"} disabled={readOnly}
+            options={[{ value: "ap-southeast-1", label: t("settings.voice.regionIntl") }, { value: "cn-beijing", label: t("settings.voice.regionCn") }]}
+            onChange={(event) => update({ conversationRegion: event.target.value as "ap-southeast-1" | "cn-beijing" })} />
           <Slider label={t("settings.voice.silence")} min={5} max={120} step={5}
             value={value.conversationSilenceSeconds ?? 20} disabled={readOnly} formatValue={(v) => `${v} s`}
             onValueChange={(conversationSilenceSeconds) => update({ conversationSilenceSeconds })} />
@@ -332,6 +337,7 @@ export function VoiceArea() {
             disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(proactiveAnnouncements) => update({ proactiveAnnouncements })} />
         </FieldGrid>
         <p>{t("settings.voice.silenceDesc")}</p>
+        <p>{t("settings.voice.regionDesc")}</p>
       </Section>
       <Section title="Spracherkennung" description="Ein Modellwechsel lädt ausschließlich ein bereits lokal vorhandenes Whisper-Modell. Fehlt es oder ist Cloud-Erkennung aktiv, bleibt das bisherige Modell erhalten.">
         <FieldGrid>

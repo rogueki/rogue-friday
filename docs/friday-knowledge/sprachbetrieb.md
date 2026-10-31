@@ -11,9 +11,9 @@ Bereich: sprache
 Das Wake Word lauscht lokal auf deinen Aktivierungssatz und löst aus, wenn es erkannt wird. Mit der Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Eine unbekannte Stimme erhält lediglich lokale Antworten, ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste wie Mail oder Kalender. Die Stimme eines Gastes geht nie an Qwen. Ein eigenes Wake Word braucht eigene Aufnahmen, die du im Dashboard unter Sprache einlernst oder im Installer neu aufnimmst.
 
 ## Lokal oder Qwen
-Stichworte: lokal, qwen, qwen audio, gesprächsmodus, cloud, token plan, fallback, antwort lokal
+Stichworte: lokal, qwen, qwen audio, gesprächsmodus, cloud, token plan, fallback, antwort lokal, region, singapur, peking
 Bereich: sprache
-Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt.
+Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt. Die Qwen-Region (International über Singapur oder Festlandchina über Peking) muss zu deinem Token Plan passen; ein Schlüssel aus der anderen Region wird abgelehnt.
 
 ## Folgefragen und Unterbrechen
 Stichworte: folgefrage, unterbrechen, stopp, abbrechen, nachfragen, gesprächsfenster, pause, gespräch beenden, danke das war's, tschüss

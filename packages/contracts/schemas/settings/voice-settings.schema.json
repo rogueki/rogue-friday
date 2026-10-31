@@ -44,6 +44,11 @@
       "type": "boolean",
       "description": "Friday speaks background results on her own; false holds them until the owner's next request. Missing means true."
     },
+    "conversationRegion": {
+      "type": "string",
+      "enum": ["ap-southeast-1", "cn-beijing"],
+      "description": "Alibaba Cloud region of the Token Plan used by Qwen Audio (international Singapore or mainland China); must match where the key was issued. Missing means ap-southeast-1."
+    },
     "ttsVoice": {
       "type": "string"
     },

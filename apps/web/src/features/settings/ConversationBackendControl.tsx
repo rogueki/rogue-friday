@@ -19,11 +19,12 @@ const ERROR_TEXT: Record<ConversationError, string> = {
   protocol: "unerwartete Antwort",
 };
 
-export function ConversationBackendControl({ value, consent, status, readOnly, onSelect }: {
+export function ConversationBackendControl({ value, consent, status, readOnly, regionPending = false, onSelect }: {
   value: ConversationBackend;
   consent: boolean;
   status: VoiceStatus["conversation"] | undefined;
   readOnly: boolean;
+  regionPending?: boolean;
   onSelect: (value: ConversationBackend, consent: boolean) => void;
 }) {
   const [consentChecked, setConsentChecked] = useState(consent);
@@ -121,7 +122,8 @@ export function ConversationBackendControl({ value, consent, status, readOnly, o
             onChange={(event) => setApiKey(event.target.value)}
           />
           <p>Der Schlüssel wird vor dem Speichern bei Qwen Audio geprüft und nur auf diesem PC verschlüsselt abgelegt.</p>
-          <Button type="button" size="sm" disabled={apiKey.trim().length < 8 || mutation.isPending} onClick={saveKey}>
+          {regionPending ? <p role="alert">Zuerst die geänderte Region speichern: Der Schlüssel wird gegen die gespeicherte Region geprüft.</p> : null}
+          <Button type="button" size="sm" disabled={apiKey.trim().length < 8 || mutation.isPending || regionPending} onClick={saveKey}>
             {mutation.isPending ? "Wird geprüft …" : "Prüfen und speichern"}
           </Button>
         </div>

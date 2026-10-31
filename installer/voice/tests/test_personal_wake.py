@@ -1342,6 +1342,7 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     svc.qwen_dialog = None
     svc.domain_tasks = object()
     built = []
+    regions = []
     dialog = types.SimpleNamespace(closed=threading.Event())
     dialog.close = dialog.closed.set
     orchestrator = types.SimpleNamespace(drain_announcements=lambda: [])
@@ -1350,6 +1351,7 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
         # Decides like the real builder: the consent travels with the requested backend (F-10).
         backend = jv.conversation_backend(cfg)
         built.append(backend)
+        regions.append(cfg.get("qwen_region"))
         return (orchestrator, dialog) if backend == "qwen" else None
 
     monkeypatch.setattr(svc, "_build_conversation", build)
@@ -1386,6 +1388,15 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     assert svc.qwen_dialog is None
     assert dialog.closed.wait(2) is True
     assert built == ["qwen", "local"]
+    # A region change only matters while Qwen talks; then the session is rebuilt on the new endpoint.
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationRegion": "cn-beijing"}) == 200
+    assert built == ["qwen", "local"]
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "qwen", "conversationConsent": True,
+                 "conversationRegion": "ap-southeast-1"}) == 200
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationRegion": "cn-beijing"}) == 200
+    assert built == ["qwen", "local", "qwen", "qwen"] and regions[-1] == "cn-beijing"
+    assert json.load(open(svc.config_path, encoding="utf-8"))["qwen_region"] == "cn-beijing"
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "local"}) == 200
 
     def failing(cfg):
         raise RuntimeError("x")

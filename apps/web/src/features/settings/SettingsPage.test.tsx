@@ -409,4 +409,13 @@ describe("conversation settings", () => {
     await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
     expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { conversationSilenceSeconds: 45, proactiveAnnouncements: false } });
   });
+
+  it("saves the Qwen region of the Token Plan", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=voice" });
+    await user.selectOptions(await screen.findByLabelText("Qwen-Region"), "cn-beijing");
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { conversationRegion: "cn-beijing" } });
+  });
 });

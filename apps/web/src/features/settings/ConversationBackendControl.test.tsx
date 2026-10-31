@@ -122,3 +122,13 @@ it("hides the consent checkbox in read-only mode", () => {
   expect(screen.queryByRole("checkbox")).toBeNull();
   view.unmount();
 });
+
+it("blocks the key check while the region change is unsaved", () => {
+  const view = render(<ConversationBackendControl value="local" consent={false} status={{ backend: "local", keyConfigured: false, consent: false, lastError: null }} readOnly={false} regionPending onSelect={vi.fn()} />);
+  expect(screen.getByRole("alert").textContent).toContain("Zuerst die geänderte Region speichern");
+  const input = screen.getByLabelText("Alibaba-Token-Plan-Schlüssel");
+  const button = screen.getByRole("button", { name: "Prüfen und speichern" }) as HTMLButtonElement;
+  fireEvent.change(input, { target: { value: "good-key-123" } });
+  expect(button.disabled).toBe(true);
+  view.unmount();
+});

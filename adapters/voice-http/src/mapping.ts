@@ -197,6 +197,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       typeof (raw.runtime_settings as Record<string, unknown>).conversationConsent === "boolean" &&
       Number.isInteger((raw.runtime_settings as Record<string, unknown>).conversationSilenceSeconds) &&
       typeof (raw.runtime_settings as Record<string, unknown>).proactiveAnnouncements === "boolean" &&
+      ["ap-southeast-1", "cn-beijing"].includes((raw.runtime_settings as Record<string, unknown>).conversationRegion as string) &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"

@@ -147,6 +147,7 @@ export function buildSettings(ctx: SeedContext): Settings {
       conversationConsent: false,
       conversationSilenceSeconds: 20,
       proactiveAnnouncements: true,
+      conversationRegion: "ap-southeast-1",
       ttsVoice: "de_DE-thorsten-medium",
       ttsRate: 1,
       inputDeviceId: null,

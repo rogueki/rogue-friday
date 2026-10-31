@@ -11647,6 +11647,11 @@ export interface components {
             conversationBackend?: "local" | "qwen";
             /** @description The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local. */
             conversationConsent?: boolean;
+            /**
+             * @description Alibaba Cloud region of the Token Plan used by Qwen Audio (international Singapore or mainland China); must match where the key was issued. Missing means ap-southeast-1.
+             * @enum {string}
+             */
+            conversationRegion?: "ap-southeast-1" | "cn-beijing";
             /** @description Silence after an answer until the conversation ends and the wake word is needed again; missing means 20. */
             conversationSilenceSeconds?: number;
             inputDeviceId: string | null;

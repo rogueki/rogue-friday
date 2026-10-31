@@ -22,7 +22,7 @@ export async function setConversationKey(runtime: Runtime, apiKey: string): Prom
   } catch { throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst nicht erreichbar." }); }
   if (response.status === 422) {
     const reason = response.statusText;
-    if (reason.includes("rejected the key")) throw validationFailed("Qwen Audio hat den Schlüssel abgelehnt. Bitte den Token-Plan-Schlüssel prüfen.");
+    if (reason.includes("rejected the key")) throw validationFailed("Qwen Audio hat den Schlüssel abgelehnt. Bitte den Token-Plan-Schlüssel und die Qwen-Region prüfen.");
     if (reason.includes("check failed: quota")) throw validationFailed("Kontingent des Token Plans aufgebraucht; der Schlüssel wurde nicht gespeichert.");
     if (reason.includes("check failed: network")) throw validationFailed("Qwen Audio ist gerade nicht erreichbar; der Schlüssel wurde nicht gespeichert.");
     if (reason.includes("check failed: model")) throw validationFailed("Qwen Audio ist in diesem Token Plan nicht freigeschaltet.");
