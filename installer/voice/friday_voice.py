@@ -802,10 +802,12 @@ class VoiceService:
             # Ohne lesbaren Schluessel bleibt der Dienst lokal nutzbar; das Dashboard zeigt den Fehler.
             log_event(event="qwen_unavailable", error=type(exc).__name__)
             self.status["qwen_error"] = "auth"
-        self._refresh_local_dialog()
         atexit.register(self._close_conversation)
         if not self.cloud_voice:
+            # Nobody spoke yet: the warm-up must not give the model a chance to run a tool.
+            self.local_dialog = None
             self._route("Hallo")  # lokaler Router-Warmup
+        self._refresh_local_dialog()
 
     def _load_wake(self, test_wake_model: str | None) -> None:
         oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")

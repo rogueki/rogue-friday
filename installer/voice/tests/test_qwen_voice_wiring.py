@@ -470,3 +470,14 @@ def test_announcing_uses_the_announcer_while_the_local_dialog_runs():
     svc.local_dialog = None
     svc._quiet_gate = lambda: types.SimpleNamespace(active=lambda: False)
     assert svc._announcing() is None
+
+
+def test_router_warmup_runs_before_the_tool_dialog_exists():
+    import inspect
+
+    source = inspect.getsource(voice_module().VoiceService.__init__)
+    off = source.index("self.local_dialog = None")
+    warmup = source.index('self._route("Hallo")')
+    built = source.rindex("self._refresh_local_dialog()")
+    # Nobody spoke at start-up, so the model must not get a chance to run a tool during the warm-up.
+    assert off < warmup < built
