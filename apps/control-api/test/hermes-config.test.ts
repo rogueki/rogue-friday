@@ -611,6 +611,12 @@ it("accepts delegation limits and rejects values outside the Hermes bounds", asy
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("explains an unreachable external skill folder instead of a generic failure", async () => {
+  const invoke = vi.fn(async () => { throw new Error("bridge_exit_5: skill_root_missing"); }) as unknown as RunnerInvoker;
+  await expect(fixture(invoke).update({ key: "skills.disabled", value: ["sample"] }, 123))
+    .rejects.toMatchObject({ code: "CONFLICT", message: expect.stringContaining("Laufwerk nicht verbunden") });
+});
+
 it("maps external revision changes to conflict and disables writes for an unknown Hermes source", async () => {
   const conflictInvoke = vi.fn(async () => {
     throw new Error("runner_4:revision_conflict");
