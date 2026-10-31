@@ -1216,6 +1216,11 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   vom Stimmen-Update mitgefuehrt; zuvor fehlten dann alle Stimmen bzw. scheiterte das Update (#153). Das persoenliche
   Wake-Modell traegt eine Formatversion; aeltere Dateien und ein ausstehendes Stimmen-Update werden auf der
   Sprachseite benannt (#157, N-182).
+- DASH-16.02/16.05 (2026-10-31, N-184, N-185): Freitext in der Textleiste endete im Live-Modus mit "kein Adapter";
+  jetzt geht er nach Bestaetigung als Hintergrundauftrag an den passenden Domain-Agenten, die Antwort kommt sofort
+  (#159). Der Sprachdienst misst Antwortbeginn (Ende der Aufnahme bis erstes Audio), STT, Router, Sprecherpruefung und
+  Modellantwort ueber die letzten 200 Befehle; die Sprachseite zeigt aktuell/Mittel/p95 (#160). Die Live-Messung
+  "p95 <= 2 s" bleibt eine Owner-Abnahme. REL-01-Gates auf 988ed638 in `docs/agent-work/finalization/rel-01-gates.md`.
 - KEEP-03 (2026-10-30, N-181): Kanalwechsel-Regel fuer Vorschauen getestet und festgeschrieben (#156): ein zweiter
   Owner-Tab darf die identische Vorschau abschliessen, eine geaenderte Aktion, ein Viewer oder die Sprachbruecke nicht;
   Rueckfragen bleiben an die Sitzung gebunden.
