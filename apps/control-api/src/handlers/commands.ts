@@ -8,6 +8,7 @@ import type { IntegrationEvent } from "../services/durable-memory";
 import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { parseTaskCreateIntent } from "../services/task-create-intent";
 import { routeAgentTask, taskModelPreview } from "../services/task-model-routing";
+import { classifyDomain, DOMAIN_RESULT_HINT, domainTaskTitle, resolveDomainAgent } from "../services/domain-routing";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
 import { taskCancelPreviewText } from "../services/task-cancel-preview";
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
@@ -46,7 +47,8 @@ const executeBase = portHandler("commands", "executeCommand", PORT_SPEC.commands
 const stopVoiceBase = portHandler("voice", "stopVoice", PORT_SPEC.voice.stopVoice);
 
 async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRequest,
-  body: NonNullable<ReturnType<typeof parseTaskCreateIntent>>): Promise<Awaited<ReturnType<Handler>>> {
+  body: NonNullable<ReturnType<typeof parseTaskCreateIntent>>,
+  delegate?: { agentName: string }): Promise<Awaited<ReturnType<Handler>>> {
   const ownerId = ctx.principal?.userId;
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
   const create = ctx.runtime.registry.getPort("tasks").createTask;
@@ -67,14 +69,18 @@ async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRe
   const policy = request.confirm
     ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
     : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
-        type: "system_change", action: `Aufgabe anlegen: ${body.title}`, rationale: "Lokale Aufgabe aus bestaetigtem Befehl",
-        preview: { kind: "text", title: "Neue Aufgabe", body: body.title }, impacts: [], execution: action });
+        type: "system_change",
+        action: delegate ? `An ${delegate.agentName} uebergeben: ${body.title}` : `Aufgabe anlegen: ${body.title}`,
+        rationale: delegate ? "Auftrag aus dem Text-Chat an einen Domain-Agenten" : "Lokale Aufgabe aus bestaetigtem Befehl",
+        preview: { kind: "text", title: delegate ? "Auftrag an Agent" : "Neue Aufgabe", body: body.title }, impacts: [], execution: action });
   const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
     riskTier: 2 as const };
   let response: CommandResponse;
   if (!request.confirm) {
     response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
-      previewText: `Aufgabe „${body.title}“ mit Prioritaet ${body.priority} anlegen?${taskModelPreview(action.body)}`, previewId: requestKey,
+      previewText: delegate
+        ? `${delegate.agentName} übernimmt „${body.title}“ im Hintergrund; das Ergebnis erscheint unter Aufgaben. Übergeben?${taskModelPreview(action.body)}`
+        : `Aufgabe „${body.title}“ mit Prioritaet ${body.priority} anlegen?${taskModelPreview(action.body)}`, previewId: requestKey,
       approvalId: null, result: null };
   } else if (policy.approval) {
     response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
@@ -85,10 +91,44 @@ async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRe
         if (actionToRun.kind !== "task.create") throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
         return (await create({ body: actionToRun.body }, { ...ctx.mutation, idempotencyKey })).data.id;
       });
-    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null,
-      approvalId: null, result: { message: "Aufgabe wurde angelegt.", taskId, targetRoute: `/tasks?task=${taskId}` } };
+    response = delegate
+      ? { ...base, status: "accepted", requiresConfirmation: false, previewText: null, approvalId: null,
+          result: { message: `${delegate.agentName} arbeitet im Hintergrund daran; das Ergebnis erscheint unter Aufgaben.`,
+            taskId, targetRoute: `/tasks?task=${taskId}` } }
+      : { ...base, status: "executed", requiresConfirmation: false, previewText: null,
+          approvalId: null, result: { message: "Aufgabe wurde angelegt.", taskId, targetRoute: `/tasks?task=${taskId}` } };
   }
   return { status: 200, body: response };
+}
+
+const CHAT_TENANT_PREFIX = "tenant:chat-";
+
+function missingCommandsAdapter(error: unknown): boolean {
+  const failure = error as { code?: unknown; details?: { category?: unknown } } | null;
+  return failure?.code === "CAPABILITY_MISSING" && failure.details?.category === "commands";
+}
+
+/**
+ * Without a commands adapter (live mode) free text is not a dead end: it becomes a Kanban task at the matching domain
+ * agent, staged like any task creation. Hermes runs it in the background; the request returns right after creation.
+ */
+async function executeFreeText(ctx: Parameters<Handler>[0], request: CommandRequest): Promise<Awaited<ReturnType<Handler>>> {
+  try {
+    return await executeBase(ctx);
+  } catch (error) {
+    if (!missingCommandsAdapter(error) || ctx.voiceBridgeAuthorized || !ctx.runtime.registry.getPort("tasks").createTask) throw error;
+    if (!authorize(ctx.principal!.role, "tasks.create").allowed)
+      throw forbidden("Auftraege an Agenten darf nur anlegen, wer Aufgaben anlegen darf.", { requiredAction: "tasks.create" });
+    const domain = classifyDomain(request.text);
+    const agent = await resolveDomainAgent(ctx, domain);
+    return executeTaskCreate(ctx, request, {
+      title: domainTaskTitle(request.text),
+      description: `${request.text}\n\n${DOMAIN_RESULT_HINT}`,
+      priority: "P2",
+      agentId: agent.id,
+      labels: [`${CHAT_TENANT_PREFIX}${domain}`],
+    }, { agentName: agent.name });
+  }
 }
 
 const TASK_REF_ID = /^task_[0-9A-Za-z]{26}$/;
@@ -1348,7 +1388,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : mailAction ? await executeMailAction(ctx, request, mailAction)
         : researchAction ? await executeResearchCommand(ctx, request, researchAction.topic)
         : readQueryWins ? await executeReadQuery(ctx, readQuery!)
-        : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
+        : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeFreeText(ctx, request);
       const response = result.body as CommandResponse;
       status = response.status;
       ctx.audit.context = {

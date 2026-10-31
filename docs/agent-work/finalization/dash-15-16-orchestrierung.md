@@ -148,7 +148,14 @@ Gateway-Neustart um 22:31:55, danach sechs Aufgaben in einem Durchgang:
   ueber `POST /api/v1/voice/tasks` eine Aufgabe beim Profil an (Einordnung nach Stichworten: Pruefen -> audit,
   Warnen/Ueberwachen -> alerts, Recherche -> research, sonst tasks), sagt "Ich gebe das an den ...-Agenten" und fragt
   den Status alle 10 s ab (hoechstens 30 min). Das Ergebnis kommt aus `Task.resultSummary` (Hermes `latest_summary`).
-  Ohne erreichbare Control API bleibt der alte synchrone Weg. Chat (16.05) folgt.
+  Ohne erreichbare Control API bleibt der alte synchrone Weg.
+- **DASH-16.02 Text-Chat -> Domain-Aufgabe (2026-10-31, #159):** Ohne commands-Adapter (Live) wird Freitext der
+  Textleiste mit derselben Einordnung (`services/domain-routing.ts`) nach Vorschau und Bestaetigung als Aufgabe beim
+  Profil angelegt (Label `tenant:chat-<bereich>`); `POST /api/v1/commands` antwortet sofort mit `accepted` und
+  `taskId`, das Ergebnis steht unter Aufgaben. Kein Request wartet auf den Worker.
+- **DASH-16.05 Messung (2026-10-31, #160):** Der Sprachdienst meldet `latency` (letzte 200 Werte) fuer
+  Sprecherpruefung, STT, Router, Modellantwort (Hermes, extern) und Antwortbeginn (Ende der Aufnahme bis zum ersten
+  ausgegebenen Audio). Die Sprachseite zeigt aktuell/Mittel/p95; die Abnahme p95 <= 2 s erfolgt live.
 - **DASH-16.04-16.06 im Sprachdienst:** Benannter Abbruch ("brich die Recherche ab") ueber
   `POST /api/v1/voice/tasks/{taskId}/cancel`; bei mehreren passenden Auftraegen fragt Friday nach. "Stopp" beendet
   nur Dialog und Audio, die Aufgabe laeuft weiter. Statusfragen werden aus dem lokalen Stand beantwortet (kein Netz,
