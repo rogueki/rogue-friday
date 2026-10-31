@@ -17,7 +17,8 @@ def requested(**overrides):
             "speakerVerificationRequired": True, "storeRawRecordings": False,
             "voiceHistoryEnabled": True, "sttLanguage": "de", "sttModel": None,
             "conversationBackend": "local", "conversationConsent": False, "ttsRate": 1.0,
-            "conversationSilenceSeconds": 20, "proactiveAnnouncements": True, **overrides}
+            "conversationSilenceSeconds": 20, "proactiveAnnouncements": True,
+            "conversationRegion": "ap-southeast-1", **overrides}
 
 
 def test_validation_rejects_invalid_phrase_and_implicit_recording():
@@ -106,6 +107,20 @@ def test_validate_rejects_invalid_conversation_silence_and_proactive_flag():
     with pytest.raises(ValueError, match="proactiveAnnouncements"):
         runtime_settings.validate(requested(proactiveAnnouncements="yes"), cfg)
 
+
+
+def test_effective_reports_the_qwen_region_and_falls_back_to_singapore():
+    assert runtime_settings.effective({"qwen_region": "cn-beijing"})["conversationRegion"] == "cn-beijing"
+    assert runtime_settings.effective({})["conversationRegion"] == "ap-southeast-1"
+    assert runtime_settings.effective({"qwen_region": "eu-central-1"})["conversationRegion"] == "ap-southeast-1"
+
+
+def test_validate_maps_the_region_and_rejects_unknown_ones():
+    cfg = {"wake_phrase": "Hey Friday"}
+    assert runtime_settings.validate(requested(conversationRegion="cn-beijing"), cfg)["qwen_region"] == "cn-beijing"
+    for value in ("eu-central-1", "", None):
+        with pytest.raises(ValueError, match="Invalid conversation region"):
+            runtime_settings.validate(requested(conversationRegion=value), cfg)
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):
     enabled = True

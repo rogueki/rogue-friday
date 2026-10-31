@@ -28,7 +28,7 @@ def read_csv(name: str) -> list[dict[str, str]]:
 settings = read_csv("settings-runtime-map.csv")
 areas = read_csv("dashboard-coverage.csv")
 actions = read_csv("dashboard-action-nlp-coverage.csv")
-assert len(settings) == 119, f"expected preserved 108 plus 2 STT, 4 conversation and 5 quiet-mode setting rows, got {len(settings)}"
+assert len(settings) == 120, f"expected preserved 108 plus 2 STT, 5 conversation and 5 quiet-mode setting rows, got {len(settings)}"
 assert len({row["field"] for row in settings}) == len(settings), "duplicate setting field"
 voice_schema = json.loads((Path(__file__).resolve().parents[1] / "packages" / "contracts" / "schemas" / "settings" / "voice-settings.schema.json").read_text(encoding="utf-8"))
 assert {row["field"].removeprefix("voice.") for row in settings if row["field"].startswith("voice.")} == set(voice_schema["properties"]), "voice matrix/schema mismatch"

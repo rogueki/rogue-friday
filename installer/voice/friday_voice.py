@@ -2734,13 +2734,17 @@ class VoiceService:
                             if "model" not in prepared:
                                 raise ValueError("Whisper model is not cached or cannot load locally")
                             prepared_stt = prepared["model"]
-                        conversation_change = (requested["conversationBackend"] !=
-                                               runtime_settings.effective(service.cfg)["conversationBackend"])
+                        current = runtime_settings.effective(service.cfg)
+                        # A new region means a new Qwen endpoint; the running session keeps the old one.
+                        conversation_change = (requested["conversationBackend"] != current["conversationBackend"] or
+                                               requested["conversationBackend"] == "qwen" and
+                                               requested["conversationRegion"] != current["conversationRegion"])
                         if conversation_change:
                             try:
                                 prepared_conversation = service._build_conversation(
                                     {**service.cfg, "conversation_backend": requested["conversationBackend"],
-                                     "qwen_consent": requested["conversationConsent"]})
+                                     "qwen_consent": requested["conversationConsent"],
+                                     "qwen_region": requested["conversationRegion"]})
                             except (RuntimeError, OSError) as exc:
                                 raise ValueError("Qwen Audio key cannot be read") from exc
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:

@@ -615,7 +615,7 @@
         "gesprächsende",
         "ansagen"
       ],
-      "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio, stellst die Stille bis Gesprächsende ein (5 bis 120 Sekunden, Standard 20) und entscheidest, ob F.R.I.D.A.Y. Ergebnisse von sich aus ansagt. Ist das aus, sagt sie fertige Aufträge und Rückfragen erst nach deiner nächsten Anfrage. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein."
+      "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio und die Qwen-Region deines Token Plans, stellst die Stille bis Gesprächsende ein (5 bis 120 Sekunden, Standard 20) und entscheidest, ob F.R.I.D.A.Y. Ergebnisse von sich aus ansagt. Ist das aus, sagt sie fertige Aufträge und Rückfragen erst nach deiner nächsten Anfrage. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein."
     },
     {
       "id": "einstellungen#benachrichtigungen",
@@ -1200,9 +1200,12 @@
         "cloud",
         "token plan",
         "fallback",
-        "antwort lokal"
+        "antwort lokal",
+        "region",
+        "singapur",
+        "peking"
       ],
-      "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt."
+      "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt. Die Qwen-Region (International über Singapur oder Festlandchina über Peking) muss zu deinem Token Plan passen; ein Schlüssel aus der anderen Region wird abgelehnt. Nutzt das Denkmodell bereits einen Alibaba Token Plan, übernimmt der Knopf „Schlüssel des Denkmodells übernehmen“ unter Einstellungen → Sprache → Gespräch dessen Schlüssel direkt auf diesem PC, ohne dass du ihn noch einmal eintippen musst."
     },
     {
       "id": "sprachbetrieb#folgefragen-und-unterbrechen",

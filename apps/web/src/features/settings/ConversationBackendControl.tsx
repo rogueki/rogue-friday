@@ -3,7 +3,7 @@
 import type { VoiceStatus } from "@friday/sdk";
 import { Button, Select, TextField } from "@friday/ui";
 import { useState } from "react";
-import { useSetVoiceConversationKey } from "@/lib/api/domains/voice";
+import { useAdoptVoiceConversationKeyFromBrain, useSetVoiceConversationKey } from "@/lib/api/domains/voice";
 
 type ConversationStatus = NonNullable<VoiceStatus["conversation"]>;
 type ConversationBackend = ConversationStatus["backend"];
@@ -19,11 +19,12 @@ const ERROR_TEXT: Record<ConversationError, string> = {
   protocol: "unerwartete Antwort",
 };
 
-export function ConversationBackendControl({ value, consent, status, readOnly, onSelect }: {
+export function ConversationBackendControl({ value, consent, status, readOnly, regionPending = false, onSelect }: {
   value: ConversationBackend;
   consent: boolean;
   status: VoiceStatus["conversation"] | undefined;
   readOnly: boolean;
+  regionPending?: boolean;
   onSelect: (value: ConversationBackend, consent: boolean) => void;
 }) {
   const [consentChecked, setConsentChecked] = useState(consent);
@@ -34,6 +35,7 @@ export function ConversationBackendControl({ value, consent, status, readOnly, o
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySaved, setKeySaved] = useState(false);
   const mutation = useSetVoiceConversationKey();
+  const adopt = useAdoptVoiceConversationKeyFromBrain();
   const select = (next: ConversationBackend): void => {
     if (next === "qwen") {
       if (status?.keyConfigured !== true) {
@@ -70,6 +72,21 @@ export function ConversationBackendControl({ value, consent, status, readOnly, o
       {
         onSuccess: () => {
           setApiKey("");
+          setReplaceKey(false);
+          setMissingKey(false);
+          setKeySaved(true);
+        },
+        onError: (error) => setKeyError(error.message),
+      },
+    );
+  };
+  const adoptBrainKey = (): void => {
+    setKeyError(null);
+    setKeySaved(false);
+    adopt.mutate(
+      {},
+      {
+        onSuccess: () => {
           setReplaceKey(false);
           setMissingKey(false);
           setKeySaved(true);
@@ -121,9 +138,14 @@ export function ConversationBackendControl({ value, consent, status, readOnly, o
             onChange={(event) => setApiKey(event.target.value)}
           />
           <p>Der Schlüssel wird vor dem Speichern bei Qwen Audio geprüft und nur auf diesem PC verschlüsselt abgelegt.</p>
-          <Button type="button" size="sm" disabled={apiKey.trim().length < 8 || mutation.isPending} onClick={saveKey}>
+          {regionPending ? <p role="alert">Zuerst die geänderte Region speichern: Der Schlüssel wird gegen die gespeicherte Region geprüft.</p> : null}
+          <Button type="button" size="sm" disabled={apiKey.trim().length < 8 || mutation.isPending || regionPending} onClick={saveKey}>
             {mutation.isPending ? "Wird geprüft …" : "Prüfen und speichern"}
           </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={adopt.isPending || mutation.isPending || regionPending} onClick={adoptBrainKey}>
+            {adopt.isPending ? "Wird geprüft …" : "Schlüssel des Denkmodells übernehmen"}
+          </Button>
+          <p>Nutzt das Denkmodell einen Alibaba Token Plan, übernimmt F.R.I.D.A.Y. dessen Schlüssel direkt auf diesem PC; er erscheint nicht im Browser.</p>
         </div>
       ) : null}
       {!readOnly && status?.keyConfigured === true && !replaceKey ? (

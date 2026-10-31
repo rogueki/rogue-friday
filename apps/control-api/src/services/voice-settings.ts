@@ -5,11 +5,11 @@ import { voiceRuntimeStatus } from "./voice-audio";
 
 export type RuntimeVoiceSettings = Pick<Settings["voice"], "wakeWordEnabled" | "wakeWord" | "pushToTalkKey" |
   "speakerVerificationRequired" | "storeRawRecordings" | "voiceHistoryEnabled" | "sttLanguage" | "sttModel" | "conversationBackend" | "conversationConsent" |
-  "conversationSilenceSeconds" | "proactiveAnnouncements" | "ttsRate">;
+  "conversationSilenceSeconds" | "proactiveAnnouncements" | "conversationRegion" | "ttsRate">;
 
 export const runtimeVoiceFields = ["wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
   "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel", "conversationBackend", "conversationConsent",
-  "conversationSilenceSeconds", "proactiveAnnouncements", "ttsRate"] as const;
+  "conversationSilenceSeconds", "proactiveAnnouncements", "conversationRegion", "ttsRate"] as const;
 
 export function runtimeVoiceSettings(voice: Settings["voice"]): RuntimeVoiceSettings {
   return Object.fromEntries(runtimeVoiceFields.map((field) => [field, voice[field]])) as unknown as RuntimeVoiceSettings;
@@ -36,6 +36,7 @@ export async function readRuntimeVoiceSettings(runtime: Runtime): Promise<{ sett
       !["local", "qwen"].includes(String(value.conversationBackend)) ||
       typeof value.conversationConsent !== "boolean" ||
       !Number.isInteger(value.conversationSilenceSeconds) || typeof value.proactiveAnnouncements !== "boolean" ||
+      (value.conversationRegion !== "ap-southeast-1" && value.conversationRegion !== "cn-beijing") ||
       typeof value.ttsRate !== "number" || !Number.isFinite(value.ttsRate))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst meldet keine vollständigen Laufzeiteinstellungen." });
   return { settings: value as RuntimeVoiceSettings, serviceStartedAt: status.service_started_at,
