@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { ConfigError, isLoopback, legacyEnvWarning, loadConfig, normalizeLegacyEnv, type FridayConfig } from "@friday/config";
+import { ConfigError, legacyEnvWarning, loadConfig, normalizeLegacyEnv, type FridayConfig } from "@friday/config";
 import { createControlApi } from "./app";
+import type { RuntimeSimulation } from "./runtime/simulation";
 
 /** The monorepo root (the folder with `pnpm-workspace.yaml`), or the current directory for a deployed bundle. */
 export function findProjectRoot(start: string): string {
@@ -27,36 +27,14 @@ function loadDotEnv(root: string): void {
   }
 }
 
-/**
- * Without a configured owner password hash the dashboard would be unreachable. For mock data on loopback (the only
- * combination `@friday/auth` accepts) it falls back to the fixed dev accounts and says so loudly.
- */
-export function withDevFallback(config: FridayConfig, env: NodeJS.ProcessEnv): FridayConfig {
-  const explicit = env.FRIDAY_AUTH_MODE;
-  const wantsDev = explicit === "dev" || (explicit === undefined && config.auth.mode === "local" && !config.auth.ownerPasswordHash.configured);
-  if (!wantsDev || config.auth.mode === "dev") return config;
-  if (config.dataMode !== "mock" || !isLoopback(config.server.host)) return config;
-  return {
-    ...config,
-    auth: { ...config.auth, mode: "dev" },
-    warnings: [
-      ...config.warnings,
-      "Kein Owner-Passwort-Hash konfiguriert: Dev-Login aktiv (feste Konten dev-owner/-operator/-viewer, nur Mock-Daten auf Loopback). Für den Echtbetrieb FRIDAY_OWNER_PASSWORD_HASH setzen.",
-    ],
-  };
-}
-
-export async function main(): Promise<void> {
+export async function main(options: { simulation?: RuntimeSimulation } = {}): Promise<void> {
   const root = findProjectRoot(process.cwd());
   loadDotEnv(root);
   const { env, legacy } = normalizeLegacyEnv(process.env);
   if (legacy.length > 0) console.warn(legacyEnvWarning(legacy));
   let config: FridayConfig;
   try {
-    config = withDevFallback(
-      loadConfig({ configDir: env.FRIDAY_CONFIG_DIR ?? join(root, "config"), cwd: root, env }),
-      env,
-    );
+    config = loadConfig({ configDir: env.FRIDAY_CONFIG_DIR ?? join(root, "config"), cwd: root, env });
   } catch (error) {
     if (error instanceof ConfigError) {
       console.error(error.message);
@@ -65,7 +43,7 @@ export async function main(): Promise<void> {
     throw error;
   }
 
-  const { app, runtime } = await createControlApi({ config, env });
+  const { app, runtime } = await createControlApi({ config, env, ...(options.simulation ? { simulation: options.simulation } : {}) });
   const { host, port } = config.server;
 
   let stopping = false;
@@ -88,7 +66,7 @@ export async function main(): Promise<void> {
   await app.listen(port, host);
   runtime.logger.info("Control API läuft", {
     url: `http://${host.includes(":") ? `[${host}]` : host}:${port}`,
-    dataMode: config.dataMode,
+    dataMode: runtime.config.dataMode,
     authMode: config.auth.mode,
     webRoot: config.paths.webRoot,
     version: runtime.buildVersion,
@@ -96,7 +74,7 @@ export async function main(): Promise<void> {
 }
 
 const entry = process.argv[1] ? resolve(process.argv[1]) : "";
-if (entry && (fileURLToPath(import.meta.url) === entry || entry.endsWith("main.js") || entry.endsWith("main.ts"))) {
+if (/[\\/]main\.[jt]s$/.test(entry)) {
   main().catch((error) => {
     console.error(error);
     process.exit(1);

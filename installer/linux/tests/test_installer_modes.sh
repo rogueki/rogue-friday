@@ -19,7 +19,9 @@ else
 fi
 
 generated=$(awk '/^  cat > "\$CONFIG\/dashboard.yaml" <<YAML$/ {p=1; next} p && /^YAML$/ {exit} p {print}' "$script")
-[[ "$generated" == *'dataMode: hybrid'* ]]
+[[ "$generated" == *'dataMode: live'* ]]
+[[ "$generated" != *'dataMode: hybrid'* ]]
+[[ "$generated" != *'scenarioConsole'* ]]
 [[ "$generated" == *'ownerPasswordHash: file:$CONFIG/secrets/owner.hash'* ]]
 [[ "$generated" != *'dataMode: mock'* ]]
 grep -Fq 'Environment=FRIDAY_INSTALL_ROOT=$CURRENT' "$script"

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
@@ -179,9 +179,10 @@ describe("browser bundle", () => {
     expect(hits).toEqual([]);
   });
 
-  it("only the MSW switch is a public build variable", () => {
-    const source = execFileSync("git", ["grep", "-ho", "NEXT_PUBLIC_[A-Z_]*", "--", "apps/web/src", "apps/web/next.config.ts", "apps/web/scripts"], { cwd: ROOT, encoding: "utf8" });
-    expect([...new Set(source.split("\n").filter(Boolean))]).toEqual(["NEXT_PUBLIC_FRIDAY_MSW"]);
+  it("the web app reads no public build variables", () => {
+    const result = spawnSync("git", ["grep", "-ho", "NEXT_PUBLIC_[A-Z_]*", "--", "apps/web/src", "apps/web/next.config.ts", "apps/web/scripts"], { cwd: ROOT, encoding: "utf8" });
+    expect(result.stdout).toBe("");
+    expect(result.status, "git grep exits with 1 when nothing matches").toBe(1);
   });
 });
 

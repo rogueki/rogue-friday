@@ -5,19 +5,19 @@ import { join, resolve } from "node:path";
 import { API_PORT } from "./support/constants";
 
 /**
- * E2E stack for `pnpm test:e2e` (Playwright `webServer`): the BUILT Control API (`apps/control-api/dist/main.js`) in
- * mock mode with dev login on a temp data dir, serving a snapshot of `apps/web/out` (same origin, one port).
+ * E2E stack for `pnpm test:e2e` (Playwright `webServer`): the BUILT e2e server (`apps/control-api/.e2e-dist/e2e-server.js`,
+ * the shipped Control API plus the injected mock world; never part of a release) in mock mode with dev login on a temp data dir, serving a snapshot of `apps/web/out` (same origin, one port).
  * The snapshot keeps the run stable when another process rebuilds apps/web/out. Stays in the foreground until terminated.
  */
 const root = resolve(import.meta.dirname, "..", "..");
-const main = join(root, "apps", "control-api", "dist", "main.js");
+const main = join(root, "apps", "control-api", ".e2e-dist", "e2e-server.js");
 const builtWebRoot = join(root, "apps", "web", "out");
 
 /**
  * Newest mtime (ms) below `dir`, or 0 when the directory is missing. Build outputs, dependencies and tests are
  * skipped so that only real sources decide whether a build is stale.
  */
-const SKIP_DIRS = new Set(["node_modules", ".next", "out", "dist", "coverage"]);
+const SKIP_DIRS = new Set(["node_modules", ".next", "out", "dist", ".e2e-dist", "coverage"]);
 function newestMtime(dir: string): number {
   if (!existsSync(dir)) return 0;
   let newest = 0;
@@ -32,7 +32,7 @@ function newestMtime(dir: string): number {
   return newest;
 }
 
-const sources = [join(root, "apps", "web", "src"), join(root, "apps", "control-api", "src"), join(root, "packages", "contracts", "schemas")];
+const sources = [join(root, "apps", "web", "src"), join(root, "apps", "control-api", "src"), join(root, "apps", "control-api", "test-support"), join(root, "packages", "contracts", "schemas")];
 for (const group of ["packages", "adapters"]) {
   const groupDir = join(root, group);
   if (!existsSync(groupDir)) continue;
@@ -48,10 +48,18 @@ const stale = existsSync(main) && existsSync(webIndex) && Math.min(statSync(main
 // FRIDAY_E2E_REUSE_BUILD=1 skips the freshness check for a deliberately frozen build.
 const rebuildStale = stale && process.env.FRIDAY_E2E_REUSE_BUILD !== "1";
 if (rebuildStale) console.log("[stack] build older than sources, rebuilding ...");
-if (process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(main) || !existsSync(webIndex) || rebuildStale) {
+// CI builds the app before the run (`pnpm build`); then only the e2e server bundle is missing.
+const shippedServer = join(root, "apps", "control-api", "dist", "main.js");
+const buildApp = process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(shippedServer) || !existsSync(webIndex) || rebuildStale;
+// pnpm is a .cmd shim on Windows, which execFileSync only finds through a shell.
+const shell = process.platform === "win32";
+if (buildApp) {
   console.log("[stack] pnpm build:app ...");
-  // pnpm is a .cmd shim on Windows, which execFileSync only finds through a shell.
-  execFileSync("pnpm", ["build:app"], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
+  execFileSync("pnpm", ["build:app"], { cwd: root, stdio: "inherit", shell });
+}
+if (buildApp || !existsSync(main)) {
+  console.log("[stack] pnpm --filter @friday/control-api build:e2e ...");
+  execFileSync("pnpm", ["--filter", "@friday/control-api", "build:e2e"], { cwd: root, stdio: "inherit", shell });
 }
 
 const dir = resolve(process.env.FRIDAY_E2E_DIR ?? join(tmpdir(), "friday-e2e"));

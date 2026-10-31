@@ -27,7 +27,7 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 | Orb | `@friday/orb` | `packages/orb` |
 | Adapter SDK (ports, registry, resilience) | `@friday/adapter-core` | `packages/adapter-core` |
 | Conformance suite | `@friday/adapter-testkit` | `packages/adapter-testkit` |
-| Mock data, seeds, scenarios, MSW handlers | `@friday/mock-data` | `packages/mock-data` |
+| Test fixtures (seeds, scenarios) for tests and the E2E server | `@friday/mock-data` | `packages/mock-data` |
 | Config loader | `@friday/config` | `packages/config` |
 | Auth (sessions, roles, CSRF) | `@friday/auth` | `packages/auth` |
 | Observability (logger, redaction, metrics) | `@friday/observability` | `packages/observability` |
@@ -36,7 +36,6 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 | Placeholders | `@friday/adapter-*-placeholder` | `adapters/*-placeholder` |
 | Control API (NestJS + Fastify) | `@friday/control-api` | `apps/control-api` |
 | Web (Next.js App Router) | `@friday/web` | `apps/web` |
-| Scenario CLI | `@friday/mock-console` | `apps/mock-console` |
 | Storybook | `@friday/storybook` | `apps/storybook` |
 
 ### Windows shell gotchas (this machine)
@@ -109,7 +108,7 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - Response validation against the contract schemas (AJV 2020) is **on in dev/test** and logs/fails on mismatch.
 - Persistence: `node:sqlite` (built into Node ≥ 22.13) at `${FRIDAY_DATA_DIR}/dashboard.sqlite` for settings,
   sessions, audit (append-only, hash chain), idempotency keys, command history. No native modules.
-- Data mode: `FRIDAY_DATA_MODE=mock|hybrid|live` + `config/adapters.yaml`.
+- Data mode: only `live` + `config/adapters.yaml`. A shipped server runs an old `mock`/`hybrid` configuration as `live` and logs a warning; the Linux installer writes `dataMode: live` and migrates existing `mock`/`hybrid` entries after backing up to `dashboard.yaml.bak-dataMode-<UTC>`.
 - Channel binding of previews: a command preview is a native approval draft bound to the owner, its unguessable
   previewId and the exact action; it is confirmed once. Another signed-in owner tab may finish the identical preview,
   a changed action (409) or another role may not. Clarification dialogs are bound to owner and session (5 min), so a
@@ -126,7 +125,7 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - Dev: `next dev` on 3000 rewrites `/api/*` to `FRIDAY_API_ORIGIN` (default `http://127.0.0.1:3100`).
   The WebSocket URL is derived from `GET /api/v1/meta` (`eventsPath`, optional `eventsOrigin`) — never hardcoded.
 - No `fetch()` in components. Query keys live in one module. Realtime events patch the cache deterministically.
-- Optional standalone mock: `NEXT_PUBLIC_FRIDAY_MSW=1` starts MSW in the browser with `@friday/mock-data` handlers.
+- Product code never imports the mock packages as values: `apps/web/src` and `apps/control-api/src` reference `@friday/mock-data`/`@friday/adapter-mock` only as types; tests, Storybook and the E2E server provide the fixtures.
 
 ## 7. Design
 

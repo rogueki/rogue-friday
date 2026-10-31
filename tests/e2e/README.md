@@ -1,8 +1,8 @@
 # Playwright-Suite (`pnpm test:e2e`)
 
 End-to-End-, Visual-Regression-, Accessibility- und Performance-Tests nach PLAN §51.4 bis §51.7 und §52 gegen das **gebaute**
-Command Center: Control API (`apps/control-api/dist/main.js`) im Mock-Modus mit Dev-Login, die statische Web-App
-(`apps/web/out`) liefert dieselbe Instanz aus (ein Port, gleicher Origin).
+Command Center: den E2E-Server (`apps/control-api/.e2e-dist/e2e-server.js`, ausgelieferter Server plus injizierte Simulation)
+mit Dev-Login, die statische Web-App (`apps/web/out`) liefert dieselbe Instanz aus (ein Port, gleicher Origin).
 
 ## Ausführen
 
@@ -15,7 +15,7 @@ E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Or
 ORB_EVIDENCE=1 pnpm test:e2e tests/e2e/orb-evidence.spec.ts   # Orb-Screenshots + Auto-Demo-Video
 ```
 
-- `playwright.config.ts` startet den Stack selbst (`webServer` -> `tests/e2e/stack.ts`). Fehlt der Build, läuft `pnpm build:app`
+- `playwright.config.ts` startet den Stack selbst (`webServer` -> `tests/e2e/stack.ts`). Fehlt der Build oder ist er älter als die Quellen, baut der Stack `pnpm build:app` und `pnpm --filter @friday/control-api build:e2e`
   automatisch; `FRIDAY_E2E_BUILD=1` erzwingt einen Neubau. Der Stack arbeitet auf einer **Kopie** von `apps/web/out`
   (Temp-Verzeichnis), ein paralleler Rebuild verändert den Lauf also nicht.
 - Entwicklung einer Spec: Stack einmal von Hand starten (`pnpm exec tsx tests/e2e/stack.ts`) und die Specs mit
@@ -24,16 +24,16 @@ ORB_EVIDENCE=1 pnpm test:e2e tests/e2e/orb-evidence.spec.ts   # Orb-Screenshots 
   `FRIDAY_CHROMIUM` (Standard in der Cloud: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). Chromium startet mit
   `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` (WebGL in Software).
 
-- Dev-Auth: Login akzeptiert jedes nicht leere Passwort, die erneute Authentifizierung (Stufe-3-Freigabe) verlangt das dokumentierte Dev-Passwort `dev`.
+- Dev-Auth: Der Dev-Login (nur mit injizierter Simulation auf dem E2E-Server; ein ausgelieferter Server lehnt `auth.mode: dev` beim Start ab) akzeptiert jedes nicht leere Passwort, die erneute Authentifizierung (Stufe-3-Freigabe) verlangt das dokumentierte Dev-Passwort `dev`.
 
 ## Aufbau
 
 | Datei                                                                                                                                     | Inhalt                                                                                                                                                         |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stack.ts`                                                                                                                                | Startet die gebaute Control API (Mock, Seed 42, Dev-Login, Temp-`FRIDAY_DATA_DIR`)                                                                             |
+| `stack.ts`                                                                                                                                | Startet den E2E-Server `apps/control-api/.e2e-dist/e2e-server.js` (ausgelieferter Server plus injizierte Simulation, Seed 42, Dev-Login, Temp-`FRIDAY_DATA_DIR`)                                                                             |
 | `support/fixtures.ts`                                                                                                                     | Auto-Fixtures: vor **jedem** Test Welt-Reset (`dev/scenarios/control reset`) und Wiederherstellung der Einstellungen; Fehler bei unbehandelten Page-Exceptions |
 | `support/api.ts`                                                                                                                          | Kleiner API-Client (Cookies, CSRF, Idempotency-Key) für Setup und Gegenprobe der UI-Aktionen am Server                                                         |
-| `navigation`, `scenarios`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5)                                                                                                                                                    |
+| `navigation`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5)                                                                                                                                                    |
 | `activity`, `agents`, `memory`, `alerts` `.spec.ts` | Mock-Flows der Kernmodule (PLAN Phase 7, §29/§30/§31/§39): echte UI-Interaktion gegen den gebauten Stack, jede Aktion wird zusätzlich an der Control API gegengeprüft (siehe "Modul-Flows") |
 | `visual.spec.ts`                                                                                                                          | Visual Regression (§51.4), Baselines in `__screenshots__/visual.spec.ts/` (pro Plattform)                                                                      |
 | `a11y.spec.ts`                                                                                                                            | axe-core WCAG 2.0/2.1 A+AA, Tastatur, Fokus, Reduced Motion, Nicht-nur-Farbe (§51.7)                                                                           |

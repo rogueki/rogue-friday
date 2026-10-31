@@ -608,7 +608,6 @@ function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
           <div className="mc-stack">
             <div className="mc-row">
               <HealthBadge state={healthStateFromWire(adapter.health.status)} labels={healthLabels} />
-              <TagPill tone={adapter.mode === "mock" ? "violet" : "green"}>{adapter.mode === "mock" ? t("system.adapters.mock") : t("system.adapters.live")}</TagPill>
               {adapter.enabled ? null : <TagPill tone="muted">{t("system.adapters.disabled")}</TagPill>}
             </div>
             <dl className="mc-kvlist">

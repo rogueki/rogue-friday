@@ -89,7 +89,7 @@ der Fortschritt steht in `C:\Friday\config\install-state.json` (`done` enthält 
    (`apps`, `packages`, `adapters`, `scripts` gespiegelt mit `/MIR`, `node_modules`/`dist`/`out` bleiben im Ziel erhalten;
    `config` ohne Löschen und ohne Überschreiben der beiden lokalen YAML-Dateien), dann `pnpm install --frozen-lockfile` und
    `pnpm build:app` in `C:\Friday\dashboard`. Ausgabe nach `C:\Friday\logs\dashboard-install.log`.
-6. **Konfiguration:** `dashboard.yaml` (hybrid, `127.0.0.1:3100`, `auth.mode: local`, `ui.assistantName` = gewählter Assistentenname)
+6. **Konfiguration:** `dashboard.yaml` (`dataMode: live`, `127.0.0.1:3100`, `auth.mode: local`, `ui.assistantName` = gewählter Assistentenname)
    und `adapters.yaml` (siehe §6). Existiert eine Datei, bleibt sie; weicht sie von der Vorgabe ab, fragt der Installer, ob er
    überschreiben soll (Standard „nein“, alte Datei wird nach `C:\Friday\backups` gesichert). Bei einem Namenswechsel
    (`change-assistant-name.bat`) wird nur `ui.assistantName` nachgezogen.
@@ -125,8 +125,8 @@ corepack enable
 corepack prepare pnpm@10.28.2 --activate      # Version = packageManager im package.json
 pnpm install --frozen-lockfile
 pnpm build:app                                 # baut nur Web (apps/web/out) und Control API (apps/control-api/dist)
-Copy-Item config\dashboard.hybrid.example.yaml config\dashboard.yaml    # einmalig, danach anpassen
-Copy-Item config\adapters.hybrid.example.yaml  config\adapters.yaml
+Copy-Item config\dashboard.example.yaml config\dashboard.yaml    # einmalig, danach anpassen
+Copy-Item config\adapters.example.yaml  config\adapters.yaml
 ```
 
 In `dashboard.yaml` muss für die Browser-Ersteinrichtung `auth.ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash`
@@ -202,24 +202,27 @@ Danach in `C:\Friday\config\install-state.json` `"dashboard"` aus `done` entfern
 
 | Modus | Bedeutung | Einsatz |
 |---|---|---|
-| `mock` | Alles simuliert (`@friday/adapter-mock`), offline lauffähig, Dev-Konten nur auf Loopback | Entwicklung, Demo, Tests |
-| `hybrid` (**Installer-Standard**) | In `adapters.yaml` genannte Kategorien live, alle anderen `mock-*` (in der Oberfläche als Simulation erkennbar) | Produktivstart, solange nur Hermes/Voice/System angebunden sind |
-| `live` | Nur konfigurierte Kategorien aktiv, alle anderen deaktiviert (nicht gemockt); Vorlage `config/adapters.live.example.yaml` | spätere Vollanbindung (Mail, Kalender, …) |
+| `live` (**einziger Modus**) | Nur eingerichtete Kategorien aktiv, nicht eingerichtete melden „nicht eingerichtet“; keine Ersatzdaten | Ausgelieferter Betrieb |
 
-Umstellen: `dataMode` ändern (und bei `live` die Adapterliste vervollständigen), dann den Dienst neu starten. `auth.mode: dev` ist
-nur mit `mock` und Loopback erlaubt; der Installer nutzt immer `local`.
+Ein ausgelieferter Server führt eine alte Konfiguration mit `mock` oder `hybrid` mit einer Warnung im Log als `live` aus. Der
+Linux-Installer schreibt `dataMode: live` und migriert bestehende `mock`/`hybrid`-Einträge nach `live` (vorher Sicherung
+`dashboard.yaml.bak-dataMode-<UTC>`).
+
+Umstellen: die Adapterliste in `adapters.yaml` vervollständigen, dann den Dienst neu starten. `auth.mode: dev` existiert nur mit
+injizierter Simulation (Tests und E2E-Server); ein ausgelieferter Server lehnt `auth.mode: dev` beim Start ab. Der Installer nutzt
+immer `local`.
 
 ## 6. Konfigurationsdateien
 
-- `dashboard.yaml` (Server, Pfade, Auth, UI, Logging; Schema `packages/config`), Vorlage `config/dashboard.hybrid.example.yaml`.
-- `adapters.yaml` (Allowlist + Kategorien), Vorlage `config/adapters.hybrid.example.yaml`. Vom Installer erzeugt:
+- `dashboard.yaml` (Server, Pfade, Auth, UI, Logging; Schema `packages/config`), Vorlage `config/dashboard.example.yaml`.
+- `adapters.yaml` (Allowlist + Kategorien), Vorlage `config/adapters.example.yaml`. Vom Installer erzeugt:
 
 | Kategorie | Provider (`@friday/…`) | Ziel |
 |---|---|---|
 | `tasks`, `activity`, `agents` | `hermes-*` (`adapter-hermes`) | Hermes-Dashboard `127.0.0.1:43691`, API-Server `127.0.0.1:43693` mit `apiKey: file:C:/Friday/config/hermes_api.key` |
 | `voice` | `friday-voice-http` (`adapter-voice-http`) | Voice-Status `127.0.0.1:43694`, Qwen `127.0.0.1:43692`, `wakePhrase` = Wake Word des Assistenten |
 | `system` | `local-system` (`adapter-system-local`) | Qwen-/Hermes-/Voice-Probes, `storagePaths: ["C:/"]`, `wslDistro: Ubuntu` |
-| alle übrigen | `mock-*` (Hybrid-Rückfall) | – |
+| alle übrigen | – (nicht eingerichtet) | – |
 
 Änderungen wirken nach einem Neustart des Dienstes. Der Anzeigename kommt aus `ui.assistantName`; `settings.profile.assistantName`
 (in der Oberfläche geändert, in SQLite) hat Vorrang.

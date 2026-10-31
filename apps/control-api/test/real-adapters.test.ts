@@ -10,11 +10,11 @@ import { startTestApi, type ApiClient, type TestApi } from "./helpers";
 const PASSWORD = "integration-test-password";
 
 /** The shipped example, pointed at the ephemeral ports of the fakes with a short breaker window (shipped: 30 s). */
-function exampleAdapters(name: "hybrid" | "live", upstreams: FakeUpstreams): string {
-  return renderAdaptersExample(name, { ports: upstreams.ports, breaker: { failureThreshold: 3, resetAfterMs: 1000 } });
+function exampleAdapters(upstreams: FakeUpstreams): string {
+  return renderAdaptersExample({ ports: upstreams.ports, breaker: { failureThreshold: 3, resetAfterMs: 1000 } });
 }
 
-describe("real adapters behind the Control API (hybrid)", () => {
+describe("real adapters behind the Control API (live)", () => {
   let upstreams: FakeUpstreams;
   let keyDir: string;
   let keyFile: string;
@@ -23,14 +23,14 @@ describe("real adapters behind the Control API (hybrid)", () => {
   const logs: string[] = [];
 
   beforeAll(async () => {
-    keyDir = mkdtempSync(join(tmpdir(), "friday-hybrid-"));
+    keyDir = mkdtempSync(join(tmpdir(), "friday-live-adapters-"));
     keyFile = join(keyDir, "hermes_api.key");
     upstreams = await startFakeUpstreams({ ports: { hermesApi: 0, hermesDashboard: 0, voice: 0, llama: 0, control: 0 }, keyFile });
     api = await startTestApi({
-      dataMode: "hybrid",
+      dataMode: "live",
       authMode: "local",
       ownerPassword: PASSWORD,
-      adaptersYaml: exampleAdapters("hybrid", upstreams),
+      adaptersYaml: exampleAdapters(upstreams),
       env: { HERMES_API_KEY_FILE: keyFile, FRIDAY_STORAGE_PATH: "/" },
       logs,
       healthIntervalMs: 200,
@@ -48,7 +48,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
     rmSync(keyDir, { recursive: true, force: true });
   });
 
-  it("registers the real providers and keeps mock fallbacks for every other category", async () => {
+  it("registers the real providers and leaves every other category unconfigured", async () => {
     const entries = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string; category: string }; health: { status: string } }>;
     const byCategory = Object.fromEntries(entries.map((entry) => [entry.manifest.category, entry]));
     expect(byCategory.tasks?.manifest.id).toBe("hermes-tasks");
@@ -58,7 +58,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
     expect(byCategory.voice?.manifest.id).toBe("friday-voice-http");
     expect(byCategory.system?.manifest.id).toBe("local-system");
     for (const category of ["memory", "approvals", "communication", "calendar", "research", "files", "notifications", "audit", "commands"]) {
-      expect(byCategory[category]?.manifest.id, category).toBe(`mock-${category}`);
+      expect(byCategory[category], category).toBeUndefined();
     }
     for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
     const capabilities = (await owner.get("/api/v1/capabilities")).json() as { modules: { voice: Record<string, unknown> } };
@@ -122,41 +122,10 @@ describe("real adapters behind the Control API (hybrid)", () => {
     await expect.poll(async () => (await owner.get("/api/v1/tasks")).statusCode, { timeout: 15000 }).toBe(503);
     await expect.poll(async () => (await owner.get("/api/v1/voice/status")).statusCode, { timeout: 8000 }).toBe(200);
     expect((await owner.get("/api/v1/system/services")).statusCode).toBe(200);
-    expect((await owner.get("/api/v1/memory")).statusCode).toBe(200);
     await upstreams.start("hermes");
     await expect.poll(async () => (await owner.get("/api/v1/tasks")).statusCode, { timeout: 30000 }).toBe(200);
   });
 
-  it("starts hybrid fallback data empty but warns for a new P1 alert", async () => {
-    for (const path of ["/api/v1/memory", "/api/v1/approvals", "/api/v1/notifications", "/api/v1/calendar/events", "/api/v1/files"]) {
-      expect((await owner.get(path)).json().items, path).toHaveLength(0);
-    }
-    const adapterLogs = (await owner.get("/api/v1/adapters/mock-notifications/logs")).json().items as Array<{ message: string }>;
-    expect(adapterLogs.some((entry) => entry.message === "Healthcheck erfolgreich")).toBe(false);
-    expect((await owner.get("/api/v1/notifications?priority=P1&status=open")).json().items).toHaveLength(0);
-    await expect.poll(async () => (await owner.get("/api/v1/health")).json().status, { timeout: 10000 }).toBe("online");
-    const before = (await owner.get("/api/v1/orb/status")).json().data;
-    expect(before.status.health).toBe("online");
-    expect(before.layers.attention).toBe("none");
-
-    api.runtime.world!.notifications.raise({ priority: "P1", category: "system", title: "Runtime-Warnung", body: "Test" });
-    const orb = (await owner.get("/api/v1/orb/status")).json().data;
-    expect(orb.status.health).toBe("online");
-    expect(orb.layers.attention).toBe("warning");
-  });
-});
-
-it.each([
-  { dataMode: "mock" as const },
-  { dataMode: "hybrid" as const, worldProfile: "default" },
-])("keeps curated P1 notifications for an explicit demo profile ($dataMode)", async (options) => {
-  const api = await startTestApi({ ...options, ...(options.dataMode === "hybrid" ? { authMode: "local", ownerPassword: PASSWORD } : {}) });
-  try {
-    const notifications = api.runtime.world?.state.notifications.filter((item) => item.priority === "P1" && item.status === "open");
-    expect(notifications).toHaveLength(2);
-  } finally {
-    await api.close();
-  }
 });
 
 describe("allowlist wiring", () => {
@@ -179,11 +148,11 @@ describe("allowlist wiring", () => {
 
   it("lets the real packages win when the allowlist still names the placeholder packages", async () => {
     const logs: string[] = [];
-    const yaml = exampleAdapters("hybrid", upstreams)
+    const yaml = exampleAdapters(upstreams)
       .replace('hermes-tasks: "@friday/adapter-hermes"', 'hermes-tasks: "@friday/adapter-hermes-placeholder"')
       .replace('friday-voice-http: "@friday/adapter-voice-http"', 'friday-voice-http: "@friday/adapter-voice-placeholder"');
     api = await startTestApi({
-      dataMode: "hybrid",
+      dataMode: "live",
       authMode: "local",
       ownerPassword: PASSWORD,
       adaptersYaml: yaml,
@@ -198,8 +167,8 @@ describe("allowlist wiring", () => {
   });
 
   it("keeps the placeholder system adapter selectable under its own id", async () => {
-    const yaml = exampleAdapters("hybrid", upstreams).replace('local-system: "@friday/adapter-system-local"', 'windows-wsl-system: "@friday/adapter-system-placeholder"').replace("provider: local-system", "provider: windows-wsl-system");
-    api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: PASSWORD, adaptersYaml: yaml, env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/" }, logs: [] });
+    const yaml = exampleAdapters(upstreams).replace('local-system: "@friday/adapter-system-local"', 'windows-wsl-system: "@friday/adapter-system-placeholder"').replace("provider: local-system", "provider: windows-wsl-system");
+    api = await startTestApi({ dataMode: "live", authMode: "local", ownerPassword: PASSWORD, adaptersYaml: yaml, env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/" }, logs: [] });
     const client = api.client();
     await client.loginOwner(PASSWORD);
     // The local-system config keys do not fit the placeholder's schema, so it initialises as failed; only the selection is asserted.
@@ -211,10 +180,10 @@ describe("allowlist wiring", () => {
     const dir = mkdtempSync(join(tmpdir(), "friday-live-"));
     try {
       api = await startTestApi({
-        dataMode: "hybrid", // the helper writes dashboard.yaml; the live mode is switched through the env override below
+        dataMode: "live",
         authMode: "local",
         ownerPassword: PASSWORD,
-        adaptersYaml: exampleAdapters("live", upstreams),
+        adaptersYaml: exampleAdapters(upstreams),
         env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/", FRIDAY_DATA_MODE: "live" },
         dir,
       });

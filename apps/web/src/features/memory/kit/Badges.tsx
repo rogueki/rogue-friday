@@ -17,8 +17,7 @@ export interface DataBadgesProps {
 export function DataBadges({ sources, freshness, className }: DataBadgesProps) {
   const { t, locale } = useT();
   const systems = Array.from(new Set((sources ?? []).map((source) => source.adapterId)));
-  const isMock = (sources ?? []).length > 0 && (sources ?? []).every((source) => source.system === "mock");
-  const mode = freshness?.state === "offline-cache" ? "cache" : isMock ? "mock" : "live";
+  const mode = freshness?.state === "offline-cache" ? "cache" : "live";
   return (
     <span className={["mk-badges", className].filter(Boolean).join(" ")}>
       {systems.length > 0 ? (
@@ -26,7 +25,7 @@ export function DataBadges({ sources, freshness, className }: DataBadgesProps) {
           source={systems.join(", ")}
           mode={mode}
           prefix={t("memory.kit.source")}
-          modeLabels={{ live: t("memory.kit.mode.live"), mock: t("memory.kit.mode.mock"), cache: t("memory.kit.mode.cache") }}
+          modeLabels={{ live: t("memory.kit.mode.live"), cache: t("memory.kit.mode.cache") }}
         />
       ) : null}
       {freshness ? (

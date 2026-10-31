@@ -8,6 +8,7 @@ import { createLogger } from "@friday/observability";
 import { createControlApi, type ControlApi } from "../src/app";
 import type { ResponseValidationMode } from "../src/runtime/types";
 import type { ResearchSetupProbe, ResearchSetupRun } from "../src/services/research-setup";
+import { simulation } from "../test-support/simulation";
 
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
@@ -35,6 +36,8 @@ export interface TestApiOptions {
   now?: () => number;
   approvalTokenTtlMs?: number;
   worldProfile?: string;
+  /** Start like a shipped server: no mock world, scenario engine or mock adapters are injected. */
+  withoutSimulation?: boolean;
   /** Receives every log line (JSON) the API writes, to scan for leaks. */
   logs?: string[];
 }
@@ -93,6 +96,7 @@ ${options.yamlExtra ?? ""}
     : undefined;
   const api = await createControlApi({
     config,
+    ...(options.withoutSimulation ? {} : { simulation }),
     ...(options.providerFetch ? { providerFetch: options.providerFetch } : {}),
     researchPageFetch: options.researchPageFetch ?? (async () => { throw new Error("test page unavailable"); }),
     researchSynthesize: options.researchSynthesize ?? (async () => null),

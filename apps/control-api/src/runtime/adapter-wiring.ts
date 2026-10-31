@@ -12,7 +12,6 @@ import { exampleTasksFactory } from "@friday/adapter-example-http";
 import { hermesFactories as hermesLiveFactories } from "@friday/adapter-hermes";
 import { hermesFactories as hermesPlaceholderFactories } from "@friday/adapter-hermes-placeholder";
 import { mailFactory } from "@friday/adapter-mail-placeholder";
-import { createMockFactories } from "@friday/adapter-mock";
 import { localSystemFactory } from "@friday/adapter-system-local";
 import { systemFactory } from "@friday/adapter-system-placeholder";
 import { voiceHttpFactory } from "@friday/adapter-voice-http";
@@ -26,9 +25,10 @@ import {
   type SecretRefState,
 } from "@friday/config";
 import type { Logger } from "@friday/observability";
-import { MockWorld } from "@friday/mock-data";
+import type { MockWorld } from "@friday/mock-data";
 import type { AdapterOverrideStore } from "../db/stores";
 import type { EventHub } from "../realtime/hub";
+import type { RuntimeSimulation, SimulationWorldOptions } from "./simulation";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { kvGet, kvSet, type Db } from "../db/database";
 
@@ -94,9 +94,9 @@ const SUPERSEDED_BY: Readonly<Record<string, string>> = {
 };
 
 /** Factories of every package the allowlist can point to. The API bundles them statically (no dynamic import). */
-function packageFactories(world: MockWorld | undefined): Record<string, AdapterFactory[]> {
+function packageFactories(world: MockWorld | undefined, simulation: RuntimeSimulation | undefined): Record<string, AdapterFactory[]> {
   return {
-    "@friday/adapter-mock": world ? createMockFactories({ world }) : [],
+    "@friday/adapter-mock": world && simulation ? simulation.mockFactories(world) : [],
     "@friday/adapter-example-http": [exampleTasksFactory],
     "@friday/adapter-mail-placeholder": [mailFactory],
     "@friday/adapter-calendar-placeholder": [calendarFactory],
@@ -114,6 +114,7 @@ export interface AdapterWiringOptions {
   logger: Logger;
   hub: EventHub;
   world: MockWorld | undefined;
+  simulation?: RuntimeSimulation;
   overrides: AdapterOverrideStore;
   secrets: RuntimeSecrets;
   env: NodeJS.ProcessEnv;
@@ -149,9 +150,9 @@ function splitConfig(config: Readonly<Record<string, unknown>>): {
 }
 
 export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
-  const { config, logger, hub, world, overrides, secrets, env } = options;
+  const { config, logger, hub, world, simulation, overrides, secrets, env } = options;
   const factories = new Map<string, AdapterFactory>();
-  const available = packageFactories(world);
+  const available = packageFactories(world, simulation);
   for (const [providerId, packageName] of Object.entries(config.allowlist)) {
     // Built-in mock providers stay in the allowlist, but a live runtime has no mock factories by design.
     // Warning about them would claim a broken build for a provider the operator never configured.
@@ -251,10 +252,11 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
 
 export function createWorld(
   config: FridayConfig,
+  simulation: RuntimeSimulation | undefined,
   options: { realTime: boolean; seed?: number; profile?: string; nextSequence?: (floor: number) => number; assistantName?: () => string; notifications?: { list(): import("@friday/sdk").Notification[]; save(notification: import("@friday/sdk").Notification, pendingDispatch?: boolean): void } },
 ): MockWorld | undefined {
-  if (config.dataMode === "live") return undefined;
-  return new MockWorld({
+  if (config.dataMode === "live" || !simulation) return undefined;
+  return simulation.createWorld({
     ...(options.seed !== undefined ? { seed: options.seed } : {}),
     // Hybrid's fallback adapters provide empty placeholders on a normal installation. Explicit demo profiles and
     // standalone mock mode keep their curated scenarios; neither path touches persisted live-adapter data.
@@ -263,5 +265,5 @@ export function createWorld(
     ...(options.assistantName ? { assistantName: options.assistantName } : {}),
     ...(config.dataMode === "hybrid" && options.notifications ? { notifications: options.notifications } : {}),
     realTime: options.realTime,
-  });
+  } as SimulationWorldOptions);
 }

@@ -15,8 +15,7 @@ export interface TransportHandlers {
 }
 
 /**
- * Event transport behind the realtime client. The WebSocket is one implementation, the standalone mock mode
- * (`NEXT_PUBLIC_FRIDAY_MSW=1`) plugs in an in-memory one; the client does not know the difference.
+ * Event transport behind the realtime client. The WebSocket is the production implementation; tests plug in their own.
  */
 export interface RealtimeTransport {
   connect(handlers: TransportHandlers): void;
@@ -35,7 +34,7 @@ export type TransportFactory = (request: TransportRequest) => RealtimeTransport;
 const OPEN_STATE = 1;
 const CONNECTING_STATE = 0;
 
-/** Creates the socket; the standalone mock mode passes the in-memory WebSocket of `@friday/mock-data`. */
+/** Creates the socket; tests may pass their own WebSocket. */
 export type SocketFactory = (url: string) => WebSocket;
 
 export class WebSocketTransport implements RealtimeTransport {

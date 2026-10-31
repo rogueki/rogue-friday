@@ -4,10 +4,10 @@ import { create } from "zustand";
 import type { RealtimeSnapshot, RealtimeState } from "./client";
 
 interface RealtimeStore extends RealtimeSnapshot {
-  /** Transport label for the system page: "websocket" or "mock". */
-  transport: "websocket" | "mock";
+  /** Transport label for the system page. */
+  transport: "websocket";
   set: (snapshot: RealtimeSnapshot) => void;
-  setTransport: (transport: "websocket" | "mock") => void;
+  setTransport: (transport: "websocket") => void;
 }
 
 export const useRealtimeStore = create<RealtimeStore>((set) => ({

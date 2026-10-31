@@ -2,7 +2,7 @@ import { test, expect, open } from "./support/fixtures";
 import { API_ORIGIN } from "./support/constants";
 
 /** Phase 12 security gate in a real browser (docs/SECURITY.md §9): cookies, CSP, framing. */
-const ROUTES = ["/", "/activity", "/tasks", "/approvals", "/agents", "/memory", "/alerts", "/communication", "/calendar", "/automations", "/research", "/files", "/voice", "/system", "/audit", "/settings", "/dev/scenarios"];
+const ROUTES = ["/", "/activity", "/tasks", "/approvals", "/agents", "/memory", "/alerts", "/communication", "/calendar", "/automations", "/research", "/files", "/voice", "/system", "/audit", "/settings"];
 
 test("session cookie is HttpOnly + SameSite=Strict + Path=/ and invisible to scripts; the CSRF cookie is readable", async ({ page }) => {
   await open(page, "/");

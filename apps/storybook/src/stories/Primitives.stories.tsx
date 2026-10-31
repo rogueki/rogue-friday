@@ -125,7 +125,7 @@ export const SourceBadges: Story = {
     <div style={{ padding: 28 }}>
       <Row>
         <SourceBadge source="Hermes" mode="live" />
-        <SourceBadge source="Kimi K3" mode="mock" />
+        <SourceBadge source="Kimi K3" mode="live" />
         <SourceBadge source="Windows Worker" mode="cache" />
         <SourceBadge source="Qwen Local" />
       </Row>

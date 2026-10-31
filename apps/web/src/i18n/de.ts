@@ -54,15 +54,11 @@ export const de = {
   "login.setupInvalid": "Bitte einen Namen, einen Benutzernamen mit 2–32 Zeichen und ein Passwort mit mindestens 12 Zeichen zweimal gleich eingeben.",
   "login.failed": "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.",
   "login.rateLimited": "Zu viele Versuche. Bitte später erneut versuchen.",
-  "login.dev.title": "Entwicklungs-Anmeldung (Mock-Modus)",
 
   // roles / modes
   "role.owner": "Eigentümer",
   "role.operator": "Operator",
   "role.viewer": "Betrachter",
-  "dataMode.mock": "Mock-Modus",
-  "dataMode.hybrid": "Hybrid-Modus",
-  "dataMode.live": "Live-Modus",
 
   // navigation
   "nav.overview": "Übersicht",

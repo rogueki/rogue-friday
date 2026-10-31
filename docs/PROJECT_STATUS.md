@@ -1,7 +1,7 @@
 # Project Status & Continuation Guide
 
 **Read this first in every new session** (then `docs/IMPLEMENTATION_CONVENTIONS.md`, then `docs/PLAN.md`).
-Last updated: 2026-10-20 (Hermes integration wave 3 merged; physical clean-install drill open).
+Last updated: 2026-10-31 (Mock aus dem Produkt entfernt, siehe letzter Abschnitt; physical clean-install drill open).
 
 ## Goal
 
@@ -1262,3 +1262,31 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
 **Offen**: N-079 (`OPENAI_BASE_URL` beim Verlassen von `custom`) ist behoben (ff6327c). Danach DASH-08 (Telegram ueber
 Produkt-Setup, Token vom Nutzer erneut noetig), DASH-07/15/16; am Ende mit Nutzer: Mailkonten, WhatsApp, Discord/Telefonie,
 Mikrofontests, saubere Windows-VM, Windows-Kalender.
+
+## 2026-10-31 Mock aus dem Produkt entfernt (Branch `chore/remove-mock-surface`)
+
+Entscheidung des Operators: Friday wird ohne Simulationsdaten ausgeliefert; Mock-Daten gibt es nur noch als Testfixtures.
+
+- **Konfiguration:** nur noch `config/dashboard.example.yaml` + `config/adapters.example.yaml` (live). Hybrid-/Live-/Mock-
+  Varianten, `scripts/start-hybrid.mjs` und `pnpm start:hybrid` entfernt. Linux-Installer schreibt `dataMode: live` und
+  migriert `mock`/`hybrid` nach `live` (Sicherung `dashboard.yaml.bak-dataMode-<UTC>`); `enable_voice_adapter.py --disable`
+  schaltet die Sprache ab statt auf `mock-voice` zu wechseln.
+- **Web:** Szenario-Konsole `/dev/scenarios`, Orb-Labor, Dev-Rollenwahl im Login, Live/Mock-Abzeichen, "Simulation"-Texte
+  und der MSW-Standalone-Modus (`dev:mock`/`build:mock`, `lib/mock`, `mock-worker`) entfernt. Orb-Leistungsanzeige wirkt im
+  normalen Betrieb. Die Web-App liest keine `NEXT_PUBLIC_*`-Variablen mehr.
+- **Control API:** `src/` nutzt die Mock-Pakete nur als Typen; Mock-Welt/Szenario-Engine/Mock-Adapter nur über die
+  injizierte `simulation` (`src/runtime/simulation.ts`, Implementierung `test-support/simulation.ts`). Ohne Simulation
+  (jeder ausgelieferte Server) läuft eine alte `mock`/`hybrid`-Konfiguration mit Warnung als `live`; `auth.mode: dev` bricht
+  den Start ab. `dist/main.js` ist rund 550 KB kleiner und enthält keinen Mock-Code (E2E-Spec `orb-debug-build.spec.ts`).
+- **E2E:** Playwright startet `apps/control-api/.e2e-dist/e2e-server.js` (`pnpm --filter @friday/control-api build:e2e`,
+  nie ausgeliefert). `apps/mock-console` und `pnpm scenario` entfernt.
+- **Vertrag unverändert (bewusst):** dev-Operationen antworten ohne Simulation 404, `developer.scenarioConsole` ist ohne
+  Wirkung, `dataMode`-Enum behält `mock|hybrid` für alte Konfigurationen. Ein Major-Bump hätte keinen sichtbaren Nutzen und
+  würde das GitHub-Update alter Installationen riskanter machen.
+
+**Zuletzt verifiziert (lokal, Windows):** `contracts:check`, `typecheck`, `lint` (0 Fehler), `pnpm test` 3973 bestanden
+(1 Timing-Ausreißer im example-http-Shutdown, Wiederholung grün), `test:conformance` 415 bestanden, `build`, E2E-Auswahl
+(orb-debug-build, navigation, settings, fallback-2d) grün; Linux `test_installer_modes.sh` und `test_voice_service.py` grün.
+
+**Offen (Reihenfolge):** W2 Installer-GUI nur mit Klick-Steuerelementen, W3 Live-Gespräch (Qwen Audio) laut
+`PLAN_LIVE_GESPRAECH_QWEN_AUDIO.md`, W4 robustes GitHub-Update, W5 Neuinstallations- und Update-Test mit dem Operator.

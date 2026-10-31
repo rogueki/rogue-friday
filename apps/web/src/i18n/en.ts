@@ -52,14 +52,10 @@ export const en: Record<keyof typeof de, string> = {
   "login.setupInvalid": "Enter your name, a username of 2–32 characters, and repeat a password of at least 12 characters.",
   "login.failed": "Sign-in failed. Please check your credentials.",
   "login.rateLimited": "Too many attempts. Please try again later.",
-  "login.dev.title": "Development sign-in (mock mode)",
 
   "role.owner": "Owner",
   "role.operator": "Operator",
   "role.viewer": "Viewer",
-  "dataMode.mock": "Mock mode",
-  "dataMode.hybrid": "Hybrid mode",
-  "dataMode.live": "Live mode",
 
   "nav.overview": "Overview",
   "nav.tasks": "Tasks",

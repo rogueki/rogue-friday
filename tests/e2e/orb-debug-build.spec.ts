@@ -3,13 +3,11 @@ import { join, resolve } from "node:path";
 import { test, expect } from "@playwright/test";
 
 /**
- * The orb lab (debug panel, owner order section 19) is development only. The production export in `apps/web/out` must
- * contain none of its code: not the panel component, not the floating overlay, not their markers. (The dictionary keys
- * of the labels are part of the shared i18n tables and do not count: they are plain strings next to the other
- * dev-console texts.)
+ * Friday ships without simulation: the production export in `apps/web/out` must contain no orb lab, no scenario
+ * console and no in-browser mock platform (MSW worker, mock starter, mock world).
  */
 const OUT = resolve(import.meta.dirname, "../../apps/web/out");
-const FORBIDDEN = ["orb-lab-state", 'data-testid":"orb-lab"', "orb-debug-overlay", "OrbDebugPanel", "setOrbDebugVisuals", "orbDebugStore"];
+const FORBIDDEN = ["orb-lab-state", 'data-testid":"orb-lab"', "orb-debug-overlay", "OrbDebugPanel", "setOrbDebugVisuals", "orbDebugStore", "ScenarioConsole", "MockStarter", "mockServiceWorker", "MockWorld", "/dev/scenarios"];
 
 function* files(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
@@ -22,7 +20,7 @@ function* files(dir: string): Generator<string> {
 test.describe("production build", () => {
   test.skip(!existsSync(OUT), "apps/web/out is missing (run pnpm build:app first)");
 
-  test("contains no orb debug panel code", () => {
+  test("contains no orb lab, scenario console or mock platform code", () => {
     const hits: string[] = [];
     let scanned = 0;
     for (const file of files(OUT)) {
@@ -32,6 +30,12 @@ test.describe("production build", () => {
     }
     expect(scanned, "scanned a real build").toBeGreaterThan(20);
     expect(hits).toEqual([]);
+  });
+
+  test("the shipped Control API bundle contains no mock world, scenario engine or mock adapters", () => {
+    const server = resolve(import.meta.dirname, "../../apps/control-api/dist/main.js");
+    const code = readFileSync(server, "utf8");
+    for (const marker of ["MockWorld", "ScenarioEngine", "createMockFactories"]) expect(code.includes(marker), marker).toBe(false);
   });
 
   test("the orb controller reaches the main bundle only as types: three.js stays in the lazily loaded orb chunk", () => {

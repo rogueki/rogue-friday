@@ -9,8 +9,8 @@ import { API_PORT, OWNER_PASSWORD } from "./constants";
 
 /**
  * Integration stack for `pnpm test:integration` (Playwright `webServer`): fake Hermes/voice/Qwen upstreams on the
- * installer ports, a config directory generated from the shipped hybrid examples, and the BUILT Control API
- * (`apps/control-api/dist/main.js`, serving `apps/web/out`) in hybrid mode. Stays in the foreground until terminated.
+ * installer ports, a config directory generated from the shipped example files, and the BUILT Control API
+ * (`apps/control-api/dist/main.js`, serving `apps/web/out`) in live mode. Stays in the foreground until terminated.
  */
 const root = resolve(import.meta.dirname, "..", "..");
 const main = join(root, "apps", "control-api", "dist", "main.js");
@@ -31,9 +31,9 @@ cpSync(builtWebRoot, webRoot, { recursive: true });
 const keyFile = join(dir, "secrets", "hermes_api.key");
 const upstreams = await startFakeUpstreams({ keyFile, log: (line) => console.log(`[upstreams] ${line}`) });
 
-writeFileSync(join(configDir, "dashboard.yaml"), readDashboardExample("hybrid").replace("webRoot: ../apps/web/out", `webRoot: ${JSON.stringify(webRoot.replaceAll("\\", "/"))}`));
+writeFileSync(join(configDir, "dashboard.yaml"), readDashboardExample().replace("webRoot: ../apps/web/out", `webRoot: ${JSON.stringify(webRoot.replaceAll("\\", "/"))}`));
 // Shipped breaker: 5 failures / 30 s reopen. The run uses 3 / 5 s so recovery after an outage is observable in seconds.
-writeFileSync(join(configDir, "adapters.yaml"), renderAdaptersExample("hybrid", { breaker: { failureThreshold: 3, resetAfterMs: 5000 } }));
+writeFileSync(join(configDir, "adapters.yaml"), renderAdaptersExample({ breaker: { failureThreshold: 3, resetAfterMs: 5000 } }));
 
 const logFd = openSync(join(dir, "control-api.log"), "w");
 const api = spawn(process.execPath, [main], {
@@ -42,7 +42,7 @@ const api = spawn(process.execPath, [main], {
   env: {
     ...process.env,
     FRIDAY_CONFIG_DIR: configDir,
-    FRIDAY_DATA_MODE: "hybrid",
+    FRIDAY_DATA_MODE: "live",
     FRIDAY_PORT: String(API_PORT),
     FRIDAY_OWNER_PASSWORD_HASH: await hashPassword(OWNER_PASSWORD),
     HERMES_API_KEY_FILE: keyFile,
@@ -54,7 +54,7 @@ api.on("exit", (code) => {
   void upstreams.close().finally(() => process.exit(code ?? 1));
 });
 
-console.log(`[stack] Control API http://127.0.0.1:${API_PORT} (hybrid), Konfiguration ${configDir}`);
+console.log(`[stack] Control API http://127.0.0.1:${API_PORT} (live), Konfiguration ${configDir}`);
 let closing = false;
 const shutdown = (): void => {
   if (closing) return;

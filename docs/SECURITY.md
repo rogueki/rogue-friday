@@ -20,7 +20,7 @@ elsewhere (see §8).
 | Secrets | Leak through config, API, logs or SQLite | Secrets only as references (`env:`/`wincred:`); config object contains `{ ref, configured }`; logger redacts by key and value pattern; nothing secret is stored in SQLite |
 | Audit trail | Silent edits or deletions | Append-only table + SHA-256 hash chain (`appendToChain`/`verifyChain`) |
 | Untrusted files | Script execution from a previewed file | Preview sandboxing (§7) |
-| Adapters | Loading arbitrary code | Registry only loads packages listed in the `allowlist` of `adapters.yaml`; built-in mock providers cannot be re-pointed |
+| Adapters | Loading arbitrary code | Registry only loads packages listed in the `allowlist` of `adapters.yaml`; the delivered server contains no mock provider from `@friday/mock-data`/`@friday/adapter-mock` |
 | Host machine | Other local users reading `data/` | `auth.key` restricted to the current user (chmod 600 / `icacls`); data dir under the user's control |
 
 Out of scope: a compromised local OS account (it can read the process memory and the key file anyway) and physical access.
@@ -50,7 +50,7 @@ Roles: `owner`, `operator`, `viewer`. Enforcement is server-side in the Control 
 | `settings.update / import / export` | - | - | yes |
 | `adapters.configure` | - | - | yes |
 | `audit.export` | - | - | yes |
-| `dev.scenarios` | - | - | yes, only when `dev.scenarioConsole` is on |
+| `dev.scenarios` | - | - | yes, only with an injected simulation (tests/E2E); not in the delivered server |
 
 Notes: `requestSend` only creates an approval; the actual send is gated by `approvals.approve`. `reject` and `requestContext`
 never execute anything, so they are not tier-gated. Viewer is strictly read-only (including notifications).
@@ -85,8 +85,9 @@ token `consume()` (single use) -> state recheck -> execute -> audit event with c
   mutating request (POST/PUT/PATCH/DELETE). The server checks header == cookie (double submit) **and** header == HMAC of the
   caller's own session id, so a token from another session or a planted cookie fails. `csrfKey` is derived (HKDF) from the
   server key `data/auth.key`, created on first start with owner-only permissions; approval tokens use a different derived key.
-- **Dev auth** (`auth.mode: dev`): fixed identities `dev-owner|operator|viewer`; refused unless `dataMode == mock` **and** the
-  host is loopback. Enforced in `@friday/config` (startup error) and again in `@friday/auth` (`DevAuthNotAllowedError`).
+- **Dev auth** (`auth.mode: dev`): fixed identities `dev-owner|operator|viewer`; only available with an injected simulation
+  (Vitest `startTestApi`, E2E server) on loopback. A delivered server refuses `auth.mode: dev` at startup; enforced in
+  `@friday/config` (startup error) and again in `@friday/auth` (`DevAuthNotAllowedError`).
 
 ## 3a. Offline cache in the browser (PLAN Phase 11, §12.5)
 
@@ -184,7 +185,8 @@ Not supported by default. If the dashboard must be reached from outside:
 - Terminate **TLS** in front (reverse proxy) and set `auth.secureCookies: true`; or reach the host only through a **VPN /
   zero-trust** tunnel (WireGuard, Tailscale, Cloudflare Access). **Never** publish the port directly (no open port forward).
 - Keep the login rate limit and lockout on; consider an additional IP allowlist at the proxy.
-- `auth.mode: dev` and the scenario console must be off (dev auth is refused automatically for non-loopback).
+- `auth.mode: dev` and the scenario console are not part of the delivered server; dev auth requires an injected simulation
+  (tests/E2E) and is refused otherwise.
 - Re-check the `Host`/`Origin` allowlist for the public hostname.
 
 ## 9. Checklist for Phase 12 (gate: Security Checklist)
@@ -209,7 +211,7 @@ Auth and roles
       `apps/control-api/test/realtime.test.ts` ("closes the socket with 4401 when the session logs out", "closes all sockets of the user on logout-all").
 - [x] Every mutating route calls `authorize()`; the permission matrix test covers each route; viewer cannot mutate.
       `security.test.ts` (describe "role matrix": "denies every operation to roles below its required role with FORBIDDEN (all mutating and privileged operations)", "lets operators work but not change settings; viewers are read-only"); `auth.test.ts` (describe "permission matrix").
-- [x] `dev` auth cannot be enabled with `hybrid`/`live` or a non-loopback host (startup fails).
+- [x] `dev` auth cannot be enabled on a delivered server (startup fails); it exists only with an injected simulation (tests/E2E).
       `packages/config/src/config.test.ts` ("only allows dev auth with mock mode on loopback"); `auth.test.ts` ("refuses hybrid/live and non-loopback hosts");
       `security.test.ts` ("refuses dev auth outside mock data mode": the Control API does not start).
 
@@ -239,7 +241,7 @@ Approvals
 Secrets and data
 - [x] No secret in `config` JSON, API responses, SQLite, logs, error messages, or the browser bundle (grep build output).
       `apps/control-api/test/secrets.test.ts` (read endpoints, responses/headers, audit rows, event stream, logs incl. rejected logins, settings database, stack traces); `packages/config/src/config.test.ts` (describe "secrets");
-      browser bundle: `security-gate.test.ts` ("contains no secret material, server paths or credentials": scans `apps/web/out`; runs after `pnpm build:app`) and ("only the MSW switch is a public build variable").
+      browser bundle: `security-gate.test.ts` ("contains no secret material, server paths or credentials": scans `apps/web/out`; runs after `pnpm build:app`) and ("the web app reads no public build variables").
 - [x] `auth.key` has owner-only permissions; losing it only invalidates CSRF/approval tokens, not stored data.
       Permissions: `auth.test.ts` ("generates the key once, persists it and restricts the file", "tightens the permissions of an existing, too open key file on every load"; POSIX `chmod 600`).
       Key loss: `security-gate.test.ts` (describe "server key loss"). **Gap found and fixed:** the audit head anchors are HMACs under a key derived from `auth.key`, so a regenerated key made the audit trail
@@ -283,5 +285,5 @@ Files and adapters
 ### Open points
 
 - Windows-only checks (see above: `icacls`, `wincred:`, autostart).
-- Dev login accepts any non-empty password in mock mode (by design, loopback + mock only); production uses `auth.mode: local`.
+- Dev login accepts any non-empty password when a simulation is injected (tests/E2E only); a delivered server refuses `auth.mode: dev`.
 - The audit anchors protect against truncation and rewriting by someone without `auth.key`; an attacker with write access to the whole data directory (key included) is out of scope (§1).

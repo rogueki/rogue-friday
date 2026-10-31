@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useAppSettings } from "@/lib/settings";
-import { useOrbDebugSettings } from "./debug/orbDebugStore";
 import { installOrbDevHook } from "./orbDevHook";
 import { createOrbFrameInputs } from "./orbApi";
 import { getOrbRuntime } from "./orbRuntime";
@@ -55,7 +54,6 @@ export function OrbSlotInner({ className, onRendererChange }: OrbSlotProps) {
 
   // Scenario hint (PLAN §45.14 "WebGL Failure"): the server may force the 2D fallback through a meta feature flag.
   const forceFallback2D = Boolean(features?.["forceOrbFallback2D"] ?? features?.["uiHints.forceOrbFallback2D"]);
-  const debugSettings = useOrbDebugSettings(Boolean(features?.["devScenarios"]));
 
   // The controller is the orb's single source of truth. The server snapshot (query cache, also updated by realtime
   // events) is the truth for work, approvals and health; local voice facts arrive through the event bridge.
@@ -68,9 +66,9 @@ export function OrbSlotInner({ className, onRendererChange }: OrbSlotProps) {
 
   const orbSettings = useMemo<FridayOrbProps["settings"]>(() => {
     const base = settings?.orb ? orbSettingsFromWire(settings.orb) : {};
-    return { ...base, ...(forceFallback2D ? { renderer: "2d" as const } : {}), ...orbSettingsFromTestOverrides(testOverrides), ...debugSettings };
-  }, [settings?.orb, forceFallback2D, testOverrides, debugSettings]);
+    return { ...base, ...(forceFallback2D ? { renderer: "2d" as const } : {}), ...orbSettingsFromTestOverrides(testOverrides) };
+  }, [settings?.orb, forceFallback2D, testOverrides]);
 
   if (!snapshot) return null;
-  return <FridayOrb controller={runtime.controller} settings={orbSettings} showPerf={Boolean(features?.scenarioControls && settings?.developer.orbPerfOverlay)} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} onRendererChange={onRendererChange} locale={locale} className={className} />;
+  return <FridayOrb controller={runtime.controller} settings={orbSettings} showPerf={Boolean(settings?.developer.orbPerfOverlay)} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} onRendererChange={onRendererChange} locale={locale} className={className} />;
 }

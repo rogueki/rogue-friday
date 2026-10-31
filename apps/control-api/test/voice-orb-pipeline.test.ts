@@ -26,10 +26,10 @@ describe("voice pipeline phases reach the orb (hybrid, real adapter path)", () =
     const keyFile = join(keyDir, "hermes_api.key");
     upstreams = await startFakeUpstreams({ ports: { hermesApi: 0, hermesDashboard: 0, voice: 0, llama: 0, control: 0 }, keyFile });
     api = await startTestApi({
-      dataMode: "hybrid",
+      dataMode: "live",
       authMode: "local",
       ownerPassword: PASSWORD,
-      adaptersYaml: renderAdaptersExample("hybrid", { ports: upstreams.ports, breaker: { failureThreshold: 3, resetAfterMs: 1000 } }),
+      adaptersYaml: renderAdaptersExample({ ports: upstreams.ports, breaker: { failureThreshold: 3, resetAfterMs: 1000 } }),
       env: { HERMES_API_KEY_FILE: keyFile, FRIDAY_STORAGE_PATH: "/" },
       healthIntervalMs: 200,
       listen: true,

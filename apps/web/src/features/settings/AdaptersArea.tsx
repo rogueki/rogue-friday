@@ -5,7 +5,6 @@ import { Button, EmptyState, HealthBadge, StatusChip, Switch } from "@friday/ui"
 import { Plug, Save, TestTube2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
-import { useMeta } from "@/lib/api/domains/core";
 import { useAdapterSettings, useTestAdapterSettings, useUpdateAdapterSettings } from "@/lib/api/domains/settings";
 import { useCapability } from "@/lib/capabilities";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
@@ -178,14 +177,11 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const canRead = useCapability("system", "read");
   const ownerOnly = role === "owner";
   const query = useAdapterSettings(ownerOnly);
-  const items = query.data?.items ?? [];
-  const dataMode = useMeta().data?.dataMode;
-  const live = dataMode === "live";
-  // A live runtime builds no adapter for an unconfigured category: the pages then report "not configured"
-  // instead of showing sample data. Everything else here would repeat the old hybrid promise of simulation.
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
+  // A live runtime builds no adapter for an unconfigured category: the pages then report "not configured".
   const unconfigured = useMemo(
-    () => (live ? ALL_CATEGORIES.filter((category) => !items.some((item) => item.category === category)) : []),
-    [live, items],
+    () => ALL_CATEGORIES.filter((category) => !items.some((item) => item.category === category)),
+    [items],
   );
   const calendar = items.find((item) => item.category === "calendar");
   const calendarUpdate = useUpdateAdapterSettings();
@@ -264,7 +260,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
         </>}
         <Button type="button" disabled={readOnly || calendarUpdate.isPending || (calendarMode === "ics" ? !feedUrl.trim() : !calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>Kalenderzugang speichern</Button>
         <p className="st-muted">Nach dem Speichern den Kalender in der Adapterliste wählen und „Verbindung testen“ ausführen. Erst ein erfolgreicher Test bestätigt den Zugriff.</p>
-        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : live ? "Noch kein Kalenderzugang hinterlegt. Im Live-Betrieb bleibt die Kalenderansicht leer, bis ein Zugang hinterlegt und erfolgreich getestet ist." : dataMode ? "Noch kein Kalenderzugang hinterlegt; die Kalenderansicht verwendet Simulation." : ""}</p>
+        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : "Noch kein Kalenderzugang hinterlegt. Die Kalenderansicht bleibt leer, bis ein Zugang hinterlegt und erfolgreich getestet ist."}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
       {selected?.category === "calendar" ? <CalendarAccountWizard onSaved={() => { void query.refetch(); }} /> : null}

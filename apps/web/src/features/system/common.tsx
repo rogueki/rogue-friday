@@ -7,7 +7,6 @@ import type { PanelState } from "@/components/PanelFrame";
 import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { formatDateTimePattern, formatRelative } from "@/features/shared/time";
 import { useT, type MessageKey } from "@/i18n";
-import { useMeta } from "@/lib/api/domains/core";
 import type { CapabilityModule } from "@/lib/capabilities";
 import { useAppSettings } from "@/lib/settings";
 import { bcp47, MISSING } from "./format";
@@ -115,8 +114,7 @@ interface StatusStripProps {
 /** Source and freshness of a panel's data (PLAN §24: every data panel names its source and age). */
 export function StatusStrip({ freshness, source }: StatusStripProps) {
   const { t, locale } = useT();
-  const meta = useMeta();
-  const mode = freshness?.state === "offline-cache" ? "cache" : meta.data?.dataMode === "mock" ? "mock" : meta.data ? "live" : undefined;
+  const mode = freshness?.state === "offline-cache" ? "cache" : "live";
   return (
     <span className="mc-strip">
       {source ? <SourceBadge source={source} mode={mode} prefix={t("system.common.source")} /> : null}

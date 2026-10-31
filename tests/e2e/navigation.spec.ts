@@ -1,6 +1,6 @@
 import { test, expect, open, selectPaletteOption } from "./support/fixtures";
 
-/** PLAN §51.5 Navigation, §26, §43.1 (palette, shortcuts), §44.6 (/dev/scenarios). */
+/** PLAN §51.5 Navigation, §26, §43.1 (palette, shortcuts). */
 const PAGES = [
   ["Übersicht", "/"],
   ["Aufgaben", "/tasks"],
@@ -50,19 +50,6 @@ test("every route also loads directly (static export + SPA fallback)", async ({ 
     await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
   }
-});
-
-test("the scenario console /dev/scenarios is reachable by URL and from the command palette", async ({ page }) => {
-  await open(page, "/dev/scenarios");
-  await expect(page.getByRole("heading", { name: "Szenario-Konsole", level: 1 })).toBeVisible();
-
-  await open(page, "/");
-  await page.keyboard.press("Control+k");
-  const palette = page.getByRole("dialog", { name: "Befehlspalette" });
-  await palette.getByRole("combobox").fill("Szenario");
-  await palette.getByRole("option", { name: /Szenario-Konsole öffnen/ }).click();
-  await expect(page).toHaveURL(/\/dev\/scenarios\/?$/);
-  await expect(page.getByRole("heading", { name: "Szenario-Konsole", level: 1 })).toBeVisible();
 });
 
 test("Ctrl+K opens the command palette, filters, navigates with Enter and closes with Escape", async ({ page }) => {
@@ -115,7 +102,7 @@ test("an unknown address shows the not-found page with status 404 instead of the
 });
 
 test("known routes and query-parameter detail views keep answering 200", async ({ request }) => {
-  for (const path of ["/", "/tasks", "/tasks/", "/approvals", "/dev/scenarios", "/tasks?task=task_unbekannt", "/settings?area=theme"]) {
+  for (const path of ["/", "/tasks", "/tasks/", "/approvals", "/tasks?task=task_unbekannt", "/settings?area=theme"]) {
     expect((await request.get(path)).status(), path).toBe(200);
   }
 });

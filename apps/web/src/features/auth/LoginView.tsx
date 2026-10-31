@@ -1,31 +1,20 @@
 "use client";
 
-import { isFridayApiError, type Role } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
 import { BrandMark, Button, HudPanel, TextField } from "@friday/ui";
-import { LogIn, ShieldCheck, User, Eye } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useT, type MessageKey } from "@/i18n";
-import { useMeta } from "@/lib/api/domains/core";
+import { useT } from "@/i18n";
 import { useLogin } from "@/lib/api/domains/auth";
 import { useSession } from "@/lib/session";
 import { clearOnboardingSnooze } from "@/features/skills/onboardingSnooze";
 
-const DEV_ROLES: readonly { role: Role; icon: React.ReactNode }[] = [
-  { role: "owner", icon: <ShieldCheck size={16} /> },
-  { role: "operator", icon: <User size={16} /> },
-  { role: "viewer", icon: <Eye size={16} /> },
-];
-
-/**
- * Login page (username + password). With `dataMode: mock` the Control API runs in dev auth mode (fixed identities
- * `dev-owner|operator|viewer`, SECURITY.md), so a role picker is offered in addition; it never appears for hybrid/live.
- */
+/** Login page (username + password). */
 export function LoginView() {
   const { t, assistantName } = useT();
   const router = useRouter();
   const session = useSession();
-  const meta = useMeta();
   const login = useLogin();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -93,18 +82,6 @@ export function LoginView() {
             {t(setupRequired ? "login.setupSubmit" : "login.submit")}
           </Button>
         </form>
-        {meta.data?.dataMode === "mock" && !setupRequired ? (
-          <section className="web-login__dev" aria-label={t("login.dev.title")}>
-            <h2>{t("login.dev.title")}</h2>
-            <div className="web-login__roles">
-              {DEV_ROLES.map(({ role, icon }) => (
-                <Button key={role} variant="ghost" icon={icon} disabled={login.isPending} onClick={() => submit({ username: `dev-${role}`, password: "dev" })}>
-                  {t(`role.${role}` as MessageKey)}
-                </Button>
-              ))}
-            </div>
-          </section>
-        ) : null}
       </HudPanel>
     </main>
   );

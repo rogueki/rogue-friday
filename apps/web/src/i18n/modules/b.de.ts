@@ -4,7 +4,6 @@ export const deB = {
   "memory.kit.notConnected": "Das Modul „{module}“ ist nicht mit einem Adapter verbunden.",
   "memory.kit.source": "Quelle",
   "memory.kit.mode.live": "Live",
-  "memory.kit.mode.mock": "Mock",
   "memory.kit.mode.cache": "Cache",
   "memory.kit.fresh.fresh": "Aktuell",
   "memory.kit.fresh.stale": "Veraltet",

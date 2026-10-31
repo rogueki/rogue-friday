@@ -6,7 +6,6 @@ export const enB: Record<keyof typeof deB, string> = {
   "memory.kit.notConnected": "The “{module}” module is not connected to an adapter.",
   "memory.kit.source": "Source",
   "memory.kit.mode.live": "Live",
-  "memory.kit.mode.mock": "Mock",
   "memory.kit.mode.cache": "Cache",
   "memory.kit.fresh.fresh": "Current",
   "memory.kit.fresh.stale": "Stale",

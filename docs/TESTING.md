@@ -13,7 +13,7 @@ Verbindliche Gates stehen in `CLAUDE.md` und `docs/IMPLEMENTATION_CONVENTIONS.md
 | Adapter-Conformance                   | Vitest mit `@friday/adapter-testkit`                                                  | `pnpm test:conformance`                                        | 21 Prüfpunkte je Adapter (PLAN §11, Details in `docs/ADAPTER_CONFORMANCE.md`)                                                                                                                              | 10 Adapter, 422 Tests bestanden, 60 übersprungen (482 gesamt, gemessen, 29 s)                                                                                                                                                                            |
 | Storybook-Audit                       | Chromium über `@playwright/test`, axe-core                                            | `node apps/storybook/scripts/audit.mjs` (nach Storybook-Build) | Jede Story rendert, keine Seiten-, Konsolen- oder HTTP-Fehler, axe mit WCAG 2.0/2.1 A und AA plus Best Practice                                                                                            | 254 Stories laut Auftrag; nicht exakt reproduziert (siehe Abschnitt 10). Kein npm-Skript, kein Gate.                                                                                                                                                     |
 | End-to-End, Visual, A11y, Performance | Playwright (Chromium, seriell, 1 Worker)                                              | `pnpm test:e2e`                                                | Navigation, Szenario-Wechsel, Aufgaben, Freigaben, Live-Aktivität, Agenten, Gedächtnis, Meldungen und Alarme, Ausfälle, Orb-Zustände, Befehlsleiste, Einstellungen, Theme, Reconnect, 2D-Fallback, Visual Regression, axe und Tastatur, Last- und Performance-Budgets | 204 Tests in 20 Dateien (gemessen per `--list`, davon 40 in den vier Modul-Flows). Laufzeit 42,7 min (gemessen, vollständiger Lauf 2026-10-15).                                                                                                                                                       |
-| Integration                           | Playwright mit Fake-Upstreams                                                         | `pnpm test:integration`                                        | Kette Fake-Upstream, echter Adapter, Control API im Hybrid-Modus, Web-UI; Ausfall und Erholung von Voice und Hermes                                                                                        | 7 Tests in 1 Datei (gemessen per `--list`). Laufzeit 3,3 bis 3,5 min laut `docs/evidence/integration/README.md` (Lauf 2026-10-14).                                                                                                                       |
+| Integration                           | Playwright mit Fake-Upstreams                                                         | `pnpm test:integration`                                        | Kette Fake-Upstream, echter Adapter, Control API im Live-Modus, Web-UI; Ausfall und Erholung von Voice und Hermes                                                                                        | 7 Tests in 1 Datei (gemessen per `--list`). Laufzeit 3,3 bis 3,5 min laut `docs/evidence/integration/README.md` (Lauf 2026-10-14).                                                                                                                       |
 | Installer, Voice                      | pytest                                                                                | `python -m pytest installer/voice/tests`                       | Persona und Namens-Slug, Wake-Word-Logik (Schwellen, Service-Stufen, Barge-in, Pre-roll)                                                                                                                   | 12 Tests in `test_personal_wake.py` (gemessen: 12 bestanden in 8 s, in einer venv mit numpy, pytest und scikit-learn, ohne openwakeword). Die Zahl ändert sich mit dem Bestand, aktuell ergänzt durch `test_audio_level.py` (in Arbeit, nicht gemessen). |
 | Installer, statisch                   | PowerShell-Parser, ShellCheck, pyflakes                                               | manuell, kein Skript im Repo                                   | PowerShell-Syntax der `.ps1`, Stil der WSL-`.sh`-Skripte                                                                                                                                                   | Ergebnisse dokumentiert in `docs/INSTALLER_INTEGRATION_REVIEW.md`. Nicht automatisiert, nicht in CI.                                                                                                                                                     |
 
@@ -123,7 +123,7 @@ pnpm build:app                             # Pflicht: die Integration startet ap
 pnpm test:integration
 ```
 
-Die Spec `tests/integration/hybrid.spec.ts` startet über `tests/integration/stack.ts` Fake-Upstreams auf den Installer-Ports (Hermes-Dashboard 43691, Qwen 43692, Hermes-API 43693, Voice 43694, Steuerung 43699) und die Control API im Hybrid-Modus auf Port 3100. Der Circuit Breaker ist für den Lauf auf 3 Fehler und 5 s Reset gekürzt, damit Erholung in Sekunden sichtbar wird.
+Die Spec `tests/integration/hybrid.spec.ts` startet über `tests/integration/stack.ts` Fake-Upstreams auf den Installer-Ports (Hermes-Dashboard 43691, Qwen 43692, Hermes-API 43693, Voice 43694, Steuerung 43699) und die Control API im Live-Modus auf Port 3100. Der Circuit Breaker ist für den Lauf auf 3 Fehler und 5 s Reset gekürzt, damit Erholung in Sekunden sichtbar wird.
 
 | Variable                  | Standard                            | Wirkung                     |
 | ------------------------- | ----------------------------------- | --------------------------- |
@@ -145,11 +145,8 @@ Der synthetische Benchmark `installer/voice/tests/eval_synthetic_wake.py` ist ke
 ### Screenshots (keine Tests)
 
 ```bash
-pnpm --filter @friday/web screenshots      # apps/web/scripts/screenshot.mjs, braucht laufendes dev:mock
-node apps/web/scripts/screenshot-scenarios.mjs --base http://localhost:3000   # Szenario-Screenshots
+pnpm --filter @friday/web screenshots      # apps/web/scripts/screenshot.mjs, braucht eine laufende Control API und pnpm --filter @friday/web dev
 ```
-
-Der Chromium-Pfad für `screenshot-scenarios.mjs` lässt sich über `PW_CHROMIUM` setzen.
 
 ## 4. Cloud-Sessions
 
@@ -197,13 +194,13 @@ Die Audio-Fixtures heißen `silence`, `normal`, `loud`, `tts`, `spike` (`package
 
 ## 7. Mock-Szenarien in den Tests
 
-Szenario-IDs stehen in `packages/mock-data/src/scenarios/definitions.ts`. Abspielen über `POST /api/v1/dev/scenarios/{id}/play`, Konsole unter `/dev/scenarios`.
+Szenario-IDs stehen in `packages/mock-data/src/scenarios/definitions.ts`. Abspielen über `POST /api/v1/dev/scenarios/{id}/play` (nur auf dem E2E-/Testserver, injizierte Simulation).
 
 | Szenario                            | Verwendet in                                                                                |
 | ----------------------------------- | ------------------------------------------------------------------------------------------- |
 | `partial-outage`                    | `visual.spec.ts`, `outage.spec.ts`, `a11y.spec.ts`                                          |
 | `critical-alert`                    | `visual.spec.ts`, `a11y.spec.ts`                                                            |
-| `approval-waiting`                  | `visual.spec.ts`, `orb-states.spec.ts`, `scenarios.spec.ts`                                 |
+| `approval-waiting`                  | `visual.spec.ts`, `orb-states.spec.ts`                                 |
 | `empty-new-installation`            | `visual.spec.ts`                                                                            |
 | `long-german-text`                  | `visual.spec.ts`                                                                            |
 | `voice-pipeline`                    | `orb-states.spec.ts`                                                                        |
@@ -212,7 +209,7 @@ Szenario-IDs stehen in `packages/mock-data/src/scenarios/definitions.ts`. Abspie
 | `webgl-failure`                     | `fallback-2d.spec.ts`                                                                       |
 | `high-load`                         | `performance.spec.ts` (1 000 Tasks, 10 000 Events, 100 Agenten)                             |
 | `listening`, `syncing`              | Listen in `support/fixtures.ts` bzw. `performance.spec.ts`, kein eigener Testfall           |
-| `clean-idle`, `multi-agent-working` | nur Control-API-Tests (`apps/control-api/test/mock-console.test.ts`) bzw. Screenshot-Skript |
+| `clean-idle`, `multi-agent-working` | Testfixtures in `packages/mock-data`, kein eigener Testfall |
 
 Ausführliche Beschreibung: `docs/MOCK_SCENARIOS.md`.
 
@@ -270,7 +267,7 @@ Legende: **ja** = durch benannte Datei(en) abgedeckt. **teilweise** = nur ein Te
 | Punkt                 | Datei                                                                     |
 | --------------------- | ------------------------------------------------------------------------- |
 | Navigation            | `tests/e2e/navigation.spec.ts` (16 Menüeinträge, Direktaufruf, 404)       |
-| Mock-Szenario-Wechsel | `tests/e2e/scenarios.spec.ts`                                             |
+| Mock-Szenario-Wechsel | `tests/e2e/support/api.ts`, `fallback-2d.spec.ts`                                             |
 | Task-Flow             | `tests/e2e/tasks.spec.ts`                                                 |
 | Freigabe-Flow         | `tests/e2e/approvals.spec.ts` (Stufen 2 und 3, Token)                     |
 | Live-Aktivität (§29)  | `tests/e2e/activity.spec.ts` (Stream, Filter, Baum, Pause, Detail, Raw-JSON nach Rolle) |

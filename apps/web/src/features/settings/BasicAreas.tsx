@@ -3,11 +3,9 @@
 import type { DataRetentionActionResponse, Settings } from "@friday/sdk";
 import { Button, ConfirmDialog, Select, Slider, StatusChip, Switch, TextField } from "@friday/ui";
 import { LogOut, Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useHermesModelCatalog, useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
-import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus, useVoiceStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
@@ -674,10 +672,6 @@ export function BackupsArea() {
 export function DeveloperArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("developer");
-  const meta = useMeta();
-  const devScenarios = Boolean(meta.data?.features.devScenarios);
-  const scenarioControls = Boolean(meta.data?.features.scenarioControls);
-  const router = useRouter();
   if (!value) return null;
   return (
     <>
@@ -685,8 +679,7 @@ export function DeveloperArea() {
         <FieldGrid>
           <Switch label={t("settings.developer.debug")} description={t("settings.developer.debugDesc")} checked={value.debugMode} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(debugMode) => update({ debugMode })} />
           <Switch label={t("settings.developer.rawJson")} description={t("settings.developer.rawJsonDesc")} checked={value.showRawJson} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(showRawJson) => update({ showRawJson })} />
-          <Switch label={t("settings.developer.scenarioConsole")} description={t("settings.developer.scenarioConsoleDesc")} checked={scenarioControls && value.scenarioConsole} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(scenarioConsole) => update({ scenarioConsole })} />
-          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
+          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
           <Select
             label={t("settings.developer.logLevel")}
             value={value.logLevel}
@@ -695,15 +688,6 @@ export function DeveloperArea() {
             onChange={(event) => update({ logLevel: event.target.value as Settings["developer"]["logLevel"] })}
           />
         </FieldGrid>
-      </Section>
-      <Section title={t("settings.developer.tools")}>
-        {devScenarios ? (
-          <Button type="button" variant="ghost" onClick={() => router.push("/dev/scenarios")}>
-            {t("settings.developer.openConsole")}
-          </Button>
-        ) : (
-          <p className="st-muted">{t("settings.developer.consoleOff")}</p>
-        )}
       </Section>
     </>
   );

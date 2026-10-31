@@ -12,7 +12,7 @@ Betrieb [`DEPLOYMENT.md`](DEPLOYMENT.md), für Tests [`TESTING.md`](TESTING.md).
 
 | #   | Bestandteil                         | Pfad im Repository                                                                                                                         | Hinweis                                                                                                |
 | --- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| 1   | Lauffähiges Dashboard im Mock-Modus | `apps/web` (Next.js, statischer Export nach `apps/web/out`), ausgeliefert von `apps/control-api`; Vorlage `config/dashboard.example.yaml`  | Standard ist `dataMode: mock`. Start: `pnpm dev` (Entwicklung) oder `pnpm build:app` und `pnpm start`. |
+| 1   | Lauffähiges Dashboard im Live-Modus | `apps/web` (Next.js, statischer Export nach `apps/web/out`), ausgeliefert von `apps/control-api`; Vorlage `config/dashboard.example.yaml`  | Betriebsmodus ist `dataMode: live`. Start: `pnpm dev` (Entwicklung) oder `pnpm build:app` und `pnpm start`. |
 | 2   | Friday Control API                  | `apps/control-api` (Quellcode in `src/`, Bundle `dist/main.js` über `tsup`)                                                                | 122 Operationen, Routentabelle generiert nach `src/http/route-table.generated.ts`.                     |
 | 3   | OpenAPI Contract                    | `packages/contracts/openapi/friday-api.yaml` (OpenAPI 3.1.1), gebündelt nach `packages/contracts/dist/friday-api.bundled.yaml`             | Quelle der Wahrheit für REST. Schemas unter `packages/contracts/schemas/`.                             |
 | 4   | AsyncAPI Contract                   | `packages/contracts/asyncapi/friday-events.yaml` (AsyncAPI 3.1.0)                                                                          | 44 Ereignistypen (`friday.*`), WebSocket `/api/v1/events`.                                             |
@@ -21,7 +21,7 @@ Betrieb [`DEPLOYMENT.md`](DEPLOYMENT.md), für Tests [`TESTING.md`](TESTING.md).
 | 7   | Conformance Tests                   | `packages/adapter-testkit` (`@friday/adapter-testkit`), Runner `packages/adapter-testkit/scripts/run-conformance.mjs`                      | Ausführen: `pnpm test:conformance`. Doku: `docs/ADAPTER_CONFORMANCE.md`.                               |
 | 8   | Beispieladapter                     | `adapters/example-http` (Kategorie `tasks`, fiktive REST-API), Vorlage `packages/adapter-core/template`                                    | Referenz mit Polling, Mutationen und Idempotenz; Vorlage mit nummerierten Schritten.                   |
 | 9   | Adapter-Konfigurationsschema        | `packages/config/src/schemas/adapters.schema.json` und `dashboard.schema.json`; je Adapter ein JSON Schema in `adapters/*/src/manifest.ts` | Die Konfiguration wird beim Start gegen die Schemas geprüft.                                           |
-| 10  | Mock-Szenario-Konsole               | CLI `apps/mock-console` (`pnpm scenario -- …`), Web-Seite `apps/web/src/app/(dashboard)/dev/scenarios`, API `/api/v1/dev/*`                | Nur mit `dataMode: mock` und `dev.scenarioConsole: true`.                                              |
+| 10  | Szenario-Testfixtures               | API `/api/v1/dev/scenarios*` nur mit injizierter Simulation (Vitest `startTestApi`, E2E-Server); Implementierung `apps/control-api/test-support/simulation.ts` | Nicht im ausgelieferten Dashboard; Szenarien sind Testfixtures (Entscheidung 2026-10-31).              |
 | 11  | Mapping-Dokumente                   | `docs/MAPPING/` (Index `README.md`; `hermes.md`, `voice.md`, `system.md`, `qwen.md`, `calendar.md`, `mail-gmx.md`, `example-tasks.md`)     | Feldtabellen je Fremdsystem.                                                                           |
 | 12  | Deployment-Dokumentation            | `docs/DEPLOYMENT.md`; Testdokumentation `docs/TESTING.md`                                                                                  | DEPLOYMENT beschreibt die Installation unter Windows 11.                                               |
 
@@ -145,11 +145,13 @@ adapters:
       apiToken: env:THINGS_API_TOKEN # Secret-Referenz, nie Klartext
 ```
 
-### Schritt 10: Mock-Adapter der Kategorie deaktivieren (PLAN 10)
+### Schritt 10: Provider in der Live-Konfiguration aktivieren (PLAN 10)
 
-Den Provider `mock-tasks` durch `things-http` ersetzen (Schritt 9). Wichtig: Im Modus `mock` werden Nicht-Mock-Provider ignoriert
-(Warnung „ignored: data mode is mock“). Der Wechsel wirkt daher nur in `hybrid` (andere Kategorien bleiben Mock) oder `live`
-(andere Kategorien sind deaktiviert). Dafür `dataMode` in `config/dashboard.yaml` setzen und neu starten.
+Den Eintrag in `adapters.tasks` auf `things-http` setzen (Schritt 9). Im Betriebsmodus `live` sind nur eingerichtete Kategorien
+aktiv; nicht eingerichtete Kategorien melden „nicht eingerichtet“. Eine ausgelieferte Instanz führt eine alte Konfiguration mit
+`dataMode: mock` oder `hybrid` mit einer Warnung im Log als `live` aus. Dafür `dataMode: live` in `config/dashboard.yaml`
+setzen und neu starten; der Linux-Installer migriert bestehende `mock`/`hybrid`-Einträge nach `live` (vorher Sicherung
+`dashboard.yaml.bak-dataMode-<UTC>`).
 
 ### Abnahme
 
@@ -176,7 +178,7 @@ oder ausdrücklich als Annahme markiert.
 | `hermes-agents`     | `agents`   | `adapters/hermes`       | `agents.read`                                                | `agents.pause`, `agents.resume`, `agents.stop`, `agents.assignTask`: keine belegte Schnittstelle. Zuweisen läuft über `tasks.update` mit `agentId`.                                                                                     | Profile, Assignees und Worker belegt. `starting`, `paused`, `error` und der Reasoning-Level sind nicht ableitbar.                                                                                                 |
 | `friday-voice-http` | `voice`    | `adapters/voice-http`   | `voice.read`                                                 | `voice.test`, `voice.stop`: der Dienst hat keine Steuerschnittstelle (kein POST). `voice.enroll`: läuft in `voice_setup.py`, nicht über HTTP. Geräte, Profile und Metriken: keine Datenquelle, leere Antworten mit Freshness `unknown`. | Status-JSON (ein Handler, Pfad egal) statisch gegen `friday_voice.py` geprüft; Dienst selbst nicht ausgeführt. Annahme: Wake Phrase, Engine-Namen, Erreichbarkeit des llama-servers (503 beim Laden), Inputpegel. |
 | `local-system`      | `system`   | `adapters/system-local` | `system.read`, `system.healthcheck`                          | `system.restartAdapter`, `system.openLogs`: deklariert der Adapter nicht. Die Control API stellt beide selbst bereit (nur `owner`).                                                                                                     | Host-Metriken (CPU, RAM, Speicher), Dienstprobes, Modelllisten. Annahme: Qwen-`/health`, Hermes-Dashboard-`/api/health` mit Auth, lokalisierte `wsl.exe`-Ausgaben, `netstat -e` außerhalb Englisch/Deutsch.       |
-| `mock-*`            | alle       | `adapters/mock`         | alle Port-Methoden                                           | –                                                                                                                                                                                                                                       | Vollständig, Standard in `mock`.                                                                                                                                                                                  |
+| `mock-*`            | alle       | `adapters/mock`         | alle Port-Methoden                                           | –                                                                                                                                                                                                                                       | Testfixture (`@friday/adapter-mock`), nicht im ausgelieferten Produkt.                                                                                                                                                                                  |
 
 Hinweise zur Einordnung:
 
@@ -185,7 +187,7 @@ Hinweise zur Einordnung:
 - Der Windows-Pfad (WSL-Portweiterleitung, `wsl.exe`, Windows-Dienststart) ist nicht geprüft. Die Entwicklungs-VM ist Linux.
 - Der Hermes-Installer pinnt keine Version (`main`). Abweichende Hermes-Versionen zeigen sich als `VALIDATION_FAILED`.
 
-## 4. Gegen echte Dienste ausführen (Hybrid-Modus)
+## 4. Gegen echte Dienste ausführen (Live-Modus)
 
 Der Installer richtet die Dienste auf Loopback-Ports ein. Das Command Center verbindet sich nur mit diesen Ports:
 
@@ -199,16 +201,16 @@ Der Installer richtet die Dienste auf Loopback-Ports ein. Das Command Center ver
 
 Port 43699 gehört nur dem Fake-Steuerendpunkt aus Abschnitt 5, nicht dem Produktivbetrieb.
 
-**Konfiguration.** Die Hybrid-Vorlagen kopieren, nicht editieren:
+**Konfiguration.** Die Live-Vorlagen kopieren, nicht editieren:
 
 ```bash
-cp config/dashboard.hybrid.example.yaml config/dashboard.yaml   # PowerShell: copy
-cp config/adapters.hybrid.example.yaml config/adapters.yaml
+cp config/dashboard.example.yaml config/dashboard.yaml   # PowerShell: copy
+cp config/adapters.example.yaml config/adapters.yaml
 ```
 
 Pfade in `dashboard.yaml` sind relativ zum Config-Verzeichnis (`FRIDAY_CONFIG_DIR`, Standard `<Projektwurzel>/config`).
-Für den Vollbetrieb gibt es zusätzlich `config/adapters.live.example.yaml` und `config/dashboard.live.example.yaml` (nur konfigurierte
-Kategorien aktiv). Fehlt `config/adapters.yaml`, läuft im Modus `hybrid` jede Kategorie als `mock-*`; im Modus `live` ist sie dann deaktiviert.
+Der Betriebsmodus ist `live`: nur eingerichtete Kategorien sind aktiv, nicht eingerichtete melden „nicht eingerichtet“.
+Fehlt `config/adapters.yaml`, ist keine Kategorie eingerichtet; Ersatzdaten gibt es nicht.
 
 **Geheimnisse.** Config-Dateien enthalten nur Referenzen:
 
@@ -221,8 +223,9 @@ Kategorien aktiv). Fehlt `config/adapters.yaml`, läuft im Modus `hybrid` jede K
 Ein Klartextwert in einem Feld mit Credential-Namen (`token`, `apiKey`, `password` ...) wird beim Laden abgelehnt. Die Hermes-Vorlage
 nutzt `HERMES_API_KEY_FILE` als Override für den Pfad der Schlüsseldatei (`${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}`).
 
-**Owner-Passwort.** Ohne auflösbaren Owner-Hash schlägt jede Anmeldung fehl. Den Dev-Login (`dev-owner`, Passwort `dev`) gibt es nur im
-Mock-Modus auf Loopback. Hash erzeugen (interaktive Eingabe, mindestens 12 Zeichen):
+**Owner-Passwort.** Ohne auflösbaren Owner-Hash schlägt jede Anmeldung fehl. Den Dev-Login (`dev-owner`, Passwort `dev`) gibt es nur mit
+injizierter Simulation, also in Tests und auf dem E2E-Server; ein ausgelieferter Server lehnt `auth.mode: dev` beim Start ab.
+Hash erzeugen (interaktive Eingabe, mindestens 12 Zeichen):
 
 ```bash
 pnpm --filter @friday/auth hash-password
@@ -239,10 +242,11 @@ FRIDAY_OWNER_PASSWORD_HASH='...'
 ```bash
 pnpm install
 pnpm build:app          # baut apps/web (statischer Export) und apps/control-api (dist/main.js)
-pnpm start:hybrid       # setzt FRIDAY_DATA_MODE=hybrid und startet dist/main.js
+pnpm start              # startet dist/main.js mit dataMode aus config/dashboard.yaml
 ```
 
-`pnpm start` startet ohne Modus-Override und nimmt `dataMode` aus `dashboard.yaml`. Der Server bindet nur an `127.0.0.1`
+`pnpm start` startet ohne Modus-Override und nimmt `dataMode` aus `dashboard.yaml`; eine alte Konfiguration mit `mock` oder
+`hybrid` wird mit einer Warnung im Log als `live` ausgeführt. Der Server bindet nur an `127.0.0.1`
 (`server.allowRemote: false`). Ein Zugriff von außen gehört hinter TLS oder VPN, nie über eine offene Portfreigabe (PLAN §49.7).
 
 **Prüfen.**
@@ -253,7 +257,7 @@ curl -sS http://127.0.0.1:43693/health          # Hermes-API (ohne Auth)
 curl -sS http://127.0.0.1:43694/               # Voice-Status (Antwort nur, wenn Modelle geladen sind)
 ```
 
-Danach im Browser auf `http://127.0.0.1:3100` als `owner` anmelden. Die Seiten zeigen pro Modul die Quelle (Badge) und den Zustand.
+Danach im Browser auf `http://127.0.0.1:3100` als `owner` anmelden. Die Seiten zeigen pro Modul den Zustand.
 
 ## 5. Fake-Upstreams und Integrationssuite
 
@@ -282,13 +286,14 @@ pnpm build:app                 # Voraussetzung: dist/main.js und apps/web/out m�
 pnpm test:integration          # Playwright, playwright.integration.config.ts
 ```
 
-Der Lauf startet `tests/integration/stack.ts`: Fake-Upstreams, Konfiguration aus den Hybrid-Vorlagen, dann die gebaute Control API
-im Hybrid-Modus auf 127.0.0.1:3100. Die Spezifikation `tests/integration/hybrid.spec.ts` umfasst 9 Tests: Übersicht, Aufgaben, Agenten,
+Der Lauf startet `tests/integration/stack.ts`: Fake-Upstreams, Konfiguration aus den Live-Vorlagen, dann die gebaute Control API
+im Live-Modus auf 127.0.0.1:3100. Die Spezifikation `tests/integration/hybrid.spec.ts` umfasst 9 Tests: Übersicht, Aufgaben, Agenten,
 Sprache, System sowie Ausfall und Wiederanlauf von Voice und Hermes (jeweils nur das betroffene Modul ist offline).
 Umgebungsvariablen: `FRIDAY_INTEGRATION_DIR`, `FRIDAY_EVIDENCE_DIR`, `FRIDAY_CHROMIUM` (Browserpfad). Ergebnis und Screenshots:
 [`docs/evidence/integration/README.md`](evidence/integration/README.md).
 
-Zusätzlich prüfen Unit-Tests ohne Browser die Registrierung, Mock-Fallbacks, `file:`-Secrets und das Schwärzen der Logs:
+Zusätzlich prüfen Unit-Tests ohne Browser die Registrierung, das Verhalten nicht eingerichteter Kategorien, `file:`-Secrets und das
+Schwärzen der Logs:
 
 ```bash
 pnpm --filter @friday/control-api test          # u. a. test/real-adapters.test.ts
@@ -300,7 +305,7 @@ pnpm --filter @friday/control-api test          # u. a. test/real-adapters.test.
 | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `"<provider>" is not in the adapter allowlist` beim Start                            | Provider fehlt unter `allowlist` in `config/adapters.yaml`                                                                                   | Eintrag `<provider>: "@friday/<paket>"` ergänzen.                                                                                               |
 | Warnung „Provider ist in der Allowlist, aber nicht im Build enthalten“               | Factory fehlt in `packageFactories()` (`apps/control-api/src/runtime/adapter-wiring.ts`) oder Paket fehlt in `apps/control-api/package.json` | Schritt 9.2 und 9.3 aus Abschnitt 2 nachholen, `pnpm install`, neu bauen.                                                                       |
-| Warnung `adapters.<cat>.provider "…" ignored: data mode is "mock"`                   | Provider wird im Modus `mock` ignoriert                                                                                                      | `dataMode: hybrid` oder `live` in `config/dashboard.yaml` setzen.                                                                               |
+| Warnung im Log zu `dataMode: mock` oder `hybrid`                   | Alte Konfiguration; der Server führt sie als `live` aus                                                                                                      | `dataMode: live` setzen; der Linux-Installer migriert bestehende Einträge (Sicherung `dashboard.yaml.bak-dataMode-<UTC>`).                                                                               |
 | `invalid secret reference (expected env:NAME, file:ABSOLUTE_PATH or wincred:TARGET)` | Tippfehler, relativer `file:`-Pfad oder fehlender Präfix                                                                                     | Absoluten Pfad mit Schrägstrichen verwenden, z. B. `file:C:/Friday/config/hermes_api.key`.                                                      |
 | `credential-looking field must be a secret reference`                                | Klartextwert in einem Feld wie `apiKey` oder `password`                                                                                      | Durch `file:`, `env:` oder `wincred:` ersetzen.                                                                                                 |
 | Modul zeigt „Nicht verbunden“, Health `offline`, `ECONNREFUSED`                      | Dienst gestoppt oder Port falsch                                                                                                             | Port prüfen (`curl` aus Abschnitt 4). Hermes: `http://127.0.0.1:43693/health`. Voice: `http://127.0.0.1:43694/`.                                |

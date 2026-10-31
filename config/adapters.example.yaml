@@ -1,77 +1,75 @@
-# F.R.I.D.A.Y. Command Center - Adapter-Registry (PLAN 10.9 / 10.10)
-# Kopieren nach config/adapters.yaml. Der effektive Betriebsmodus kommt aus dashboard.yaml (dataMode).
+# F.R.I.D.A.Y. Command Center - Adapter-Registry mit der Installer-Umgebung (PLAN 10.9 / 10.10)
+# Kopieren nach config/adapters.yaml und dashboard.example.yaml nach config/dashboard.yaml.
 #
-# Modus-Presets:
-#   mock   - jede Kategorie nutzt ihren mock-* Provider (andere Provider werden ignoriert)
-#   hybrid - hier genannte Kategorien nutzen ihren Provider, fehlende fallen auf mock-* zurueck
-#   live   - fehlende Kategorien sind deaktiviert (nicht gemockt)
+# Live: nur die hier genannten Kategorien sind aktiv; alle anderen sind deaktiviert (nicht gemockt) und erscheinen in der
+# Oberflaeche als "nicht angebunden". Es gibt keine Simulationsdaten. Ports und Schluessel stammen aus dem Installer
+# (C:\Friday): 43691 Hermes-Dashboard, 43692 Qwen, 43693 Hermes-API-Server, 43694 Voice-Statusserver.
 #
-# Geheimnisse gehoeren NIE als Klartext hierher. Credential-Felder (token, apiKey, password, ...) nutzen
-# Referenzen: env:NAME oder wincred:ZIELNAME. ${VAR}/${VAR:-default} ist nur fuer unkritische Werte (URLs).
+# Geheimnisse nur als Referenz: file:<absoluter Pfad>, env:NAME oder wincred:ZIEL.
 
-# Provider-ID -> npm-Paket. Die Registry laedt ausschliesslich Pakete aus dieser Liste.
-# Die mock-* Provider (@friday/adapter-mock) sind eingebaut und muessen nicht aufgefuehrt werden.
-allowlist: {}
-#  hermes-tasks: "@friday/adapter-hermes-placeholder"
-#  hermes-activity: "@friday/adapter-hermes-placeholder"
-#  gmx-mail: "@friday/adapter-mail-placeholder"
-#  caldav-calendar: "@friday/adapter-calendar-placeholder"
-#  friday-voice-http: "@friday/adapter-voice-placeholder"
-#  windows-wsl-system: "@friday/adapter-system-placeholder"
-
-# Gemeinsame Optionen je Kategorie (alle optional, hier die Standardwerte):
-#   enabled: true
-#   timeoutMs: 5000
-#   retry:           { maxAttempts: 1, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }   # Registry-Ebene; die Adapter-Clients wiederholen selbst
-#   circuitBreaker:  { failureThreshold: 5, resetAfterMs: 30000 }
+allowlist:
+  hermes-tasks: "@friday/adapter-hermes"
+  hermes-activity: "@friday/adapter-hermes"
+  hermes-agents: "@friday/adapter-hermes"
+  hermes-automations: "@friday/adapter-hermes"
+  friday-voice-http: "@friday/adapter-voice-http"
+  local-system: "@friday/adapter-system-local"
 
 adapters:
   tasks:
-    provider: mock-tasks
+    provider: hermes-tasks
     enabled: true
+    timeoutMs: 10000
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardAuth: scrape
+      boards: [default]
   activity:
-    provider: mock-activity
+    provider: hermes-activity
     enabled: true
-  memory:
-    provider: mock-memory
-    enabled: true
+    timeoutMs: 10000
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
   agents:
-    provider: mock-agents
+    provider: hermes-agents
     enabled: true
-  approvals:
-    provider: mock-approvals
-    enabled: true
-  communication:
-    provider: mock-communication
-    enabled: true
-  calendar:
-    provider: mock-calendar
-    enabled: true
+    timeoutMs: 10000
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
   automations:
-    provider: mock-automations
+    provider: hermes-automations
     enabled: true
-  research:
-    provider: mock-research
-    enabled: true
-  files:
-    provider: mock-files
-    enabled: true
+    timeoutMs: 10000
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardAuth: scrape
   voice:
-    provider: mock-voice
+    provider: friday-voice-http
     enabled: true
-  notifications:
-    provider: mock-notifications
-    enabled: true
+    timeoutMs: 3000
+    config:
+      baseUrl: http://127.0.0.1:43694
+      localModelUrl: http://127.0.0.1:43692
+      wakePhrase: Hey Friday
   system:
-    provider: mock-system
+    provider: local-system
     enabled: true
-  audit:
-    provider: mock-audit
-    enabled: true
-  commands:
-    provider: mock-commands
-    enabled: true
-
-# ---------------------------------------------------------------------------------------------
-# Vollstaendige Beispiele fuer echte Dienste (Hermes 43693/43691, Voice 43694, lokales System + Qwen 43692):
-#   config/adapters.hybrid.example.yaml und config/adapters.live.example.yaml
+    timeoutMs: 5000
+    config:
+      qwenUrl: http://127.0.0.1:43692
+      hermesApiUrl: http://127.0.0.1:43693
+      hermesDashboardUrl: http://127.0.0.1:43691
+      voiceUrl: http://127.0.0.1:43694
+      hermesApiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
+      storagePaths: ["${FRIDAY_STORAGE_PATH:-C:/}"]
+      wslDistro: Ubuntu

@@ -12,7 +12,6 @@ import { useT } from "@/i18n";
 import { useUpdateSettings } from "@/lib/api/domains/settings";
 import { useOnboarding } from "@/lib/api/domains/skills";
 import { useAppSettings } from "@/lib/settings";
-import { isStandaloneMock } from "@/lib/mock/runtime";
 import { useSession } from "@/lib/session";
 import { isOnboardingSnoozed, snoozeOnboarding } from "@/features/skills/onboardingSnooze";
 import { OnboardingPage } from "@/features/skills/OnboardingPage";
@@ -32,8 +31,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const session = useSession();
-  const onboarding = useOnboarding(session.role === "owner" && !session.offline && !isStandaloneMock()); // the in-browser mock serves no onboarding route
-  const onboardingRequired = session.role === "owner" && !session.offline && !isStandaloneMock();
+  const onboarding = useOnboarding(session.role === "owner" && !session.offline);
+  const onboardingRequired = session.role === "owner" && !session.offline;
   const { settings } = useAppSettings();
   const { items, activeId } = useNavItems();
   const updateSettings = useUpdateSettings();

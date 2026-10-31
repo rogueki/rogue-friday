@@ -16,9 +16,9 @@ export interface RenderOptions {
   breaker?: { failureThreshold: number; resetAfterMs: number };
 }
 
-/** The shipped `adapters.<mode>.example.yaml`, with ports and circuit breaker adjusted for a test stack. */
-export function renderAdaptersExample(mode: "hybrid" | "live", options: RenderOptions = {}): string {
-  let text = readFileSync(join(CONFIG_DIR, `adapters.${mode}.example.yaml`), "utf8");
+/** The shipped `adapters.example.yaml`, with ports and circuit breaker adjusted for a test stack. */
+export function renderAdaptersExample(options: RenderOptions = {}): string {
+  let text = readFileSync(join(CONFIG_DIR, "adapters.example.yaml"), "utf8");
   if (options.breaker) {
     const { failureThreshold, resetAfterMs } = options.breaker;
     text = text
@@ -35,6 +35,6 @@ export function renderAdaptersExample(mode: "hybrid" | "live", options: RenderOp
   return text;
 }
 
-export function readDashboardExample(mode: "hybrid" | "live"): string {
-  return readFileSync(join(CONFIG_DIR, `dashboard.${mode}.example.yaml`), "utf8");
+export function readDashboardExample(): string {
+  return readFileSync(join(CONFIG_DIR, "dashboard.example.yaml"), "utf8");
 }

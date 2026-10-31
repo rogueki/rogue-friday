@@ -398,8 +398,6 @@ export const deC = {
   "system.adapters.remoteVersion": "Version der Gegenstelle",
   "system.adapters.noRemoteVersion": "Gegenstelle meldet keine Version",
   "system.adapters.lastError": "Letzter Fehler",
-  "system.adapters.mock": "Mock",
-  "system.adapters.live": "Live",
   "system.adapters.disabled": "Deaktiviert",
   "system.adapters.checked": "{name}: Healthcheck",
   "system.adapters.reconnected": "{name}: Verbindungstest",
