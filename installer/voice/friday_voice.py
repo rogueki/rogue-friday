@@ -150,6 +150,7 @@ GOODBYE_WORDS = re.compile(
     r"(?:das\s+wars|das\s+war's|das\s+war\s+es|das\s+wär's|das\s+wärs|das\s+ist\s+alles|tschüss|tschuess|bis\s+später|bis\s+spaeter|auf\s+wiedersehen)"
     r"(?:\s+(?:für|fuer)\s+(?:jetzt|heute))?[\s.!]*$", re.IGNORECASE)
 GOODBYE_REPLY = "Gern. Ich bin da, wenn du mich rufst."
+VOICE_SAMPLE_TEXT = "Hallo, ich bin {name}. So klinge ich mit dieser Stimme."
 
 
 def is_goodbye(text: str) -> bool:
@@ -1948,6 +1949,17 @@ class VoiceService:
         log_event(event="qwen_key_check", ok=True)
         return {"ok": True, "reason": None}
 
+    def speak_voice_sample(self) -> bool:
+        """Speaks one sample sentence when nothing else runs; False while busy. Not part of history or memory."""
+        with self.manual_start_lock:
+            busy = (self.processing or self.tts.speaking.is_set() or getattr(self, "control_paused", False)
+                    or self.status.get("state") not in ("listening", "wake_only"))
+            if busy:
+                return False
+            self.tts.say(VOICE_SAMPLE_TEXT.format(name=self.name))
+        log_event(event="voice_sample")
+        return True
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2626,13 +2638,19 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/voice/sample", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
                     return
                 if self.path == "/control/conversation-key/check":
                     self._json(service.check_conversation_key())
+                    return
+                if self.path == "/control/voice/sample":
+                    if not service.speak_voice_sample():
+                        self.send_error(423, "Voice is busy")
+                        return
+                    self._json({"accepted": True})
                     return
                 if self.path == "/control/conversation-key":
                     try:

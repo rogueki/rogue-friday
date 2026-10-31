@@ -4993,6 +4993,28 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-required-role: owner
+  /api/v1/voice/sample:
+    post:
+      operationId: playVoiceSample
+      tags: [voice]
+      summary: Speak a short sample with the saved voice
+      description: Windows installs only. The local voice service speaks one sample sentence through the configured output when nothing else is running; nothing is stored.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Sample accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceSampleResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-required-role: owner
   /api/v1/voice/stt-models/cancel:
     post:
       operationId: cancelVoiceSttModelDownload
@@ -10912,6 +10934,8 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-status.schema.json
     VoiceConversationKeyCheck:
       $ref: ../schemas/voice/voice-conversation-key-check.schema.json
+    VoiceSampleResult:
+      $ref: ../schemas/voice/voice-sample-result.schema.json
     VoiceDomainTaskReplyRequest:
       $ref: ../schemas/tasks/voice-domain-task-reply-request.schema.json
     VoiceReadRequest:

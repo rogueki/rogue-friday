@@ -1601,6 +1601,12 @@ entfernt) rot; pyflakes ohne Befund.
   Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
   Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
   (Filter aus, Zeile aus) je rot.
+- **Hörprobe und vorhandener Alibaba-Schlüssel (LG-5.03, LG-6.01):** Einstellungen → Sprache → Ausgabe hat „Hörprobe“:
+  `POST /api/v1/voice/sample` (Owner, CSRF) → Sprachdienst `/control/voice/sample` spricht einen Satz mit der gespeicherten
+  Stimme, nur wenn nichts anderes läuft (sonst 423 → CONFLICT), ohne Verlauf; gesperrt, solange eine neu gewählte Stimme nicht
+  gespeichert ist (Gegenprobe rot). 306 Operationen. Das Anlernen einer eigenen Cloud-Stimme entfällt (P0-01, D-08). Der
+  Installer erkennt `BAILIAN_API_KEY`/`DASHSCOPE_API_KEY` im Benutzerprofil wie den Kimi-Schlüssel: GUI-Haken „Auf diesem PC
+  gefundenen Alibaba-Schlüssel verwenden“ (verschlüsselt übergeben, im Laufprotokoll geschwärzt), Konsole fragt einmal.
 - **Antwortfenster nach einer Ansage von sich aus (LG-2.04):** Spricht der Sprachdienst eine Ansage, während kein Gespräch
   läuft, öffnet er danach ein Antwortfenster ohne Aktivierungswort (`reply_window`, Länge `followup_window_s`). Die
   Sprecherprüfung bleibt (`_handle_command` mit `wake_audio=None`); kein Fenster im Gastmodus, pausiert oder mitten im

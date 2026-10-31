@@ -1544,6 +1544,52 @@ def test_conversation_key_check_reports_the_stored_key_without_changing_it(monke
     assert "sk-sp-STORED-0123" not in json.dumps(events)
 
 
+def test_voice_sample_speaks_once_and_refuses_while_busy(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.name = "Friday"
+    svc.status["state"] = "listening"
+    svc.processing = None
+    svc.control_paused = False
+    svc.tts.speaking.clear()
+    said = []
+    svc.tts.say = said.append
+    svc.history = []
+    before_history = list(svc.history)
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    key_dir = tmp_path / "dashboard" / "data" / "voice-bridge"
+    key_dir.mkdir(parents=True)
+    (key_dir / "auth.key").write_text("a" * 44, encoding="ascii")
+    jv.INSTALL_ROOT = str(tmp_path)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/voice/sample"
+
+    def post(authenticated=True):
+        request = urllib.request.Request(url, data=b"{}", method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    assert post(False) == (401, None)
+    assert said == []
+    assert post() == (200, {"accepted": True})
+    assert said == ["Hallo, ich bin Friday. So klinge ich mit dieser Stimme."]
+    svc.tts.speaking.set()
+    assert post() == (423, None)
+    assert len(said) == 1
+    svc.tts.speaking.clear()
+    svc.status["state"] = "command"
+    assert post() == (423, None)
+    assert len(said) == 1
+    assert svc.history == before_history
+
+
 class ScriptedVad:
     """Speech probability per 32 ms frame from a script; silence once the script is used up."""
 

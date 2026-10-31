@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
-import { applyVoicePersona, VOICE_PERSONAS } from "./voice-persona";
+import { applyVoicePersona, playVoiceSample, VOICE_PERSONAS } from "./voice-persona";
 
 const runtime = (baseUrl = "http://127.0.0.1:43794") => ({
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl } } } },
@@ -39,5 +39,27 @@ describe("voice persona bridge", () => {
     await applyVoicePersona(runtime(), "custom");
     const [, options] = send.mock.calls[0]!;
     expect(JSON.parse(String(options?.body))).toEqual({ voice: "custom" });
+  });
+});
+
+describe("voice sample (LG-5.03)", () => {
+  it("speaks the saved voice through the local bridge", async () => {
+    const send = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ accepted: true }), { status: 200 }));
+    await playVoiceSample(runtime());
+    const [url, options] = send.mock.calls[0]!;
+    expect(String(url)).toBe("http://127.0.0.1:43794/control/voice/sample");
+    expect(options?.body).toBe("{}");
+  });
+
+  it("maps a busy voice service to CONFLICT", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 423 }));
+    await expect(playVoiceSample(runtime())).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("reports an old voice service and an unconfirmed sample as ADAPTER_UNAVAILABLE", async () => {
+    const send = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(null, { status: 404 }));
+    await expect(playVoiceSample(runtime())).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    send.mockResolvedValueOnce(new Response(JSON.stringify({ accepted: false }), { status: 200 }));
+    await expect(playVoiceSample(runtime())).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
   });
 });

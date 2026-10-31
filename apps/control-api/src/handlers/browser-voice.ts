@@ -6,6 +6,7 @@ import { ApiError } from "../util/errors";
 import { startWakeEnrollment, wakeEnrollmentRequest } from "../services/wake-enrollment";
 import { startSttModelDownload, sttModelsRequest } from "../services/stt-models";
 import { adoptBrainConversationKey, checkConversationKey, setConversationKey } from "../services/voice-conversation-key";
+import { playVoiceSample as speakVoiceSample } from "../services/voice-persona";
 
 export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   async listVoiceSttModels(ctx) {
@@ -29,6 +30,10 @@ export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   },
   async checkVoiceConversationKey(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await checkConversationKey(ctx.runtime) } };
+  },
+  async playVoiceSample(ctx) {
+    await speakVoiceSample(ctx.runtime);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true } };
   },
   async getWakeEnrollment(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };

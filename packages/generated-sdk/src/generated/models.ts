@@ -1286,6 +1286,7 @@ export interface FridayModelMap {
   VoiceReadAnswer: VoiceReadAnswer;
   VoiceReadRequest: VoiceReadRequest;
   VoiceReadResponse: VoiceReadResponse;
+  VoiceSampleResult: VoiceSampleResult;
   VoiceSettings: VoiceSettings;
   VoiceStatus: VoiceStatus;
   VoiceStatusResponse: VoiceStatusResponse;
@@ -7080,6 +7081,13 @@ export interface VoiceReadResponse {
   contractVersion: ContractVersion;
   data: VoiceReadAnswer;
   freshness: Freshness;
+}
+/**
+ * The voice service accepted the request and speaks one short sample sentence with the saved voice.
+ */
+export interface VoiceSampleResult {
+  contractVersion: ContractVersion;
+  accepted: true;
 }
 /**
  * Single-resource envelope for VoiceStatus.
