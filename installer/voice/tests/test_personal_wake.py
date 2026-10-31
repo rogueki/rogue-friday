@@ -1590,6 +1590,60 @@ def test_voice_sample_speaks_once_and_refuses_while_busy(monkeypatch, tmp_path):
     assert svc.history == before_history
 
 
+def test_tour_speech_explains_the_page_and_opens_a_reply_window(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.name = "Friday"
+    svc.status["state"] = "listening"
+    svc.processing = None
+    svc.control_paused = False
+    svc.tts.speaking.clear()
+    svc.cfg["speaker_verification_required"] = True
+    said = []
+    svc.tts.say = said.append
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    key_dir = tmp_path / "dashboard" / "data" / "voice-bridge"
+    key_dir.mkdir(parents=True)
+    (key_dir / "auth.key").write_text("a" * 44, encoding="ascii")
+    jv.INSTALL_ROOT = str(tmp_path)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/tour/speak"
+
+    def post(area, authenticated=True):
+        request = urllib.request.Request(
+            url, data=json.dumps({"area": area}).encode(), method="POST",
+            headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    section = jv.KnowledgeBase().get("seiten#kalender")
+    assert section is not None
+    first_words = " ".join(section["text"].split()[:6])
+    assert post("calendar", False) == (401, None)
+    assert said == []
+    assert post("calendar") == (200, {"accepted": True})
+    assert len(said) == 1 and said[0].startswith(first_words)
+    assert svc.reply_window.is_set()
+    svc.reply_window.clear()
+    assert post("nowhere") == (400, None)
+    assert len(said) == 1
+    svc.tts.speaking.set()
+    assert post("calendar") == (423, None)
+    assert len(said) == 1
+    svc.tts.speaking.clear()
+    svc.reply_window.clear()
+    svc.cfg["speaker_verification_required"] = False
+    assert post("calendar") == (200, {"accepted": True})
+    assert len(said) == 2
+    assert not svc.reply_window.is_set()
+
+
 class ScriptedVad:
     """Speech probability per 32 ms frame from a script; silence once the script is used up."""
 

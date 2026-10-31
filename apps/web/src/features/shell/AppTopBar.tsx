@@ -1,12 +1,13 @@
 "use client";
 
 import { TopStatusBar, useMediaQuery, useNow, type ConnectionState, type TopBarAction } from "@friday/ui";
-import { Bell, BellOff, Download, LayoutGrid, Settings } from "lucide-react";
+import { Bell, BellOff, Compass, Download, LayoutGrid, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { quietModeStatusLabel } from "@/features/settings/QuietModeControl";
 import { formatRelative } from "@/features/shared/time";
 import { toneFromHealth } from "@/features/shared/presentation";
+import { useTour } from "@/features/tour/DashboardTour";
 import { useT, type MessageKey } from "@/i18n";
 import { useFridayStatus } from "@/lib/api/domains/core";
 import { useNotifications, useQuietMode } from "@/lib/api/domains/notifications";
@@ -58,6 +59,7 @@ export function AppTopBar() {
   const narrow = useMediaQuery("(max-width: 699px)");
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const setNotificationsOpen = useUiStore((s) => s.setNotificationsOpen);
+  const tour = useTour();
 
   const notificationCount = notifications.data?.pageInfo.totalCount ?? notifications.data?.items.length ?? 0;
   const friday = status.data?.data;
@@ -81,15 +83,19 @@ export function AppTopBar() {
     };
     const update: TopBarAction = { id: "dashboard-update", label: t("settings.update.available"), icon: <Download size={17} strokeWidth={1.5} />, badge: 1,
       onClick: () => router.push("/settings?area=dashboard#dashboard-update-title") };
+    const tourAction: TopBarAction[] = session.role === "owner"
+      ? [{ id: "dashboard-tour", label: "Dashboard-Tour", icon: <Compass size={17} strokeWidth={1.5} />, onClick: () => tour.start() }]
+      : [];
     if (narrow) return [...(dashboardUpdate.data?.available ? [update] : []), ...quietModeAction, bell];
     return [
       ...(dashboardUpdate.data?.available ? [update] : []),
       { id: "layout", label: t("top.layout"), icon: <LayoutGrid size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
+      ...tourAction,
       ...quietModeAction,
       bell,
       { id: "settings", label: t("top.settings"), icon: <Settings size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
     ];
-  }, [t, locale, timeZone, router, notificationCount, setNotificationsOpen, narrow, dashboardUpdate.data?.available, quiet]);
+  }, [t, locale, timeZone, router, notificationCount, setNotificationsOpen, narrow, dashboardUpdate.data?.available, quiet, tour, session.role]);
 
   const statusLabel = friday ? friday.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
   const statusTone = friday ? toneFromHealth(friday.status) : "muted";

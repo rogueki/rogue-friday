@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-tour-step-request.schema.json",
+  "title": "VoiceTourStepRequest",
+  "description": "The tour asks the voice service to explain one dashboard page from the built-in help.",
+  "type": "object",
+  "properties": {
+    "area": { "$ref": "../ui/dashboard-area.schema.json" }
+  },
+  "required": ["area"],
+  "additionalProperties": false
+}

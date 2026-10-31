@@ -4275,6 +4275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a dashboard page or start the tour on behalf of the local voice service
+         * @description Local voice bridge only. Publishes friday.ui.navigation_requested to the owner's open dashboards; it only navigates and never changes a setting.
+         */
+        post: operations["requestDashboardNavigation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/profiles": {
         parameters: {
             query?: never;
@@ -4516,6 +4536,26 @@ export interface paths {
         put?: never;
         /** Run a voice pipeline test */
         post: operations["runVoiceTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/tour/speak": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let the voice service explain one dashboard page of the tour
+         * @description Windows installs only. The voice service reads the built-in help text of the page aloud when nothing else is running.
+         */
+        post: operations["speakVoiceTourStep"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6450,6 +6490,20 @@ export interface components {
                 weatherCode: number;
             };
             freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * DashboardArea
+         * @description One page of the dashboard navigation (same ids as the sidebar).
+         * @enum {string}
+         */
+        DashboardArea: "overview" | "tasks" | "activity" | "memory" | "agents" | "skills" | "approvals" | "communication" | "calendar" | "automations" | "research" | "content-studio" | "files" | "voice" | "alerts" | "system" | "audit" | "settings";
+        /**
+         * DashboardNavigation
+         * @description A spoken request to open a dashboard page, or to start the guided tour there. Navigation only: it never changes a setting.
+         */
+        DashboardNavigation: {
+            area: components["schemas"]["DashboardArea"];
+            tour: boolean;
         };
         /** DashboardSettings */
         DashboardSettings: {
@@ -11901,6 +11955,13 @@ export interface components {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["VoiceTestResult"];
             freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * VoiceTourStepRequest
+         * @description The tour asks the voice service to explain one dashboard page from the built-in help.
+         */
+        VoiceTourStepRequest: {
+            area: components["schemas"]["DashboardArea"];
         };
         /** VoiceTranscript */
         VoiceTranscript: {
@@ -21711,6 +21772,35 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    requestDashboardNavigation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardNavigation"];
+            };
+        };
+        responses: {
+            /** @description Navigation published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listVoiceProfiles: {
         parameters: {
             query?: {
@@ -22160,6 +22250,36 @@ export interface operations {
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    speakVoiceTourStep: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceTourStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Explanation accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     getWakeEnrollment: {

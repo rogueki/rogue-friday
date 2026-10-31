@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-tour-step-request.schema.json",
+  "area": "voice"
+}

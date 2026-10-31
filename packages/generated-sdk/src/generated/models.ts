@@ -74,6 +74,28 @@ export type ApprovalStatus =
 export type CalendarProposalType = "create" | "reschedule" | "cancel" | "invite" | "respond";
 export type ChannelKind = "email" | "telegram" | "whatsapp" | "discord" | "sms" | "phone" | "other";
 export type ChannelStatus = "online" | "degraded" | "offline" | "read_only" | "not_configured";
+/**
+ * One page of the dashboard navigation (same ids as the sidebar).
+ */
+export type DashboardArea =
+  | "overview"
+  | "tasks"
+  | "activity"
+  | "memory"
+  | "agents"
+  | "skills"
+  | "approvals"
+  | "communication"
+  | "calendar"
+  | "automations"
+  | "research"
+  | "content-studio"
+  | "files"
+  | "voice"
+  | "alerts"
+  | "system"
+  | "audit"
+  | "settings";
 export type DraftStatus = "draft" | "pending_approval" | "approved" | "sent" | "failed" | "discarded";
 export type FileCategory =
   "generated" | "uploaded" | "reports" | "presentations" | "invoices" | "research" | "exports" | "temporary";
@@ -915,6 +937,8 @@ export interface FridayModelMap {
   ContractVersion: ContractVersion;
   ControlFrame: ControlFrame;
   CurrentWeatherResponse: CurrentWeatherResponse;
+  DashboardArea: DashboardArea;
+  DashboardNavigation: DashboardNavigation;
   DashboardSettings: DashboardSettings;
   DashboardUpdateInstallRequest: DashboardUpdateInstallRequest;
   DashboardUpdateInstallResponse: DashboardUpdateInstallResponse;
@@ -1294,6 +1318,7 @@ export interface FridayModelMap {
   VoiceTestRequest: VoiceTestRequest;
   VoiceTestResult: VoiceTestResult;
   VoiceTestResultResponse: VoiceTestResultResponse;
+  VoiceTourStepRequest: VoiceTourStepRequest;
   VoiceTranscript: VoiceTranscript;
   VoiceTtsEnded: VoiceTtsEnded;
   VoiceTtsStarted: VoiceTtsStarted;
@@ -2959,6 +2984,13 @@ export interface CurrentWeatherResponse {
     provider: "Open-Meteo";
   };
   freshness: Freshness;
+}
+/**
+ * A spoken request to open a dashboard page, or to start the guided tour there. Navigation only: it never changes a setting.
+ */
+export interface DashboardNavigation {
+  area: DashboardArea;
+  tour: boolean;
 }
 export interface DashboardSettings {
   activeLayoutId: string;
@@ -7123,6 +7155,12 @@ export interface VoiceTestResultResponse {
   contractVersion: ContractVersion;
   data: VoiceTestResult;
   freshness: Freshness;
+}
+/**
+ * The tour asks the voice service to explain one dashboard page from the built-in help.
+ */
+export interface VoiceTourStepRequest {
+  area: DashboardArea;
 }
 export interface VoiceTranscript {
   utteranceId: string;

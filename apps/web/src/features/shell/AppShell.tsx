@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
 import { TaskWriteConfirmHost } from "@/features/tasks/taskWriteRunner";
 import { CreateTaskDialog } from "@/features/palette/CreateTaskDialog";
+import { TourProvider } from "@/features/tour/DashboardTour";
 import { GlobalCommandPalette, usePaletteShortcuts } from "@/features/palette/GlobalCommandPalette";
 import { useT } from "@/i18n";
 import { useUpdateSettings } from "@/lib/api/domains/settings";
@@ -77,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <>
+    <TourProvider>
       <FridayShell
         drawerBreakpoint={1100}
         navCollapsed={collapsed}
@@ -113,6 +114,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NotificationsDrawer />
       <LiveActivityDrawer />
       <ErrorDetailDrawer />
-    </>
+    </TourProvider>
   );
 }

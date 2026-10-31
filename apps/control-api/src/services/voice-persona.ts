@@ -77,3 +77,23 @@ export async function playVoiceSample(runtime: Runtime): Promise<void> {
   const body = await response.json().catch(() => null) as { accepted?: unknown } | null;
   if (!response.ok || body?.accepted !== true) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst hat die Hörprobe nicht bestätigt." });
 }
+
+export async function speakTourStep(runtime: Runtime, area: string): Promise<void> {
+  const endpoint = voiceEndpoint(runtime, "/control/tour/speak");
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${runtime.voiceBridgeKey.toString("base64")}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ area }),
+      signal: AbortSignal.timeout(5_000),
+      redirect: "error",
+    });
+  } catch {
+    throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst ist derzeit nicht erreichbar." });
+  }
+  if (response.status === 404) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst benötigt das Update für die Tour." });
+  if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "F.R.I.D.A.Y. spricht gerade. Die Erklärung kommt beim nächsten Schritt." });
+  const body = await response.json().catch(() => null) as { accepted?: unknown } | null;
+  if (!response.ok || body?.accepted !== true) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst hat die Erklärung nicht bestätigt." });
+}

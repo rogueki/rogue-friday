@@ -101,6 +101,8 @@ channels:
         $ref: "#/components/messages/voiceTtsStarted"
       voiceTtsEnded:
         $ref: "#/components/messages/voiceTtsEnded"
+      uiNavigationRequested:
+        $ref: "#/components/messages/uiNavigationRequested"
       notificationCreated:
         $ref: "#/components/messages/notificationCreated"
       notificationUpdated:
@@ -163,6 +165,7 @@ operations:
       - $ref: "#/channels/events/messages/voiceTranscriptFinal"
       - $ref: "#/channels/events/messages/voiceTtsStarted"
       - $ref: "#/channels/events/messages/voiceTtsEnded"
+      - $ref: "#/channels/events/messages/uiNavigationRequested"
       - $ref: "#/channels/events/messages/notificationCreated"
       - $ref: "#/channels/events/messages/notificationUpdated"
       - $ref: "#/channels/events/messages/systemMetrics"
@@ -887,6 +890,25 @@ components:
                 const: friday.voice.tts_ended
               data:
                 $ref: ../schemas/events/voice-tts-ended.schema.json
+            required:
+              - type
+              - data
+    uiNavigationRequested:
+      name: friday.ui.navigation_requested
+      title: Dashboard navigation requested
+      summary: The voice service asks open dashboards to show a page or start the tour
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: friday.ui.navigation_requested
+              data:
+                $ref: ../schemas/ui/dashboard-navigation.schema.json
             required:
               - type
               - data

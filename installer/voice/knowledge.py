@@ -91,6 +91,13 @@ class KnowledgeBase:
                             sections.append(section)
             self._sections = sections
 
+    def get(self, section_id: str) -> dict | None:
+        self._ensure_loaded()
+        for section in self._sections:
+            if section["id"] == section_id:
+                return section
+        return None
+
     def search(self, question: str, limit: int = 3) -> list[dict]:
         self._ensure_loaded()
         if limit <= 0 or not isinstance(question, str):

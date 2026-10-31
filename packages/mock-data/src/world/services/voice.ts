@@ -1,4 +1,5 @@
 import {
+  type DashboardArea,
   CONTRACT_VERSION,
   type ActionResult,
   type VoiceDevice,
@@ -341,6 +342,11 @@ export class VoiceService {
       { direction, level: value, ...(peak !== undefined ? { peak: Math.round(top * 1000) / 1000 } : {}), ...bands, at: this.w.nowIso() },
       "voice/audio",
     );
+  }
+
+  /** The voice service asks open dashboards to show a page or to start the tour (navigation only). */
+  requestNavigation(area: DashboardArea, tour: boolean): void {
+    this.w.emitFor("voice", "friday.ui.navigation_requested", { area, tour }, `ui/${area}`);
   }
 
   emitTranscript(text: string, final: boolean, confidence?: number): void {

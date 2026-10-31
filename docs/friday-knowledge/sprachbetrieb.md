@@ -35,6 +35,11 @@ Stichworte: ruhemodus, nicht stören, ruhe, nachtruhe, stille, ansagen pausieren
 Bereich: sprache
 Du kannst den Ruhemodus per Sprache einschalten, etwa mit Ruhemodus für eine Stunde, Ruhemodus bis 15:40 oder Die nächste Stunde will ich nicht gestört werden. Die Endzeit rechnet das System selbst aus. Mit Läuft gerade der Ruhemodus fragst du den aktuellen Stand ab. Ruhemodus heute Nacht setzt die Ruhe bis morgen 7 Uhr. Die Stufe bestimmst du mit still oder stimme aus, zum Beispiel Die nächste Stunde nur Stimme aus. Bei still wird nichts versendet, bei stimme aus kommt Wichtiges als Text an dich. Die tägliche Nachtruhe stellst du per Sprache mit Nachtruhe ist von 22 bis 7 Uhr ein. Bestätigt wird immer die Endzeit. Endet der Ruhemodus von selbst, fasst F.R.I.D.A.Y. sofort zusammen, was in der Zwischenzeit fertig wurde, welche Rückfragen offen sind und welche Freigaben und Termine anstanden; nach der Nachtruhe kommt die Zusammenfassung beim ersten Gespräch oder zur Endzeit, je nach Einstellung. Mit Ruhemodus aus endet die Ruhe sofort und die Zusammenfassung folgt direkt in derselben Antwort. Ein Neustart beendet den Ruhemodus nicht.
 
+## Dashboard-Tour und Bereiche öffnen
+Stichworte: tour, dashboard zeigen, führung, rundgang, bereich öffnen, seite öffnen, navigation, zeig mir, öffne
+Bereich: sprache
+Mit „Zeig mir das Dashboard“, „Starte die Tour“ oder über den Kompass oben in der Leiste startest du eine geführte Tour durch alle sichtbaren Bereiche des Dashboards, in der Reihenfolge der Seitenleiste. Auch am Ende der Einführung gibt es den Knopf „Dashboard-Tour starten“. Jeder Schritt öffnet den Bereich und zeigt eine kurze Erklärung; ist „Vorlesen“ an, erklärt F.R.I.D.A.Y. den Bereich auch mit ihrer Stimme. Danach kannst du direkt eine Frage stellen, ohne das Aktivierungswort zu sagen. Mit Weiter und Zurück wechselst du die Bereiche, Escape oder Schließen beendet die Tour. Mit „Öffne den Kalender“ oder „Zeig mir die Einstellungen“ öffnet die Stimme einen Bereich direkt. Die Tour und diese Befehle wechseln nur die Ansicht und ändern keine Einstellung.
+
 ## Beispielsätze
 Stichworte: beispiele, beispielsätze, sprachbefehle, was kann ich sagen, sätze, formulierungen
 Bereich: sprache

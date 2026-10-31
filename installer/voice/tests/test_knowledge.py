@@ -77,6 +77,13 @@ class KnowledgeBaseTest(unittest.TestCase):
         self.assertEqual(normalize_tokens("Straße"), ["strasse"])
         self.assertEqual(normalize_tokens("Am 5. zu im"), [])
 
+    def test_get_returns_a_section_by_id(self):
+        section = KnowledgeBase().get("seiten#kalender")
+        self.assertIsNotNone(section)
+        self.assertEqual(section["id"], "seiten#kalender")
+        self.assertTrue(section["text"])
+        self.assertIsNone(KnowledgeBase().get("seiten#gibt-es-nicht"))
+
     def test_search_finds_the_calendar_section(self):
         results = self.knowledge.search("Wie verbinde ich meinen Kalender?")
         self.assertTrue(results)

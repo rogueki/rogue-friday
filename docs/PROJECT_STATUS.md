@@ -1607,6 +1607,17 @@ entfernt) rot; pyflakes ohne Befund.
   gespeichert ist (Gegenprobe rot). 306 Operationen. Das Anlernen einer eigenen Cloud-Stimme entfällt (P0-01, D-08). Der
   Installer erkennt `BAILIAN_API_KEY`/`DASHSCOPE_API_KEY` im Benutzerprofil wie den Kimi-Schlüssel: GUI-Haken „Auf diesem PC
   gefundenen Alibaba-Schlüssel verwenden“ (verschlüsselt übergeben, im Laufprotokoll geschwärzt), Konsole fragt einmal.
+- **Dashboard-Tour und Bereiche per Stimme öffnen (LG-5.07):** Tour (`apps/web/src/features/tour/`) durch alle sichtbaren
+  Seiten in Reihenfolge der Seitenleiste; Schritttexte aus `docs/friday-knowledge/seiten.md`, von `knowledge:build` nach
+  `tourSteps.generated.json` erzeugt (Bundle-Prüfung gegen Server-Schlüsseldateien wie bei der Hilfe). Start über den Kompass
+  in der Kopfleiste, am Ende der Einführung und per Stimme. „Vorlesen“: `POST /api/v1/voice/tour/speak` (Owner, CSRF) →
+  Sprachdienst `/control/tour/speak` spricht den Wissensbasis-Auszug und öffnet das Antwortfenster (nur mit Sprecherprüfung);
+  belegt → 423 → CONFLICT, die Tour versucht es nach 4 s einmal erneut (Start per Stimme spricht noch die Bestätigung).
+  Stimme → Dashboard: Werkzeug `dashboard_oeffnen` (EFFECT_TOOLS, also nach Daten im Zug gesperrt) bzw. strenge lokale Muster
+  („Öffne (bitte) den Kalender.“, „Zeig mir das Dashboard“; „Zeig mir meine Termine“ bleibt eine Lesefrage) →
+  `POST /api/v1/voice/navigation` (nur Voice-Bridge) → Realtime-Ereignis `friday.ui.navigation_requested`; nur Navigation,
+  keine Einstellung. 308 Operationen. Tests: Tour-Komponente (6), Navigation über HTTP mit/ohne Brückenschlüssel,
+  Sprachdienst-Endpunkt (401/400/423/Antwortfenster), lokale Muster mit Gegenbeispielen.
 - **Antwortfenster nach einer Ansage von sich aus (LG-2.04):** Spricht der Sprachdienst eine Ansage, während kein Gespräch
   läuft, öffnet er danach ein Antwortfenster ohne Aktivierungswort (`reply_window`, Länge `followup_window_s`). Die
   Sprecherprüfung bleibt (`_handle_command` mit `wake_audio=None`); kein Fenster im Gastmodus, pausiert oder mitten im
