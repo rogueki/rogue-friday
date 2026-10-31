@@ -78,6 +78,18 @@ function Git([string[]]$arguments) {
     if ($gitExit -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
     return $result
 }
+function Invoke-Pnpm([string[]]$arguments) {
+    # Windows PowerShell 5.1 turns redirected native stderr into a terminating error under 'Stop'; pnpm warnings are not failures.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & pnpm.cmd @arguments 2>&1 | ForEach-Object { [string]$_ } | Out-File $log -Append -Encoding utf8
+        return $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorActionPreference }
+}
+function Test-DependencyInstallNeeded([object[]]$changes) {
+    return [bool](@($changes.Path) -match '(^|\\)(package\.json|pnpm-lock\.yaml)$|^(pnpm-workspace\.yaml|\.npmrc)$')
+}
 function Start-Dashboard {
     Start-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction Stop
 }
@@ -426,11 +438,9 @@ try {
     Push-Location $cache
     try {
         Set-UpdatePhase 3 'dependencies' 'Abhängigkeiten im Update-Cache werden vorbereitet.'
-        & pnpm.cmd install --frozen-lockfile 2>&1 | Out-File $log -Append -Encoding utf8
-        if ($LASTEXITCODE -ne 0) { throw 'pnpm install im Update-Cache fehlgeschlagen.' }
+        if ((Invoke-Pnpm @('install', '--frozen-lockfile')) -ne 0) { throw 'pnpm install im Update-Cache fehlgeschlagen.' }
         Set-UpdatePhase 4 'build' 'Dashboard wird gebaut.'
-        & pnpm.cmd build:app 2>&1 | Out-File $log -Append -Encoding utf8
-        if ($LASTEXITCODE -ne 0) { throw 'Dashboard-Build im Update-Cache fehlgeschlagen.' }
+        if ((Invoke-Pnpm @('build:app')) -ne 0) { throw 'Dashboard-Build im Update-Cache fehlgeschlagen.' }
     } finally { Pop-Location }
     if ($voiceNeeded) {
         Assert-VerifiedVoiceSources
@@ -478,9 +488,9 @@ try {
         $destination = Join-Path $dash $folder
         Sync-BuildOutput $source $destination
     }
-    if ($changes.Path -match '(^|\\)(package.json|pnpm-lock.yaml)$') {
+    if (Test-DependencyInstallNeeded $changes) {
         Push-Location $dash
-        try { & pnpm.cmd install --frozen-lockfile 2>&1 | Out-File $log -Append -Encoding utf8; if ($LASTEXITCODE -ne 0) { throw 'Abhängigkeiten konnten nicht aktualisiert werden.' } }
+        try { if ((Invoke-Pnpm @('install', '--frozen-lockfile')) -ne 0) { throw 'Abhängigkeiten konnten nicht aktualisiert werden.' } }
         finally { Pop-Location }
     }
     Start-Dashboard
@@ -539,9 +549,9 @@ try {
                 if (Test-Path -LiteralPath $saved -PathType Leaf) { Copy-Item -LiteralPath $saved -Destination $databaseFile -Force }
                 elseif (Test-Path -LiteralPath $databaseFile -PathType Leaf) { Remove-Item -LiteralPath $databaseFile -Force }
             }
-            if ($changes.Path -match '(^|\\)(package.json|pnpm-lock.yaml)$') {
+            if (Test-DependencyInstallNeeded $changes) {
                 Push-Location $dash
-                try { & pnpm.cmd install --frozen-lockfile 2>&1 | Out-File $log -Append -Encoding utf8 }
+                try { if ((Invoke-Pnpm @('install', '--frozen-lockfile')) -ne 0) { throw 'Abhängigkeiten konnten nach dem Rollback nicht wiederhergestellt werden.' } }
                 finally { Pop-Location }
             }
             Start-Dashboard

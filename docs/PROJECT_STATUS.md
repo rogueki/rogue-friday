@@ -1404,6 +1404,12 @@ entfernt) rot; pyflakes ohne Befund.
   kein Abbruch des Updates). Zusätzlich meldet `QwenRealtimeSession.connect` ein fehlendes Paket als `RealtimeError
   protocol`, damit der Turn lokal beantwortet wird statt abzustürzen. Test `voice-update-packages.Tests.ps1`
   (inkl. Gleichstand der Versionsangabe mit dem Installer); Gegenproben rot.
+- **GitHub-Update robuster (W4):** pnpm-Aufrufe laufen über `Invoke-Pnpm` (vorher brach unter PowerShell 5.1 mit
+  `ErrorActionPreference = Stop` jede pnpm-Warnung auf stderr das Update ab – lokal belegt). Abhängigkeiten werden
+  auch bei Änderungen an `pnpm-workspace.yaml`/`.npmrc` neu installiert (`Test-DependencyInstallNeeded`); ein
+  fehlgeschlagenes `pnpm install` im Rollback wird jetzt als nicht bestätigter Rollback gemeldet. Die Update-Paketliste
+  deckt alle Voice-Pakete ab, die der Installer in beiden Sprachbetrieben installiert; der Test erzwingt den Gleichstand.
+  Tests `dashboard-update-pnpm.Tests.ps1`, `voice-update-packages.Tests.ps1`; Gegenproben rot.
 - **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 

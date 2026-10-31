@@ -27,8 +27,19 @@ $files = @(
     'installer\voice_models\friday_ref.wav', 'installer\voice_models\friday_ref.txt',
     'installer\voice_models\jarvis_ref.wav', 'installer\voice_models\jarvis_ref.txt'
 )
-# Pakete, die neue Sprachmodule zusaetzlich brauchen; das Update installiert nur, was fehlt.
+# Gemeinsame Pakete beider Sprachbetriebe (install-friday.ps1); das Update installiert nur, was fehlt.
+# Modusabhaengige Grosspakete (faster-whisper, CUDA, piper) bleiben beim Installer.
 $requiredPackages = @(
+    @{ Module='openwakeword'; Spec='openwakeword' },
+    @{ Module='speechbrain'; Spec='speechbrain' },
+    @{ Module='silero_vad'; Spec='silero-vad' },
+    @{ Module='sounddevice'; Spec='sounddevice' },
+    @{ Module='soundfile'; Spec='soundfile' },
+    @{ Module='scipy'; Spec='scipy' },
+    @{ Module='sklearn'; Spec='scikit-learn' },
+    @{ Module='huggingface_hub'; Spec='huggingface_hub' },
+    @{ Module='tzdata'; Spec='tzdata' },
+    @{ Module='av'; Spec='av' },
     @{ Module='websockets'; Spec='websockets>=15,<17' }
 )
 $defaults = @(
