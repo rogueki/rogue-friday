@@ -1359,3 +1359,30 @@ Abhängigkeitsprüfung und `test_configure_voice.py` 7/7; `dashboard-update-voic
 
 **Zuletzt verifiziert:** `installer/voice/tests/test_conversation.py` 22/22 (neu in CI); Gegenprobe (Ruhezeit-Sperre
 entfernt) rot; pyflakes ohne Befund.
+
+## 2026-10-31 Live-Gespräch Phase 1: Qwen Audio im Sprachdienst (Branch `feat/qwen-dialog`, LG-1.03)
+
+- **Entscheidung:** Der Gesprächsmodus ist ein eigener Schlüssel `conversation_backend` (`local` | `qwen`) in
+  `config/voice.json`, nicht ein dritter Wert von `voice_mode`. `voice_mode` beschreibt den Audio-Stapel (lokal/ElevenLabs)
+  und wird an rund 30 Stellen in Installer und Diensten geprüft; der Qwen-Modus braucht ohnehin den lokalen Audio-Stapel
+  (lokale Stimme laut D-08, Whisper als Rückfall). Weitere Schlüssel: `qwen_key_file`, `qwen_region`.
+- **`installer/voice/qwen_dialog.py` – `QwenDialog`:** hält die Realtime-Sitzung auf einer eigenen asyncio-Schleife für
+  den threadbasierten Dienst. Verbindung beim Wake Word (während des Pieptons), Turn = geprüfte Äußerung senden und
+  committen, Werkzeugaufrufe an den Orchestrator, Antworttext satzweise an die lokale Stimme, Cloud-Audio verworfen.
+  Abbruch per Wake Word/Stopp sendet `response.cancel`; ein abgebrochener Turn schließt die Verbindung (keine
+  Ereignisse der alten Antwort im nächsten Turn); nach 60 s ohne Turn wird die Sitzung geschlossen.
+- **`friday_voice.py`:** Im Qwen-Modus beantwortet Qwen jede **geprüfte** Äußerung; Gäste ohne Sprecherprüfung bleiben
+  lokal (kein unbestätigtes Audio in die Cloud). Fehler (`auth`, `quota`, Netz …) → derselbe Satz geht über den
+  bisherigen lokalen Weg, Fehlerart steht in `status.qwen_error`. Von Qwen angelegte Aufträge bekommen denselben
+  Hintergrund-Wächter; Ergebnisse laufen über die Ansage-Warteschlange des Orchestrators und werden Qwen danach als
+  Daten mitgeteilt, damit Rückfragen dazu funktionieren. Bestehende Modi sind unverändert.
+- **Installer/Update:** `qwen_realtime.py`, `qwen_dialog.py`, `conversation.py` in `Get-VoiceSourcePaths` und
+  `update-voice-personas.ps1`; `websockets>=15,<17` in beiden Windows-Pip-Listen der Voice-Venv.
+- **Noch nicht enthalten:** Auswahl im Installer/Dashboard und Schlüsselablage (LG-4/LG-3), gesprochene Rückfall-Hinweise
+  (LG-1.04), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+  Transkript; Unterbrechen per Wake Word funktioniert).
+
+**Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 223 bestanden, 1 übersprungen;
+Windows `test_qwen_dialog.py` 14/14; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
+PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
+`voice-native-capture`, `gui-controls` PASS.

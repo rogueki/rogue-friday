@@ -66,6 +66,9 @@ from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from domain_task_voice import AGENT_LABEL, DomainTaskVoice, bundle_text, classify_domain  # noqa: E402
+import qwen_realtime  # noqa: E402
+from conversation import ConversationOrchestrator  # noqa: E402
+from qwen_dialog import QwenDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
@@ -199,6 +202,32 @@ def record_latency(service, name: str, value_ms: float) -> None:
     samples = getattr(service, "latency", {}).get(name)
     if samples is not None:
         samples.append(value_ms)
+
+
+CONVERSATION_BACKENDS = ("local", "qwen")
+
+
+def conversation_backend(cfg: dict) -> str:
+    backend = cfg.get("conversation_backend", "local")
+    if backend not in CONVERSATION_BACKENDS:
+        raise SystemExit("conversation_backend muss local oder qwen sein")
+    return backend
+
+
+class WatchedTasks:
+    """Task-Port fuer die Gespraechsschicht: jeder neue Auftrag bekommt denselben Hintergrund-Waechter wie im klassischen Ablauf."""
+
+    def __init__(self, tasks, on_created):
+        self._tasks = tasks
+        self._on_created = on_created
+
+    def create(self, text, domain):
+        job = self._tasks.create(text, domain)
+        self._on_created(job)
+        return job
+
+    def __getattr__(self, name):
+        return getattr(self._tasks, name)
 
 
 class Speaker:
@@ -716,6 +745,17 @@ class VoiceService:
                            browser_audio=self.browser_audio)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         self.latency = {name: collections.deque(maxlen=LATENCY_WINDOW) for name in ("speaker", "stt", "router", "model")}
+        self.conversation = None
+        self.qwen_dialog = None
+        if conversation_backend(cfg) == "qwen":
+            # Qwen fuehrt das Gespraech; Wake Word, Sprecherpruefung und Stimme bleiben lokal (Plan D-03, D-04, D-08).
+            self.conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task))
+            session = qwen_realtime.QwenRealtimeSession(
+                qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
+                instructions="")
+            self.qwen_dialog = QwenDialog(session, self.conversation, assistant_name=self.name,
+                                          persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)))
+            atexit.register(self.qwen_dialog.close)
         if not self.cloud_voice:
             self._route("Hallo")  # lokaler Router-Warmup
 
@@ -1391,6 +1431,27 @@ class VoiceService:
             self.tts.say(text)
             return True
 
+    def _qwen_turn(self, audio: np.ndarray, generation: int) -> bool:
+        """Qwen Audio beantwortet eine gepruefte Aeusserung; False uebergibt sie dem lokalen Weg (Rueckfall)."""
+        self.processing = "thinking"
+        pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
+
+        def cancelled() -> bool:
+            return self.control_cancel.is_set() or generation != self.control_generation
+
+        try:
+            text = self.qwen_dialog.turn(pcm, lambda sentence: self._say_if_current(sentence, generation), cancelled)
+        except qwen_realtime.RealtimeError as exc:
+            log_event(event="qwen_turn_failed", kind=exc.kind)
+            self.status["qwen_error"] = exc.kind
+            return False
+        self.status["qwen_error"] = None
+        self.status["commands"] += 1
+        if text:
+            self.history += [{"role": "assistant", "content": text}]
+        log_event(event="qwen_turn", chars=len(text))
+        return True
+
     def _handle_command(self, audio: np.ndarray, wake_audio: np.ndarray | None) -> None:
         generation = self.control_generation
         if self.control_cancel.is_set():
@@ -1429,6 +1490,8 @@ class VoiceService:
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         if getattr(self, "tts", None) is not None:
             self.tts.answer_clock = t0
+        if owner_required and getattr(self, "qwen_dialog", None) is not None and self._qwen_turn(audio, generation):
+            return
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:
@@ -1731,6 +1794,12 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _watch_domain_task(self, job: dict) -> None:
+        watcher = uuid.uuid4().hex[:8]
+        self.background_jobs.add(watcher)
+        threading.Thread(target=self._background_domain, args=(job["taskId"], watcher, self.control_generation),
+                         daemon=True).start()
+
     def _background_domain(self, kanban_task: str, task_id: str, generation: int) -> None:
         # "Stopp" ends dialog and audio only; the Kanban task keeps running and its result is still announced.
         try:
@@ -1744,6 +1813,13 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _announcement_text(self, jobs: list[dict]) -> str | None:
+        if getattr(self, "conversation", None) is None:
+            return bundle_text(jobs)
+        for job in jobs:
+            self.conversation.task_finished(job)
+        return self.conversation.take_announcement()
+
     def _announce_domain_results(self) -> None:
         while True:
             try:
@@ -1752,12 +1828,17 @@ class VoiceService:
                     continue
                 while self.tts.speaking.is_set():
                     time.sleep(0.05)  # never cut off a running announcement
-                text = bundle_text(jobs)
+                text = self._announcement_text(jobs)
+                for job in jobs:
+                    self.domain_tasks.forget(job["taskId"])
+                if not text:
+                    continue
                 print(f"< {text}", flush=True)
                 self._say_if_current(text, self.control_generation)
                 self.history += [{"role": "assistant", "content": text}]
-                for job in jobs:
-                    self.domain_tasks.forget(job["taskId"])
+                if getattr(self, "qwen_dialog", None) is not None:
+                    # Qwen kennt das Ergebnis danach und kann Rueckfragen dazu beantworten.
+                    self.qwen_dialog.note(self.conversation.announcement_item(text))
             except Exception as exc:
                 log_event(event="domain_announce_error", error=type(exc).__name__)
 
@@ -1936,6 +2017,8 @@ class VoiceService:
         if hasattr(self, "memory_capture_error"):
             self.memory_session_id = "ses_" + uuid.uuid4().hex
         self.status["state"] = "command"
+        if getattr(self, "qwen_dialog", None) is not None:
+            self.qwen_dialog.warm_up()  # Verbindung waehrend des Pieptons aufbauen (Plan D-10)
         if manual:
             self.preroll = []
             self._drain()

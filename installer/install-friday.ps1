@@ -2017,7 +2017,7 @@ if (-not (IsDone 'voicepython')) {
     }
     if ($State.voice_mode -eq 'elevenlabs') {
         if ((Invoke-Pip $vpy @('openwakeword', 'speechbrain', 'silero-vad', 'sounddevice', 'soundfile', 'scipy',
-                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av', 'websockets>=15,<17') 'voice') -ne 0) {
             Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
         }
         $secretPath = "$Root\config\elevenlabs_api.key.dpapi"
@@ -2031,7 +2031,7 @@ if (-not (IsDone 'voicepython')) {
     } else {
         if ((Invoke-Pip $vpy @('faster-whisper', 'nvidia-cublas-cu12', 'nvidia-cudnn-cu12==9.*', 'openwakeword',
                                'speechbrain', 'silero-vad', 'piper-tts', 'sounddevice', 'soundfile', 'scipy',
-                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av', 'websockets>=15,<17') 'voice') -ne 0) {
             Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
         }
     }
