@@ -1424,8 +1424,17 @@ entfernt) rot; pyflakes ohne Befund.
   Linux: nur über den Installer. Der Schlüssel erscheint in keinem Log, Audit oder Fehlertext (Test prüft die Log-Ereignisse).
 - **WSL-Update-Hülle:** `test_update_wsl_dependency_closure.py` prüft jetzt auch, dass jedes lokal importierte Nachbarmodul eines
   ausgelieferten WSL-Helfers mitkopiert wird.
-- **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
-  Transkript; Unterbrechen per Wake Word funktioniert).
+- **Direkte Antworten im Gespräch (LG-2b.01/02):** Neues Werkzeug `friday_lesen` beantwortet Fragen nach Wetter,
+  Einstellungen, offenen Aufgaben, Terminen (heute/morgen), Systemstatus, Benachrichtigungen, offenen Freigaben und Skills
+  direkt aus dem Dashboard, ohne Hintergrund-Agent. Neue Operation `readVoiceQuery` (POST `/api/v1/voice/read`, nur lokale
+  Voice-Bridge, nicht auditiert, weil rein lesend) nutzt die vorhandenen Leseabsichten von `read-query-intent.ts`; nur die
+  Arten aus `VOICE_READ_KINDS` werden beantwortet (Audit, Gedächtnis, Dateien u. a. bleiben im Dashboard). Ohne Sitzung
+  sperrt `executeReadQuery` alle anderen Arten selbst, egal über welche Bridge-Route. Antworten gehen als Daten markiert
+  (gekürzt auf 1 500 Zeichen) an das Gesprächsmodell. Tests `voice-read.test.ts`, `ReadToolTest`,
+  `test_read_posts_voice_read_and_truncates_text`; Gegenproben (Sperre/Owner-Fallback entfernt) rot.
+- **Rechte-Zuordnung:** `setVoiceConversationKey` ist jetzt `settings.update` in der Aktionsmatrix.
+- **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
+  Rückfragen von Agenten per Stimme beantworten (LG-2.01), Wissensbasis/Hilfe (LG-2b.03–05), Ruhemodus per Stimme (LG-2c).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
 Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);

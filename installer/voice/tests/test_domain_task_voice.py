@@ -83,6 +83,23 @@ def test_create_posts_domain_task(tmp_path, monkeypatch):
     assert body["text"] == "Recherchiere Strompreise"
 
 
+def test_read_posts_voice_read_and_truncates_text(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    payload = {"kind": "weather.current", "status": "answered", "answer": "Berlin: 14 °C"}
+    opener = FakeOpener({"data": payload})
+    voice = DomainTaskVoice(str(tmp_path), opener=opener)
+    assert voice.read("Wie ist das Wetter?") == payload
+    request = opener.requests[0]
+    assert request.full_url.endswith("/api/v1/voice/read")
+    assert request.get_method() == "POST"
+    body = json.loads(request.data.decode("utf-8"))
+    assert body == {"text": "Wie ist das Wetter?"}
+    voice.read("x" * 600)
+    body = json.loads(opener.requests[1].data.decode("utf-8"))
+    assert body["text"] == "x" * 500
+
+
 def test_wait_returns_final_job(tmp_path):
     steps = [{"status": "running"}, {"status": "running"}, {"status": "done", "resultSummary": "Fertig"}]
     clock = [0.0]

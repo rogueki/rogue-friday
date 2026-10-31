@@ -5,6 +5,7 @@ import { createId } from "@friday/observability";
 import type { Handler, HandlerResult, RequestContext } from "../http/context";
 import { localCalendarReads } from "../handlers/local-calendar";
 import { buildPortHandlers } from "../handlers/ports";
+import { stableUserId } from "../security/auth-service";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
 import { auditTrailEvent, auditTrailPage } from "./audit-trail";
 import { localDayRange } from "./calendar-day-range";
@@ -146,6 +147,12 @@ function lookbackHours(text: string): number | undefined {
     : unit.startsWith("week") || unit.startsWith("woche") ? count * 168 : count * 24;
   return hours > 0 && hours <= 24 * 30 ? hours : -1;
 }
+
+/** Read kinds the local voice bridge may answer for the verified owner (LG-2b.01); everything else stays in the dashboard. */
+export const VOICE_READ_KINDS: ReadonlySet<ReadQueryIntent["kind"]> = new Set([
+  "settings.get", "weather.current", "tasks.list", "calendar.list", "system.status", "system.metrics",
+  "notifications.list", "approvals.list", "skills.list", "onboarding.status", "research.list", "agents.list", "automations.list",
+]);
 
 /** Deliberately finite grammar: free text is never passed as an adapter filter or interpreted as SQL. */
 export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
@@ -439,10 +446,21 @@ function taskStatuses(status: string): TaskStatus[] {
 
 function requireReadRole(ctx: RequestContext, resource: string, requiredRole: Role): void {
   const principal = ctx.principal;
-  if (!principal) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  if (!principal) {
+    // The voice handler already checked the bridge and the read allowlist for the owner account.
+    if (ctx.voiceBridgeAuthorized) return;
+    throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  }
   if (!authorize(principal.role, `read:${resource}`).allowed || ROLE_RANK[principal.role] < ROLE_RANK[requiredRole]) {
     throw new ApiError({ code: "FORBIDDEN", message: "Für diesen Lesebereich fehlt die erforderliche Rolle.", details: { resource, requiredRole } });
   }
+}
+
+/** The voice bridge speaks for the single owner account; dashboard sessions use their own user id. */
+function readerId(ctx: RequestContext): string {
+  if (ctx.principal) return ctx.principal.userId;
+  if (ctx.voiceBridgeAuthorized) return stableUserId("owner");
+  throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
 }
 
 function baseResponse(ctx: RequestContext, message: string, status: CommandResponse["status"] = "executed"): HandlerResult {
@@ -539,7 +557,7 @@ const fileSize = (bytes: number): string => bytes < 1024 ? `${bytes} Byte`
   : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed">): Promise<{ items: Approval[]; hasNextPage: boolean }> {
-  const ownerId = ctx.principal!.userId;
+  const ownerId = readerId(ctx);
   const params = { limit: MAX_RESULTS, ...(status ? { status } : {}) };
   const native = ctx.runtime.nativeApprovals.listApprovals(ownerId).filter((approval) => !status || status.includes(approval.status));
   try {
@@ -556,6 +574,9 @@ async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "ap
 
 export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryIntent): Promise<HandlerResult> {
   if (intent.kind === "clarify") return baseResponse(ctx, intent.message, "rejected");
+  // Without a session only the voice allowlist may run, whichever bridge route reached this point.
+  if (!ctx.principal && ctx.voiceBridgeAuthorized && !VOICE_READ_KINDS.has(intent.kind))
+    throw forbidden("Diese Abfrage ist per Stimme nicht freigegeben.");
   if (ctx.principal) ctx.runtime.recentCommandListings.clear(ctx.principal.userId, ctx.principal.sessionId);
   if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
   if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
@@ -639,7 +660,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
         items = page.items;
         hasNextPage = page.pageInfo.hasNextPage;
       } else {
-        const ownerId = ctx.principal!.userId;
+        const ownerId = readerId(ctx);
         items = ctx.runtime.research.list(ownerId, undefined, MAX_RESULTS, 0);
         hasNextPage = ctx.runtime.research.count(ownerId) > items.length;
       }
@@ -649,7 +670,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
     case "research.get": {
       const project = ctx.runtime.config.dataMode === "mock"
         ? (await ctx.runtime.registry.getPort("research").getResearchProject({ id: intent.id }, ctx.call)).data
-        : ctx.runtime.research.get(ctx.principal!.userId, intent.id);
+        : ctx.runtime.research.get(readerId(ctx), intent.id);
       return baseResponse(ctx, `Recherche ${project.id}: ${project.topic}, Status ${project.status}, ${project.sourceCount ?? 0} Quellen, ${project.findingCount ?? 0} Erkenntnisse.`);
     }
     case "system.status": {
@@ -780,7 +801,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
         (item: Approval) => idStatus(item.id, `${item.status}/Tier ${item.riskTier}`, item.updatedAt)));
     }
     case "approvals.get": {
-      const native = ctx.runtime.nativeApprovals.getApproval(ctx.principal!.userId, intent.id);
+      const native = ctx.runtime.nativeApprovals.getApproval(readerId(ctx), intent.id);
       const approval = native ?? (await ctx.runtime.registry.getPort("approvals").getApproval({ id: intent.id }, ctx.call)).data;
       return baseResponse(ctx, `Freigabe ${approval.id}: ${approval.status}, Tier ${approval.riskTier}, aktualisiert ${approval.updatedAt}.`);
     }

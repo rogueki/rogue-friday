@@ -128,7 +128,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
 };
 
 /** POST operations that are read-only or pure telemetry and therefore stay out of the audit log (otherwise every browser batch would add a hash-chain entry). */
-export const NON_AUDITED_POSTS = new Set<OperationId>(["searchMemory", "submitFrontendTelemetry"]);
+// readVoiceQuery only reads; auditing every spoken weather question would bury the real voice actions.
+export const NON_AUDITED_POSTS = new Set<OperationId>(["searchMemory", "submitFrontendTelemetry", "readVoiceQuery"]);
 
 export const AUDIT_CATEGORY_BY_TAG: Readonly<Record<string, "user_action" | "approval" | "system" | "security">> = {
   approvals: "approval",

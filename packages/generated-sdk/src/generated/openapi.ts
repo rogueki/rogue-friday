@@ -4190,6 +4190,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer a spoken read question of the verified owner through the local voice bridge
+         * @description Local voice bridge only. Parses the question with the dashboard read intents and answers only the kinds on the voice allowlist (weather, settings, tasks, calendar, system, notifications, approvals, skills, onboarding). Secrets are only reported as set or not set. Nothing is changed and no agent is started.
+         */
+        post: operations["readVoiceQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/status": {
         parameters: {
             query?: never;
@@ -11343,6 +11363,32 @@ export interface components {
             items: components["schemas"]["VoiceProfile"][];
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * VoiceReadAnswer
+         * @description Speakable answer to a voice read question. status answered: the read ran; clarify: the question needs a narrower subject; unsupported: this kind of read is not available by voice.
+         */
+        VoiceReadAnswer: {
+            answer: string;
+            kind: string | null;
+            /** @enum {unknown} */
+            status: "answered" | "clarify" | "unsupported";
+        };
+        /**
+         * VoiceReadRequest
+         * @description A spoken read question of the verified owner, e.g. weather, a setting value or open tasks. Only read intents from the voice allowlist are answered; nothing is changed and no agent is started.
+         */
+        VoiceReadRequest: {
+            text: string;
+        };
+        /**
+         * VoiceReadResponse
+         * @description Single-resource envelope for VoiceReadAnswer.
+         */
+        VoiceReadResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceReadAnswer"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** VoiceSettings */
         VoiceSettings: {
@@ -21187,6 +21233,36 @@ export interface operations {
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    readVoiceQuery: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceReadRequest"];
+            };
+        };
+        responses: {
+            /** @description Speakable answer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceReadResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

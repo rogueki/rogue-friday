@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-read-response.schema.json",
+  "title": "VoiceReadResponse",
+  "description": "Single-resource envelope for VoiceReadAnswer.",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "$ref": "../voice/voice-read-answer.schema.json" },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-read-request.schema.json",
+  "title": "VoiceReadRequest",
+  "description": "A spoken read question of the verified owner, e.g. weather, a setting value or open tasks. Only read intents from the voice allowlist are answered; nothing is changed and no agent is started.",
+  "type": "object",
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "maxLength": 500 }
+  },
+  "required": ["text"],
+  "additionalProperties": false
+}

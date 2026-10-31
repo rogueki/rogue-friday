@@ -77,9 +77,9 @@ describe("observability operations (PLAN §50.3)", () => {
     // hub search and the locally modified list (DASH-10.04), 279 with the read-only inspect, audit and
     // diff reports, 283 with the content studio skill bridge (KEEP-05), 286 with the voice domain task
     // routes (DASH-16.02/16.04), 294 with the Hermes provider device-code login (DASH-07.04), 295 with the Qwen Audio
-    // key entry (LG-3b). Bump deliberately
+    // key entry (LG-3b), 296 with the voice read path (LG-2b.01). Bump deliberately
     // with the release note instead of fitting the number to a failure.
-    expect(operations).toHaveLength(295);
+    expect(operations).toHaveLength(296);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {

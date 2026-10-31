@@ -9020,6 +9020,56 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "readVoiceQuery",
+    "method": "POST",
+    "path": "/api/v1/voice/read",
+    "tag": "voice",
+    "capability": null,
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "pathParamRules": {},
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "VoiceReadRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "VoiceReadResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "createVoiceDomainTask",
     "method": "POST",
     "path": "/api/v1/voice/tasks",

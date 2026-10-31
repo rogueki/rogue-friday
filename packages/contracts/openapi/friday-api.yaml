@@ -4696,6 +4696,31 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       x-capability: memory.read
       x-required-role: owner
+  /api/v1/voice/read:
+    post:
+      operationId: readVoiceQuery
+      tags: [voice]
+      summary: Answer a spoken read question of the verified owner through the local voice bridge
+      description: Local voice bridge only. Parses the question with the dashboard read intents and answers only the kinds on the voice allowlist (weather, settings, tasks, calendar, system, notifications, approvals, skills, onboarding). Secrets are only reported as set or not set. Nothing is changed and no agent is started.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceReadRequest"
+      responses:
+        "200":
+          description: Speakable answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceReadResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-required-role: owner
   /api/v1/voice/tasks:
     post:
       operationId: createVoiceDomainTask
@@ -10659,6 +10684,12 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-request.schema.json
     VoiceConversationKeyStatus:
       $ref: ../schemas/voice/voice-conversation-key-status.schema.json
+    VoiceReadRequest:
+      $ref: ../schemas/voice/voice-read-request.schema.json
+    VoiceReadAnswer:
+      $ref: ../schemas/voice/voice-read-answer.schema.json
+    VoiceReadResponse:
+      $ref: ../schemas/voice/voice-read-response.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:
