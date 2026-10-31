@@ -679,6 +679,39 @@ it("fails closed when a catalog response claims an unrequested provider", async 
   await expect(service.modelCatalog("openai-api")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
 });
 
+it("starts a Hermes provider device-code login and returns only the display fields", async () => {
+  const invoke = vi.fn(async () => ({ flowId: "a".repeat(32), provider: "nous", status: "awaiting_approval",
+    userCode: "ABCD-1234", verificationUrl: "https://auth.example.org/device", expiresAt: "2026-10-31T10:15:00Z",
+    updatedAt: 1, access_token: "CANARY-DO-NOT-RETURN" })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.manageProviderOAuth({ action: "start", provider: "nous" }, "owner-1");
+  expect(result).toEqual({ flowId: "a".repeat(32), provider: "nous", status: "awaiting_approval", userCode: "ABCD-1234",
+    verificationUrl: "https://auth.example.org/device", expiresAt: "2026-10-31T10:15:00.000Z", failureClass: null });
+  expect(JSON.stringify(result)).not.toContain("CANARY-DO-NOT-RETURN");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["provider-oauth-start"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({ provider: "nous", ownerId: "owner-1" });
+  await expect(service.manageProviderOAuth({ action: "start", provider: "anthropic" as never }, "owner-1"))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.manageProviderOAuth({ action: "cancel", flowId: "bad" }, "owner-1"))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("rejects a provider login answer that is not the requested flow or links outside https", async () => {
+  const status = { action: "status" as const, flowId: "a".repeat(32) };
+  const answering = (answer: Record<string, unknown>) => fixture(vi.fn(async () => answer) as unknown as RunnerInvoker);
+  await expect(answering({ flowId: "b".repeat(32), provider: "nous", status: "awaiting_approval" })
+    .manageProviderOAuth(status, "owner-1")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  await expect(answering({ flowId: "a".repeat(32), provider: "nous", status: "awaiting_approval",
+    verificationUrl: "http://auth.example.org/device" }).manageProviderOAuth(status, "owner-1"))
+    .rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  await expect(answering({ flowId: "a".repeat(32), provider: "xai-oauth", status: "configured" })
+    .manageProviderOAuth(status, "owner-1")).resolves.toMatchObject({ provider: "xai-oauth", status: "configured",
+    userCode: null, verificationUrl: null, expiresAt: null });
+  const unknown = fixture(vi.fn(async () => { throw new Error("bridge failed: unknown_oauth_flow"); }) as unknown as RunnerInvoker);
+  await expect(unknown.manageProviderOAuth({ action: "status", flowId: "a".repeat(32) }, "owner-1"))
+    .rejects.toMatchObject({ code: "CONFLICT" });
+});
+
 it("binds MCP OAuth start to the revision and returns only bounded state", async () => {
   const invoke = vi.fn(async () => ({ flowId: "a".repeat(32), status: "awaiting_approval",
     authorizationUrl: "https://auth.example.org/authorize?state=sample", updatedAt: 1,

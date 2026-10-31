@@ -24,6 +24,7 @@ import type {
   HermesMcpProbeResponse,
   HermesApprovalTestResponse,
   HermesMcpOAuthResponse,
+  HermesProviderOAuthResponse,
   HermesCronJobsResponse,
   HermesCronMutationRequest,
   HermesCronMutationResponse,
@@ -160,6 +161,28 @@ export function useHermesMcpOAuthFlow(flowId: string | null, revision: number | 
     }),
     enabled: flowId !== null && revision !== null,
     refetchInterval: (query) => ["configured", "failed"].includes(query.state.data?.data.status ?? "") ? false : 2000,
+  });
+}
+export type HermesOAuthProvider = "nous" | "openai-codex" | "xai-oauth" | "minimax-oauth";
+/** Starts or cancels a provider login that Hermes runs as a device-code flow; Hermes stores the credential itself. */
+export function useManageHermesProviderOAuth() {
+  return useApiMutation<HermesProviderOAuthResponse,
+    ({ action: "start"; provider: HermesOAuthProvider } | { action: "cancel"; flowId: string }) & IntentVars>({
+    label: "Hermes-Anmeldung",
+    mutationFn: (vars) => call(getApiClient().POST("/api/v1/settings/hermes-access/oauth", {
+      body: vars.action === "start" ? { action: "start", provider: vars.provider } : { action: "cancel", flowId: vars.flowId },
+    })) as Promise<HermesProviderOAuthResponse>,
+    invalidate: [["settings", "hermes-access"]],
+  });
+}
+export function useHermesProviderOAuthFlow(flowId: string | null) {
+  return useQuery({
+    queryKey: ["settings", "hermes-provider-oauth", flowId],
+    queryFn: (): Promise<HermesProviderOAuthResponse> => call(getApiClient().POST("/api/v1/settings/hermes-access/oauth", {
+      body: { action: "status", flowId: flowId! },
+    })) as Promise<HermesProviderOAuthResponse>,
+    enabled: flowId !== null,
+    refetchInterval: (query) => ["configured", "failed"].includes(query.state.data?.data.status ?? "") ? false : 3000,
   });
 }
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */

@@ -221,7 +221,7 @@ describe("REST route coverage", () => {
       "getSystemInstallation", "getDashboardUpdateStatus", "installDashboardUpdate", "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
-      "probeHermesMcp", "manageHermesMcpOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",
+      "probeHermesMcp", "manageHermesMcpOAuth", "manageHermesProviderOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
       "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload",
       "testHermesApproval",

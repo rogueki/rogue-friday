@@ -389,6 +389,35 @@ it("routes native approval preview only for an owner with CSRF and revision with
   }
 });
 
+it("restricts Hermes provider logins to the owner with CSRF and validates the provider", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const manage = vi.spyOn(api.runtime.hermesConfig, "manageProviderOAuth").mockResolvedValue({
+      flowId: "a".repeat(32), provider: "nous", status: "awaiting_approval", userCode: "ABCD-1234",
+      verificationUrl: "https://auth.example.org/device", expiresAt: "2026-10-31T10:15:00.000Z", failureClass: null,
+    });
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const path = "/api/v1/settings/hermes-access/oauth";
+    const body = { action: "start", provider: "nous" };
+    expect((await viewer.post(path, body)).statusCode).toBe(403);
+    expect((await owner.post(path, body, { csrf: false })).statusCode).toBe(403);
+    expect((await owner.post(path, { action: "start", provider: "anthropic" })).statusCode).toBe(422);
+    expect((await owner.post(path, { action: "status", flowId: "../bad" })).statusCode).toBe(422);
+    const started = await owner.post(path, body);
+    expect(started.statusCode, started.body).toBe(200);
+    expect(started.json().data).toMatchObject({ provider: "nous", status: "awaiting_approval", userCode: "ABCD-1234" });
+    expect(manage).toHaveBeenCalledWith(body, expect.any(String));
+    expect((await owner.post(path, { action: "status", flowId: "a".repeat(32) })).statusCode).toBe(200);
+    expect((await owner.post(path, { action: "cancel", flowId: "a".repeat(32) })).statusCode).toBe(200);
+    expect(manage).toHaveBeenCalledTimes(3);
+  } finally {
+    await api.close();
+  }
+});
+
 it("restricts MCP OAuth start, poll and cancel to owner intent and keeps token material out of responses", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

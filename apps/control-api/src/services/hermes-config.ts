@@ -251,6 +251,11 @@ export interface GatewayPairingState {
     approved: { userId: string; userName: string; approvedAt: string | null }[] }[];
 }
 const PAIRING_PLATFORMS: readonly GatewayPairingPlatform[] = ["telegram", "discord", "whatsapp"];
+/** Providers whose login Hermes runs as a device-code flow; Hermes stores the credential itself. */
+export const PROVIDER_OAUTH_PROVIDERS = ["nous", "openai-codex", "xai-oauth", "minimax-oauth"] as const;
+export type HermesOAuthProvider = typeof PROVIDER_OAUTH_PROVIDERS[number];
+export type HermesProviderOAuthRequest = { action: "start"; provider: HermesOAuthProvider } |
+  { action: "status" | "cancel"; flowId: string };
 const PAIRING_REQUEST_ID = /^[0-9a-f]{16}$/;
 const PAIRING_USER_ID = /^[A-Za-z0-9@._:+-]{1,128}$/;
 
@@ -1086,6 +1091,45 @@ export class HermesConfigService {
       revision: typeof raw.revision === "number" ? raw.revision : null,
       failureClass: typeof raw.failureClass === "string" ? raw.failureClass : null,
       runtimeApplied: null };
+  }
+
+  async manageProviderOAuth(body: HermesProviderOAuthRequest, ownerId: string) {
+    if (typeof ownerId !== "string" || ownerId.length < 1 || ownerId.length > 128 ||
+        [...ownerId].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127) ||
+        (body.action === "start" ? !PROVIDER_OAUTH_PROVIDERS.includes(body.provider) :
+          !/^[0-9a-f]{32}$/.test(body.flowId)))
+      throw validationFailed("Ungueltiger Hermes-Anmeldevorgang.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      // Start waits up to 20 s inside the bridge until Hermes returned the device code.
+      raw = await this.invoke(script, distro, user, [`provider-oauth-${body.action}`], JSON.stringify(
+        body.action === "start" ? { provider: body.provider, ownerId } : { flowId: body.flowId, ownerId }),
+        body.action === "start" ? 45000 : 30000, 10000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("unknown_oauth_flow"))
+        throw conflict("Dieser Anmeldevorgang ist unbekannt oder gehoert zu einem anderen Konto.");
+      if (error instanceof Error && error.message.includes("oauth_flow_limit"))
+        throw conflict("Zu viele offene Anmeldevorgaenge. Bitte spaeter erneut versuchen.");
+      throw unavailable();
+    }
+    const text = (value: unknown, max: number) => value === undefined || typeof value === "string" && value.length <= max;
+    if (!/^[0-9a-f]{32}$/.test(String(raw.flowId)) ||
+        body.action !== "start" && raw.flowId !== body.flowId ||
+        !PROVIDER_OAUTH_PROVIDERS.includes(raw.provider as HermesOAuthProvider) ||
+        body.action === "start" && raw.provider !== body.provider ||
+        !["starting", "awaiting_approval", "cancelling", "configured", "failed"].includes(String(raw.status)) ||
+        !text(raw.userCode, 64) || !text(raw.failureClass, 80) ||
+        !(raw.verificationUrl === undefined || typeof raw.verificationUrl === "string" &&
+          raw.verificationUrl.length <= 2048 && raw.verificationUrl.startsWith("https://")) ||
+        !(raw.expiresAt === undefined || typeof raw.expiresAt === "string" && !Number.isNaN(Date.parse(raw.expiresAt))))
+      throw unavailable();
+    return { flowId: raw.flowId as string, provider: raw.provider as HermesOAuthProvider,
+      status: raw.status as "starting" | "awaiting_approval" | "cancelling" | "configured" | "failed",
+      userCode: typeof raw.userCode === "string" ? raw.userCode : null,
+      verificationUrl: typeof raw.verificationUrl === "string" ? raw.verificationUrl : null,
+      expiresAt: typeof raw.expiresAt === "string" ? new Date(raw.expiresAt).toISOString() : null,
+      failureClass: typeof raw.failureClass === "string" ? raw.failureClass : null };
   }
 
   private present(observed: BridgeStatus) {
