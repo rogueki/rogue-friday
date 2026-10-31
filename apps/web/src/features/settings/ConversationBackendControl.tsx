@@ -107,7 +107,7 @@ export function ConversationBackendControl({ value, consent, status, readOnly, r
   const statusText = !status ? "Status des Sprachdienstes wird geladen…"
     : status.consent === false && value === "qwen" ? "Qwen Audio wartet auf deine Zustimmung; bis dahin antwortet der Assistent lokal."
       : status.backend === "local" ? "Aktiv: lokales Gespräch."
-        : status.lastError === null ? "Aktiv: Qwen Audio."
+        : !status.lastError ? "Aktiv: Qwen Audio."
           : `Qwen Audio: ${ERROR_TEXT[status.lastError]}. Der Assistent antwortet bis dahin lokal.`;
   return (
     <div>

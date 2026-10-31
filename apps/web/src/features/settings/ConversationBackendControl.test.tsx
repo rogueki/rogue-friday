@@ -189,3 +189,11 @@ it("meldet ein aufgebrauchtes Kontingent bei der Verbindungsprüfung", () => {
   expect(screen.getByText("Qwen Audio: Kontingent aufgebraucht.")).not.toBeNull();
   view.unmount();
 });
+
+it("nennt Qwen aktiv, wenn ein älterer Sprachdienst kein lastError meldet", () => {
+  const status = { backend: "qwen", keyConfigured: true, consent: true } as unknown as Parameters<typeof ConversationBackendControl>[0]["status"];
+  const view = render(<ConversationBackendControl value="qwen" consent={true} status={status} readOnly={false} onSelect={vi.fn()} />);
+  expect(screen.getByText("Aktiv: Qwen Audio.")).not.toBeNull();
+  expect(screen.queryByText(/undefined/)).toBeNull();
+  view.unmount();
+});

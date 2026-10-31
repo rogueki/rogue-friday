@@ -1634,6 +1634,14 @@ entfernt) rot; pyflakes ohne Befund.
   5 Verdrahtungstests; Sprach-pytest 522 grün. Grenze: Ohne lokales Modell (ElevenLabs) wählt kein Modell frei Werkzeuge;
   Status/Abbruch/Ruhemodus/Hilfe/Diagnose/Dashboard/Rückfragen laufen dort über Regeln, Aufträge über den Stichwort-Router.
   Live-Abnahme mit Headset steht aus (LG-8.01).
+- **Tests Sprachbetrieb und Gesprächsmodus (LG-5.06):** `tests/e2e/voice-mode.spec.ts` (4 Szenarien, mit axe): Wechsel
+  lokal → ElevenLabs mit Rückfrage, Installer-Aufruf (`POST /voice/mode-switch`, im Test beantwortet), Abschluss über den
+  Statusabruf; Abbrechen ohne Aufruf; Qwen Audio ohne Schlüssel bleibt lokal und zeigt das Schlüsselfeld; Qwen erst nach
+  Zustimmung, gespeicherter Request enthält `conversationBackend: "qwen"`, `conversationConsent: true`. Der E2E-Stack hat
+  keinen Sprachdienst, deshalb lehnt die API Sprach-Laufzeitfelder dort ehrlich ab (kein Mock-Speichern). Gefunden und
+  behoben: Die Statuszeile zeigte „Qwen Audio: undefined“, wenn der Sprachdienst kein `lastError` meldet (Komponententest
+  ergänzt). Komponententests je Abschnitt bestehen bereits (`VoiceModeControl`, `ConversationBackendControl`,
+  `WakeEnrollment`, `SttModelsControl`, `SettingsPage`); `fetch()` in Komponenten ist dort bereits auf SDK-Hooks umgestellt.
 - **Dashboard-Tour und Bereiche per Stimme öffnen (LG-5.07):** Tour (`apps/web/src/features/tour/`) durch alle sichtbaren
   Seiten in Reihenfolge der Seitenleiste; Schritttexte aus `docs/friday-knowledge/seiten.md`, von `knowledge:build` nach
   `tourSteps.generated.json` erzeugt (Bundle-Prüfung gegen Server-Schlüsseldateien wie bei der Hilfe). Start über den Kompass
