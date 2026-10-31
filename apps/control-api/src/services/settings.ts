@@ -149,7 +149,10 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
         { kind: "phone", enabled: false, minPriority: "P0" },
         { kind: "email", enabled: true, minPriority: "P3" },
       ],
-      quietHours: { enabled: true, from: "22:00", to: "07:00" },
+      quietHours: { enabled: true, from: "22:00", to: "07:00", level: "silent", summaryAt: "first_interaction" },
+      quietMode: { level: "silent" },
+      importantClasses: ["agent_questions", "approvals"],
+      quietTextTargetId: null,
       defaultEscalation: [
         { afterSeconds: 0, channel: "dashboard", description: "Sofort im Dashboard anzeigen", stopOnAcknowledge: true },
         { afterSeconds: 120, channel: "telegram", description: "Nach 2 Minuten per Telegram", stopOnAcknowledge: true },
@@ -344,7 +347,8 @@ export class SettingsService {
       try {
         const value = JSON.parse(json) as unknown;
         merged[area] = area === "voice" && typeof value === "object" && value !== null && !Array.isArray(value)
-          ? { ...this.defaults.voice, ...value } : value;
+          ? { ...this.defaults.voice, ...value }
+          : area === "notifications" ? this.withNotificationDefaults(value as SettingsAreas["notifications"]) : value;
       } catch {
         // A damaged row falls back to the default area instead of breaking every settings call.
       }
@@ -358,6 +362,12 @@ export class SettingsService {
     merged.security = { ...security, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true };
     merged.approvals = { ...(merged.approvals as SettingsAreas["approvals"]), reauthTier3: true };
     return merged as unknown as SettingsAreas;
+  }
+
+  /** Areas saved before the quiet-mode fields existed get their defaults instead of undefined values. */
+  private withNotificationDefaults(value: SettingsAreas["notifications"]): SettingsAreas["notifications"] {
+    const defaults = this.defaults.notifications;
+    return { ...defaults, ...value, quietHours: { ...defaults.quietHours, ...value.quietHours } };
   }
 
   private withBackupResult(value: SettingsAreas["backups"]): SettingsAreas["backups"] {
@@ -382,6 +392,7 @@ export class SettingsService {
         }
         if (name === "security") return { ...value, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true } as SettingsAreas[K];
         if (name === "approvals") return { ...value, reauthTier3: true } as SettingsAreas[K];
+        if (name === "notifications") return this.withNotificationDefaults(value as SettingsAreas["notifications"]) as SettingsAreas[K];
         return name === "backups" ? this.withBackupResult(value as SettingsAreas["backups"]) as SettingsAreas[K] : value;
       } catch {
         // fall through to the default

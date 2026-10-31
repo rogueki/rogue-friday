@@ -1459,12 +1459,21 @@ entfernt) rot; pyflakes ohne Befund.
   `quiet_until`, nicht vom Modell gerechnet). Gehaltene Ansagen kommen nach temporärer Ruhe gesammelt („Während der Ruhezeit …“),
   nach der Nachtruhe erst, wenn der Nutzer wieder spricht; die Ansageschleife prüft gehaltene Ansagen alle 30 s. Dashboard:
   Einstellungen → Benachrichtigungen → Ruhemodus (Dauer per Auswahl, Starten/Beenden), Kopfleiste zeigt „Ruhemodus/Nachtruhe bis
-  HH:MM“. Nur im Qwen-Gesprächsmodus wirksam; der klassische Ablauf sagt weiter sofort an. Tests: `quiet-mode.test.ts` (Dienst 8,
+  HH:MM“. Seit Teil 2 auch im klassischen Ablauf wirksam. Tests: `quiet-mode.test.ts` (Dienst 8,
   App 1), `QuietModeControl.test.tsx`, `QuietModeTest`/`QuietGateTest`/`QuietUntilTest`, Gegenproben (Mitternachtsfenster,
   Nachtruhe-Freigabe) rot.
-  **Offen (Teil 2):** Stufen `silent`/`voice_off` getrennt für befristet und Nachtruhe, `summaryAt` (Endzeit oder erstes Gespräch),
-  `importantClasses` mit Textzustellung über den freigegebenen Owner-Kanal, Zusammenfassungs-Puffer + `getQuietModeSummary`
-  (im Dashboard nachlesbar), Werkzeug-Aktionen `abfragen`/`nachtruhe_setzen`, Ruhe auch im klassischen Ablauf, Zeitausdruck „heute Nacht“.
+- **Ruhemodus (LG-2c, Teil 2):** Stufen `silent` (nichts verlässt F.R.I.D.A.Y.) und `voice_off` (Stimme aus, Wichtiges als Text),
+  getrennt für Nachtruhe (`notifications.quietHours.level`) und befristeten Modus (`notifications.quietMode.level`, per Stimme
+  `stufe` überschreibbar); `quietHours.summaryAt` (Endzeit oder erstes Gespräch); `importantClasses` (Rückfragen, Ergebnisse,
+  Freigaben, Termine; Standard Rückfragen + Freigaben); `quietTextTargetId` = ein vom Owner registriertes Messenger-Ziel (sonst
+  kein Versand). Neue Operationen `recordQuietNotice` (Sprachdienst meldet jede zurückgehaltene Ansage genau einmal; neue ausstehende
+  Freigaben meldet die API selbst; Zustellung über `MessengerSendService.sendStaged` mit Journal, Text nie gespeichert oder auditiert),
+  `getQuietModeSummary` (Titel der aktuellen/letzten Ruhephase, im Dashboard unter „Während der Ruhe“) und `setQuietHours`
+  (Werkzeug `ruhemodus nachtruhe`, einzige Einstellungsänderung per Stimme). Werkzeug-Aktionen `abfragen`/`nachtruhe`,
+  Zeitausdruck „heute Nacht“ (deterministisch bis 07:00). Der klassische Ablauf hält Ansagen jetzt ebenfalls zurück. Alte gespeicherte
+  Benachrichtigungs-Einstellungen bekommen die Standardwerte beim Lesen. Dashboard: `QuietSettingsFields` (Auswahl + Schalter, keine
+  Textfelder). P8-Matrix 116 Zeilen. Gegenproben rot (Versand trotz Stufe still, Nachtruhe-Freigabe zur Endzeit).
+  Live-Versand (WSL-Bridge `messaging_send.py`) nicht ausgeführt – erst mit Nutzer im Live-Test (W5).
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 

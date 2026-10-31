@@ -34,7 +34,7 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "captureDurableMemoryEvent", "searchDurableMemory",
   "createVoiceDomainTask", "getVoiceDomainTask", "cancelVoiceDomainTask",
   "readVoiceQuery", "replyVoiceDomainTask",
-  "getQuietMode", "setQuietMode", "clearQuietMode",
+  "getQuietMode", "setQuietMode", "clearQuietMode", "getQuietModeSummary", "recordQuietNotice", "setQuietHours",
 ]);
 const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",

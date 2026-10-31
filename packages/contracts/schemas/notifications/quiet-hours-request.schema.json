@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-hours-request.schema.json",
+  "title": "QuietHoursRequest",
+  "description": "Sets the nightly quiet hours (the only settings change the voice may make).",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+    }
+  },
+  "required": [
+    "enabled",
+    "from",
+    "to"
+  ],
+  "additionalProperties": false
+}

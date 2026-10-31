@@ -1,0 +1,6 @@
+{
+  "$schema": "https://friday.local/schemas/notifications/quiet-hours-request.schema.json",
+  "enabled": true,
+  "from": "22:30",
+  "to": "06:45"
+}

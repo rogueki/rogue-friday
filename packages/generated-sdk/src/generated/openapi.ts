@@ -2581,6 +2581,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quiet-mode/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record something that happened while quiet; with level voice_off and an important class it is sent as text to the owner's own registered target
+         * @description Owner or the local voice bridge. Only titles are kept for the summary; the text is never stored or audited.
+         */
+        post: operations["recordQuietNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quiet-mode/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the nightly quiet hours (the only settings change the voice may make) */
+        put: operations["setQuietHours"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quiet-mode/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What was held back during the current or last quiet period (titles only) */
+        get: operations["getQuietModeSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/research/projects": {
         parameters: {
             query?: never;
@@ -9362,11 +9416,33 @@ export interface components {
                 recipient?: string;
             }[];
             defaultEscalation: components["schemas"]["EscalationStep"][];
+            /** @description Classes that count as important while quiet with level voice_off. Default: ["agent_questions", "approvals"]. */
+            importantClasses?: ("agent_questions" | "task_results" | "approvals" | "appointments")[];
             quietHours: {
                 enabled: boolean;
                 from: string;
+                /**
+                 * @description silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: "silent".
+                 * @enum {string}
+                 */
+                level?: "silent" | "voice_off";
+                /**
+                 * @description When the summary of the night is spoken: at the end time or with the first conversation in the morning. Default: "first_interaction".
+                 * @enum {string}
+                 */
+                summaryAt?: "end" | "first_interaction";
                 to: string;
             };
+            /** @description Defaults for a temporary quiet mode started by voice or dashboard. */
+            quietMode?: {
+                /**
+                 * @description silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: "silent".
+                 * @enum {string}
+                 */
+                level: "silent" | "voice_off";
+            };
+            /** @description Registered messenger target (the owner's own recipient) for voice_off texts; null sends nothing. Default: null. */
+            quietTextTargetId?: string | null;
             snoozeDefaultMinutes: number;
         };
         /** NotificationSnoozeRequest */
@@ -9712,10 +9788,24 @@ export interface components {
             targetRoute: string | null;
         };
         /**
+         * QuietHoursRequest
+         * @description Sets the nightly quiet hours (the only settings change the voice may make).
+         */
+        QuietHoursRequest: {
+            enabled: boolean;
+            from: string;
+            to: string;
+        };
+        /**
          * QuietModeRequest
          * @description Starts or extends a temporary quiet mode until the given time (at most 24 hours ahead).
          */
         QuietModeRequest: {
+            /**
+             * @description silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target.
+             * @enum {string}
+             */
+            level?: "silent" | "voice_off";
             /** Format: date-time */
             until: string;
         };
@@ -9735,7 +9825,16 @@ export interface components {
         QuietModeState: {
             active: boolean;
             /** @enum {string|null} */
+            level: "silent" | "voice_off" | null;
+            /** Format: date-time */
+            periodStart: string | null;
+            /** @enum {string|null} */
             source: "temporary" | "schedule" | null;
+            /**
+             * @description Only for source schedule.
+             * @enum {string|null}
+             */
+            summaryAt: "end" | "first_interaction" | null;
             /**
              * Format: date-time
              * @description End of a temporary quiet mode, also when the schedule currently applies.
@@ -9746,6 +9845,65 @@ export interface components {
              * @description End of the current quiet period; null when not active.
              */
             until: string | null;
+        };
+        /**
+         * QuietModeSummary
+         * @description What was held back during the current or last quiet period (titles only).
+         */
+        QuietModeSummary: {
+            active: boolean;
+            items: {
+                /** Format: date-time */
+                at: string;
+                /** @enum {string} */
+                class: "agent_questions" | "task_results" | "approvals" | "appointments";
+                /** @enum {string} */
+                delivery: "sent" | "uncertain" | "skipped";
+                title: string;
+            }[];
+            /** Format: date-time */
+            periodEnd: string | null;
+            /** Format: date-time */
+            periodStart: string | null;
+        };
+        /**
+         * QuietModeSummaryResponse
+         * @description Single-resource envelope for quiet-mode-summary.
+         */
+        QuietModeSummaryResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["QuietModeSummary"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * QuietNoticeRequest
+         * @description Something that happened while quiet: recorded for the summary and, with level voice_off and an important class, sent as text to the owner.
+         */
+        QuietNoticeRequest: {
+            /** @enum {string} */
+            class: "agent_questions" | "task_results" | "approvals" | "appointments";
+            text?: string;
+            title: string;
+        };
+        /**
+         * QuietNoticeResponse
+         * @description Single-resource envelope for quiet-notice-result.
+         */
+        QuietNoticeResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["QuietNoticeResult"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * QuietNoticeResult
+         * @description Outcome of a quiet notice; never echoes the text.
+         */
+        QuietNoticeResult: {
+            /** @enum {string} */
+            delivery: "sent" | "uncertain" | "skipped";
+            reason: string | null;
+            /** @description false when quiet mode is not active */
+            recorded: boolean;
         };
         /**
          * ReasoningLevel
@@ -17643,6 +17801,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuietModeResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    recordQuietNotice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuietNoticeRequest"];
+            };
+        };
+        responses: {
+            /** @description Notice outcome */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuietNoticeResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    setQuietHours: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuietHoursRequest"];
+            };
+        };
+        responses: {
+            /** @description Quiet state after the change */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuietModeResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getQuietModeSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuietModeSummaryResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

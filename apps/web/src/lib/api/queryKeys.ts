@@ -36,6 +36,7 @@ export const queryKeys = {
   },
   notifications: domain("notifications"),
   quietMode: ["quiet-mode"] as const,
+  quietModeSummary: ["quiet-mode", "summary"] as const,
   memory: {
     ...domain("memory"),
     search: (query: string, limit?: number) => ["memory", "search", query, limit ?? null] as const,

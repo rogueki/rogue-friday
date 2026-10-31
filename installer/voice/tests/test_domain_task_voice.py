@@ -118,6 +118,44 @@ def test_quiet_mode_requests_use_the_right_methods(tmp_path, monkeypatch):
     assert requests[2].data is None
 
 
+def test_quiet_mode_set_with_level_and_schedule(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    payload = {"active": True, "source": "schedule", "until": None, "level": "voice_off"}
+    opener = FakeOpener([{"data": payload}, {"data": payload}])
+    voice = DomainTaskVoice(str(tmp_path), opener=opener)
+    assert voice.set_quiet("2026-10-31T15:00:00+01:00", "voice_off") == payload
+    assert voice.set_quiet_hours(True, "22:30", "06:45") == payload
+    requests = opener.requests
+    assert [request.get_method() for request in requests] == ["PUT", "PUT"]
+    assert requests[0].full_url.endswith("/api/v1/quiet-mode")
+    assert json.loads(requests[0].data.decode("utf-8")) == {"until": "2026-10-31T15:00:00+01:00",
+                                                            "level": "voice_off"}
+    assert requests[1].full_url.endswith("/api/v1/quiet-mode/schedule")
+    assert json.loads(requests[1].data.decode("utf-8")) == {"enabled": True, "from": "22:30", "to": "06:45"}
+
+
+def test_quiet_notice_posts_the_body_without_empty_text(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    payload = {"recorded": True, "delivery": "skipped", "reason": None}
+    opener = FakeOpener({"data": payload})
+    voice = DomainTaskVoice(str(tmp_path), opener=opener)
+    assert voice.quiet_notice("task_results", "Recherchiere Strompreise", "Drei Anbieter gefunden.") == payload
+    assert voice.quiet_notice("agent_questions", "Strompreise") == payload
+    voice.quiet_notice("task_results", "t" * 300, "y" * 1200)
+    requests = opener.requests
+    assert all(request.get_method() == "POST" for request in requests)
+    assert all(request.full_url.endswith("/api/v1/quiet-mode/notices") for request in requests)
+    assert json.loads(requests[0].data.decode("utf-8")) == {"class": "task_results",
+                                                            "title": "Recherchiere Strompreise",
+                                                            "text": "Drei Anbieter gefunden."}
+    assert json.loads(requests[1].data.decode("utf-8")) == {"class": "agent_questions", "title": "Strompreise"}
+    truncated = json.loads(requests[2].data.decode("utf-8"))
+    assert truncated["title"] == "t" * 200
+    assert truncated["text"] == "y" * 1000
+
+
 def test_wait_returns_final_job(tmp_path):
     steps = [{"status": "running"}, {"status": "running"}, {"status": "done", "resultSummary": "Fertig"}]
     clock = [0.0]

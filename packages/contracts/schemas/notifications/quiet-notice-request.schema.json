@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-notice-request.schema.json",
+  "title": "QuietNoticeRequest",
+  "description": "Something that happened while quiet: recorded for the summary and, with level voice_off and an important class, sent as text to the owner.",
+  "type": "object",
+  "properties": {
+    "class": {
+      "type": "string",
+      "enum": [
+        "agent_questions",
+        "task_results",
+        "approvals",
+        "appointments"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "class",
+    "title"
+  ],
+  "additionalProperties": false
+}

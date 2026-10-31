@@ -1,0 +1,6 @@
+{
+  "$schema": "https://friday.local/schemas/notifications/quiet-notice-request.schema.json",
+  "class": "agent_questions",
+  "title": "Strompreise vergleichen",
+  "text": "Welche Region soll ich vergleichen?"
+}

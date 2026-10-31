@@ -8,6 +8,14 @@
     "until": {
       "type": "string",
       "format": "date-time"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "silent",
+        "voice_off"
+      ],
+      "description": "silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target."
     }
   },
   "required": [

@@ -10675,6 +10675,146 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "getQuietModeSummary",
+    "method": "GET",
+    "path": "/api/v1/quiet-mode/summary",
+    "tag": "notifications",
+    "capability": "notifications.read",
+    "role": "viewer",
+    "requiresSession": true,
+    "pathParams": [],
+    "pathParamRules": {},
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "QuietModeSummaryResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "recordQuietNotice",
+    "method": "POST",
+    "path": "/api/v1/quiet-mode/notices",
+    "tag": "notifications",
+    "capability": "notifications.update",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "pathParamRules": {},
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "QuietNoticeRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "QuietNoticeResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "setQuietHours",
+    "method": "PUT",
+    "path": "/api/v1/quiet-mode/schedule",
+    "tag": "notifications",
+    "capability": "notifications.update",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "pathParamRules": {},
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "QuietHoursRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "QuietModeResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "listNotifications",
     "method": "GET",
     "path": "/api/v1/notifications",

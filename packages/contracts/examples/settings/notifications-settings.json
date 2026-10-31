@@ -15,7 +15,9 @@
   "quietHours": {
     "enabled": true,
     "from": "22:00",
-    "to": "07:00"
+    "to": "07:00",
+    "level": "silent",
+    "summaryAt": "first_interaction"
   },
   "defaultEscalation": [
     {
@@ -25,5 +27,13 @@
       "stopOnAcknowledge": true
     }
   ],
-  "snoozeDefaultMinutes": 30
+  "snoozeDefaultMinutes": 30,
+  "quietMode": {
+    "level": "silent"
+  },
+  "importantClasses": [
+    "agent_questions",
+    "approvals"
+  ],
+  "quietTextTargetId": null
 }

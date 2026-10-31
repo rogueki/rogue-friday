@@ -5516,6 +5516,75 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
       x-capability: notifications.update
       x-required-role: owner
+  /api/v1/quiet-mode/summary:
+    get:
+      operationId: getQuietModeSummary
+      tags: [notifications]
+      summary: What was held back during the current or last quiet period (titles only)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietModeSummaryResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: notifications.read
+      x-required-role: viewer
+  /api/v1/quiet-mode/notices:
+    post:
+      operationId: recordQuietNotice
+      tags: [notifications]
+      summary: Record something that happened while quiet; with level voice_off and an important class it is sent as text to the owner's own registered target
+      description: Owner or the local voice bridge. Only titles are kept for the summary; the text is never stored or audited.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuietNoticeRequest"
+      responses:
+        "200":
+          description: Notice outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietNoticeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: notifications.update
+      x-required-role: owner
+  /api/v1/quiet-mode/schedule:
+    put:
+      operationId: setQuietHours
+      tags: [notifications]
+      summary: Set the nightly quiet hours (the only settings change the voice may make)
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuietHoursRequest"
+      responses:
+        "200":
+          description: Quiet state after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietModeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: notifications.update
+      x-required-role: owner
   /api/v1/notifications:
     get:
       operationId: listNotifications
@@ -10371,6 +10440,18 @@ components:
       $ref: ../schemas/notifications/quiet-mode-request.schema.json
     QuietModeResponse:
       $ref: ../schemas/notifications/quiet-mode-response.schema.json
+    QuietModeSummary:
+      $ref: ../schemas/notifications/quiet-mode-summary.schema.json
+    QuietModeSummaryResponse:
+      $ref: ../schemas/notifications/quiet-mode-summary-response.schema.json
+    QuietNoticeRequest:
+      $ref: ../schemas/notifications/quiet-notice-request.schema.json
+    QuietNoticeResult:
+      $ref: ../schemas/notifications/quiet-notice-result.schema.json
+    QuietNoticeResponse:
+      $ref: ../schemas/notifications/quiet-notice-response.schema.json
+    QuietHoursRequest:
+      $ref: ../schemas/notifications/quiet-hours-request.schema.json
     NotificationSettings:
       $ref: ../schemas/settings/notifications-settings.schema.json
     NotificationSnoozeRequest:
