@@ -7,6 +7,7 @@ import {
   manifest,
   parseRawVoiceStatus,
   toVoiceMode,
+  voiceMetricsMapper,
   voiceStatusMapper,
   type RawVoiceStatus,
   type VoiceSettings,
@@ -362,6 +363,22 @@ describe("speaker verification from the service (DASH-11.03)", () => {
   it("drops a malformed decision", () => {
     const status = map(raw({ speaker_decision: { decision: "maybe" } }));
     expect(status.speakerVerification).toMatchObject({ state: "idle", confidence: null });
+  });
+});
+
+describe("voice latency windows", () => {
+  const stat = { current_ms: 900, avg_ms: 1100, p95_ms: 1800, count: 40 };
+  it("keeps valid windows and maps them; missing keys stay empty", () => {
+    const raw = parseRawVoiceStatus({ ...makeVoiceStatus(), latency: { stt: stat, answer_start: stat } });
+    expect(raw.latency).toEqual({ stt: stat, answer_start: stat });
+    const metrics = voiceMetricsMapper.map(raw.latency!, context());
+    expect(metrics.ttsFirstAudio).toEqual({ currentMs: 900, avgMs: 1100, p95Ms: 1800, sampleCount: 40 });
+    expect(metrics.routerLatency).toEqual({ currentMs: null, avgMs: null, p95Ms: null, sampleCount: 0 });
+  });
+  it("drops a malformed window instead of forwarding it", () => {
+    for (const latency of [{ stt: { ...stat, p95_ms: -1 } }, { stt: { ...stat, count: 1.5 } }, { model: "slow" }, [stat]]) {
+      expect(parseRawVoiceStatus({ ...makeVoiceStatus(), latency }).latency).toBeUndefined();
+    }
   });
 });
 
