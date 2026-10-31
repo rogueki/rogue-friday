@@ -1499,6 +1499,12 @@ entfernt) rot; pyflakes ohne Befund.
   bestanden. Dabei gefunden und mitbehoben (nach dem Merge von #179): ein Python-`\f` hatte den Wissensbündel-Eintrag in `update-voice-personas.ps1` zu einem
   Seitenvorschub gemacht (Update wäre an `Assert-Ordinary` abgebrochen); neuer Installer-Test `voice-update-file-lists.Tests.ps1`
   prüft beide Update-Listen gegen das Repo, auf Steuerzeichen und auf Gleichheit.
+- **Ansagen warten auf die Gesprächspause (LG-2.05, U-10):** Startete ein Hintergrund-Ergebnis, während der Nutzer sprach, brach
+  `_record_command` die Aufnahme ab und der Satz ging verloren; `set_busy` wurde nirgends gesetzt. Jetzt markiert
+  `user_speaking` laufende Sprache, die Ansage-Schleife wartet (`_wait_for_pause`, höchstens 120 s), solange der Nutzer spricht
+  oder sein Befehl noch beantwortet wird; eine schon begonnene Aufnahme läuft bis zur Sprechpause weiter. Auftragsstatus wird
+  alle 3 s statt 10 s abgefragt (Ersatz für den Push-Kanal aus LG-2.03), Ausfalltoleranz bleibt 30 s. Tests in
+  `test_personal_wake.py` (4) und `test_domain_task_voice.py` (3); zwei Gegenproben rot; WSL-Voice-Liste 379 bestanden.
 - **Ruhemodus-Abnahme 19–23 (LG-2c.05):** Lücken gefunden und geschlossen: Der lokale Modus verstand weder den Abnahmesatz
   „Die nächste Stunde will ich nicht gestört werden“ noch „Nachtruhe ist von 22 bis 7 Uhr“ noch „nur Stimme aus“ mit Dauer;
   eine Ruhezeit ohne zurückgehaltene Ergebnisse endete wortlos; „Ruhemodus aus“ sprach die Zusammenfassung erst in der

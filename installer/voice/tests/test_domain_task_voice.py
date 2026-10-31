@@ -177,14 +177,40 @@ def test_wait_returns_none_when_cancelled(tmp_path):
     assert voice.wait("11111111-1111-4111-8111-111111111111", lambda: True) is None
 
 
-def test_wait_gives_up_after_three_errors(tmp_path):
+def test_wait_gives_up_after_a_lasting_outage(tmp_path):
     voice = DomainTaskVoice(str(tmp_path), sleep=lambda seconds: None)
+    calls = []
 
     def failing(task_id):
+        calls.append(task_id)
         raise OSError("control api down")
 
     voice.status = failing
     assert voice.wait("11111111-1111-4111-8111-111111111111", lambda: False) is None
+    assert len(calls) == 10  # 30 s at the 3 s poll, the same tolerance as three 10 s polls before
+
+
+def test_wait_survives_a_short_control_api_restart(tmp_path):
+    voice = DomainTaskVoice(str(tmp_path), sleep=lambda seconds: None)
+    answers = [OSError("restarting")] * 9 + [{"status": "done", "resultSummary": "Fertig"}]
+
+    def status(task_id):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    voice.status = status
+    assert voice.wait("11111111-1111-4111-8111-111111111111", lambda: False)["status"] == "done"
+
+
+def test_wait_polls_every_three_seconds(tmp_path):
+    slept = []
+    voice = DomainTaskVoice(str(tmp_path), sleep=slept.append)
+    steps = [{"status": "running"}, {"status": "done", "resultSummary": "Fertig"}]
+    voice.status = lambda task_id: steps.pop(0)
+    voice.wait("11111111-1111-4111-8111-111111111111", lambda: False)
+    assert sum(slept) == 3.0
 
 
 TASK = {"taskId": "11111111-1111-4111-8111-111111111111", "domain": "research", "agentName": "Recherche-Agent",

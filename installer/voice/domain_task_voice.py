@@ -259,7 +259,7 @@ class DomainTaskVoice:
             self.finished.clear()
         return jobs
 
-    def wait(self, task_id, cancelled, poll_s=10.0, timeout_s=1800.0) -> dict | None:
+    def wait(self, task_id, cancelled, poll_s=3.0, timeout_s=1800.0, outage_s=30.0) -> dict | None:
         deadline = self.now() + timeout_s
         errors = 0
         while True:
@@ -269,7 +269,8 @@ class DomainTaskVoice:
                 errors = 0
             except (OSError, ValueError, urllib.error.HTTPError):
                 errors += 1
-                if errors >= 3:
+                # Tolerate a short Control API restart (an update), not a lasting outage.
+                if errors >= max(3, round(outage_s / poll_s)):
                     return None
             if job is not None and job.get("status") in FINAL:
                 return job
