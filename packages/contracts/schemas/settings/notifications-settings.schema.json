@@ -11,7 +11,14 @@
         "properties": {
           "kind": {
             "type": "string",
-            "enum": ["dashboard", "telegram", "whatsapp", "sms", "phone", "email"]
+            "enum": [
+              "dashboard",
+              "telegram",
+              "whatsapp",
+              "sms",
+              "phone",
+              "email"
+            ]
           },
           "enabled": {
             "type": "boolean"
@@ -31,7 +38,11 @@
             "description": "Exact owner-approved destination. Empty means external delivery is not configured."
           }
         },
-        "required": ["kind", "enabled", "minPriority"],
+        "required": [
+          "kind",
+          "enabled",
+          "minPriority"
+        ],
         "additionalProperties": false
       }
     },
@@ -48,9 +59,29 @@
         "to": {
           "type": "string",
           "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "silent",
+            "voice_off"
+          ],
+          "description": "silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: \"silent\"."
+        },
+        "summaryAt": {
+          "type": "string",
+          "enum": [
+            "end",
+            "first_interaction"
+          ],
+          "description": "When the summary of the night is spoken: at the end time or with the first conversation in the morning. Default: \"first_interaction\"."
         }
       },
-      "required": ["enabled", "from", "to"],
+      "required": [
+        "enabled",
+        "from",
+        "to"
+      ],
       "additionalProperties": false
     },
     "defaultEscalation": {
@@ -62,8 +93,53 @@
     "snoozeDefaultMinutes": {
       "type": "integer",
       "minimum": 1
+    },
+    "quietMode": {
+      "type": "object",
+      "description": "Defaults for a temporary quiet mode started by voice or dashboard.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "silent",
+            "voice_off"
+          ],
+          "description": "silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: \"silent\"."
+        }
+      },
+      "required": [
+        "level"
+      ],
+      "additionalProperties": false
+    },
+    "importantClasses": {
+      "type": "array",
+      "description": "Classes that count as important while quiet with level voice_off. Default: [\"agent_questions\", \"approvals\"].",
+      "items": {
+        "type": "string",
+        "enum": [
+          "agent_questions",
+          "task_results",
+          "approvals",
+          "appointments"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "quietTextTargetId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Registered messenger target (the owner's own recipient) for voice_off texts; null sends nothing. Default: null."
     }
   },
-  "required": ["channels", "quietHours", "defaultEscalation", "snoozeDefaultMinutes"],
+  "required": [
+    "channels",
+    "quietHours",
+    "defaultEscalation",
+    "snoozeDefaultMinutes"
+  ],
   "additionalProperties": false
 }

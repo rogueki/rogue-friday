@@ -247,6 +247,55 @@ def test_announced_question_keeps_the_task_registered():
     assert forgotten == ["task_done"]
 
 
+class _QuietTasks:
+    def __init__(self, state):
+        self.state = state
+        self.notices = []
+
+    def quiet_state(self):
+        return dict(self.state)
+
+    def quiet_notice(self, klass, title, text=""):
+        self.notices.append((klass, title))
+        return {"recorded": True, "delivery": "skipped", "reason": None}
+
+    def pending(self):
+        return []
+
+    def forget(self, task_id):
+        pass
+
+
+def _classic_quiet_service(jv, state):
+    svc = make_service(jv)
+    svc.domain_tasks = _QuietTasks(state)
+    svc.quiet_gate = jv.QuietGate(svc.domain_tasks.quiet_state)
+    svc.announcer = jv.ConversationOrchestrator(svc.domain_tasks, quiet_gate=svc.quiet_gate)
+    return svc
+
+
+def test_classic_flow_holds_results_while_quiet_and_reports_them():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": True, "source": "temporary", "level": "silent"})
+    jobs = [{"taskId": "task_x", "domain": "research", "status": "done",
+             "resultSummary": "Drei Anbieter gefunden.", "title": "Strompreise"}]
+    assert svc._announcement_text(jobs) is None
+    assert svc._has_held_announcements()
+    assert svc.domain_tasks.notices == [("task_results", "Strompreise")]
+    svc.domain_tasks.state = {"active": False}
+    svc.quiet_gate.invalidate()
+    text = svc.announcer.take_announcement()
+    assert "Drei Anbieter gefunden." in text
+
+
+def test_classic_flow_without_quiet_speaks_the_bundle():
+    jv = voice_module()
+    svc = _classic_quiet_service(jv, {"active": False})
+    jobs = [{"taskId": "task_x", "domain": "research", "status": "done",
+             "resultSummary": "Drei Anbieter gefunden.", "title": "Strompreise"}]
+    assert svc._announcement_text(jobs) == jv.bundle_text(jobs)
+
+
 def test_announcement_text_without_conversation_uses_bundle():
     jv = voice_module()
     svc = make_service(jv)

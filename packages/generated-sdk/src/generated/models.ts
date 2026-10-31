@@ -1139,9 +1139,15 @@ export interface FridayModelMap {
   ProfileSettings: ProfileSettings;
   Progress: Progress;
   QuickCommand: QuickCommand;
+  QuietHoursRequest: QuietHoursRequest;
   QuietModeRequest: QuietModeRequest;
   QuietModeResponse: QuietModeResponse;
   QuietModeState: QuietModeState;
+  QuietModeSummary: QuietModeSummary;
+  QuietModeSummaryResponse: QuietModeSummaryResponse;
+  QuietNoticeRequest: QuietNoticeRequest;
+  QuietNoticeResponse: QuietNoticeResponse;
+  QuietNoticeResult: QuietNoticeResult;
   ReasoningLevel: ReasoningLevel;
   ReauthRequest: ReauthRequest;
   ReauthResponse: ReauthResponse;
@@ -5125,9 +5131,34 @@ export interface NotificationSettings {
     enabled: boolean;
     from: string;
     to: string;
+    /**
+     * silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: "silent".
+     */
+    level?: "silent" | "voice_off";
+    /**
+     * When the summary of the night is spoken: at the end time or with the first conversation in the morning. Default: "first_interaction".
+     */
+    summaryAt?: "end" | "first_interaction";
   };
   defaultEscalation: EscalationStep[];
   snoozeDefaultMinutes: number;
+  /**
+   * Defaults for a temporary quiet mode started by voice or dashboard.
+   */
+  quietMode?: {
+    /**
+     * silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target. Default: "silent".
+     */
+    level: "silent" | "voice_off";
+  };
+  /**
+   * Classes that count as important while quiet with level voice_off. Default: ["agent_questions", "approvals"].
+   */
+  importantClasses?: ("agent_questions" | "task_results" | "approvals" | "appointments")[];
+  /**
+   * Registered messenger target (the owner's own recipient) for voice_off texts; null sends nothing. Default: null.
+   */
+  quietTextTargetId?: string | null;
 }
 export interface NotificationSnoozeRequest {
   until?: string;
@@ -5542,10 +5573,22 @@ export interface ProfileSettings {
   firstDayOfWeek: "monday" | "sunday";
 }
 /**
+ * Sets the nightly quiet hours (the only settings change the voice may make).
+ */
+export interface QuietHoursRequest {
+  enabled: boolean;
+  from: string;
+  to: string;
+}
+/**
  * Starts or extends a temporary quiet mode until the given time (at most 24 hours ahead).
  */
 export interface QuietModeRequest {
   until: string;
+  /**
+   * silent: nothing leaves Friday, held items are only listed in the dashboard and summarized afterwards. voice_off: the voice stays quiet, but items of the important classes are sent as text to the owner's own registered messenger target.
+   */
+  level?: "silent" | "voice_off";
 }
 /**
  * Single-resource envelope for QuietModeState.
@@ -5569,6 +5612,61 @@ export interface QuietModeState {
    * End of a temporary quiet mode, also when the schedule currently applies.
    */
   temporaryUntil: string | null;
+  level: "silent" | "voice_off" | null;
+  /**
+   * Only for source schedule.
+   */
+  summaryAt: "end" | "first_interaction" | null;
+  periodStart: string | null;
+}
+/**
+ * What was held back during the current or last quiet period (titles only).
+ */
+export interface QuietModeSummary {
+  active: boolean;
+  periodStart: string | null;
+  periodEnd: string | null;
+  items: {
+    class: "agent_questions" | "task_results" | "approvals" | "appointments";
+    title: string;
+    at: string;
+    delivery: "sent" | "uncertain" | "skipped";
+  }[];
+}
+/**
+ * Single-resource envelope for quiet-mode-summary.
+ */
+export interface QuietModeSummaryResponse {
+  contractVersion: ContractVersion;
+  data: QuietModeSummary;
+  freshness: Freshness;
+}
+/**
+ * Something that happened while quiet: recorded for the summary and, with level voice_off and an important class, sent as text to the owner.
+ */
+export interface QuietNoticeRequest {
+  class: "agent_questions" | "task_results" | "approvals" | "appointments";
+  title: string;
+  text?: string;
+}
+/**
+ * Single-resource envelope for quiet-notice-result.
+ */
+export interface QuietNoticeResponse {
+  contractVersion: ContractVersion;
+  data: QuietNoticeResult;
+  freshness: Freshness;
+}
+/**
+ * Outcome of a quiet notice; never echoes the text.
+ */
+export interface QuietNoticeResult {
+  /**
+   * false when quiet mode is not active
+   */
+  recorded: boolean;
+  delivery: "sent" | "uncertain" | "skipped";
+  reason: string | null;
 }
 export interface ReauthRequest {
   password: string;

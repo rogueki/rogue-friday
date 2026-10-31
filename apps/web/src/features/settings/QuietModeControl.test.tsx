@@ -3,14 +3,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { QuietModeControl } from "./QuietModeControl";
 
-const { mockSetMutation, mockClearMutation, mockQuietMode } = vi.hoisted(() => ({
+const { mockSetMutation, mockClearMutation, mockQuietMode, mockQuietModeSummary } = vi.hoisted(() => ({
   mockSetMutation: { mutate: vi.fn(), isPending: false, error: null as Error | null },
   mockClearMutation: { mutate: vi.fn(), isPending: false, error: null as Error | null },
   mockQuietMode: { data: undefined as unknown },
+  mockQuietModeSummary: { data: undefined as unknown },
 }));
 
 vi.mock("@/lib/api/domains/notifications", () => ({
   useQuietMode: () => mockQuietMode,
+  useQuietModeSummary: () => mockQuietModeSummary,
   useSetQuietMode: () => mockSetMutation,
   useClearQuietMode: () => mockClearMutation,
 }));
@@ -35,6 +37,7 @@ beforeEach(() => {
   mockSetMutation.error = null;
   mockClearMutation.error = null;
   mockQuietMode.data = undefined;
+  mockQuietModeSummary.data = undefined;
 });
 
 it("startet den Ruhemodus mit der Standarddauer von 60 Minuten", () => {
@@ -74,5 +77,38 @@ it("zeigt in der Nur-Lese-Ansicht nur die Statuszeile", () => {
   expect(screen.getByRole("status").textContent).toContain("Ruhemodus bis 15:40");
   expect(screen.queryByRole("button", { name: "Ruhemodus starten" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Ruhemodus beenden" })).toBeNull();
+  view.unmount();
+});
+
+it("startet den Ruhemodus mit der gewählten Stufe Nur Stimme aus", () => {
+  mockQuietMode.data = quietMode({});
+  const view = render(<QuietModeControl readOnly={false} />);
+  fireEvent.change(screen.getByLabelText("Stufe"), { target: { value: "voice_off" } });
+  fireEvent.click(screen.getByRole("button", { name: "Ruhemodus starten" }));
+  expect(mockSetMutation.mutate).toHaveBeenCalledWith(expect.objectContaining({ level: "voice_off" }));
+  view.unmount();
+});
+
+it("listet während der Ruhe eingegangene Einträge mit Zustellung", () => {
+  mockQuietMode.data = quietMode({ active: true, source: "temporary", until: "2025-01-15T14:40:00.000Z", temporaryUntil: "2025-01-15T14:40:00.000Z" });
+  mockQuietModeSummary.data = {
+    data: {
+      active: true,
+      periodStart: "2025-01-15T13:40:00.000Z",
+      periodEnd: "2025-01-15T14:40:00.000Z",
+      items: [{ class: "task_results", title: "Bericht", at: "2025-01-15T14:35:00.000Z", delivery: "sent" }],
+    },
+  };
+  const view = render(<QuietModeControl readOnly={false} />);
+  expect(screen.getByRole("heading", { name: "Während der Ruhe" })).toBeTruthy();
+  expect(screen.getByText(/Bericht/)).toBeTruthy();
+  expect(screen.getByText(/per Text gesendet/)).toBeTruthy();
+  view.unmount();
+});
+
+it("zeigt ohne Einträge keine Überschrift Während der Ruhe", () => {
+  mockQuietModeSummary.data = { data: { active: false, periodStart: null, periodEnd: null, items: [] } };
+  const view = render(<QuietModeControl readOnly={false} />);
+  expect(screen.queryByRole("heading", { name: "Während der Ruhe" })).toBeNull();
   view.unmount();
 });

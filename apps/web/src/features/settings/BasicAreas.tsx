@@ -19,6 +19,7 @@ import { WakeEnrollment } from "./WakeEnrollment";
 import { SttModelsControl } from "./SttModelsControl";
 import { ConversationBackendControl } from "./ConversationBackendControl";
 import { QuietModeControl } from "./QuietModeControl";
+import { QuietSettingsFields } from "./QuietSettingsFields";
 import { voiceDeviceOptions } from "./voiceDeviceOptions";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
@@ -437,7 +438,7 @@ export function NotificationsArea() {
         ) : null}
       </Section>
       <Section title={t("quietMode.title")} description={t("quietMode.hint")}>
-        <QuietModeControl readOnly={readOnly} />
+        <QuietModeControl readOnly={readOnly} defaultLevel={value.quietMode?.level} />
       </Section>
       <Section title={t("settings.notifications.quiet")} description={t("settings.notifications.quietDesc")}>
         <FieldGrid columns={3}>
@@ -445,6 +446,7 @@ export function NotificationsArea() {
           <TextField label={t("settings.notifications.quietFrom")} type="time" value={value.quietHours.from} disabled={readOnly || !value.quietHours.enabled} onChange={(event) => update({ quietHours: { ...value.quietHours, from: event.target.value } })} />
           <TextField label={t("settings.notifications.quietTo")} type="time" value={value.quietHours.to} disabled={readOnly || !value.quietHours.enabled} onChange={(event) => update({ quietHours: { ...value.quietHours, to: event.target.value } })} />
         </FieldGrid>
+        <QuietSettingsFields value={value} readOnly={readOnly} update={update} />
         <NumberField label={t("settings.notifications.snooze")} integer min={1} value={value.snoozeDefaultMinutes} disabled={readOnly} onValueChange={(next) => next !== null && update({ snoozeDefaultMinutes: Math.round(next) })} />
       </Section>
       <Section

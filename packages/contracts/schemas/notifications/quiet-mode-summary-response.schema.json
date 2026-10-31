@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-mode-summary-response.schema.json",
+  "title": "QuietModeSummaryResponse",
+  "description": "Single-resource envelope for quiet-mode-summary.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../notifications/quiet-mode-summary.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "data",
+    "freshness"
+  ],
+  "additionalProperties": false
+}

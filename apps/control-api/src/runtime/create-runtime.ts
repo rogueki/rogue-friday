@@ -32,6 +32,8 @@ import { QuietModeService } from "../services/quiet-mode";
 import { RetentionService } from "../services/retention";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
+import { validationFailed } from "../util/errors";
+import { randomUUID } from "node:crypto";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
@@ -285,10 +287,29 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
-  const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now, (approval) => {
+    // Recorded only while quiet; a failed text send must never break the approval itself.
+    void quietMode.notice({ class: "approvals", title: approval.action.slice(0, 200) }).catch(() => undefined);
+  });
   const recentCommandListings = new RecentCommandListings(options.now);
-  const quietMode = new QuietModeService(db, () => settings.area("notifications").quietHours,
-    () => settings.area("profile").timeZone, () => world?.nowMs() ?? Date.now());
+  const quietMode = new QuietModeService({
+    db,
+    notifications: () => settings.area("notifications"),
+    timeZone: () => settings.area("profile").timeZone,
+    nowMs: () => world?.nowMs() ?? Date.now(),
+    saveQuietHours: (hours) => {
+      const current = settings.area("notifications");
+      settings.patch({ notifications: { ...current, quietHours: { ...current.quietHours, ...hours } } });
+    },
+    // voice_off texts go only to a target the owner registered for messenger sends, through the same at-most-once journal.
+    sendText: async (text, targetId) => {
+      const found = messengerSend.targetById(targetId);
+      if (!found) throw validationFailed("Der Textempfänger ist nicht mehr registriert.");
+      const receipt = await messengerSend.sendStaged(found.actor, { accountId: "default", platform: found.target.platform,
+        recipient: found.target.recipient, text }, `quiet-${randomUUID()}`);
+      return receipt.state === "sent" ? "sent" : "uncertain";
+    },
+  });
   let pendingCommandClarifications: PendingCommandClarifications;
   let encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
   try {

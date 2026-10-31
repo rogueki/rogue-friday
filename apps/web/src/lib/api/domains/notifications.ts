@@ -1,6 +1,13 @@
 "use client";
 
-import type { NotificationListResponse, NotificationResponse, Priority, QuietModeResponse } from "@friday/sdk";
+import type {
+  MessengerTargetsResponse,
+  NotificationListResponse,
+  NotificationResponse,
+  Priority,
+  QuietModeResponse,
+  QuietModeSummaryResponse,
+} from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -73,7 +80,7 @@ export function useResolveNotification() {
   });
 }
 
-const quietModeInvalidate = [queryKeys.quietMode] as const;
+const quietModeInvalidate = [queryKeys.quietMode, queryKeys.quietModeSummary] as const;
 
 export const useQuietMode = (enabled = true) =>
   useQuery({
@@ -84,10 +91,28 @@ export const useQuietMode = (enabled = true) =>
     enabled,
   });
 
+export const useQuietModeSummary = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.quietModeSummary,
+    queryFn: (): Promise<QuietModeSummaryResponse> => call(getApiClient().GET("/api/v1/quiet-mode/summary")),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    enabled,
+  });
+
+export const useMessengerTargets = (enabled = true) =>
+  useQuery({
+    queryKey: ["messenger", "targets"],
+    queryFn: (): Promise<MessengerTargetsResponse> => call(getApiClient().GET("/api/v1/messenger/targets")),
+    retry: false,
+    enabled,
+  });
+
 export function useSetQuietMode() {
-  return useApiMutation<QuietModeResponse, { until: string } & IntentVars>({
+  return useApiMutation<QuietModeResponse, { until: string; level?: "silent" | "voice_off" } & IntentVars>({
     label: "Ruhemodus starten",
-    mutationFn: ({ until }) => call(getApiClient().PUT("/api/v1/quiet-mode", { body: { until } })),
+    mutationFn: ({ until, level }) =>
+      call(getApiClient().PUT("/api/v1/quiet-mode", { body: level ? { until, level } : { until } })),
     invalidate: quietModeInvalidate,
   });
 }

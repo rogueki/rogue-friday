@@ -1,0 +1,21 @@
+{
+  "$schema": "https://friday.local/schemas/notifications/quiet-mode-summary-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "active": false,
+    "periodStart": "2026-10-31T14:40:00.000Z",
+    "periodEnd": "2026-10-31T15:40:00.000Z",
+    "items": [
+      {
+        "class": "task_results",
+        "title": "Strompreise vergleichen",
+        "at": "2026-10-31T15:05:00.000Z",
+        "delivery": "skipped"
+      }
+    ]
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-31T15:00:00.000Z"
+  }
+}

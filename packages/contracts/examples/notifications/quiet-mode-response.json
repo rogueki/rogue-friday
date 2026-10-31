@@ -5,7 +5,10 @@
     "active": true,
     "source": "temporary",
     "until": "2026-10-31T15:40:00.000Z",
-    "temporaryUntil": "2026-10-31T15:40:00.000Z"
+    "temporaryUntil": "2026-10-31T15:40:00.000Z",
+    "level": "silent",
+    "summaryAt": null,
+    "periodStart": "2026-10-31T14:40:00.000Z"
   },
   "freshness": {
     "state": "fresh",

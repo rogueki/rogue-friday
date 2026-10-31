@@ -1,4 +1,5 @@
 {
   "$schema": "https://friday.local/schemas/notifications/quiet-mode-request.schema.json",
-  "until": "2026-10-31T15:40:00.000Z"
+  "until": "2026-10-31T15:40:00.000Z",
+  "level": "voice_off"
 }

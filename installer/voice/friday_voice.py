@@ -762,6 +762,9 @@ class VoiceService:
                        else os.path.join(INSTALL_ROOT, "config", "alibaba_tokenplan.key.dpapi"))
         self.conversation = None
         self.qwen_dialog = None
+        # One cached view of the central quiet mode for both modes; the classic flow holds results in its own announcer.
+        self.quiet_gate = QuietGate(self.domain_tasks.quiet_state)
+        self.announcer = ConversationOrchestrator(self.domain_tasks, quiet_gate=self.quiet_gate)
         try:
             self._use_conversation(self._build_conversation(cfg))
         except (RuntimeError, OSError) as exc:
@@ -1470,6 +1473,8 @@ class VoiceService:
 
     def _handle_command(self, audio: np.ndarray, wake_audio: np.ndarray | None) -> None:
         generation = self.control_generation
+        if getattr(self, "announcer", None) is not None:
+            self.announcer.touch()  # the user is awake again: a night summary may now be spoken
         if self.control_cancel.is_set():
             return
         self.processing = "transcribing"  # Sprecherpruefung + STT; das Ende setzt der Aufrufer (_session) zurueck
@@ -1824,7 +1829,7 @@ class VoiceService:
         if conversation_backend(cfg) != "qwen":
             return None
         conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task),
-                                                quiet_gate=QuietGate(self.domain_tasks.quiet_state))
+                                                quiet_gate=self._quiet_gate())
         session = qwen_realtime.QwenRealtimeSession(
             qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
             instructions="")
@@ -1888,12 +1893,29 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _quiet_gate(self) -> QuietGate:
+        gate = getattr(self, "quiet_gate", None)
+        if gate is None:
+            gate = self.quiet_gate = QuietGate(self.domain_tasks.quiet_state)
+        return gate
+
+    def _announcing(self):
+        """Orchestrator that owns proactive announcements: the dialog one, else the classic announcer while quiet."""
+        conversation = getattr(self, "conversation", None)
+        if conversation is not None:
+            return conversation
+        announcer = getattr(self, "announcer", None)
+        if announcer is not None and (announcer.has_held() or self._quiet_gate().active()):
+            return announcer
+        return None
+
     def _announcement_text(self, jobs: list[dict]) -> str | None:
-        if getattr(self, "conversation", None) is None:
+        owner = self._announcing()
+        if owner is None:
             return bundle_text(jobs)
         for job in jobs:
-            self.conversation.task_finished(job)
-        return self.conversation.take_announcement()
+            owner.task_finished(job)
+        return owner.take_announcement()
 
     def _forget_announced(self, jobs: list[dict]) -> None:
         # A waiting task asked a question and is still running: it must stay registered so the next question and
@@ -1903,8 +1925,8 @@ class VoiceService:
                 self.domain_tasks.forget(job["taskId"])
 
     def _has_held_announcements(self) -> bool:
-        conversation = getattr(self, "conversation", None)
-        return conversation is not None and conversation.has_held()
+        owner = getattr(self, "conversation", None) or getattr(self, "announcer", None)
+        return owner is not None and owner.has_held()
 
     def _announce_domain_results(self) -> None:
         while True:
@@ -1921,7 +1943,7 @@ class VoiceService:
                     text = self._announcement_text(jobs)
                     self._forget_announced(jobs)
                 else:
-                    text = self.conversation.take_announcement()
+                    text = (self.conversation or self.announcer).take_announcement()
                 if text:
                     self._speak_announcement(text)
             except Exception as exc:

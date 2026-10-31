@@ -229,7 +229,8 @@ export interface CapturedApprovalPolicy {
 /** Durable policy capture for trusted action producers. This does not execute or approve an action. */
 export class NativeApprovalRequests {
   constructor(private readonly db: Db, private readonly settings: SettingsService,
-    private readonly validator: SchemaValidator, private readonly now: () => number = Date.now) {}
+    private readonly validator: SchemaValidator, private readonly now: () => number = Date.now,
+    private readonly onPending: (approval: Approval) => void = () => undefined) {}
 
   propose(input: NativeApprovalProposal): CapturedApprovalPolicy {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(input.ownerId) ||
@@ -284,6 +285,8 @@ export class NativeApprovalRequests {
       if (raced.proposal_hash !== hash) throw conflict("Freigabeschluessel wurde fuer eine andere Aktion verwendet.");
       return JSON.parse(raced.result_json) as CapturedApprovalPolicy;
     }
+    // A draft becomes pending through the owner's own confirmation, so only a directly pending approval is news.
+    if (approval && !input.execution && !result.draftOnly) this.onPending(approval);
     return result;
   }
 

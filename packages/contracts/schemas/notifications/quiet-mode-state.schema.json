@@ -34,13 +34,46 @@
       ],
       "format": "date-time",
       "description": "End of a temporary quiet mode, also when the schedule currently applies."
+    },
+    "level": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "silent",
+        "voice_off",
+        null
+      ]
+    },
+    "summaryAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "end",
+        "first_interaction",
+        null
+      ],
+      "description": "Only for source schedule."
+    },
+    "periodStart": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
     }
   },
   "required": [
     "active",
     "source",
     "until",
-    "temporaryUntil"
+    "temporaryUntil",
+    "level",
+    "summaryAt",
+    "periodStart"
   ],
   "additionalProperties": false
 }

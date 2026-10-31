@@ -1,0 +1,13 @@
+{
+  "$schema": "https://friday.local/schemas/notifications/quiet-notice-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "recorded": true,
+    "delivery": "skipped",
+    "reason": "Stufe still: nichts wird versendet."
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-31T15:00:00.000Z"
+  }
+}

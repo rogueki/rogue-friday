@@ -156,8 +156,21 @@ class DomainTaskVoice:
     def quiet_state(self) -> dict:
         return self._request("GET", "/api/v1/quiet-mode", timeout=4)
 
-    def set_quiet(self, until_iso: str) -> dict:
-        return self._request("PUT", "/api/v1/quiet-mode", {"until": until_iso})
+    def set_quiet(self, until_iso: str, level=None) -> dict:
+        body = {"until": until_iso}
+        if level is not None:
+            body["level"] = level
+        return self._request("PUT", "/api/v1/quiet-mode", body)
+
+    def quiet_notice(self, klass: str, title: str, text: str = "") -> dict:
+        body = {"class": klass, "title": str(title)[:200]}
+        if text:
+            body["text"] = str(text)[:1000]
+        return self._request("POST", "/api/v1/quiet-mode/notices", body, timeout=8)
+
+    def set_quiet_hours(self, enabled, start, end) -> dict:
+        return self._request("PUT", "/api/v1/quiet-mode/schedule",
+                             {"enabled": bool(enabled), "from": start, "to": end})
 
     def clear_quiet(self) -> dict:
         return self._request("DELETE", "/api/v1/quiet-mode")

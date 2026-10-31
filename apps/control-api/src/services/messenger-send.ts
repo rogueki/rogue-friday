@@ -75,6 +75,17 @@ export class MessengerSendService {
       .run(new Date().toISOString());
   }
 
+  /** Resolves a registered target by id regardless of which owner identity registered it. */
+  targetById(id: string): { actor: string; target: MessengerTarget } | null {
+    if (!/^[a-f0-9]{64}$/.test(id)) return null;
+    const row = this.db.prepare(`SELECT id,actor,account_id,platform,recipient,created_at
+      FROM messenger_outbound_targets WHERE id=?`).get(id) as { id: string; actor: string; account_id: string;
+        platform: string; recipient: string; created_at: string } | undefined;
+    if (!row) return null;
+    return { actor: row.actor, target: { id: row.id, accountId: row.account_id, platform: row.platform,
+      recipient: row.recipient, createdAt: row.created_at } };
+  }
+
   targets(actor: string): MessengerTarget[] {
     const rows = this.db.prepare(`SELECT id,account_id,platform,recipient,created_at
       FROM messenger_outbound_targets WHERE actor=? ORDER BY platform,recipient LIMIT 200`).all(actor) as unknown as Array<{

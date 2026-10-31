@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-mode-summary.schema.json",
+  "title": "QuietModeSummary",
+  "description": "What was held back during the current or last quiet period (titles only).",
+  "type": "object",
+  "properties": {
+    "active": {
+      "type": "boolean"
+    },
+    "periodStart": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "periodEnd": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "properties": {
+          "class": {
+            "type": "string",
+            "enum": [
+              "agent_questions",
+              "task_results",
+              "approvals",
+              "appointments"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "uncertain",
+              "skipped"
+            ]
+          }
+        },
+        "required": [
+          "class",
+          "title",
+          "at",
+          "delivery"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "active",
+    "periodStart",
+    "periodEnd",
+    "items"
+  ],
+  "additionalProperties": false
+}
