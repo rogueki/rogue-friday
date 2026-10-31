@@ -72,6 +72,43 @@ describe("native Linux owner enrollment storage", () => {
     expect(enrollmentStatus().error).toContain("bisherige Profil bleibt aktiv");
   });
 
+  it("a training interrupted by a restart restores the previous profile and keeps the samples", () => {
+    const root = setup();
+    const files = ["voice/profiles/owner/embeddings/owner_ecapa.npy", "models/openwakeword/personal_wake.npz", "models/openwakeword/personal_wake.json", "voice/enrollment/active"];
+    for (const file of files) mkdirSync(join(root, file, ".."), { recursive: true });
+    recordAll();
+    // State left behind by a process that died mid-training: backups, journal, half-written profile, no "active".
+    writeFileSync(join(root, `${files[0]}.prev`), "old-profile");
+    writeFileSync(join(root, `${files[1]}.prev`), "old-model");
+    writeFileSync(join(root, `${files[2]}.prev`), JSON.stringify({ wake_phrase: "Hey Friday" }));
+    writeFileSync(join(root, `${files[3]}.prev`), "ready\n");
+    writeFileSync(join(root, files[0]!), "new-partial");
+    writeFileSync(join(root, files[1]!), "old-model");
+    writeFileSync(join(root, files[2]!), JSON.stringify({ wake_phrase: "Hey Friday" }));
+    writeFileSync(join(root, "voice/enrollment/training.json"), JSON.stringify({ kept: files.map((file) => join(root, file)) }));
+    const status = enrollmentStatus();
+    expect(readFileSync(join(root, files[0]!), "utf8")).toBe("old-profile");
+    expect(readFileSync(join(root, files[3]!), "utf8")).toBe("ready\n");
+    for (const file of files) expect(existsSync(join(root, `${file}.prev`))).toBe(false);
+    expect(existsSync(join(root, "voice/enrollment/training.json"))).toBe(false);
+    expect(status.error).toContain("unterbrochen");
+    expect(status.error).toContain("bisherige Profil bleibt aktiv");
+    expect(status.counts.wake).toBe(12);
+  });
+
+  it("an interrupted first training leaves no partial artifacts", () => {
+    const root = setup();
+    mkdirSync(join(root, "voice/profiles/owner/embeddings"), { recursive: true });
+    mkdirSync(join(root, "voice/enrollment"), { recursive: true });
+    writeFileSync(join(root, "voice/profiles/owner/embeddings/owner_ecapa.npy"), "new-partial");
+    writeFileSync(join(root, "voice/enrollment/training.json"), JSON.stringify({ kept: [] }));
+    const status = enrollmentStatus();
+    expect(existsSync(join(root, "voice/profiles/owner/embeddings/owner_ecapa.npy"))).toBe(false);
+    expect(existsSync(join(root, "voice/enrollment/training.json"))).toBe(false);
+    expect(status.error).toContain("unterbrochen");
+    expect(status.error).not.toContain("bisherige");
+  });
+
   it("a failed first training leaves no partial artifacts", async () => {
     const root = setup();
     recordAll();
