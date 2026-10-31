@@ -1213,7 +1213,12 @@ Combobox, Tablist und jeder Dialog-Oeffner wird bedient, jede Option ausgewaehlt
   Artefakte: der Sprachdienst meldet Kalibrierung (Schwelle, Qualitaet, Trefferquote, eigene Aufnahmen) und
   Ausgabestimme (Platz, Stimmklon/vorgefertigt/Cloud, Plaetze mit Referenz) nur als Metadaten; die Sprachseite zeigt
   sie als eigene Zeilen (#154). Der eigene Stimmplatz (Option 3) wird jetzt wirklich in den TTS-Dienst installiert und
-  vom Stimmen-Update mitgefuehrt; zuvor fehlten dann alle Stimmen bzw. scheiterte das Update (#153).
+  vom Stimmen-Update mitgefuehrt; zuvor fehlten dann alle Stimmen bzw. scheiterte das Update (#153). Das persoenliche
+  Wake-Modell traegt eine Formatversion; aeltere Dateien und ein ausstehendes Stimmen-Update werden auf der
+  Sprachseite benannt (#157, N-182).
+- KEEP-03 (2026-10-30, N-181): Kanalwechsel-Regel fuer Vorschauen getestet und festgeschrieben (#156): ein zweiter
+  Owner-Tab darf die identische Vorschau abschliessen, eine geaenderte Aktion, ein Viewer oder die Sprachbruecke nicht;
+  Rueckfragen bleiben an die Sitzung gebunden.
 - DASH-15.04 (2026-10-30, N-094, N-145): Die sieben Domain-Agenten laufen als eigene Benutzer, der Kanban-Lauf über
   alle sieben Profile ist bestanden. Eine Modell- oder Profiländerung gilt ab dem nächsten Worker-Start; ein laufender
   Lauf behält seine Route. Live am Profil research belegt und in `dash-15-16-orchestrierung.md` dokumentiert.
