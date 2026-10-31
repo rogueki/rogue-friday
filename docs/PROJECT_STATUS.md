@@ -1451,7 +1451,7 @@ entfernt) rot; pyflakes ohne Befund.
   `voice-domain-task-reply.test.ts`, `TaskReplyTest`, `test_domain_task_voice.py`; Gegenproben (Statusprüfung, Entprellung) rot.
   Grenze: Offene Rückfragen kennt der Orchestrator nach einem Neustart des Sprachdienstes nicht mehr (die Aufgabe wartet weiter und
   lässt sich im Dashboard beantworten).
-- **Ruhemodus (LG-2c):** Zentral in der Control API (`QuietModeService`, kv `quiet_mode.temporary_until`): neue Operationen
+- **Ruhemodus (LG-2c, Teil 1):** Zentral in der Control API (`QuietModeService`, kv `quiet_mode.temporary_until`): neue Operationen
   `getQuietMode`/`setQuietMode`/`clearQuietMode` (`/api/v1/quiet-mode`, Owner oder Voice-Bridge, Audit
   `notifications.quiet_mode_set|cleared`). Aktiv ist er bei temporärer Ruhe (1 min bis 24 h) oder in der Nachtruhe aus
   `notifications.quietHours` (Zeitzone aus dem Profil, über Mitternacht). Sprachdienst: `QuietGate` (30 s Cache, bei Ausfall offen)
@@ -1462,6 +1462,9 @@ entfernt) rot; pyflakes ohne Befund.
   HH:MM“. Nur im Qwen-Gesprächsmodus wirksam; der klassische Ablauf sagt weiter sofort an. Tests: `quiet-mode.test.ts` (Dienst 8,
   App 1), `QuietModeControl.test.tsx`, `QuietModeTest`/`QuietGateTest`/`QuietUntilTest`, Gegenproben (Mitternachtsfenster,
   Nachtruhe-Freigabe) rot.
+  **Offen (Teil 2):** Stufen `silent`/`voice_off` getrennt für befristet und Nachtruhe, `summaryAt` (Endzeit oder erstes Gespräch),
+  `importantClasses` mit Textzustellung über den freigegebenen Owner-Kanal, Zusammenfassungs-Puffer + `getQuietModeSummary`
+  (im Dashboard nachlesbar), Werkzeug-Aktionen `abfragen`/`nachtruhe_setzen`, Ruhe auch im klassischen Ablauf, Zeitausdruck „heute Nacht“.
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 
