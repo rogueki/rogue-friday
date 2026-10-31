@@ -226,6 +226,92 @@ function Test-MemoryUpdateNeeded([string[]]$changedPaths) {
     }
     return $false
 }
+function Test-InstallerCopyPath([string]$gitPath) {
+    if (-not $gitPath.StartsWith('installer/', [StringComparison]::Ordinal)) { return $false }
+    $relative = $gitPath.Substring('installer/'.Length)
+    if ($relative -match '(^|/)(tests|test|fixtures|__pycache__|[.]pytest_cache)(/|$)') { return $false }
+    $segments = $relative -split '/'
+    $name = $segments[$segments.Count - 1]
+    if ($name -like 'test_*.py' -or $name -like '*.Tests.ps1' -or $name -like '*.test.ps1' -or $name -like 'test_*.sh' -or
+        $name -ceq 'test-find-obsidian-install.ps1' -or $name -ceq 'source-revision.txt') { return $false }
+    return $true
+}
+function Sync-InstallerCopy([string[]]$paths) {
+    $installerRoot = Join-Path $root 'installer'
+    if (-not (Test-Path -LiteralPath $installerRoot -PathType Container)) { return ,@() }
+    $copyBackup = Join-Path $updates "installer-copy-$RunId"
+    $done = @()
+    $skipped = @()
+    try {
+        foreach ($gitPath in $paths) {
+            if (-not (Test-InstallerCopyPath $gitPath)) { continue }
+            $relative = $gitPath.Substring('installer/'.Length).Replace('/', '\')
+            $destination = Join-Path $installerRoot $relative
+            Assert-NoReparse $destination $installerRoot
+            $newBlob = ''
+            $tree = (Git -arguments @('-C', $cache, 'ls-tree', $target, '--', $gitPath) | Select-Object -First 1)
+            if ($tree) {
+                if ($tree -notmatch '^100644 |^100755 ') { throw "Nicht reguläre Git-Datei: $gitPath" }
+                $newBlob = ($tree -split '\s+')[2]
+            }
+            $oldBlob = ''
+            $oldTree = (Git -arguments @('-C', $cache, 'ls-tree', $installed, '--', $gitPath) | Select-Object -First 1)
+            if ($oldTree) { $oldBlob = ($oldTree -split '\s+')[2] }
+            $exists = Test-Path -LiteralPath $destination -PathType Leaf
+            $actual = ''
+            if ($exists) {
+                $actual = (Git -arguments @('-C', $cache, 'hash-object', "--path=$gitPath", '--', $destination) | Select-Object -First 1).Trim()
+            }
+            if ($exists -and $newBlob -and $actual -ceq $newBlob) { continue }
+            if (-not $newBlob) {
+                if (-not $exists) { continue }
+                if ($actual -cne $oldBlob) {
+                    $skipped += $gitPath
+                    "$(Get-Date -Format o) Installer-Kopie: lokale Änderung behalten: $gitPath" | Add-Content $log
+                    continue
+                }
+                $saved = Join-Path $copyBackup $relative
+                New-Item -ItemType Directory -Force (Split-Path $saved -Parent) | Out-Null
+                Copy-Item -LiteralPath $destination -Destination $saved -Force
+                $done += @{ relative = $relative; existed = $true }
+                Remove-Item -LiteralPath $destination -Force
+                continue
+            }
+            $source = Join-Path $cache $gitPath.Replace('/', '\')
+            if (-not $exists) {
+                New-Item -ItemType Directory -Force (Split-Path $destination -Parent) | Out-Null
+                $done += @{ relative = $relative; existed = $false }
+                Copy-Item -LiteralPath $source -Destination $destination -Force
+                continue
+            }
+            if ($actual -ceq $oldBlob) {
+                $saved = Join-Path $copyBackup $relative
+                New-Item -ItemType Directory -Force (Split-Path $saved -Parent) | Out-Null
+                Copy-Item -LiteralPath $destination -Destination $saved -Force
+                $done += @{ relative = $relative; existed = $true }
+                Copy-Item -LiteralPath $source -Destination $destination -Force
+                continue
+            }
+            $skipped += $gitPath
+            "$(Get-Date -Format o) Installer-Kopie: lokale Änderung behalten: $gitPath" | Add-Content $log
+        }
+    } catch {
+        $copyError = $_.Exception.Message
+        foreach ($entry in $done) {
+            $destination = Join-Path $installerRoot $entry.relative
+            if ($entry.existed) {
+                $saved = Join-Path $copyBackup $entry.relative
+                New-Item -ItemType Directory -Force (Split-Path $destination -Parent) | Out-Null
+                Copy-Item -LiteralPath $saved -Destination $destination -Force
+            } elseif (Test-Path -LiteralPath $destination -PathType Leaf) {
+                Remove-Item -LiteralPath $destination -Force
+            }
+        }
+        "$(Get-Date -Format o) Installer-Kopie: Wiederherstellung nach Fehler: $copyError" | Add-Content $log
+        throw "Installer-Kopie konnte nicht aktualisiert werden: $copyError"
+    }
+    return ,$skipped
+}
 function Get-WslBridgeSourcePaths {
     # Runtime targets and their local sibling dependencies; never include user config or WSL credentials.
     return @('installer/setup-obsidian.ps1', 'installer/find-obsidian-install.ps1',
@@ -427,6 +513,10 @@ try {
             Invoke-MemoryHelper 'Apply'
             $successMessage = 'Gedächtnisbrücke aktualisiert; Dashboard ist aktuell.'
         }
+        $installerSkipped = Sync-InstallerCopy $changedPaths
+        if ($installerSkipped.Count -gt 0) {
+            $successMessage += " Installer-Dateien mit lokalen Änderungen behalten: $($installerSkipped.Count)."
+        }
         [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
         [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
         Set-UpdatePhase 8 'success' $successMessage
@@ -501,10 +591,15 @@ try {
         $memoryApplyStarted = $true
         Invoke-MemoryHelper 'Apply'
     }
+    $installerSkipped = Sync-InstallerCopy $changedPaths
+    $successMessage = 'Update installiert und Dashboard erreichbar.'
+    if ($installerSkipped.Count -gt 0) {
+        $successMessage += " Installer-Dateien mit lokalen Änderungen behalten: $($installerSkipped.Count)."
+    }
     [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
-    Set-UpdatePhase 8 'success' 'Update installiert und Dashboard erreichbar.'
-    Write-UpdateState 'success' 'Update installiert und Dashboard erreichbar.' 'success'
+    Set-UpdatePhase 8 'success' $successMessage
+    Write-UpdateState 'success' $successMessage 'success'
     "$(Get-Date -Format o) Update erfolgreich; Backup: $backup" | Add-Content $log
 } catch {
     $failureMessage = $_.Exception.Message

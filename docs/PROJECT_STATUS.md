@@ -1410,6 +1410,12 @@ entfernt) rot; pyflakes ohne Befund.
   fehlgeschlagenes `pnpm install` im Rollback wird jetzt als nicht bestätigter Rollback gemeldet. Die Update-Paketliste
   deckt alle Voice-Pakete ab, die der Installer in beiden Sprachbetrieben installiert; der Test erzwingt den Gleichstand.
   Tests `dashboard-update-pnpm.Tests.ps1`, `voice-update-packages.Tests.ps1`; Gegenproben rot.
+- **Installer-Kopie per Update (W4):** `change-voice.bat`/`change-assistant-name.bat` starten `install-friday.ps1` aus
+  `<Install>\installer`; das Update erneuerte diesen Ordner bisher nicht (neue Optionen wie Qwen Audio fehlten nach einem
+  GitHub-Update in „Sprache ändern“). `Sync-InstallerCopy` überträgt jetzt geänderte, neue und gelöschte Installer-Dateien
+  (Testdateien wie beim Erstinstaller ausgenommen) als letzten Schritt vor dem Revisionsmarker; lokal geänderte Dateien
+  bleiben erhalten und werden gemeldet; bei einem Fehler wird die Kopie aus `updates\installer-copy-<RunId>`
+  wiederhergestellt. Test `dashboard-update-installer-copy.Tests.ps1` (Git-Fixture, Fehlerfall); Gegenprobe rot.
 - **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
