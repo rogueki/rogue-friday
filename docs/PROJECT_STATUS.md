@@ -1601,6 +1601,18 @@ entfernt) rot; pyflakes ohne Befund.
   Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
   Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
   (Filter aus, Zeile aus) je rot.
+- **Installer fragt nach demselben Alibaba-Schlüssel (LG-6.02, U-02):** Mit Qwen Audio als Gespräch und Alibaba Cloud Qwen
+  (Token Plan) als Denkmodell zeigt die Seite KI-Zugang den Haken „Diesen Schlüssel auch für Qwen Audio (Live-Gespräch)
+  verwenden“ (vorbelegt; nur sichtbar, wenn auf der Sprachseite kein eigener Qwen-Schlüssel steht). Bisher wurde der
+  Brain-Schlüssel stillschweigend übernommen. Die Sprachseite hat „Schlüssel prüfen“ gegen
+  `token-plan.<region>.maas.aliyuncs.com/compatible-mode/v1/models` (401/403 ⇒ „lehnt ab, Region prüfen“). Die Konsole fragt im
+  Hermes-Schritt bei Token-Plan-Basis-URL und Qwen-Gespräch „Gleichen Alibaba-Schlüssel auch für Qwen Audio verwenden?“ und legt
+  die DPAPI-Datei samt Region aus der Basis-URL an (GUI-Modus überspringt das, die Oberfläche liefert den Schlüssel selbst).
+  Nebenbei behoben: Die Beschriftungen „Region“ und „Server-Adresse“ fehlten auf der KI-Zugangsseite, weil sie aus `.Visible`
+  einer noch verborgenen Seite abgeleitet wurden; die Anordnung läuft jetzt beim Anzeigen der Seite (`Update-ProviderLayout`).
+  Der Simulationslauf zeichnet zusätzlich den Qwen-Block der Sprachseite und die KI-Zugangsseite mit der Frage und belegt, dass
+  sie bei lokalem Gespräch verschwindet (Gegenprobe rot). Installer-Tests: 48 Dateien; `gui-installer` war im Sammellauf
+  einmal rot (Tastaturrunde Sprachseite) und danach viermal einzeln grün.
 - **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
   Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 

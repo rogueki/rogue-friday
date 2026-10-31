@@ -215,9 +215,8 @@ function Get-VoiceIdValue {
     return $text
 }
 function Use-ProviderKeyForQwen {
-    # Derselbe Token-Plan-Schluessel gilt fuer Denkmodell und Qwen Audio; doppelte Eingabe ist unnoetig.
-    return (Value 'qwenAudioKey') -eq '' -and -not $script:providerLocked -and
-        (Get-ProviderPreset).BaseUrl -eq 'alibaba' -and $script:fields.providerKey.Text.Trim() -ne ''
+    # One Token Plan key serves the brain and Qwen Audio when the owner says so on the model page (U-02).
+    return (Test-QwenSameKeyOffered) -and (Checked 'qwenSameKey') -and $script:fields.providerKey.Text.Trim() -ne ''
 }
 function Test-Wizard {
     $root = Value 'installRoot'; $location = Value 'distroLocation'; $distro = Value 'distroName'
@@ -254,7 +253,7 @@ function Test-Wizard {
     if ($script:fields.conversationBackend.SelectedIndex -eq 1 -and (Value 'qwenAudioKey') -eq '' -and
         -not (Test-Path -LiteralPath (Join-Path $root 'config\alibaba_tokenplan.key.dpapi') -PathType Leaf) -and
         -not (Use-ProviderKeyForQwen)) {
-        throw 'Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel.'
+        throw 'Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel: auf der Seite „Sprache & Stimme“ eintragen oder beim KI-Zugang „Diesen Schlüssel auch für Qwen Audio verwenden“ anhaken.'
     }
     if (-not ($state -and $state.voice_mode)) {
         Test-VoiceReferenceAnswer $script:fields.voiceMode.SelectedIndex $script:fields.voiceChoice.SelectedIndex (Value 'voiceReference')
@@ -436,13 +435,36 @@ $voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis
 [void](Add-Choice $voicePage.Panel 'conversationBackend' 'Gespräch' 446 @('Lokal (Standard)', 'Qwen Audio Live-Gespräch (Alibaba Token Plan)'))
 [void](Add-Choice $voicePage.Panel 'qwenRegion' 'Alibaba-Region' 484 @('International (Singapur)', 'China (Peking)'))
 [void](Add-Row $voicePage.Panel 'qwenAudioKey' 'Token-Plan-API-Schlüssel' 522 '' $true)
-[void](Add-Text $voicePage.Panel 'Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf deinem PC. Fällt Qwen aus, antwortet der Assistent lokal. Schlüssel leer lassen, wenn beim KI-Zugang Alibaba Cloud Qwen (Token Plan) gewählt ist.' 560 72)
-[void](Add-Check $voicePage.Panel 'qwenConsent' 'Ich stimme zu: Für das Live-Gespräch gehen Sprache und Gesprächsinhalte an Alibaba Cloud (Qwen Audio, Token Plan).' 636 $false)
+$testQwenKey = New-Object Windows.Forms.Button; $testQwenKey.Name = 'testQwenKey'; $testQwenKey.Text = 'Schlüssel prüfen'
+$testQwenKey.Location = New-Object Drawing.Point(196, 550); $testQwenKey.Size = New-Object Drawing.Size(150, 26)
+$voicePage.Panel.Controls.Add($testQwenKey)
+$script:qwenKeyResult = Add-Text $voicePage.Panel '' 578 18
+[void](Add-Text $voicePage.Panel 'Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf deinem PC. Fällt Qwen aus, antwortet der Assistent lokal. Nutzt du beim KI-Zugang Alibaba Cloud Qwen (Token Plan), lass das Feld leer: Dort kannst du denselben Schlüssel übernehmen.' 596 72)
+[void](Add-Check $voicePage.Panel 'qwenConsent' 'Ich stimme zu: Für das Live-Gespräch gehen Sprache und Gesprächsinhalte an Alibaba Cloud (Qwen Audio, Token Plan).' 672 $false)
 function Update-ConversationFields {
     $qwen = $script:fields.conversationBackend.Enabled -and $script:fields.conversationBackend.SelectedIndex -eq 1
     $script:fields.qwenRegion.Enabled = $qwen; $script:fields.qwenAudioKey.Enabled = $qwen
     $script:fields.qwenConsent.Enabled = $qwen
+    $testQwenKey.Enabled = $qwen
 }
+function Test-QwenKey {
+    $key = $script:fields.qwenAudioKey.Text.Trim()
+    if (-not $key) { $script:qwenKeyResult.Text = 'Bitte zuerst den Schlüssel eintragen.'; return }
+    $region = if ($script:fields.qwenRegion.SelectedIndex -eq 1) { 'cn-beijing' } else { 'ap-southeast-1' }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $form.Cursor = [Windows.Forms.Cursors]::WaitCursor
+    try {
+        $null = Invoke-WebRequest -Uri "https://token-plan.$region.maas.aliyuncs.com/compatible-mode/v1/models" -Headers @{ Authorization = "Bearer $key" } -UseBasicParsing -TimeoutSec 20
+        $script:qwenKeyResult.Text = '✓ Schlüssel gültig.'
+    } catch {
+        $code = 0
+        if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+        $script:qwenKeyResult.Text = if ($code -in @(401, 403)) { '✗ Alibaba lehnt diesen Schlüssel ab (Region prüfen).' }
+                                     elseif ($code -gt 0) { "Prüfung nicht möglich (HTTP $code); der Sprachdienst prüft beim Start erneut." }
+                                     else { 'Keine Verbindung zu Alibaba; der Sprachdienst prüft beim Start erneut.' }
+    } finally { $form.Cursor = [Windows.Forms.Cursors]::Default; $key = $null }
+}
+$testQwenKey.Add_Click({ Test-QwenKey })
 $script:fields.conversationBackend.Add_SelectedIndexChanged({ Update-ConversationFields })
 Update-ConversationFields
 
@@ -494,6 +516,7 @@ $modelBox.DropDownStyle = 'DropDown'
 [void](Add-Row $modelPage.Panel 'modelBaseUrl' 'Server-Adresse (https://…/v1)' 114)
 [void](Add-Row $modelPage.Panel 'providerKey' 'API-Schlüssel' 152 '' $true)
 [void](Add-Check $modelPage.Panel 'useExistingKimi' 'Auf diesem PC gefundenen Kimi-Schlüssel verwenden' 190 $true)
+[void](Add-Check $modelPage.Panel 'qwenSameKey' 'Diesen Schlüssel auch für Qwen Audio (Live-Gespräch) verwenden' 190 $true)
 $testKey = New-Object Windows.Forms.Button; $testKey.Name = 'testKey'; $testKey.Text = 'Schlüssel prüfen'
 $testKey.Location = New-Object Drawing.Point(196, 222); $testKey.Size = New-Object Drawing.Size(150, 28)
 $modelPage.Panel.Controls.Add($testKey)
@@ -508,20 +531,36 @@ function Get-ProviderBaseUrl {
     if ($preset.BaseUrl -eq 'custom') { return (Value 'modelBaseUrl') }
     return $preset.BaseUrl
 }
+function Test-QwenSameKeyOffered {
+    # U-02: only ask when Qwen Audio is chosen, the brain uses an Alibaba Token Plan key and no own Qwen key was typed.
+    return -not $script:providerLocked -and (Get-ProviderPreset).BaseUrl -eq 'alibaba' -and
+        $script:fields.conversationBackend.SelectedIndex -eq 1 -and (Value 'qwenAudioKey') -eq ''
+}
 function Update-ProviderFields {
     $preset = Get-ProviderPreset
     $locked = [bool]$script:providerLocked
-    $script:fields.alibabaRegion.Visible = $preset.BaseUrl -eq 'alibaba'
-    $script:captions.alibabaRegion.Visible = $script:fields.alibabaRegion.Visible
-    $script:fields.modelBaseUrl.Visible = $preset.BaseUrl -eq 'custom'
-    $script:captions.modelBaseUrl.Visible = $script:fields.modelBaseUrl.Visible
     $box = $script:fields.modelName
     $box.Items.Clear()
     foreach ($model in $preset.Models) { [void]$box.Items.Add($model) }
     if ($box.Items.Count -gt 0) { $box.SelectedIndex = 0 } else { $box.Text = '' }
     $box.Enabled = -not $locked -and $preset.Backend -ne '4'
+    Update-ProviderLayout
+    $script:captions.providerKey.Text = $preset.KeyLabel
+    $testKey.Enabled = -not $locked -and [bool]$preset.Probe
+    $script:keyResult.Text = if ($preset.Probe) { '' } else { 'Der Kimi-Zugang wird während der Installation geprüft.' }
+    foreach ($name in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'useExistingKimi')) { $script:fields[$name].Enabled = -not $locked }
+}
+function Update-ProviderLayout {
+    $preset = Get-ProviderPreset
+    $locked = [bool]$script:providerLocked
     $useKimi = $preset.Backend -eq '4' -and [bool]$kimiEnvironment
     $script:fields.useExistingKimi.Visible = $useKimi
+    $script:fields.qwenSameKey.Visible = Test-QwenSameKeyOffered
+    # Derived from the preset: .Visible of a control reads false while its page is hidden.
+    $script:fields.alibabaRegion.Visible = $preset.BaseUrl -eq 'alibaba'
+    $script:captions.alibabaRegion.Visible = $preset.BaseUrl -eq 'alibaba'
+    $script:fields.modelBaseUrl.Visible = $preset.BaseUrl -eq 'custom'
+    $script:captions.modelBaseUrl.Visible = $preset.BaseUrl -eq 'custom'
     # Nur sichtbare Zeilen belegen Platz; .Visible taugt nicht, solange die Seite selbst verborgen ist.
     $shown = [ordered]@{
         alibabaRegion = $preset.BaseUrl -eq 'alibaba'
@@ -529,6 +568,7 @@ function Update-ProviderFields {
         modelBaseUrl = $preset.BaseUrl -eq 'custom'
         providerKey = $true
         useExistingKimi = $useKimi
+        qwenSameKey = Test-QwenSameKeyOffered
     }
     $y = 38
     foreach ($name in $shown.Keys) {
@@ -541,10 +581,6 @@ function Update-ProviderFields {
     $script:keyResult.Top = $y + 40
     $modelHelp.Top = $y + 84
     $script:fields.providerKey.Enabled = -not $locked -and -not ($useKimi -and $script:fields.useExistingKimi.Checked)
-    $script:captions.providerKey.Text = $preset.KeyLabel
-    $testKey.Enabled = -not $locked -and [bool]$preset.Probe
-    $script:keyResult.Text = if ($preset.Probe) { '' } else { 'Der Kimi-Zugang wird während der Installation geprüft.' }
-    foreach ($name in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'useExistingKimi')) { $script:fields[$name].Enabled = -not $locked }
 }
 function Test-ProviderKey {
     $preset = Get-ProviderPreset
@@ -728,7 +764,7 @@ Assistent: $(Value 'assistantName') · Wake Word: $(Value 'wakePhrase')
 Person: $(Value 'ownerName')
 KI-Anbieter: $(if ($script:providerLocked) { 'bereits eingerichtet' } else { (Get-ProviderPreset).Label + ' · ' + $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' }) })
 Sprachbetrieb: $mode
-Gespräch: $(if ($script:fields.conversationBackend.SelectedIndex -eq 1) { 'Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet), Zustimmung erteilt' } else { 'Lokal' })
+Gespräch: $(if ($script:fields.conversationBackend.SelectedIndex -eq 1) { 'Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet), Zustimmung erteilt' + $(if (Use-ProviderKeyForQwen) { ' · Schlüssel wie Denkmodell' } else { '' }) } else { 'Lokal' })
 Stimme: $voiceName
 Referenz: $(if ($script:fields.voiceMode.SelectedIndex -eq 1) { 'ElevenLabs (keine lokale Referenz)' } elseif (Value 'voiceReference') { Value 'voiceReference' } else { 'automatische Auswahl' })
 Mikrofon: $(Value 'inputDevice')
@@ -752,6 +788,7 @@ function Show-GuiPage([int]$index) {
     $page = $script:pages[$index]
     $page.Panel.Visible = $true
     $page.Panel.BringToFront()
+    if ($page.Key -eq 'modelPage') { Update-ProviderLayout }
     $running = [bool]($script:process -and -not $script:process.HasExited)
     $isProgress = $page.Key -eq 'progressPage'
     $isSummary = $page.Key -eq 'summaryPage'
@@ -1136,7 +1173,7 @@ $timer.Add_Tick({
             $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
             try { $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height))); $bitmap.Save($capture) }
             finally { $bitmap.Dispose() }
-            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) screenshot=$capture"
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) $($script:qwenProof) screenshot=$capture"
             $form.Close()
         }
     }
@@ -1221,6 +1258,32 @@ if ($Simulation) {
             $bitmap.Save((Join-Path $env:TEMP 'friday-gui-cloud.png'))
         } finally { $bitmap.Dispose() }
         $script:fields.voiceMode.SelectedIndex = 0
+        # Qwen Audio with an Alibaba brain: the voice page's Qwen block and the model page's same-key question (U-02).
+        $script:fields.conversationBackend.SelectedIndex = 1
+        Show-GuiPage 2
+        $voicePage.Panel.AutoScrollPosition = New-Object Drawing.Point(0, 420)
+        [System.Windows.Forms.Application]::DoEvents()
+        $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
+        try {
+            $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height)))
+            $bitmap.Save((Join-Path $env:TEMP 'friday-gui-qwen-voice.png'))
+        } finally { $bitmap.Dispose() }
+        $voicePage.Panel.AutoScrollPosition = New-Object Drawing.Point(0, 0)
+        $originalProvider = $script:fields.providerChoice.SelectedIndex
+        $script:fields.providerChoice.SelectedIndex = 2
+        Show-GuiPage 4
+        [System.Windows.Forms.Application]::DoEvents()
+        $sameKeyShown = $script:fields.qwenSameKey.Visible
+        $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
+        try {
+            $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height)))
+            $bitmap.Save((Join-Path $env:TEMP 'friday-gui-qwen-model.png'))
+        } finally { $bitmap.Dispose() }
+        $script:fields.conversationBackend.SelectedIndex = 0
+        Update-ProviderLayout
+        $sameKeyHiddenForLocal = -not $script:fields.qwenSameKey.Visible
+        $script:fields.providerChoice.SelectedIndex = $originalProvider
+        $script:qwenProof = "qwensame=shown:$sameKeyShown hiddenlocal:$sameKeyHiddenForLocal"
         # Tastatur: jede Seite muss ihre Bedienelemente ohne Maus erreichen koennen. Geprueft wird die
         # echte Tabulatorreihenfolge von WinForms, nicht eine behauptete Liste.
         $focusSummary = @()

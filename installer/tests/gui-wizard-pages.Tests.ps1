@@ -78,6 +78,10 @@ Assert-True ($guiSource -match 'erreicht den Abbruch nicht') 'Der Abbruch wird n
 
 # Die Aufnahmenseite ist Teil desselben Selbsttests: Anfrage lesen, Aktionen bedienen, Antwort schreiben.
 Assert-True ($testLine -match 'interaction=visible:True ok:True') "Der Selbsttest belegt die Aufnahmenseite nicht: $testLine"
+Assert-True ($testLine -match 'qwensame=shown:True hiddenlocal:True') "Die Frage nach demselben Qwen-Schluessel erscheint nicht nur mit Qwen und Alibaba: $testLine"
+foreach ($name in @('friday-gui-qwen-voice.png', 'friday-gui-qwen-model.png')) {
+    Assert-True (Test-Path -LiteralPath (Join-Path $env:TEMP $name) -PathType Leaf) "Die Qwen-Ansicht $name wurde nicht gezeichnet."
+}
 Assert-True ($guiSource -match 'Read-GuiInteractionRequest') 'Der Assistent liest keine Aufnahmeanfrage.'
 Assert-True ($guiSource -match "Complete-GuiInteraction 'ok'") 'Der Assistent beantwortet die Aufnahme nicht.'
 

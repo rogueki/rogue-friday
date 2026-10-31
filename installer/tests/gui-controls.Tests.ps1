@@ -57,7 +57,7 @@ Assert-True ($installer -match "'4' \{ 'kimi-coding' \}") 'Kimi Coding ist im Ba
 Assert-True ($installer -match "-notin @\('1','2','3','4'\)\) \{ throw 'Ungültige GUI-Auswahl: providerChoice' \}") 'Die Anbieterwahl der Oberfläche wird nicht geprüft.'
 
 # --- 6. Qwen Audio: Zustimmung als eigener Haken, erst mit Qwen aktiv
-Assert-True ($gui -match '(?m)^\[void\]\(Add-Check \$voicePage\.Panel ''qwenConsent''[^\r\n]* 636 \$false\)') 'Der Zustimmungshaken qwenConsent fehlt oder ist vorbelegt.'
+Assert-True ($gui -match '(?m)^\[void\]\(Add-Check \$voicePage\.Panel ''qwenConsent''[^\r\n]* 672 \$false\)') 'Der Zustimmungshaken qwenConsent fehlt oder ist vorbelegt.'
 Assert-True ($gui -match '\$script:fields\.qwenConsent\.Enabled = \$qwen') 'qwenConsent wird nicht mit der Qwen-Wahl aktiviert.'
 Assert-True ($gui -match 'deine Zustimmung zur Datenübertragung an Alibaba Cloud') 'Die Zustimmung wird vor dem Qwen-Schlüssel nicht geprüft.'
 Assert-True ($installer -match "'conversationBackend','qwenRegion','qwenConsent'") 'qwenConsent fehlt in den Pflichtantworten der Oberfläche.'
@@ -66,6 +66,20 @@ Assert-True ($installer -match "'\^Zustimmung Qwen Audio' \{ 'qwenConsent'; brea
 Assert-True ($installer -match "'--qwen-consent'") 'voice_setup.py erhält keine Qwen-Zustimmung.'
 Assert-True ($installer -match 'Ohne Zustimmung bleibt das Gespräch lokal') 'Die Ablehnung der Zustimmung wird nicht gemeldet.'
 Assert-True ($installer -match '\$newConversation = ''local''') 'Die Ablehnung der Zustimmung schaltet das Gespräch nicht auf lokal.'
+
+# --- Qwen Audio: same key as the brain (U-02) and key check
+Assert-True ($gui -match '(?m)^\[void\]\(Add-Check \$modelPage\.Panel ''qwenSameKey''[^\r\n]* 190 \$true\)') 'Der Haken qwenSameKey fehlt auf der KI-Zugangsseite.'
+Assert-True ($gui -match "function Use-ProviderKeyForQwen[\s\S]{0,400}Test-QwenSameKeyOffered") 'Use-ProviderKeyForQwen prüft die Angebotsbedingung nicht.'
+Assert-True ($gui -match "function Use-ProviderKeyForQwen[\s\S]{0,400}Checked 'qwenSameKey'") 'Use-ProviderKeyForQwen fragt den Haken qwenSameKey nicht ab.'
+Assert-True ($gui -match 'function Test-QwenSameKeyOffered[\s\S]{0,600}conversationBackend\.SelectedIndex -eq 1') 'Test-QwenSameKeyOffered prüft die Qwen-Wahl nicht.'
+Assert-True ($gui -match "function Test-QwenSameKeyOffered[\s\S]{0,600}\(Value 'qwenAudioKey'\) -eq ''") 'Test-QwenSameKeyOffered prüft den leeren Qwen-Schlüssel nicht.'
+Assert-True ($gui.Contains("if (`$page.Key -eq 'modelPage') { Update-ProviderLayout }")) 'Show-GuiPage richtet die Modellseite nicht neu aus.'
+Assert-True ($gui -match 'function Test-QwenKey') 'Die Schlüsselprüfung Test-QwenKey fehlt.'
+Assert-True ($gui -match 'https://token-plan\.\$region\.maas\.aliyuncs\.com/compatible-mode/v1/models') 'Test-QwenKey fragt nicht die Modellliste von Alibaba ab.'
+Assert-True ($gui -match 'New-Object Windows\.Forms\.Button; \$testQwenKey\.Name = ''testQwenKey''') 'Der Knopf testQwenKey fehlt.'
+Assert-True ($installer -match 'Gleichen Alibaba-Schlüssel auch für Qwen Audio') 'Der Installer fragt nicht nach demselben Qwen-Schlüssel.'
+Assert-True ($installer -match 'if \(-not \$GuiMode[\s\S]{0,400}Gleichen Alibaba-Schlüssel') 'Die Frage nach demselben Qwen-Schlüssel läuft auch im GUI-Modus.'
+Assert-True ($installer -match 'alibaba_tokenplan\.key\.dpapi') 'Der Qwen-Schlüssel wird nicht als Datei gespeichert.'
 
 Write-Host "Klick-Bedienung: $($script:checks) Prüfungen bestanden"
 Write-Host 'Klick-Bedienung: PASS'
