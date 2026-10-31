@@ -8,6 +8,52 @@ const TASK_SETTLED = new Set<Task["status"]>(["running", "review", "done", "canc
 
 const taskRef = (task: Task) => ({ type: "task" as const, id: task.id, label: task.title.slice(0, 200) });
 
+export const BACKUP_SOURCE = { type: "service", id: "system-backup", label: "Systembackup" } as const;
+export const UPDATE_SOURCE = { type: "service", id: "dashboard-update", label: "Dashboard-Update" } as const;
+
+/** Failed backup ⇒ P2 alert; a successful one resolves it. */
+export function notifyBackupResult(notifications: NativeNotifications, result: { status: "success" | "failed"; error: string | null }): void {
+  if (result.status === "failed") {
+    notifications.raise({
+      priority: "P2",
+      category: "system",
+      title: "Backup fehlgeschlagen",
+      body: result.error ? `Das Systembackup ist fehlgeschlagen: ${result.error}` : "Das Systembackup ist fehlgeschlagen.",
+      sourceRef: { ...BACKUP_SOURCE },
+      targetRoute: "/settings?area=backups",
+    });
+    return;
+  }
+  notifications.resolveBySource("service", "system-backup");
+}
+
+/**
+ * Reports the last dashboard update result once: returns the key of the result it handled, so the caller can store it
+ * and a restart or a periodic check does not raise (or reopen an acknowledged alert) twice for the same run.
+ */
+export function notifyUpdateResult(notifications: NativeNotifications,
+  result: { commit: string; status: "success" | "failed"; time: string; message?: string } | null,
+  lastHandled: string | null): string | null {
+  if (result === null) return lastHandled;
+  const key = `${result.time}|${result.commit}`;
+  if (key === lastHandled) return lastHandled;
+  if (result.status === "failed") {
+    notifications.raise({
+      priority: "P2",
+      category: "system",
+      title: "Update fehlgeschlagen",
+      body: result.message
+        ? `Das Dashboard-Update auf ${result.commit.slice(0, 7)} ist fehlgeschlagen: ${result.message.slice(0, 300)}`
+        : `Das Dashboard-Update auf ${result.commit.slice(0, 7)} ist fehlgeschlagen.`,
+      sourceRef: { ...UPDATE_SOURCE },
+      targetRoute: "/settings?area=dashboard",
+    });
+  } else {
+    notifications.resolveBySource("service", "dashboard-update");
+  }
+  return key;
+}
+
 /** Alert for a native approval waiting on the owner; tier 3 needs a re-authentication, so it ranks as urgent. */
 export function notifyApprovalPending(notifications: NativeNotifications, approval: Approval): void {
   notifications.raise({

@@ -1534,8 +1534,15 @@ entfernt) rot; pyflakes ohne Befund.
   `confirm()` vom Entwurf zu `pending` – dort fehlte `onPending`, also kam auch die Ruhemodus-Notiz für Freigaben nie an.
   Übersicht und Orb lesen native Freigaben (`listPending`) und Alarme mit; die Aufmerksamkeitsliste zeigt Freigabe- und
   Dienst-Alarme nicht doppelt. Tests: Dienst (14), Erzeuger (6), Live-Integration (3, Adapter-Alarm, If-Match, Freigabe-Zyklus);
-  Gegenproben (beide Doppelungsregeln aus, `onPending` in `confirm` fehlt) rot. Offen: Backup- und Update-Fehler als Alarm
-  (die Dienste haben keinen Ereignishaken), externe Eskalation live.
+  Gegenproben (beide Doppelungsregeln aus, `onPending` in `confirm` fehlt) rot. Offen: externe Eskalation live.
+- **Backup- und Update-Fehler als Alarm:** Ein fehlgeschlagenes (geplantes) Systembackup und ein fehlgeschlagenes GitHub-Update
+  hinterließen nur einen Eintrag in den Einstellungen. `BackupJobsService` meldet jedes Ergebnis über `onResult` (Fehler im
+  Rückruf brechen das Backup nie ab): Fehler ⇒ P2 „Backup fehlgeschlagen“ mit Link `/settings?area=backups`, Erfolg erledigt ihn.
+  Das Update-Ergebnis (`dashboard-update-result.json`, vom Update-Skript geschrieben) prüft die Laufzeit beim Start und alle
+  5 min: Fehler ⇒ P2 „Update fehlgeschlagen“ mit Commit und Meldung, Link `/settings?area=dashboard`; ein späterer Erfolg erledigt
+  ihn. Je Lauf genau einmal (Schlüssel `notifications.update_result_handled`), damit ein Neustart einen quittierten Alarm nicht
+  wieder öffnet. Nur ohne Mock-Welt. Tests: Erzeuger (3), `backup-jobs.test.ts` (1), Live-Test `update-result-alert.test.ts`
+  (Alarm, Quittung übersteht Neustart); Gegenprobe (Schlüssel nicht gelesen) rot.
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 

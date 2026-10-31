@@ -29,7 +29,7 @@ import { AuditArchive } from "../db/audit-archive";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
 import { NotificationStore } from "../services/notification-store";
 import { NativeNotifications } from "../services/native-notifications";
-import { attachNotificationProducers, notifyApprovalPending } from "../services/notification-producers";
+import { attachNotificationProducers, notifyApprovalPending, notifyBackupResult, notifyUpdateResult } from "../services/notification-producers";
 import { QuietModeService } from "../services/quiet-mode";
 import { RetentionService } from "../services/retention";
 import { EventHub } from "../realtime/hub";
@@ -352,7 +352,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const durableMemory = new DurableMemoryService(config.paths.dataDir);
   durableMemory.flush();
   const systemBackup = new SystemBackupService(config.paths.dataDir, db, durableMemory);
-  const backupJobs = new BackupJobsService(db, settings, systemBackup);
+  const backupJobs = new BackupJobsService(db, settings, systemBackup,
+    world ? undefined : (result) => alertSafely("backup.result", () => notifyBackupResult(nativeNotifications, result)));
   const installation = new InstallationInfoService(config);
   const dashboardUpdates = new DashboardUpdateService(config);
   const retention = new RetentionService(db, settings, audit, auditArchive, systemBackup, notifications);
@@ -703,6 +704,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
           logger.warn("System backup job failed", { error: String(error) }));
         checkBackup();
         timers.push(setInterval(checkBackup, 60_000));
+        if (!world) {
+          const checkUpdateResult = () => void dashboardUpdates.lastResult().then((result) => alertSafely("update.result", () => {
+            const handled = notifyUpdateResult(nativeNotifications, result, kvGet(db, "notifications.update_result_handled") ?? null);
+            if (handled) kvSet(db, "notifications.update_result_handled", handled);
+          })).catch((error: unknown) => logger.warn("Update-Ergebnis nicht geprüft", { error: String(error) }));
+          checkUpdateResult();
+          timers.push(setInterval(checkUpdateResult, 300_000));
+        }
         const checkRetention = () => {
           try { retention.tick(); }
           catch (error) { logger.warn("Data retention job failed", { error: String(error) }); }
