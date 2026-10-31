@@ -57,7 +57,11 @@ LOCAL_QUIET_OFF = (
 LOCAL_QUIET_ON = (
     re.compile(r"\bruhemodus\b"),
     re.compile(r"\bnicht\s+(mal\s+)?stoeren\b"),
+    re.compile(r"\bnicht\s+(mehr\s+)?gestoert\s+werden\b"),
 )
+# "Nachtruhe ist von 22 bis 7 Uhr": only a sentence with both times sets the schedule; questions were answered before.
+LOCAL_NIGHT_SET = re.compile(
+    r"\bnachtruhe\b.*?\b(\d{1,2})(?:[:.](\d{2}))?\s*(?:uhr\s+)?bis\s+(\d{1,2})(?:[:.](\d{2}))?(?!\d)")
 LOCAL_HELP_START = re.compile(r"^(wie|wo|was|warum|wieso|weshalb|welche)")
 LOCAL_HELP_WORDS = re.compile(
     r"\b(einstell|stelle|finde|richte|verbind|aender|wechsl|wechsel|lern|installier|schalt|aktivier|bedeut|"
@@ -150,14 +154,19 @@ def parse_local_command(text: str) -> tuple[str, dict] | None:
     # "Wie prüfe ich das Mikrofon?" asks how it works; the help answers that, the diagnosis only works on orders.
     if LOCAL_HELP_START.match(norm) and (LOCAL_HELP_WORDS.search(norm) or LOCAL_CHECK_WORD.search(norm)):
         return "friday_hilfe", {"frage": text.strip()}
+    night = LOCAL_NIGHT_SET.search(norm)
+    if night:
+        start, end = (f"{int(hour)}:{minute or '00'}" for hour, minute in (night.group(1, 2), night.group(3, 4)))
+        return "ruhemodus", {"aktion": "nachtruhe", "von": start, "bis": end}
     # "nur Stimme aus" names a level, not the end of the quiet mode.
     without_voice = LOCAL_VOICE.sub(" ", norm)
     if any(pattern.search(without_voice) for pattern in LOCAL_QUIET_OFF):
         return "ruhemodus", {"aktion": "aus"}
     args = _local_quiet_args(norm)
     duration = any(key in args for key in ("minuten", "bis", "zeitraum"))
-    # A bare "sei still" stays with the model: in context it is usually not a quiet-mode order.
-    if any(pattern.search(norm) for pattern in LOCAL_QUIET_ON) or (LOCAL_SILENT.search(norm) and duration):
+    # A bare "sei still" or "Stimme aus" stays with the model: without a duration it is usually not a quiet-mode order.
+    if any(pattern.search(norm) for pattern in LOCAL_QUIET_ON) or (
+            (LOCAL_SILENT.search(norm) or LOCAL_VOICE.search(norm)) and duration):
         return "ruhemodus", {"aktion": "an", **args}
     return None
 
@@ -195,8 +204,9 @@ def local_reply(name: str, result: dict) -> str | None:
             return f"Ruhemodus bis {result.get('bis', '--:--')} Uhr." + _local_level(result)
         if status == "aus":
             text = "Ruhemodus beendet."
-            if result.get("hinweis"):
-                text += f" {result['hinweis']}"
+            for key in ("hinweis", "zusammenfassung"):
+                if result.get(key):
+                    text += f" {result[key]}"
             return text
         if status == "nachtruhe":
             return f"Nachtruhe von {result.get('von', '--:--')} bis {result.get('bis', '--:--')} Uhr eingestellt."
@@ -375,8 +385,8 @@ class ConversationOrchestrator:
         self._recent = []
         self._questions = {}
         self._held_in_quiet = False
-        self._held_source = None
-        self._held_summary_at = None
+        # Set while a quiet period is (or was) active and its spoken summary is still due: {source, summary_at, by_command}.
+        self._quiet_marker = None
         self._noticed = set()
         self._last_activity = None
         self._busy = False
@@ -513,13 +523,20 @@ class ConversationOrchestrator:
             jobs = list(self._announcements)
             self._announcements.clear()
             self._held_in_quiet = False
-            self._held_source = None
-            self._held_summary_at = None
+            self._quiet_marker = None
             self._noticed.clear()
         return jobs
 
+    def observe_quiet(self) -> None:
+        """Notes an active quiet period, so its end is summarized even when no result was held back."""
+        if self._quiet_gate is None or not self._quiet_gate.active():
+            return
+        marker = {"source": self._quiet_gate.source(), "summary_at": self._quiet_gate.summary_at()}
+        with self._lock:
+            self._quiet_marker = marker
+
     def take_announcement(self) -> str | None:
-        if not self._announcements:
+        if not self._announcements and self._quiet_marker is None:
             return None
         # The gate may ask the dashboard; that call must never run while the lock blocks the tools.
         quiet = self._quiet()
@@ -528,26 +545,28 @@ class ConversationOrchestrator:
         notices = []
         holding = False
         with self._lock:
-            if not self._announcements:
+            if not self._announcements and self._quiet_marker is None:
                 return None
             if quiet:
+                self._quiet_marker = {"source": source, "summary_at": summary_at}
+                if not self._announcements:
+                    return None
                 self._held_in_quiet = True
-                self._held_source = source
-                self._held_summary_at = summary_at
                 notices = self._unnoticed()
                 holding = True
             else:
+                marker = self._quiet_marker or {}
                 # A night mode holds back until the next conversation, unless its summary is due at the end.
-                if self._held_source == "schedule" and self._held_summary_at != "end" and not self.in_conversation:
+                if marker.get("source") == "schedule" and marker.get("summary_at") != "end" and not self.in_conversation:
                     return None
                 if self._busy:
                     return None
                 jobs = list(self._announcements)
                 self._announcements.clear()
-                held = self._held_in_quiet
+                ended = self._quiet_marker is not None
+                by_command = bool(marker.get("by_command"))
+                self._quiet_marker = None
                 self._held_in_quiet = False
-                self._held_source = None
-                self._held_summary_at = None
                 self._noticed.clear()
         if holding:
             # Reporting runs outside the lock: the Control API call must not block the tools.
@@ -566,13 +585,40 @@ class ConversationOrchestrator:
                 parts.append(f"{len(finished)} Aufträge sind fertig: " + ", ".join(job.get("title", "") for job in finished)
                              + ". Frag mich nach einem davon, dann lese ich das Ergebnis vor.")
         text = " ".join(part for part in parts if part)
-        if held:
-            text = "Während der Ruhezeit ist das fertig geworden: " + text
-        return text
+        if not ended:
+            return text or None
+        # Results and questions came from the jobs above; the dashboard adds what only it saw (approvals, appointments).
+        extras = self._quiet_extras()
+        if text:
+            return " ".join(part for part in ("Während der Ruhezeit ist das fertig geworden: " + text, extras) if part)
+        if extras:
+            return "Während der Ruhezeit: " + extras
+        # After "Ruhemodus aus" the confirmation already ended it; only a silent expiry needs this sentence.
+        return None if by_command else "Der Ruhemodus ist vorbei. In der Zwischenzeit ist nichts angekommen."
+
+    def _quiet_extras(self) -> str:
+        summary = getattr(self._tasks, "quiet_summary", None)
+        if summary is None:
+            return ""
+        try:
+            items = (summary() or {}).get("items") or []
+        except Exception:
+            # Without the dashboard the held results are still spoken; the extras are a bonus.
+            return ""
+        parts = []
+        for klass, one, many in (("approvals", "Eine Freigabe wartet", "{n} Freigaben warten"),
+                                 ("appointments", "Ein Termin in der Ruhezeit", "{n} Termine in der Ruhezeit")):
+            titles = [str(item.get("title") or "").strip() for item in items if isinstance(item, dict) and item.get("class") == klass]
+            titles = [title for title in titles if title]
+            if not titles:
+                continue
+            listed = ", ".join(titles[:3]) + (" und weitere" if len(titles) > 3 else "")
+            parts.append(f"{one if len(titles) == 1 else many.format(n=len(titles))}: {listed}.")
+        return " ".join(parts)
 
     def has_held(self) -> bool:
         with self._lock:
-            return self._held_in_quiet and bool(self._announcements)
+            return (self._held_in_quiet and bool(self._announcements)) or self._quiet_marker is not None
 
     def _unnoticed(self) -> list[dict]:
         # The caller holds the lock; every held job is reported to the API exactly once.
@@ -716,6 +762,13 @@ class ConversationOrchestrator:
             if isinstance(data, dict) and data.get("active"):
                 answer["hinweis"] = ("Die eingestellte Nachtruhe gilt weiter bis "
                                      f"{self._quiet_time(data.get('until'))}.")
+                return answer
+            with self._lock:
+                self._quiet_marker = {**(self._quiet_marker or {"source": "temporary", "summary_at": "end"}), "by_command": True}
+            # Ending it on purpose wants the summary now, not with the next announcement round.
+            summary = self.take_announcement()
+            if summary:
+                answer["zusammenfassung"] = summary
             return answer
         if action == "abfragen":
             return self._quiet_status()

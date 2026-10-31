@@ -1968,6 +1968,17 @@ class VoiceService:
             except Exception as exc:
                 log_event(event="domain_announce_error", error=type(exc).__name__)
 
+    def _watch_quiet(self) -> None:
+        """Notes active quiet periods; without that, a period in which nothing was held back would end unsummarized."""
+        while True:
+            try:
+                owner = getattr(self, "conversation", None) or getattr(self, "announcer", None)
+                if owner is not None:
+                    owner.observe_quiet()
+            except Exception as exc:
+                log_event(event="quiet_watch_error", error=type(exc).__name__)
+            time.sleep(30.0)
+
     def _speak_announcement(self, text: str) -> None:
         print(f"< {text}", flush=True)
         self._say_if_current(text, self.control_generation)
@@ -1981,6 +1992,7 @@ class VoiceService:
         cfg = self.cfg
         self._start_health()
         threading.Thread(target=self._announce_domain_results, daemon=True).start()
+        threading.Thread(target=self._watch_quiet, daemon=True).start()
         # Tasks survive a voice-service restart in Hermes; resume watching them so their result is still announced.
         for job in self.domain_tasks.pending():
             resumed = uuid.uuid4().hex[:8]

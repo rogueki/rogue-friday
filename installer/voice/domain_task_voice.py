@@ -172,6 +172,10 @@ class DomainTaskVoice:
         return self._request("PUT", "/api/v1/quiet-mode/schedule",
                              {"enabled": bool(enabled), "from": start, "to": end})
 
+    def quiet_summary(self) -> dict:
+        """What the dashboard held back during the current or last quiet period (titles only)."""
+        return self._request("GET", "/api/v1/quiet-mode/summary", timeout=4)
+
     def clear_quiet(self) -> dict:
         return self._request("DELETE", "/api/v1/quiet-mode")
 

@@ -1499,6 +1499,15 @@ entfernt) rot; pyflakes ohne Befund.
   bestanden. Dabei gefunden und mitbehoben (nach dem Merge von #179): ein Python-`\f` hatte den Wissensbündel-Eintrag in `update-voice-personas.ps1` zu einem
   Seitenvorschub gemacht (Update wäre an `Assert-Ordinary` abgebrochen); neuer Installer-Test `voice-update-file-lists.Tests.ps1`
   prüft beide Update-Listen gegen das Repo, auf Steuerzeichen und auf Gleichheit.
+- **Ruhemodus-Abnahme 19–23 (LG-2c.05):** Lücken gefunden und geschlossen: Der lokale Modus verstand weder den Abnahmesatz
+  „Die nächste Stunde will ich nicht gestört werden“ noch „Nachtruhe ist von 22 bis 7 Uhr“ noch „nur Stimme aus“ mit Dauer;
+  eine Ruhezeit ohne zurückgehaltene Ergebnisse endete wortlos; „Ruhemodus aus“ sprach die Zusammenfassung erst in der
+  nächsten Ansagerunde; Freigaben und Termine aus der Ruhezeit fehlten in der gesprochenen Zusammenfassung. Jetzt: Merker für
+  laufende Ruhe (`observe_quiet`, alle 30 s im Dienst), nach Ablauf „Während der Ruhezeit …“ bzw. „Der Ruhemodus ist vorbei …“,
+  Freigaben/Termine aus `GET /quiet-mode/summary` ergänzt (ohne Dashboard bleiben die Ergebnisse), „Ruhemodus aus“ antwortet mit
+  der Zusammenfassung (während Nachtruhe bleibt sie zurückgehalten). Tests: `tests/test_quiet_acceptance.py` (17, beide Modi),
+  API-Neustarttest in `apps/control-api/test/quiet-mode.test.ts`; fünf Gegenproben rot. Wissensabschnitt „Ruhemodus per Stimme“
+  ergänzt.
 - **Ruhemodus und Hilfe im lokalen Sprachbetrieb (LG-2c.03):** Der lokale Router hat keine Werkzeuge; eine deterministische Vorstufe
   in `_route` (nach der Uhrzeit) erkennt Ruhemodus-Befehle (an mit Dauer „für zwei Stunden“, „die nächste Stunde“, „bis 7.30 Uhr“,
   „heute Nacht“, Stufe „nur Stimme aus“; aus; abfragen) und Hilfefragen (Fragewort + Bedienwort) per `parse_local_command` und

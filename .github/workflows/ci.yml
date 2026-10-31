@@ -69,6 +69,7 @@ jobs:
             installer/voice/tests/test_knowledge.py \
             installer/voice/tests/test_knowledge_questions.py \
             installer/voice/tests/test_self_check.py \
+            installer/voice/tests/test_quiet_acceptance.py \
             installer/voice/tests/test_qwen_dialog.py \
             installer/voice/tests/test_qwen_voice_wiring.py \
             installer/voice/tests/test_headless_compat.py \
