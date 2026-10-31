@@ -684,6 +684,8 @@ class VoiceService:
         self.transcribe_lock = threading.Lock()
         self.manual_start = threading.Event()
         self.manual_release = threading.Event()
+        # Set while the microphone hears the user's sentence; an announcement must wait for the pause after it.
+        self.user_speaking = threading.Event()
         self.ptt_active = False
         self.manual_start_lock = threading.Lock()
         self.wake_model_lock = threading.Lock()
@@ -1249,6 +1251,12 @@ class VoiceService:
 
     def _record_command(self, start_timeout: float) -> np.ndarray | None:
         """Nimmt bis Sprechende auf. None, wenn innerhalb start_timeout keine Sprache beginnt."""
+        try:
+            return self._record_until_pause(start_timeout)
+        finally:
+            self.user_speaking.clear()
+
+    def _record_until_pause(self, start_timeout: float) -> np.ndarray | None:
         cfg = self.cfg
         buf: list[np.ndarray] = []
         pending = np.zeros(0, dtype=np.float32)
@@ -1260,7 +1268,7 @@ class VoiceService:
         while True:
             if self.control_cancel.is_set() or generation != self.control_generation:
                 return None
-            if self.tts.speaking.is_set():
+            if self.tts.speaking.is_set() and not started:
                 return None  # Hintergrundantwort darf nicht als neue Nutzerfrage aufgenommen werden.
             chunk = self._read_chunk().astype(np.float32) / 32768.0
             if self.control_cancel.is_set() or generation != self.control_generation:
@@ -1271,6 +1279,7 @@ class VoiceService:
                 prob = float(self.vad(torch.from_numpy(frame), SR))
                 if prob >= cfg["vad_threshold"]:
                     started = True
+                    self.user_speaking.set()
                     silence = 0.0
                 elif started:
                     silence += VAD_FRAME / SR
@@ -1943,6 +1952,16 @@ class VoiceService:
             if job.get("status") in FINAL_DOMAIN_STATUSES:
                 self.domain_tasks.forget(job["taskId"])
 
+    def _user_turn_active(self) -> bool:
+        """The user is speaking or their order is still being transcribed and answered: that is no pause (U-10)."""
+        return self.user_speaking.is_set() or getattr(self, "processing", None) is not None
+
+    def _wait_for_pause(self, limit_s: float = 120.0) -> None:
+        # The limit keeps a stuck turn from silencing results for good.
+        deadline = time.monotonic() + limit_s
+        while (self.tts.speaking.is_set() or self._user_turn_active()) and time.monotonic() < deadline:
+            time.sleep(0.05)
+
     def _has_held_announcements(self) -> bool:
         owner = getattr(self, "conversation", None) or getattr(self, "announcer", None)
         return owner is not None and owner.has_held()
@@ -1956,8 +1975,7 @@ class VoiceService:
                     lambda: self._has_held_announcements() and time.monotonic() > deadline)
                 if not jobs and not self._has_held_announcements():
                     continue
-                while self.tts.speaking.is_set():
-                    time.sleep(0.05)  # never cut off a running announcement
+                self._wait_for_pause()  # never cut off a running announcement or the user's sentence
                 if jobs:
                     text = self._announcement_text(jobs)
                     self._forget_announced(jobs)

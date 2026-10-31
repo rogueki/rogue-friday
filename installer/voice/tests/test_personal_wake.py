@@ -405,6 +405,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
     svc.wake_model_lock = threading.Lock()
     svc.manual_release = threading.Event()
+    svc.user_speaking = threading.Event()
     svc.ptt_active = False
     svc.control_cancel, svc.control_paused, svc.control_generation = threading.Event(), False, 0
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
@@ -1377,6 +1378,84 @@ def test_conversation_key_endpoint_verifies_before_storing(monkeypatch, tmp_path
     assert status == 200 and body == {"keyConfigured": True}
     assert builds == ["qwen"] and svc.qwen_dialog is dialog
     assert "good-key-1234" not in repr(events)
+
+
+class ScriptedVad:
+    """Speech probability per 32 ms frame from a script; silence once the script is used up."""
+
+    def __init__(self, probs):
+        self.probs = list(probs)
+
+    def reset_states(self):
+        pass
+
+    def __call__(self, frame, sr):
+        return self.probs.pop(0) if self.probs else 0.0
+
+
+def recording_service(jv, monkeypatch, probs, announce_after_chunks):
+    svc = make_service(jv, {})
+    svc.cfg.update({"vad_threshold": 0.5, "command_end_silence_s": 0.3, "command_max_s": 10.0})
+    svc.vad = ScriptedVad(probs)
+    monkeypatch.setattr(jv, "torch", types.SimpleNamespace(from_numpy=lambda array: array))
+    seen = {"chunks": 0, "speaking_seen": False}
+
+    def read_chunk():
+        seen["chunks"] += 1
+        seen["speaking_seen"] = seen["speaking_seen"] or svc.user_speaking.is_set()
+        if seen["chunks"] == announce_after_chunks:
+            svc.tts.speaking.set()  # a background result starts to play
+        return np.full(jv.CHUNK, 1000, dtype=np.int16)
+
+    svc._read_chunk = read_chunk
+    return svc, seen
+
+
+def test_announcement_does_not_cut_off_the_users_sentence(monkeypatch):
+    """U-10: once the user speaks, an announcement starting meanwhile must not throw the sentence away."""
+    jv = load_voice_module()
+    svc, seen = recording_service(jv, monkeypatch, [0.9] * 6, announce_after_chunks=2)
+    audio = svc._record_command(5.0)
+    assert audio is not None and len(audio) >= 6 * jv.VAD_FRAME
+    assert seen["speaking_seen"] is True
+    assert not svc.user_speaking.is_set()
+
+
+def test_announcement_before_any_speech_still_ends_the_recording(monkeypatch):
+    jv = load_voice_module()
+    svc, _ = recording_service(jv, monkeypatch, [], announce_after_chunks=1)
+    assert svc._record_command(5.0) is None
+    assert not svc.user_speaking.is_set()
+
+
+def test_announcements_wait_for_the_pause_after_the_users_turn():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.processing = None
+    svc.user_speaking.set()
+    released = []
+
+    def finish_turn():
+        time.sleep(0.15)
+        svc.user_speaking.clear()
+        svc.processing = "thinking"  # the order is answered next: still no pause
+        time.sleep(0.15)
+        released.append(time.monotonic())
+        svc.processing = None
+
+    threading.Thread(target=finish_turn, daemon=True).start()
+    svc._wait_for_pause(limit_s=5.0)
+    assert released and time.monotonic() >= released[0]
+    assert not svc._user_turn_active()
+
+
+def test_wait_for_pause_gives_up_after_its_limit():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.processing = "thinking"
+    started = time.monotonic()
+    svc._wait_for_pause(limit_s=0.2)
+    assert 0.15 <= time.monotonic() - started < 2.0
 
 
 if __name__ == "__main__":
