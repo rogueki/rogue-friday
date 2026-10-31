@@ -105,6 +105,16 @@ if ($Mode -eq 'Apply') {
     [IO.File]::WriteAllText($voiceHelper, 'param([string]$InstallRoot,[string]$SourceRoot,[string]$RunId,[string]$Mode)')
     try { Invoke-VoicePersonaHelper 'Apply'; throw 'Helper ohne Ergebnis wurde akzeptiert.' }
     catch { if ($_.Exception.Message -notmatch 'Ergebnisstatus') { throw } }
+    # LG-7.01: the update replaces program files only; voice.json (conversation backend, Qwen consent) and the key stay.
+    foreach ($path in (Get-VoiceSourcePaths)) {
+        if ($path -match '(^|/)config/|\.dpapi$|\.key$|voice\.json$') { throw "Update-Dateiliste enthält Konfiguration: $path" }
+    }
+    $personaScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\scripts\update-voice-personas.ps1') -Raw
+    foreach ($line in ($personaScript -split "`r?`n")) {
+        if ($line -match 'voice\.json|alibaba_tokenplan' -and $line -match 'Set-Content|WriteAllText|Out-File|Copy-Item|Move-Item|Remove-Item') {
+            throw "Stimmen-Update schreibt Konfiguration: $($line.Trim())"
+        }
+    }
     Write-Output 'Dashboard-Update-Stimmenintegration: PASS'
 } finally {
     $resolvedFixture = [IO.Path]::GetFullPath($fixture)
