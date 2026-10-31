@@ -394,3 +394,90 @@ def test_watch_domain_task_starts_background_watcher():
     assert done.wait(5)
     assert seen["task_id"] == "task_y"
     assert svc.background_jobs == {seen["watcher"]}
+
+
+def test_local_dialog_answer_is_spoken_through_the_local_route(monkeypatch):
+    jv = voice_module()
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("local dialog answer must be spoken before the router runs")
+
+    monkeypatch.setattr(jv, "post_json", no_network)
+    svc = make_service(jv)
+    svc.cfg["qwen_url"] = "http://127.0.0.1:9/x"
+    svc.local_dialog = types.SimpleNamespace(turn=lambda text, history: "Es läuft: Recherche (arbeitet).")
+    svc._local_command = lambda text: None
+    decision = svc._route("Was macht die Recherche?")
+    assert decision["route"] == "local"
+    assert decision["intent"] == "tool"
+    assert decision["answer"] == "Es läuft: Recherche (arbeitet)."
+
+
+def test_local_dialog_none_keeps_the_router_flow(monkeypatch):
+    jv = voice_module()
+    calls = []
+    monkeypatch.setattr(jv, "load_dashboard_voice_policy", lambda *args, **kwargs: {"local_first": True})
+    monkeypatch.setattr(jv, "post_json", lambda *args, **kwargs: {"choices": [{"message": {"content": "L|0|0|P4|Hallo!"}}]})
+    monkeypatch.setattr(jv, "log_event", lambda **fields: None)
+    svc = make_service(jv)
+    svc.name = "Friday"
+    svc.cfg["qwen_url"] = "http://127.0.0.1:9/x"
+    svc.local_dialog = types.SimpleNamespace(turn=lambda text, history: calls.append((text, history)))
+    decision = svc._route("Hallo!")
+    assert decision["intent"] == "L" and decision["answer"] == "Hallo!"
+    assert calls == [("Hallo!", [])]
+
+
+def test_build_local_dialog_uses_the_local_model_only_for_local_voice():
+    jv = voice_module()
+    svc = make_service(jv)
+    svc.announcer = object()
+    svc.name = "Friday"
+    url = "http://127.0.0.1:43692/v1/chat/completions"
+    assert svc._build_local_dialog({"qwen_url": url}).model_available is True
+    assert svc._build_local_dialog({"qwen_url": url, "voice_mode": "elevenlabs"}).model_available is False
+    assert svc._build_local_dialog({"qwen_url": "https://example.invalid/v1"}).model_available is False
+
+
+def test_refresh_local_dialog_steps_aside_for_qwen():
+    jv = voice_module()
+    svc = make_service(jv)
+    svc.announcer = object()
+    svc.name = "Friday"
+    svc.qwen_dialog = object()
+    svc._refresh_local_dialog()
+    assert svc.local_dialog is None
+    svc.qwen_dialog = None
+    svc._refresh_local_dialog()
+    assert isinstance(svc.local_dialog, jv.LocalToolDialog)
+
+
+def test_announcing_uses_the_announcer_while_the_local_dialog_runs():
+    jv = voice_module()
+    svc = make_service(jv)
+
+    class Tasks:
+        def pending(self):
+            return []
+
+        def forget(self, task_id):
+            pass
+
+    svc.conversation = None
+    svc.announcer = jv.ConversationOrchestrator(Tasks())
+    svc.local_dialog = object()
+    assert svc._announcing() is svc.announcer
+    svc.local_dialog = None
+    svc._quiet_gate = lambda: types.SimpleNamespace(active=lambda: False)
+    assert svc._announcing() is None
+
+
+def test_router_warmup_runs_before_the_tool_dialog_exists():
+    import inspect
+
+    source = inspect.getsource(voice_module().VoiceService.__init__)
+    off = source.index("self.local_dialog = None")
+    warmup = source.index('self._route("Hallo")')
+    built = source.rindex("self._refresh_local_dialog()")
+    # Nobody spoke at start-up, so the model must not get a chance to run a tool during the warm-up.
+    assert off < warmup < built

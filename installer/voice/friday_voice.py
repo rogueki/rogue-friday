@@ -73,6 +73,7 @@ from conversation import ConversationOrchestrator, QuietGate, _local_excerpt  # 
 from knowledge import KnowledgeBase  # noqa: E402
 import self_check  # noqa: E402
 from qwen_dialog import QwenDialog  # noqa: E402
+from local_dialog import LocalToolDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
@@ -793,8 +794,8 @@ class VoiceService:
         self.qwen_dialog = None
         # One cached view of the central quiet mode for both modes; the classic flow holds results in its own announcer.
         self.quiet_gate = QuietGate(self.domain_tasks.quiet_state)
-        self.announcer = ConversationOrchestrator(self.domain_tasks, quiet_gate=self.quiet_gate,
-                                                  diagnostics=self._self_diagnosis)
+        self.announcer = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task),
+                                                  quiet_gate=self.quiet_gate, diagnostics=self._self_diagnosis)
         try:
             self._use_conversation(self._build_conversation(cfg))
         except (RuntimeError, OSError) as exc:
@@ -803,7 +804,10 @@ class VoiceService:
             self.status["qwen_error"] = "auth"
         atexit.register(self._close_conversation)
         if not self.cloud_voice:
+            # Nobody spoke yet: the warm-up must not give the model a chance to run a tool.
+            self.local_dialog = None
             self._route("Hallo")  # lokaler Router-Warmup
+        self._refresh_local_dialog()
 
     def _load_wake(self, test_wake_model: str | None) -> None:
         oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")
@@ -1373,6 +1377,12 @@ class VoiceService:
         if local:
             return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
                     "intent": "local_command", "answer": local}
+        dialog = getattr(self, "local_dialog", None)
+        if dialog is not None:
+            answer = dialog.turn(text, getattr(self, "history", [])[-6:])
+            if answer:
+                return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
+                        "intent": "tool", "answer": answer}
         policy = load_dashboard_voice_policy(
             os.path.join(self.cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR") or
                          os.path.join(INSTALL_ROOT, "dashboard", "data"), "dashboard.sqlite"),
@@ -1907,6 +1917,24 @@ class VoiceService:
                             persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)))
         return conversation, dialog
 
+    def _build_local_dialog(self, cfg: dict):
+        """Same tools as the Qwen mode for the local modes (LG-3.01/3.03): the local model where it runs, rules otherwise."""
+        chat = None
+        endpoint = urllib.parse.urlparse(str(cfg.get("qwen_url") or ""))
+        if cfg.get("voice_mode") != "elevenlabs" and endpoint.scheme == "http" and endpoint.hostname in ("127.0.0.1", "localhost", "::1"):
+            url = cfg["qwen_url"]
+            chat = lambda payload: post_json(url, payload, timeout=20)
+        return LocalToolDialog(self.announcer, chat, assistant_name=self.name,
+                               persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)), log=log_event)
+
+    def _refresh_local_dialog(self) -> None:
+        # The Qwen dialog owns the conversation while it runs; otherwise the local dialog offers the same tools.
+        announcer = getattr(self, "announcer", None)
+        if getattr(self, "qwen_dialog", None) is not None or announcer is None:
+            self.local_dialog = None
+        else:
+            self.local_dialog = self._build_local_dialog(getattr(self, "cfg", {}) or {})
+
     def _use_conversation(self, built) -> None:
         previous = getattr(self, "qwen_dialog", None)
         previous_conversation = getattr(self, "conversation", None)
@@ -1919,6 +1947,7 @@ class VoiceService:
         if previous is not None:
             # close() wartet bis zu 5 s auf die Sitzung; die Einstellungsanfrage soll darauf nicht warten.
             threading.Thread(target=previous.close, daemon=True).start()
+        self._refresh_local_dialog()
 
     def _close_conversation(self) -> None:
         if getattr(self, "qwen_dialog", None) is not None:
@@ -2028,7 +2057,8 @@ class VoiceService:
         if conversation is not None:
             return conversation
         announcer = getattr(self, "announcer", None)
-        if announcer is not None and (announcer.has_held() or self._quiet_gate().active()):
+        if announcer is not None and (getattr(self, "local_dialog", None) is not None or announcer.has_held()
+                                      or self._quiet_gate().active()):
             return announcer
         return None
 

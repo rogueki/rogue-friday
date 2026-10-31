@@ -1619,6 +1619,21 @@ entfernt) rot; pyflakes ohne Befund.
   Zustand und startet den Sprachdienst neu; Test `installer/tests/voice-change-rollback.Tests.ps1`. Fehlender Installer, ein
   anderes System oder ein Startfehler führen zu 503, ein zweiter Klick binnen 60 s zu 409. Das Dashboard erkennt den
   Abschluss am Status, der ohnehin alle 10 s neu geladen wird. Ohne vorhandene Installation beendet sich die GUI mit Exit 5.
+- **Lokaler Betrieb und ElevenLabs mit den Werkzeugen der Gesprächsschicht (LG-3.01–3.03):** Neues Modul
+  `installer/voice/local_dialog.py` (`LocalToolDialog`) treibt denselben `ConversationOrchestrator` wie Qwen Audio. Reihenfolge
+  in `_route`: Uhrzeit, feste Regeln (`local_command`), dann der Dialog, erst danach Router/Hermes wie bisher. Der Dialog
+  erkennt „Antworte: …“/„Sag dem Agenten …“ ohne Modell (gibt die Antwort per `task_antwort` an die offene Rückfrage) und
+  schickt sonst die Äußerung mit `tools`/`tool_choice: auto` an den lokalen llama-server (`--jinja`, Modell `qwen3-router`,
+  nur `http://127.0.0.1|localhost`, nie im ElevenLabs-Betrieb). Ruft das Modell kein Werkzeug, gilt der bisherige Ablauf
+  unverändert (Hybrid nach P0-06, kein Verhaltensverlust); erste Runde max. 128 Token, damit verworfener Freitext kaum Zeit
+  kostet; bis zu 3 Werkzeugrunden, Ersatzsätze, wenn das Modell nach einem Werkzeug schweigt; Fehler → bisheriger Ablauf.
+  Der Ansager läuft jetzt über `WatchedTasks` (vom Modell angelegte Aufträge bekommen denselben Hintergrundbeobachter) und
+  formatiert im lokalen Betrieb alle Ansagen, sodass Rückfragen registriert werden und „Antworte: …“ auch lokal/ElevenLabs
+  wirkt. Während Qwen Audio läuft, ist der lokale Dialog aus. `local_dialog.py` steht in beiden Voice-Update-Listen und in
+  der CI-Testliste. Wissensbasis: „Rückfragen der Agenten beantworten“ (99 Abschnitte). Tests: `test_local_dialog.py` (11),
+  5 Verdrahtungstests; Sprach-pytest 522 grün. Grenze: Ohne lokales Modell (ElevenLabs) wählt kein Modell frei Werkzeuge;
+  Status/Abbruch/Ruhemodus/Hilfe/Diagnose/Dashboard/Rückfragen laufen dort über Regeln, Aufträge über den Stichwort-Router.
+  Live-Abnahme mit Headset steht aus (LG-8.01).
 - **Dashboard-Tour und Bereiche per Stimme öffnen (LG-5.07):** Tour (`apps/web/src/features/tour/`) durch alle sichtbaren
   Seiten in Reihenfolge der Seitenleiste; Schritttexte aus `docs/friday-knowledge/seiten.md`, von `knowledge:build` nach
   `tourSteps.generated.json` erzeugt (Bundle-Prüfung gegen Server-Schlüsseldateien wie bei der Hilfe). Start über den Kompass
