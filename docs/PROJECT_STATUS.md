@@ -1483,8 +1483,16 @@ entfernt) rot; pyflakes ohne Befund.
   Punkte, gemeinsamer Wortstamm, Stoppwörter, 1–3 Treffer mit Quelle), Werkzeug `friday_hilfe` und Systemprompt-Zeile mit der
   Bereichsübersicht. Installation kopiert `voice` jetzt rekursiv, beide Update-Dateilisten enthalten `knowledge.py` und das Bündel.
   Tests: `test_knowledge.py` (7), `test_knowledge_questions.py` (20 Hilfefragen, P0-12), `test_conversation.py`; Gegenprobe (Stamm-
-  vergleich aus) rot; WSL-Voice-Liste 291 bestanden. Offen: `WakeEnrollment.tsx` ruft `fetch()` direkt in der Komponente auf
-  (Regelverstoß, Altbestand) – auf das SDK umstellen.
+  vergleich aus) rot; WSL-Voice-Liste 291 bestanden.
+- **Selbstdiagnose „Prüf dich“ (LG-2b.06):** `installer/voice/self_check.py` bewertet nur Live-Werte: Dienststatus (Mikrofon-Stream und
+  -Fehler, Wake Word an/aus, Sprecherprüfung ohne Profil bzw. ≥ 3 Ablehnungen, Qwen-Schlüssel/-Fehler, Gedächtnis-Rückstau), Ruhemodus
+  und Erreichbarkeit über `GET /quiet-mode` sowie den Systemstatus über `/voice/read`. Feste deutsche Sätze, keine Rohfehlertexte; Probleme
+  zuerst, höchstens drei. Werkzeug `friday_diagnose` (Thema filterbar) im Qwen-Modus und Vorrang-Erkennung „Prüf dich“, „Selbsttest“,
+  „Ist mit dir alles in Ordnung?“ in der lokalen Vorstufe beider Modi; Wissensabschnitt „Selbstdiagnose“. Tests `test_self_check.py` (29),
+  `test_conversation.py`, Verdrahtung mit Fake-Status in `test_qwen_voice_wiring.py`; Gegenprobe (Vorrang aus) rot; WSL-Voice-Liste 356
+  bestanden. Dabei gefunden und mitbehoben (nach dem Merge von #179): ein Python-`\f` hatte den Wissensbündel-Eintrag in `update-voice-personas.ps1` zu einem
+  Seitenvorschub gemacht (Update wäre an `Assert-Ordinary` abgebrochen); neuer Installer-Test `voice-update-file-lists.Tests.ps1`
+  prüft beide Update-Listen gegen das Repo, auf Steuerzeichen und auf Gleichheit.
 - **Ruhemodus und Hilfe im lokalen Sprachbetrieb (LG-2c.03):** Der lokale Router hat keine Werkzeuge; eine deterministische Vorstufe
   in `_route` (nach der Uhrzeit) erkennt Ruhemodus-Befehle (an mit Dauer „für zwei Stunden“, „die nächste Stunde“, „bis 7.30 Uhr“,
   „heute Nacht“, Stufe „nur Stimme aus“; aus; abfragen) und Hilfefragen (Fragewort + Bedienwort) per `parse_local_command` und

@@ -70,6 +70,7 @@ from domain_task_voice import (AGENT_LABEL, FINAL as FINAL_DOMAIN_STATUSES, Doma
                               classify_domain)
 import qwen_realtime  # noqa: E402
 from conversation import ConversationOrchestrator, QuietGate  # noqa: E402
+import self_check  # noqa: E402
 from qwen_dialog import QwenDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
@@ -764,7 +765,8 @@ class VoiceService:
         self.qwen_dialog = None
         # One cached view of the central quiet mode for both modes; the classic flow holds results in its own announcer.
         self.quiet_gate = QuietGate(self.domain_tasks.quiet_state)
-        self.announcer = ConversationOrchestrator(self.domain_tasks, quiet_gate=self.quiet_gate)
+        self.announcer = ConversationOrchestrator(self.domain_tasks, quiet_gate=self.quiet_gate,
+                                                  diagnostics=self._self_diagnosis)
         try:
             self._use_conversation(self._build_conversation(cfg))
         except (RuntimeError, OSError) as exc:
@@ -1313,6 +1315,12 @@ class VoiceService:
         content = post_json(url, payload, timeout=10)["choices"][0]["message"]["content"]
         return json.loads(content)
 
+    def _self_diagnosis(self) -> dict:
+        """Live findings for "Prüf dich": own status plus the dashboard's quiet mode and system status (LG-2b.06)."""
+        findings = self_check.diagnose(self.status_payload(), quiet_state=self.domain_tasks.quiet_state,
+                                       system_status=lambda: self.domain_tasks.read("wie ist der systemstatus"))
+        return {"befunde": findings, "zusammenfassung": self_check.spoken_summary(findings)}
+
     def _local_command(self, text: str) -> str | None:
         """Quiet-mode orders and help questions: the local router has no tools, so they are answered before it runs."""
         announcer = getattr(self, "announcer", None)
@@ -1840,7 +1848,7 @@ class VoiceService:
         if conversation_backend(cfg) != "qwen":
             return None
         conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task),
-                                                quiet_gate=self._quiet_gate())
+                                                quiet_gate=self._quiet_gate(), diagnostics=self._self_diagnosis)
         session = qwen_realtime.QwenRealtimeSession(
             qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
             instructions="")

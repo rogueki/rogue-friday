@@ -62,6 +62,16 @@ LOCAL_HELP_START = re.compile(r"^(wie|wo|was|warum|wieso|weshalb|welche)")
 LOCAL_HELP_WORDS = re.compile(
     r"\b(einstell|stelle|finde|richte|verbind|aender|wechsl|wechsel|lern|installier|schalt|aktivier|bedeut|"
     r"funktionier|loesch|speicher|sicher|verwend|nutz|beend|start)")
+LOCAL_DIAGNOSE = (
+    re.compile(r"\bselbstdiagnose\b"),
+    re.compile(r"\bselbsttest\b"),
+    re.compile(r"\bpruef(e)?\s+dich\b"),
+    re.compile(r"\bueberpruef(e)?\s+dich\b"),
+    re.compile(r"\bist\s+mit\s+dir\s+alles\s+in\s+ordnung\b"),
+    re.compile(r"\bfunktioniert\s+bei\s+dir\s+alles\b"),
+    re.compile(r"\bwas\s+stimmt\s+mit\s+dir\s+nicht\b"),
+)
+LOCAL_CHECK_WORD = re.compile(r"\bpruef")
 LOCAL_EXCERPT_LIMIT = 400
 
 
@@ -131,10 +141,14 @@ def parse_local_command(text: str) -> tuple[str, dict] | None:
     norm = _local_normalize(text)
     if not norm:
         return None
+    # "Prüf dich" is about Friday itself, so the live values answer before the help or quiet-mode rules apply.
+    if any(pattern.search(norm) for pattern in LOCAL_DIAGNOSE):
+        return "friday_diagnose", {"thema": "alles"}
     if any(pattern.search(norm) for pattern in LOCAL_QUIET_QUERY):
         return "ruhemodus", {"aktion": "abfragen"}
     # "Wie schalte ich den Ruhemodus ein?" asks how it works; it must not switch anything.
-    if LOCAL_HELP_START.match(norm) and LOCAL_HELP_WORDS.search(norm):
+    # "Wie prüfe ich das Mikrofon?" asks how it works; the help answers that, the diagnosis only works on orders.
+    if LOCAL_HELP_START.match(norm) and (LOCAL_HELP_WORDS.search(norm) or LOCAL_CHECK_WORD.search(norm)):
         return "friday_hilfe", {"frage": text.strip()}
     # "nur Stimme aus" names a level, not the end of the quiet mode.
     without_voice = LOCAL_VOICE.sub(" ", norm)
@@ -191,6 +205,13 @@ def local_reply(name: str, result: dict) -> str | None:
         if result.get("aktiv") is False:
             return "Der Ruhemodus ist aus."
         return None
+    if name == "friday_diagnose":
+        summary = str(result.get("zusammenfassung") or "").strip()
+        if summary:
+            return summary
+        if result.get("hinweis"):
+            return str(result["hinweis"])
+        return None
     if name == "friday_hilfe":
         sections = result.get("abschnitte")
         if sections:
@@ -224,6 +245,10 @@ def quiet_until(now: datetime.datetime, minutes=None, until=None, period=None) -
             return target
         return target + datetime.timedelta(days=1)
     return now + datetime.timedelta(minutes=60)
+
+
+DIAGNOSE_TOPICS = ("alles", "mikrofon", "wake_word", "sprecher", "qwen", "dashboard", "ruhemodus", "system",
+                   "gedaechtnis")
 
 
 def _tool(name, description, properties, required=()):
@@ -276,6 +301,12 @@ TOOLS = [
           "passiert. Ändert nichts.",
           {"frage": {"type": "string", "description": "Die Frage des Nutzers in einem Satz."}},
           required=("frage",)),
+    _tool("friday_diagnose",
+          "Prüft F.R.I.D.A.Y. selbst mit Live-Werten: Mikrofon, Wake Word, Sprecherprüfung, Qwen, Dashboard, "
+          "Ruhemodus, Systemstatus und Agenten, Gedächtnis. Für Meldungen wie: du hörst mich nicht, du antwortest "
+          "nicht, keine Ansagen, funktioniert alles?",
+          {"thema": {"type": "string", "enum": list(DIAGNOSE_TOPICS),
+                     "description": "Worum es geht; ohne Angabe alles."}}),
     _tool("zeit_datum", "Aktuelle Uhrzeit und aktuelles Datum.", {}),
 ]
 
@@ -326,9 +357,10 @@ class QuietGate:
 
 class ConversationOrchestrator:
     def __init__(self, tasks, *, clock=datetime.datetime.now, now=time.monotonic, wall=time.time, window_s=60.0,
-                 quiet=None, quiet_gate=None, summarize_from=3, knowledge=None):
+                 quiet=None, quiet_gate=None, summarize_from=3, knowledge=None, diagnostics=None):
         self._tasks = tasks
         self._knowledge = knowledge if knowledge is not None else KnowledgeBase()
+        self._diagnostics = diagnostics
         self._clock = clock
         self._now = now
         self._wall = wall
@@ -364,6 +396,8 @@ class ConversationOrchestrator:
             "friday_lesen statt mit task_create.",
             "Fragen zur Bedienung, zu Einstellungen, zu Fehlern oder zum Datenschutz beantwortest du mit friday_hilfe, "
             "nur mit dem Inhalt der gelieferten Abschnitte, kurz und mit dem Klickpfad. Steht dort nichts, sagst du das ehrlich.",
+            "Meldet der Nutzer ein Problem mit dir (hört nicht, antwortet nicht, keine Ansagen), rufst du zuerst "
+            "friday_diagnose auf und nennst die Befunde; danach hilft friday_hilfe mit den Prüfschritten.",
             "Ruhe- oder Bitte-nicht-stören-Wünsche setzt du mit ruhemodus; die Uhrzeit rechnest du nicht selbst aus, "
             "sondern gibst minuten oder bis weiter.",
             "Nach dem Ruhe-Stand fragst du mit ruhemodus abfragen; die Nachtruhe stellst du mit ruhemodus nachtruhe ein. "
@@ -423,6 +457,7 @@ class ConversationOrchestrator:
         handler = {"task_create": self._task_create, "task_status": self._task_status,
                    "task_cancel": self._task_cancel, "task_antwort": self._task_reply,
                    "ruhemodus": self._quiet_mode, "friday_hilfe": self._help,
+                   "friday_diagnose": self._diagnose,
                    "friday_lesen": self._read, "zeit_datum": self._time}.get(name)
         if handler is None:
             return {"error": "Unbekanntes Werkzeug."}
@@ -752,6 +787,28 @@ class ConversationOrchestrator:
                 text = text[:900] + " …"
             abschnitte.append({"titel": section.get("titel", ""), "text": text, "quelle": section.get("quelle", "")})
         return {"abschnitte": abschnitte}
+
+    def _diagnose(self, arguments: dict) -> dict:
+        error = {"error": "Die Selbstdiagnose ist gerade nicht verfügbar."}
+        if self._diagnostics is None:
+            return error
+        try:
+            data = self._diagnostics()
+        except Exception:
+            return error
+        if not isinstance(data, dict):
+            return error
+        befunde = [entry for entry in (data.get("befunde") or []) if isinstance(entry, dict)]
+        thema = str(arguments.get("thema") or "").strip().lower() or "alles"
+        if thema not in DIAGNOSE_TOPICS:
+            thema = "alles"
+        if thema == "alles":
+            return {"befunde": befunde, "zusammenfassung": str(data.get("zusammenfassung") or "")}
+        matching = [entry for entry in befunde if str(entry.get("bereich") or "") == thema]
+        if not matching:
+            return {"hinweis": "Dazu habe ich gerade keine Messwerte."}
+        return {"befunde": matching,
+                "zusammenfassung": " ".join(str(entry.get("text") or "") for entry in matching)}
 
     def _read(self, arguments: dict) -> dict:
         question = str(arguments.get("frage") or "").strip()[:500]
