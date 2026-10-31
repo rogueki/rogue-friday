@@ -153,6 +153,15 @@ class DomainTaskVoice:
         self._save()
         return job
 
+    def quiet_state(self) -> dict:
+        return self._request("GET", "/api/v1/quiet-mode", timeout=4)
+
+    def set_quiet(self, until_iso: str) -> dict:
+        return self._request("PUT", "/api/v1/quiet-mode", {"until": until_iso})
+
+    def clear_quiet(self) -> dict:
+        return self._request("DELETE", "/api/v1/quiet-mode")
+
     def pending(self) -> list[dict]:
         with self.lock:
             return [dict(entry) for entry in self.jobs.values()]

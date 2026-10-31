@@ -1139,6 +1139,9 @@ export interface FridayModelMap {
   ProfileSettings: ProfileSettings;
   Progress: Progress;
   QuickCommand: QuickCommand;
+  QuietModeRequest: QuietModeRequest;
+  QuietModeResponse: QuietModeResponse;
+  QuietModeState: QuietModeState;
   ReasoningLevel: ReasoningLevel;
   ReauthRequest: ReauthRequest;
   ReauthResponse: ReauthResponse;
@@ -5537,6 +5540,35 @@ export interface ProfileSettings {
   dateFormat: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy";
   timeFormat: "24h" | "12h";
   firstDayOfWeek: "monday" | "sunday";
+}
+/**
+ * Starts or extends a temporary quiet mode until the given time (at most 24 hours ahead).
+ */
+export interface QuietModeRequest {
+  until: string;
+}
+/**
+ * Single-resource envelope for QuietModeState.
+ */
+export interface QuietModeResponse {
+  contractVersion: ContractVersion;
+  data: QuietModeState;
+  freshness: Freshness;
+}
+/**
+ * Whether F.R.I.D.A.Y. currently holds back spoken announcements. temporary: set for a limited time by voice or dashboard; schedule: the nightly quiet hours of the notification settings. Held announcements are summarized afterwards.
+ */
+export interface QuietModeState {
+  active: boolean;
+  source: "temporary" | "schedule" | null;
+  /**
+   * End of the current quiet period; null when not active.
+   */
+  until: string | null;
+  /**
+   * End of a temporary quiet mode, also when the schedule currently applies.
+   */
+  temporaryUntil: string | null;
 }
 export interface ReauthRequest {
   password: string;

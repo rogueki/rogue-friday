@@ -28,6 +28,7 @@ import { AuditStore, type AuditVerification } from "../db/audit-store";
 import { AuditArchive } from "../db/audit-archive";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
 import { NotificationStore } from "../services/notification-store";
+import { QuietModeService } from "../services/quiet-mode";
 import { RetentionService } from "../services/retention";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
@@ -286,6 +287,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
   const recentCommandListings = new RecentCommandListings(options.now);
+  const quietMode = new QuietModeService(db, () => settings.area("notifications").quietHours,
+    () => settings.area("profile").timeZone, () => world?.nowMs() ?? Date.now());
   let pendingCommandClarifications: PendingCommandClarifications;
   let encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
   try {
@@ -575,6 +578,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     nativeApprovals,
     pendingCommandClarifications,
     recentCommandListings,
+    quietMode,
     encryptedClarifiedMailDrafts,
     contentStudioKeys,
     contentStudioProviders,

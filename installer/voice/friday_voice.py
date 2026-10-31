@@ -69,7 +69,7 @@ from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from domain_task_voice import (AGENT_LABEL, FINAL as FINAL_DOMAIN_STATUSES, DomainTaskVoice, bundle_text,  # noqa: E402
                               classify_domain)
 import qwen_realtime  # noqa: E402
-from conversation import ConversationOrchestrator  # noqa: E402
+from conversation import ConversationOrchestrator, QuietGate  # noqa: E402
 from qwen_dialog import QwenDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
@@ -1823,7 +1823,8 @@ class VoiceService:
         """(Orchestrator, Dialog) fuer den Qwen-Modus, sonst None; wirft RuntimeError/OSError bei unlesbarem Schluessel."""
         if conversation_backend(cfg) != "qwen":
             return None
-        conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task))
+        conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task),
+                                                quiet_gate=QuietGate(self.domain_tasks.quiet_state))
         session = qwen_realtime.QwenRealtimeSession(
             qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
             instructions="")
@@ -1901,26 +1902,38 @@ class VoiceService:
             if job.get("status") in FINAL_DOMAIN_STATUSES:
                 self.domain_tasks.forget(job["taskId"])
 
+    def _has_held_announcements(self) -> bool:
+        conversation = getattr(self, "conversation", None)
+        return conversation is not None and conversation.has_held()
+
     def _announce_domain_results(self) -> None:
         while True:
             try:
-                jobs = self.domain_tasks.take_bundle(lambda: False)
-                if not jobs:
+                # Results held back in quiet mode have no new result to wake us; re-check them every 30 s.
+                deadline = time.monotonic() + 30.0
+                jobs = self.domain_tasks.take_bundle(
+                    lambda: self._has_held_announcements() and time.monotonic() > deadline)
+                if not jobs and not self._has_held_announcements():
                     continue
                 while self.tts.speaking.is_set():
                     time.sleep(0.05)  # never cut off a running announcement
-                text = self._announcement_text(jobs)
-                self._forget_announced(jobs)
-                if not text:
-                    continue
-                print(f"< {text}", flush=True)
-                self._say_if_current(text, self.control_generation)
-                self.history += [{"role": "assistant", "content": text}]
-                if getattr(self, "qwen_dialog", None) is not None:
-                    # Qwen kennt das Ergebnis danach und kann Rueckfragen dazu beantworten.
-                    self.qwen_dialog.note(self.conversation.announcement_item(text))
+                if jobs:
+                    text = self._announcement_text(jobs)
+                    self._forget_announced(jobs)
+                else:
+                    text = self.conversation.take_announcement()
+                if text:
+                    self._speak_announcement(text)
             except Exception as exc:
                 log_event(event="domain_announce_error", error=type(exc).__name__)
+
+    def _speak_announcement(self, text: str) -> None:
+        print(f"< {text}", flush=True)
+        self._say_if_current(text, self.control_generation)
+        self.history += [{"role": "assistant", "content": text}]
+        if getattr(self, "qwen_dialog", None) is not None:
+            # Qwen kennt das Ergebnis danach und kann Rueckfragen dazu beantworten.
+            self.qwen_dialog.note(self.conversation.announcement_item(text))
 
     # ---------- Hauptschleife ----------
     def run(self) -> None:

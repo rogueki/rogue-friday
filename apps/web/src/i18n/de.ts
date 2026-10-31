@@ -388,4 +388,21 @@ export const de = {
   "timeline.due": "fällig",
   "time.minutes": "Min.",
   "time.hours": "Std.",
+
+  // quiet mode
+  "quietMode.title": "Ruhemodus",
+  "quietMode.schedule": "Nachtruhe",
+  "quietMode.status.temporary": "Ruhemodus bis",
+  "quietMode.status.schedule": "Nachtruhe bis",
+  "quietMode.status.inactive": "F.R.I.D.A.Y. sagt Ergebnisse sofort an.",
+  "quietMode.duration.label": "Dauer",
+  "quietMode.duration.30": "30 Minuten",
+  "quietMode.duration.60": "1 Stunde",
+  "quietMode.duration.120": "2 Stunden",
+  "quietMode.duration.240": "4 Stunden",
+  "quietMode.duration.tomorrow": "Bis morgen 7:00",
+  "quietMode.start": "Ruhemodus starten",
+  "quietMode.stop": "Ruhemodus beenden",
+  "quietMode.hint":
+    "Im Ruhemodus hält F.R.I.D.A.Y. Ergebnisse und Rückfragen zurück und fasst sie danach zusammen. Was du selbst fragst, beantwortet sie normal.",
 } as const;

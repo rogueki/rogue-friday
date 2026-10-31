@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-mode-state.schema.json",
+  "title": "QuietModeState",
+  "description": "Whether F.R.I.D.A.Y. currently holds back spoken announcements. temporary: set for a limited time by voice or dashboard; schedule: the nightly quiet hours of the notification settings. Held announcements are summarized afterwards.",
+  "type": "object",
+  "properties": {
+    "active": {
+      "type": "boolean"
+    },
+    "source": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "temporary",
+        "schedule",
+        null
+      ]
+    },
+    "until": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "End of the current quiet period; null when not active."
+    },
+    "temporaryUntil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "End of a temporary quiet mode, also when the schedule currently applies."
+    }
+  },
+  "required": [
+    "active",
+    "source",
+    "until",
+    "temporaryUntil"
+  ],
+  "additionalProperties": false
+}

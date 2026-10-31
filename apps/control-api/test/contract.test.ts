@@ -548,7 +548,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers mock-platform operations with contract-valid success responses", () => {
-    expect(ROUTE_TABLE).toHaveLength(297);
+    expect(ROUTE_TABLE).toHaveLength(300);
     // Hermes-backed Skills/Onboarding routes have focused API tests instead of mock-platform success fixtures.
     const focusedRoutes = new Set(["createSkillContentProductionJob", "searchLocations", "getCurrentWeather", "getBrowserAudioAvailability", "getLinuxVoiceEnrollment", "addLinuxVoiceSample", "startLinuxVoiceTraining", "listSkills", "setSkillActivation", "searchSkillHub", "listModifiedSkills", "getSkillInspection", "getSkillAudit", "getSkillDiff", "getSkillCommandReport", "mutateSkill", "mutateSkillGovernance", "createPowerPointDeck", "createVoicePowerPointDeck", "listPowerPointDecks", "downloadPowerPointDeck", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "getWikiPath", "putWikiPath", "getHimalayaAccount", "putHimalayaAccount", "checkHimalayaSmtp", "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage", "sendHimalayaMessage", "previewVoiceMail", "confirmVoiceMail", "previewCalDavEvent", "createCalendarEvent", "createLocalCalendarEvent", "updateLocalCalendarEvent", "deleteLocalCalendarEvent", "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar", "getHermesSkillKeys", "updateHermesSkillKey", "checkHermesSkillKey", "createCodingRun", "getCodingRun", "stopCodingRun", "getCodingCliStatus", "getCodingVoiceRepository", "putCodingVoiceRepository", "createVoiceCodingRun", "getTelegramGateway", "putTelegramGateway", "getDiscordGateway", "putDiscordGateway", "getWhatsappGateway", "putWhatsappGateway", "getCloudTalk", "putCloudTalk", "deleteCloudTalk", "previewCloudTalkCall", "originateCloudTalkCall", "getTelephony", "putTelephony", "previewTelephonyCall", "originateTelephonyCall", "getTelephonyCall", "hangupTelephonyCall", "createVoiceDomainTask", "getVoiceDomainTask", "cancelVoiceDomainTask", "getDashboardUpdateStatus", "installDashboardUpdate"]);
     // Native/provider integration operations have dedicated route, protocol and auth tests with synthetic providers.
@@ -569,8 +569,8 @@ describe("contract: all operations", () => {
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
       "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
-      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload", "setVoiceConversationKey", "readVoiceQuery", "replyVoiceDomainTask"]);
-    expect(integrationFocusedRoutes.size).toBe(89);
+      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload", "setVoiceConversationKey", "readVoiceQuery", "replyVoiceDomainTask", "getQuietMode", "setQuietMode", "clearQuietMode"]);
+    expect(integrationFocusedRoutes.size).toBe(92);
     for (const operationId of integrationFocusedRoutes) expect(ROUTE_TABLE.some((spec) => spec.operationId === operationId), operationId).toBe(true);
     expect(probe.uncovered().filter((id) => !focusedRoutes.has(id) && !integrationFocusedRoutes.has(id)), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);

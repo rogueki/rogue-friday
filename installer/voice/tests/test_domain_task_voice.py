@@ -100,6 +100,24 @@ def test_read_posts_voice_read_and_truncates_text(tmp_path, monkeypatch):
     assert body["text"] == "x" * 500
 
 
+def test_quiet_mode_requests_use_the_right_methods(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    payload = {"active": True, "source": "temporary", "until": "2026-10-31T15:00:00+01:00",
+               "temporaryUntil": "2026-10-31T15:00:00+01:00"}
+    opener = FakeOpener([{"data": payload}, {"data": payload}, {"data": payload}])
+    voice = DomainTaskVoice(str(tmp_path), opener=opener)
+    assert voice.quiet_state() == payload
+    assert voice.set_quiet("2026-10-31T15:00:00+01:00") == payload
+    assert voice.clear_quiet() == payload
+    requests = opener.requests
+    assert [request.get_method() for request in requests] == ["GET", "PUT", "DELETE"]
+    assert all(request.full_url.endswith("/api/v1/quiet-mode") for request in requests)
+    assert requests[0].data is None
+    assert json.loads(requests[1].data.decode("utf-8")) == {"until": "2026-10-31T15:00:00+01:00"}
+    assert requests[2].data is None
+
+
 def test_wait_returns_final_job(tmp_path):
     steps = [{"status": "running"}, {"status": "running"}, {"status": "done", "resultSummary": "Fertig"}]
     clock = [0.0]
