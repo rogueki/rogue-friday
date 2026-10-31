@@ -1,6 +1,6 @@
 ﻿#Requires -Version 5.1
 <#
-  F.R.I.D.A.Y. – Komplettinstallation (Windows 11 + WSL2 + Hermes Agent + Kimi K3 + lokale Sprachsteuerung)
+  F.R.I.D.A.Y. – Komplettinstallation (Windows 11 + WSL2 + Hermes Agent + KI-Anbieter nach Wahl + Sprachsteuerung)
   Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Name UND Wake Word werden
   vor der Stimmaufnahme abgefragt und sind frei waehlbar (z. B. Name James, Wake Word "Computer" oder "Guten Morgen James").
   Spaeter aendern: change-assistant-name.bat (= install-friday.ps1 -ChangeName).
@@ -58,6 +58,8 @@ if ($GuiMode) {
     if ([string]$GuiConfig.answers.modelName -and ([string]$GuiConfig.answers.modelName).Length -gt 200) {
         throw 'Ungültiger Modellname.'
     }
+    if ($GuiConfig.answers.PSObject.Properties['providerChoice'] -and
+        [string]$GuiConfig.answers.providerChoice -notin @('1','2','3','4')) { throw 'Ungültige GUI-Auswahl: providerChoice' }
     if ($env:FRIDAY_INSTALL_RUN) { Write-Host "[GUI] Lauf $($env:FRIDAY_INSTALL_RUN)" }
     foreach ($key in @('address','character')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2','3')) { throw "Ungültige GUI-Auswahl: $key" }
@@ -1092,6 +1094,9 @@ if (-not $Resume -and -not $PSBoundParameters.ContainsKey('InstallRoot')) {
         Warn "Auf diesem PC ist bereits eine F.R.I.D.A.Y.-Installation eingerichtet: $knownRoot"
         Info "Dieser Start wuerde eine ZWEITE Installation in $Root anlegen."
         Info ('Vorhandene Installation fortsetzen: powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '" -Resume -InstallRoot "' + $knownRoot + '"')
+        if ($GuiMode) {
+            Stop-Install "F.R.I.D.A.Y. ist auf diesem PC bereits in $knownRoot installiert. Im Assistenten diesen Ordner waehlen, um die Installation fortzusetzen oder zu aktualisieren."
+        }
         if (-not (YesNo "Trotzdem eine zweite Installation in $Root anlegen?")) {
             Stop-Install 'Abgebrochen, damit keine zweite Installation entsteht.'
         }
@@ -1752,7 +1757,7 @@ if (-not (IsDone 'keepalive')) {
     MarkDone 'keepalive'
 }
 
-# ================================================================ 10 Hermes + Kimi
+# ================================================================ 10 Hermes + KI-Anbieter
 if (-not (IsDone 'hermes')) {
     Enter-Step 'hermes'
     Title 'Schritt 10/15 – Hermes Agent + KI-Anbieter'
@@ -1770,17 +1775,20 @@ if (-not (IsDone 'hermes')) {
         Info 'Wie soll F.R.I.D.A.Y. denken?'
         Info '1  OpenAI      (empfohlen)'
         Info '2  Anthropic   (Claude)'
-        Info '3  Erweitert   Kimi, DeepSeek, OpenRouter oder eigener OpenAI-kompatibler Server'
-        if ($detectedKimi) { Info '   (Auf diesem PC liegt ein Kimi-Key bereit - er passt zu Option 3.)' }
+        Info '3  Erweitert   Alibaba Qwen, DeepSeek, OpenRouter oder eigener OpenAI-kompatibler Server'
+        Info '4  Kimi Coding (Moonshot, Modell k3)'
+        if ($detectedKimi) { Info '   (Auf diesem PC liegt ein Kimi-Key bereit - er passt zu Option 4.)' }
         do {
-            $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-3, Standard 1]' }).Trim()
+            $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-4, Standard 1]' }).Trim()
             if (-not $answer) { $answer = '1' }
-        } while ($answer -notin @('1', '2', '3'))
-        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai-api' } }
+            if ($GuiMode -and $answer -notin @('1', '2', '3', '4')) { Stop-Install "Ungueltige Anbieterwahl der Oberflaeche: $answer" }
+        } while ($answer -notin @('1', '2', '3', '4'))
+        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } '4' { 'kimi-coding' } default { 'openai-api' } }
     }
     $modelName = [string]$State.model_name
     $baseUrl = [string]$State.model_base_url
     $key = ''
+    if ($GuiMode -and -not $modelName) { $modelName = (Gui-Answer 'modelName').Trim() }
     if ($provider -in @('openai', 'openai-api')) {
         $provider = 'openai-api'
         if (-not $modelName) { $modelName = 'gpt-5' }
@@ -1788,14 +1796,14 @@ if (-not (IsDone 'hermes')) {
         Info 'OpenAI-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
         $key = Plain $(if ($GuiMode) { Gui-Secret 'openaiKey' } else { Read-Host '  OpenAI-API-Key' -AsSecureString })
     } elseif ($provider -eq 'anthropic') {
-        if (-not $modelName) { $modelName = 'claude-sonnet-4-5' }
+        if (-not $modelName) { $modelName = 'claude-sonnet-5-5' }
         Info "Anthropic - Modell: $modelName"
         Info 'Anthropic-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
         $key = Plain $(if ($GuiMode) { Gui-Secret 'anthropicKey' } else { Read-Host '  Anthropic-API-Key' -AsSecureString })
     } elseif ($provider -eq 'kimi-coding') {
         if (-not $modelName) { $modelName = 'k3' }
         $baseUrl = ''
-        if ($detectedKimi) {
+        if ($detectedKimi -and (-not $GuiMode -or (Gui-Answer 'useExistingKimi') -eq 'true')) {
             $key = $detectedKimi
             Info 'Kimi-Code-Zugang auf diesem PC gefunden - eingerichtet wird Modell k3.'
         } else {
@@ -1807,17 +1815,18 @@ if (-not (IsDone 'hermes')) {
         # KNOWN_PROVIDER_KEY_PREFIXES) und normalisiert "openai" auf einen Aggregator. Diese
         # Zuordnung bleibt daher eine Installer-Heuristik; setup_hermes.sh prueft anschliessend
         # gegen den installierten Katalog, ob der Anbieter ueberhaupt als API-Key-Anbieter existiert.
-        if ($detectedKimi -and $detectedKimi -match '^sk-kimi-') {
+        if (-not $GuiMode -and $detectedKimi -and $detectedKimi -match '^sk-kimi-') {
             $provider = 'kimi-coding'
             $modelName = 'k3'
             $baseUrl = ''
             $key = $detectedKimi
             Info 'Kimi-Code-Key auf diesem PC gefunden - eingerichtet wird der Kimi-Coding-Zugang (Modell k3).'
         } else {
-            Info 'Erweitert - OpenAI-kompatibler Anbieter, z. B. DeepSeek https://api.deepseek.com/v1 oder OpenRouter https://openrouter.ai/api/v1'
+            Info 'Erweitert - OpenAI-kompatibler Anbieter, z. B. Alibaba Token Plan https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1, DeepSeek https://api.deepseek.com/v1 oder OpenRouter https://openrouter.ai/api/v1'
             do {
                 $enteredUrl = $(if ($GuiMode) { Gui-Answer 'modelBaseUrl' } else { Read-Host "  Basis-URL [Standard $baseUrl]" }).Trim()
                 if ($enteredUrl) { $baseUrl = $enteredUrl }
+                if ($GuiMode -and $baseUrl -notmatch '^https?://') { Stop-Install 'Die Oberflaeche hat keine gueltige Server-Adresse (https://...) uebermittelt.' }
             } while ($baseUrl -notmatch '^https?://')
             if (-not $modelName) {
                 $enteredModel = $(if ($GuiMode) { Gui-Answer 'modelName' } else { Read-Host '  Modellname (z. B. deepseek-chat)' }).Trim()
@@ -2478,7 +2487,7 @@ function Write-DashboardConfig {
 # Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
 # Geaendert wird nach einem Neustart der Aufgabe FRIDAY_Dashboard wirksam.
 
-dataMode: live # mock | hybrid | live - live: nur eingerichtete Kategorien, keine Simulation; mock/hybrid nur fuer Entwicklung
+dataMode: live # nur eingerichtete Kategorien liefern Daten, es gibt keine Ersatzdaten
 
 server:
   host: 127.0.0.1 # nur Loopback
