@@ -1386,10 +1386,17 @@ entfernt) rot; pyflakes ohne Befund.
   Token Plan mit Schlüssel gewählt, wird dieser Schlüssel samt Region übernommen und das Feld darf leer bleiben. Der
   Schlüssel liegt DPAPI-verschlüsselt in `configlibaba_tokenplan.key.dpapi`; `voice_setup.py` schreibt
   `conversation_backend`, `qwen_region`, `qwen_key_file`. Ein Wechsel von Modus oder Region richtet den Sprachdienst neu ein.
-- **Noch nicht enthalten:** Umschalter im Dashboard (LG-3), Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+- **Dashboard (LG-3):** Einstellungen → Sprache hat den Abschnitt „Gespräch“ (Lokal | Qwen Audio Live-Gespräch) mit
+  Live-Status (aktiv, oder z. B. „Kontingent aufgebraucht – antwortet lokal“). Vertrag: `voice.conversationBackend`
+  (optional, Standard `local`) und `VoiceStatus.conversation {backend, keyConfigured, lastError}`. Der Wert läuft als
+  zehntes Laufzeitfeld über `POST /control/settings`; der Sprachdienst baut die Qwen-Sitzung vor dem Speichern auf (fehlt
+  oder ist der Schlüssel unlesbar → 422, alter Modus bleibt) und tauscht sie nach dem Schreiben ohne Neustart aus.
+  Ohne hinterlegten Schlüssel ist Qwen im Dashboard nicht wählbar und der Hinweis nennt den Installer-Weg. Alte
+  voice.json ohne `qwen_key_file` bekommen den Standardpfad.
+- **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
-Windows `test_qwen_dialog.py` 14/14; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
+Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
 PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
 `voice-native-capture`, alle `gui-*.Tests.ps1` (9) PASS.

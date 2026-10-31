@@ -20,7 +20,8 @@ import numpy as np
 
 
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
-          "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel", "ttsRate")
+          "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel",
+          "conversationBackend", "ttsRate")
 
 
 def key_pressed_from_state(key, pressed):
@@ -137,12 +138,13 @@ def effective(cfg):
             "voiceHistoryEnabled": cfg.get("voice_history_enabled", True),
             "sttLanguage": cfg.get("stt_language", "de"),
             "sttModel": cfg.get("whisper_model"),
+            "conversationBackend": cfg.get("conversation_backend", "local"),
             "ttsRate": cfg.get("tts_rate", 1.0)}
 
 
 def validate(request, cfg):
     if not isinstance(request, dict) or set(request) != set(FIELDS):
-        raise ValueError("Voice settings require exactly nine fields")
+        raise ValueError("Voice settings require exactly ten fields")
     for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled"):
         if type(request[key]) is not bool:
             raise ValueError(f"Invalid {key}")
@@ -162,12 +164,18 @@ def validate(request, cfg):
         raise ValueError("Invalid STT model")
     if isinstance(request["sttModel"], str) and request["sttModel"].endswith(".en") and request["sttLanguage"] != "en":
         raise ValueError("English-only Whisper model requires English transcription")
+    backend = request["conversationBackend"]
+    if backend not in ("local", "qwen"):
+        raise ValueError("Invalid conversation backend")
+    if backend == "qwen" and not (cfg.get("qwen_key_file") and os.path.isfile(cfg["qwen_key_file"])):
+        raise ValueError("Qwen Audio key is not configured")
     return {**cfg, "wake_phrase": phrase,
             "wake_word_enabled": request["wakeWordEnabled"],
             "push_to_talk_key": key, "speaker_verification_required": request["speakerVerificationRequired"],
             "store_raw_recordings": request["storeRawRecordings"],
             "voice_history_enabled": request["voiceHistoryEnabled"],
             "stt_language": request["sttLanguage"], "whisper_model": request["sttModel"],
+            "conversation_backend": backend,
             "tts_rate": float(rate)}
 
 

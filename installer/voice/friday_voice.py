@@ -754,17 +754,18 @@ class VoiceService:
                            browser_audio=self.browser_audio)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         self.latency = {name: collections.deque(maxlen=LATENCY_WINDOW) for name in ("speaker", "stt", "router", "model")}
+        # Alte Installationen kennen den Schluesselpfad noch nicht; der Dashboard-Schalter braucht ihn.
+        cfg.setdefault("qwen_key_file", qwen_realtime.LINUX_SECRET_FILE if os.name == "posix"
+                       else os.path.join(INSTALL_ROOT, "config", "alibaba_tokenplan.key.dpapi"))
         self.conversation = None
         self.qwen_dialog = None
-        if conversation_backend(cfg) == "qwen":
-            # Qwen fuehrt das Gespraech; Wake Word, Sprecherpruefung und Stimme bleiben lokal (Plan D-03, D-04, D-08).
-            self.conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task))
-            session = qwen_realtime.QwenRealtimeSession(
-                qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
-                instructions="")
-            self.qwen_dialog = QwenDialog(session, self.conversation, assistant_name=self.name,
-                                          persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)))
-            atexit.register(self.qwen_dialog.close)
+        try:
+            self._use_conversation(self._build_conversation(cfg))
+        except (RuntimeError, OSError) as exc:
+            # Ohne lesbaren Schluessel bleibt der Dienst lokal nutzbar; das Dashboard zeigt den Fehler.
+            log_event(event="qwen_unavailable", error=type(exc).__name__)
+            self.status["qwen_error"] = "auth"
+        atexit.register(self._close_conversation)
         if not self.cloud_voice:
             self._route("Hallo")  # lokaler Router-Warmup
 
@@ -1806,6 +1807,30 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _build_conversation(self, cfg: dict):
+        """(Orchestrator, Dialog) fuer den Qwen-Modus, sonst None; wirft RuntimeError/OSError bei unlesbarem Schluessel."""
+        if conversation_backend(cfg) != "qwen":
+            return None
+        conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task))
+        session = qwen_realtime.QwenRealtimeSession(
+            qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
+            instructions="")
+        dialog = QwenDialog(session, conversation, assistant_name=self.name,
+                            persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)))
+        return conversation, dialog
+
+    def _use_conversation(self, built) -> None:
+        previous = getattr(self, "qwen_dialog", None)
+        self.conversation, self.qwen_dialog = built if built is not None else (None, None)
+        self.status["qwen_error"] = None
+        if previous is not None:
+            # close() wartet bis zu 5 s auf die Sitzung; die Einstellungsanfrage soll darauf nicht warten.
+            threading.Thread(target=previous.close, daemon=True).start()
+
+    def _close_conversation(self) -> None:
+        if getattr(self, "qwen_dialog", None) is not None:
+            self.qwen_dialog.close()
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2182,6 +2207,9 @@ class VoiceService:
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
                 "latency": self.latency_payload(),
                 "runtime_settings": runtime_settings.effective(self.cfg),
+                "conversation": {"backend": runtime_settings.effective(self.cfg)["conversationBackend"],
+                                 "key_configured": bool(self.cfg.get("qwen_key_file")) and os.path.isfile(self.cfg["qwen_key_file"]),
+                                 "last_error": self.status.get("qwen_error")},
                 "config_revision": getattr(self, "config_disk_hash", None),
                 "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
                 "ptt_active": self.ptt_active,
@@ -2431,6 +2459,8 @@ class VoiceService:
                     prepared_wake = None
                     prepared_from_enrollment = False
                     prepared_stt = None
+                    prepared_conversation = None
+                    conversation_change = False
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
@@ -2483,6 +2513,14 @@ class VoiceService:
                             if "model" not in prepared:
                                 raise ValueError("Whisper model is not cached or cannot load locally")
                             prepared_stt = prepared["model"]
+                        conversation_change = (requested["conversationBackend"] !=
+                                               runtime_settings.effective(service.cfg)["conversationBackend"])
+                        if conversation_change:
+                            try:
+                                prepared_conversation = service._build_conversation(
+                                    {**service.cfg, "conversation_backend": requested["conversationBackend"]})
+                            except (RuntimeError, OSError) as exc:
+                                raise ValueError("Qwen Audio key cannot be read") from exc
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
                             phrase = requested["wakeWord"]
                             if personal_wake.is_pretrained_phrase(phrase) or (getattr(service, "wake_rollback", None) is not None and
@@ -2529,6 +2567,8 @@ class VoiceService:
                                 service.cfg = updated
                                 if prepared_stt is not None:
                                     service.whisper = prepared_stt
+                                if conversation_change:
+                                    service._use_conversation(prepared_conversation)
                                 service.config_disk_hash = runtime_settings.file_hash(config_path)
                                 service.tts.tts_config = updated
                                 if prepared_wake is not None:

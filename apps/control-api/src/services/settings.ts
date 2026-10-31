@@ -134,6 +134,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       voiceHistoryEnabled: true,
       sttLanguage: "de",
       sttModel: null,
+      conversationBackend: "local",
       ttsVoice: installedVoiceChoice(config) ?? "",
       ttsRate: 1,
       inputDeviceId: null,

@@ -91,6 +91,14 @@ function isOutputVoice(value: unknown): value is RawOutputVoice {
     (item.needs_voice_update === undefined || typeof item.needs_voice_update === "boolean");
 }
 
+const CONVERSATION_ERRORS = ["auth", "quota", "rate", "idle", "model", "network", "protocol"];
+function isConversation(value: unknown): value is NonNullable<RawVoiceStatus["conversation"]> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (item.backend === "local" || item.backend === "qwen") && typeof item.key_configured === "boolean" &&
+    (item.last_error === null || CONVERSATION_ERRORS.includes(String(item.last_error)));
+}
+
 const isMillis = (value: unknown): value is number | null => value === null || isCount(value);
 
 function isLatencyStat(value: unknown): value is RawLatencyStat {
@@ -166,6 +174,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(raw.speaker_profile === null || isSpeakerProfile(raw.speaker_profile) ? { speaker_profile: raw.speaker_profile } : {}),
     ...(raw.wake_calibration === null || isWakeCalibration(raw.wake_calibration) ? { wake_calibration: raw.wake_calibration } : {}),
     ...(isOutputVoice(raw.output_voice) ? { output_voice: raw.output_voice } : {}),
+    ...(isConversation(raw.conversation) ? { conversation: raw.conversation } : {}),
     ...(isLatency(raw.latency) ? { latency: raw.latency } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.service_version === "string" ? { service_version: raw.service_version } : {}),
@@ -183,6 +192,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       ((raw.runtime_settings as Record<string, unknown>).sttModel === null ||
         (typeof (raw.runtime_settings as Record<string, unknown>).sttModel === "string" &&
           /^[a-z0-9][a-z0-9.-]{0,63}$/.test((raw.runtime_settings as Record<string, string>).sttModel ?? ""))) &&
+      ["local", "qwen"].includes(String((raw.runtime_settings as Record<string, unknown>).conversationBackend)) &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"
@@ -316,6 +326,10 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       // The service only stores command audio when the owner has enabled recording.
       rawRecordingEnabled: raw.runtime_settings?.storeRawRecordings ?? false,
       voiceHistoryEnabled: raw.runtime_settings?.voiceHistoryEnabled ?? true,
+      ...(raw.conversation
+        ? { conversation: { backend: raw.conversation.backend, keyConfigured: raw.conversation.key_configured,
+            lastError: raw.conversation.last_error } }
+        : {}),
     };
   },
 });

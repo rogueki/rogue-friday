@@ -16,7 +16,7 @@ def requested(**overrides):
     return {"wakeWordEnabled": True, "wakeWord": "Hey Friday", "pushToTalkKey": "Ctrl+Space",
             "speakerVerificationRequired": True, "storeRawRecordings": False,
             "voiceHistoryEnabled": True, "sttLanguage": "de", "sttModel": None,
-            "ttsRate": 1.0, **overrides}
+            "conversationBackend": "local", "ttsRate": 1.0, **overrides}
 
 
 def test_validation_rejects_invalid_phrase_and_implicit_recording():
@@ -37,6 +37,19 @@ def test_validation_rejects_invalid_phrase_and_implicit_recording():
     assert runtime_settings.validate(requested(wakeWord="Hey Someone"), cfg)["wake_phrase"] == "Hey Someone"
     updated = runtime_settings.validate(requested(sttLanguage="en", sttModel="base"), cfg)
     assert updated["stt_language"] == "en" and updated["whisper_model"] == "base"
+
+
+def test_conversation_backend_requires_known_value_and_stored_key(tmp_path):
+    cfg = {"wake_phrase": "Hey Friday", "qwen_key_file": str(tmp_path / "alibaba_tokenplan.key.dpapi")}
+    with pytest.raises(ValueError):
+        runtime_settings.validate(requested(conversationBackend="cloud"), cfg)
+    with pytest.raises(ValueError, match="not configured"):
+        runtime_settings.validate(requested(conversationBackend="qwen"), cfg)
+    (tmp_path / "alibaba_tokenplan.key.dpapi").write_text("x", encoding="utf-8")
+    applied = runtime_settings.validate(requested(conversationBackend="qwen"), cfg)
+    assert applied["conversation_backend"] == "qwen"
+    assert runtime_settings.effective(applied)["conversationBackend"] == "qwen"
+    assert runtime_settings.effective({})["conversationBackend"] == "local"
 
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):

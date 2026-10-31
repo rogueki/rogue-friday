@@ -1239,6 +1239,75 @@ def test_service_backlog_becomes_preroll(monkeypatch):
     assert svc.preroll == [] and svc.audio_q.empty()
 
 
+def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.tts.tts_config = svc.cfg
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-conversation"
+    svc.cfg.update(wake_phrase=svc.phrase)
+    svc.cfg["qwen_key_file"] = str(tmp_path / "config" / "alibaba_tokenplan.key.dpapi")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    svc.conversation = None
+    svc.qwen_dialog = None
+    svc.domain_tasks = object()
+    built = []
+    dialog = types.SimpleNamespace(closed=threading.Event())
+    dialog.close = dialog.closed.set
+
+    def build(cfg):
+        built.append(cfg["conversation_backend"])
+        return ("ORCH", dialog) if cfg["conversation_backend"] == "qwen" else None
+
+    monkeypatch.setattr(svc, "_build_conversation", build)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/settings"
+
+    def post(settings):
+        body = {"settings": settings, "expectedConfigRevision": svc.config_disk_hash,
+                "expectedServiceStartedAt": svc.service_started_at}
+        request = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post({**current, "conversationBackend": "qwen"}) == 422
+    assert built == []
+    (tmp_path / "config" / "alibaba_tokenplan.key.dpapi").write_text("x", encoding="utf-8")
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post({**current, "conversationBackend": "qwen"}) == 200
+    assert svc.qwen_dialog is dialog and svc.conversation == "ORCH"
+    assert json.load(open(svc.config_path, encoding="utf-8"))["conversation_backend"] == "qwen"
+    assert svc.status_payload()["conversation"] == {"backend": "qwen", "key_configured": True, "last_error": None}
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "local"}) == 200
+    assert svc.qwen_dialog is None
+    assert dialog.closed.wait(2) is True
+    assert built == ["qwen", "local"]
+
+    def failing(cfg):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(svc, "_build_conversation", failing)
+    assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "qwen"}) == 422
+    assert svc.cfg["conversation_backend"] == "local"
+
+
 if __name__ == "__main__":
     import tempfile
 

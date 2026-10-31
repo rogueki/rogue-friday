@@ -4,10 +4,10 @@ import { ApiError, validationFailed } from "../util/errors";
 import { voiceRuntimeStatus } from "./voice-audio";
 
 export type RuntimeVoiceSettings = Pick<Settings["voice"], "wakeWordEnabled" | "wakeWord" | "pushToTalkKey" |
-  "speakerVerificationRequired" | "storeRawRecordings" | "voiceHistoryEnabled" | "sttLanguage" | "sttModel" | "ttsRate">;
+  "speakerVerificationRequired" | "storeRawRecordings" | "voiceHistoryEnabled" | "sttLanguage" | "sttModel" | "conversationBackend" | "ttsRate">;
 
 export const runtimeVoiceFields = ["wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
-  "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel", "ttsRate"] as const;
+  "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel", "conversationBackend", "ttsRate"] as const;
 
 export function runtimeVoiceSettings(voice: Settings["voice"]): RuntimeVoiceSettings {
   return Object.fromEntries(runtimeVoiceFields.map((field) => [field, voice[field]])) as unknown as RuntimeVoiceSettings;
@@ -31,6 +31,7 @@ export async function readRuntimeVoiceSettings(runtime: Runtime): Promise<{ sett
       typeof value.storeRawRecordings !== "boolean" || typeof value.voiceHistoryEnabled !== "boolean" ||
       !["de", "en"].includes(String(value.sttLanguage)) ||
       !(value.sttModel === null || typeof value.sttModel === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(value.sttModel)) ||
+      !["local", "qwen"].includes(String(value.conversationBackend)) ||
       typeof value.ttsRate !== "number" || !Number.isFinite(value.ttsRate))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst meldet keine vollständigen Laufzeiteinstellungen." });
   return { settings: value as RuntimeVoiceSettings, serviceStartedAt: status.service_started_at,

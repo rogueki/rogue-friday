@@ -200,6 +200,17 @@
     "audioOutputDeviceId": {
       "type": ["string", "null"]
     },
+    "conversation": {
+      "type": "object",
+      "description": "Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; lastError is the failure kind of the last Qwen turn (null after a successful turn).",
+      "properties": {
+        "backend": { "type": "string", "enum": ["local", "qwen"] },
+        "keyConfigured": { "type": "boolean" },
+        "lastError": { "type": ["string", "null"], "enum": ["auth", "quota", "rate", "idle", "model", "network", "protocol", null] }
+      },
+      "required": ["backend", "keyConfigured", "lastError"],
+      "additionalProperties": false
+    },
     "pushToTalk": {
       "type": "object",
       "properties": {

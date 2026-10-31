@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
-import { applyVoiceSettings, type RuntimeVoiceSettings } from "./voice-settings";
+import { applyVoiceSettings, readRuntimeVoiceSettings, type RuntimeVoiceSettings } from "./voice-settings";
 
 const requested: RuntimeVoiceSettings = {
   wakeWordEnabled: false, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", ttsRate: 1.25,
+  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", conversationBackend: "local", ttsRate: 1.25,
 };
 const runtime = {
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
@@ -48,5 +48,13 @@ describe("voice settings bridge", () => {
       .mockResolvedValueOnce(new Response(null, { status: 423 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ stt_preflight_busy: true })));
     await expect(applyVoiceSettings(runtime, requested, before)).rejects.toThrow("Sprachdienst neu starten");
+  });
+
+  it("rejects a runtime readback with an unknown conversation backend", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+      service_started_at: "process-A", config_revision: "rev-A",
+      runtime_settings: { ...requested, conversationBackend: "cloud" },
+    })));
+    await expect(readRuntimeVoiceSettings(runtime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
   });
 });

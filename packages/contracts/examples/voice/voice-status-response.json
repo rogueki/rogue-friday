@@ -48,6 +48,7 @@
     "audioInputDeviceId": "mic_default",
     "audioOutputDeviceId": "spk_default",
     "audioPath": { "transport": "device", "host": "windows" },
+    "conversation": { "backend": "local", "keyConfigured": false, "lastError": null },
     "pushToTalk": {
       "enabled": true,
       "active": false
