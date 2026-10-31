@@ -320,16 +320,20 @@ class QwenDialogTest(unittest.TestCase):
         time.sleep(0.2)
         self.assertEqual(session.connect_count, 0)
 
-    def test_note_requires_connection(self):
+    def test_note_without_connection_is_sent_at_connect(self):
         session = FakeSession([[TextDelta("Hallo."), ResponseDone("r1", "completed")]])
         dialog = self._dialog(session)
         dialog.note("x")
         time.sleep(0.1)
         self.assertNotIn("add_system_text", [call[0] for call in session.calls])
         dialog.turn(b"\x00\x00", [].append, lambda: False)
-        dialog.note("x")
+        names = [call[0] for call in session.calls]
+        self.assertEqual(names.count("add_system_text"), 1)
+        self.assertLess(session.calls.index(("add_system_text", "x")), names.index("commit"))
+        dialog.note("y")
         time.sleep(0.2)
-        self.assertIn(("add_system_text", "x"), session.calls)
+        self.assertEqual([call for call in session.calls if call[0] == "add_system_text"],
+                         [("add_system_text", "x"), ("add_system_text", "y")])
 
     def test_turn_timeout_reports_network_error(self):
         session = FakeSession([[TextDelta("Ha")]])  # no ResponseDone, the turn never finishes

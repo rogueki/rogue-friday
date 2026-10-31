@@ -1601,6 +1601,12 @@ entfernt) rot; pyflakes ohne Befund.
   Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
   Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
   (Filter aus, Zeile aus) je rot.
+- **Antwortfenster nach einer Ansage von sich aus (LG-2.04):** Spricht der Sprachdienst eine Ansage, während kein Gespräch
+  läuft, öffnet er danach ein Antwortfenster ohne Aktivierungswort (`reply_window`, Länge `followup_window_s`). Die
+  Sprecherprüfung bleibt (`_handle_command` mit `wake_audio=None`); kein Fenster im Gastmodus, pausiert oder mitten im
+  Gespräch; Stopp schließt es; das Aktivierungswort während der Ansage hat Vorrang. Qwen Audio bekommt Ansagen, die ohne
+  offene Sitzung gesprochen wurden, beim nächsten Verbindungsaufbau als System-Item (höchstens fünf), damit es Rückfragen
+  beantworten kann. Gegenproben: ohne `reply_window.set()` bzw. ohne das Nachreichen werden die Tests rot.
 - **„Verbindung prüfen“ für den gespeicherten Qwen-Schlüssel (LG-5.02):** Neben „Schlüssel ersetzen“. `POST
   /api/v1/voice/conversation-key/check` (Owner, CSRF) → Sprachdienst `/control/conversation-key/check` lädt den gespeicherten
   Schlüssel, öffnet eine kurze Qwen-Sitzung mit der gespeicherten Region und meldet `ok` oder den Grund (`missing`, `auth`,

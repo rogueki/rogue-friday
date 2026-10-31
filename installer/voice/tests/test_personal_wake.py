@@ -403,6 +403,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.reply_window = threading.Event()
     svc.wake_model_lock = threading.Lock()
     svc.manual_release = threading.Event()
     svc.user_speaking = threading.Event()
@@ -1700,6 +1701,105 @@ def test_proactive_default_speaks_immediately(monkeypatch):
     svc._deliver_announcement([{"taskId": "t1"}])
     assert spoken == ["Recherche \u2013 Wetter: sonnig."]
     assert getattr(svc, "held_proactive", []) == []
+
+
+def test_idle_announcement_opens_a_reply_window(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    spoken = []
+    svc._announcement_text = lambda jobs: "Die Recherche ist fertig."
+    svc._forget_announced = lambda jobs: None
+    svc._proactive_allowed = lambda: True
+    svc._quiet_active = lambda: False
+    svc._speak_held_announcements = lambda: False
+    svc._speak_announcement = spoken.append
+    svc.status["state"] = "listening"
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert spoken == ["Die Recherche ist fertig."]
+    assert svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.status["state"] = "followup"
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.status["state"] = "listening"
+    svc.cfg["speaker_verification_required"] = False
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+    svc.reply_window.clear()
+    svc.cfg["speaker_verification_required"] = True
+    svc.control_paused = True
+    svc._deliver_announcement([{"taskId": "t1", "status": "succeeded"}])
+    assert not svc.reply_window.is_set()
+
+
+def test_reply_window_answers_without_the_wake_word(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._acknowledge_wake = lambda: (_ for _ in ()).throw(AssertionError("wake acknowledged"))
+    svc._beep = lambda *args: (_ for _ in ()).throw(AssertionError("beep"))
+    svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    svc._wake_detected = lambda chunk: False
+    svc._drain = lambda: None
+    calls, handled = [], []
+
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+
+    def handle(audio, wake_audio):
+        handled.append((audio, wake_audio))
+        svc.conversation_ended = True
+
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session(reply=True)
+    assert calls == [20.0]
+    assert handled and handled[0][1] is None
+
+
+def test_wake_word_during_the_announcement_takes_over_the_reply_window(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
+    svc._beep = lambda *args: (_ for _ in ()).throw(AssertionError("beep"))
+    svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    detections = iter([True, False])
+    svc._wake_detected = lambda chunk: next(detections, False)
+    svc._drain = lambda: None
+    calls, handled = [], []
+
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+
+    def handle(audio, wake_audio):
+        handled.append((audio, wake_audio))
+        svc.conversation_ended = True
+
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session(reply=True)
+    assert calls == [5.0]
+    assert handled and handled[0][1] is not None
+
+
+def test_stop_closes_a_pending_reply_window():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.reply_window.set()
+    svc.cancel_active_interaction()
+    assert not svc.reply_window.is_set()
 
 
 def test_wait_for_pause_gives_up_after_its_limit():

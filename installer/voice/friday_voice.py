@@ -699,6 +699,7 @@ class VoiceService:
         self.stop_audio_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=64)
         self.transcribe_lock = threading.Lock()
         self.manual_start = threading.Event()
+        self.reply_window = threading.Event()
         self.manual_release = threading.Event()
         # Set while the microphone hears the user's sentence; an announcement must wait for the pause after it.
         self.user_speaking = threading.Event()
@@ -1017,6 +1018,7 @@ class VoiceService:
             self.control_generation += 1
             self.control_cancel.set()
             self.manual_start.clear()
+            self.reply_window.clear()
             self.manual_release.set()
             self.ptt_active = False
             self.trusted_until = 0.0
@@ -2028,14 +2030,17 @@ class VoiceService:
             self.held_proactive = held
         log_event(event="announcement_held", reason="proactive_off", count=len(held))
 
-    def _speak_held_announcements(self) -> None:
+    def _speak_held_announcements(self) -> bool:
         with self._held_lock:
             held = getattr(self, "held_proactive", [])
             self.held_proactive = []
         if held:
             self._speak_announcement("Seit unserem letzten Gespräch: " + " ".join(held))
+        return bool(held)
 
     def _deliver_announcement(self, jobs: list[dict]) -> None:
+        idle = self.status.get("state") in ("listening", "wake_only")
+        spoke = False
         if jobs:
             text = self._announcement_text(jobs)
             self._forget_announced(jobs)
@@ -2048,9 +2053,13 @@ class VoiceService:
             return
         # Quiet mode outranks the switch: turning announcements back on must not break a quiet period.
         if self._proactive_allowed() and not self._quiet_active():
-            self._speak_held_announcements()
+            spoke = self._speak_held_announcements()
         if text:
             self._speak_announcement(text)
+            spoke = True
+        if spoke and idle and self.cfg.get("speaker_verification_required", True) and not getattr(self, "control_paused", False):
+            # U-11: the user may answer without the wake word; _handle_command still checks the speaker.
+            self.reply_window.set()
 
     def _quiet_active(self) -> bool:
         try:
@@ -2157,11 +2166,13 @@ class VoiceService:
                     manual = self.manual_start.is_set()
                     if manual:
                         self.manual_start.clear()
-                    if manual or detected:
+                    reply = self.reply_window.is_set() and not (manual or detected)
+                    self.reply_window.clear()
+                    if manual or detected or reply:
                         self.status["state"] = "command"
                         self.control_cancel.clear()
-                if manual or detected:
-                    self._session(manual=manual)
+                if manual or detected or reply:
+                    self._session(manual=manual, reply=reply)
 
     def _beep(self, frequency: int, duration_ms: int) -> None:
         if getattr(self, "browser_audio", None) is not None:
@@ -2259,9 +2270,10 @@ class VoiceService:
         self.preroll = backlog
         return wake_audio
 
-    def _session(self, manual: bool = False) -> None:
+    def _session(self, manual: bool = False, reply: bool = False) -> None:
         """Ein Wake-Ereignis: Befehl, danach Folgefragen ohne Wake Word, solange die Trusted Session laeuft.
-        Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
+        Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In).
+        reply: a proactive announcement opened the turn; no wake word, the speaker check stays."""
         cfg = self.cfg
         generation = self.control_generation
         self.conversation_ended = False
@@ -2270,7 +2282,22 @@ class VoiceService:
         self.status["state"] = "command"
         if getattr(self, "qwen_dialog", None) is not None:
             self.qwen_dialog.warm_up()  # Verbindung waehrend des Pieptons aufbauen (Plan D-10)
-        if manual:
+        timeout = cfg["command_start_timeout_s"]
+        if reply:
+            interrupted = False
+            while self.tts.speaking.is_set() and not self.control_cancel.is_set() and generation == self.control_generation:
+                if self.cfg.get("wake_word_enabled", True) and self._wake_detected(self._read_chunk()):
+                    interrupted = True
+                    break
+            self._drain()
+            if interrupted:
+                wake_audio = self._acknowledge_wake()
+            else:
+                wake_audio = None
+                timeout = cfg["followup_window_s"]
+                self.status["state"] = "followup"
+                log_event(event="announcement_reply_window")
+        elif manual:
             self.preroll = []
             self._drain()
             self._beep(1200, 80)
@@ -2279,7 +2306,7 @@ class VoiceService:
             log_event(event="manual_start")
         else:
             wake_audio = self._acknowledge_wake()
-        audio = self._record_command(cfg["command_start_timeout_s"])
+        audio = self._record_command(timeout)
         if self.control_cancel.is_set() or generation != self.control_generation:
             self.processing = None
             self.status["state"] = "paused" if self.control_paused else "wake_only"
