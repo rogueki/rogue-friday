@@ -13,7 +13,7 @@ export {
   configSchema,
   manifest,
 } from "./manifest";
-export { emptyVoiceMetricsMapper, parseRawVoiceStatus, toVoiceMode, toVoicePhase, voiceStatusMapper } from "./mapping";
+export { emptyVoiceMetricsMapper, parseRawVoiceStatus, toVoiceMode, toVoicePhase, voiceMetricsMapper, voiceStatusMapper } from "./mapping";
 export type { LocalModelProbe, VoiceSettings, VoiceStatusInput } from "./mapping";
 export { RAW_VOICE_PHASES, RAW_VOICE_STATES } from "./provider-types";
 export type { RawAudioLevels, RawVoicePhase, RawVoiceState, RawVoiceStatus } from "./provider-types";
