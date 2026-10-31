@@ -248,7 +248,7 @@ cfg = {
     "command_start_timeout_s": 5.0,
     "command_end_silence_s": 0.7,
     "command_max_s": 12.0,
-    "followup_window_s": 15.0,
+    "followup_window_s": 20.0,
     "trusted_session_s": 90,
     **whisper,
     "voice_mode": options.voice_mode,
@@ -273,9 +273,9 @@ cfg = {
 # A voice change must not reset the user's microphone, local service ports,
 # calibrated wake threshold or other tuning from the running installation.
 cfg.update(previous)
-# The conversation window starts after playback. Upgrade old eight-second installs.
-if cfg.get("followup_window_s") == 8.0:
-    cfg["followup_window_s"] = 15.0
+# The conversation window starts after playback. Upgrade old eight- and fifteen-second installs.
+if cfg.get("followup_window_s") in (8.0, 15.0):
+    cfg["followup_window_s"] = 20.0
 cfg.update(persona.voice_settings(p))
 cfg.update({"voice_mode": options.voice_mode, "elevenlabs_voice_id": options.elevenlabs_voice_id,
             "elevenlabs_key_file": os.path.join(CONFIG, "elevenlabs_api.key.dpapi"),

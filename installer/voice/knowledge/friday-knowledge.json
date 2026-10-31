@@ -1210,9 +1210,12 @@
         "abbrechen",
         "nachfragen",
         "gesprächsfenster",
-        "pause"
+        "pause",
+        "gespräch beenden",
+        "danke das war's",
+        "tschüss"
       ],
-      "text": "Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 15 Sekunden Zeit. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst."
+      "text": "Nach einer Antwort kannst du im lokalen Ablauf eine Folgefrage stellen, ohne das Wake Word erneut zu sagen. Standardmäßig bleibt dafür etwa 20 Sekunden Zeit. Mit „Danke, das war's“, „Das ist alles“ oder „Tschüss“ beendest du das Gespräch sofort; danach brauchst du wieder das Wake Word. Während der Assistent spricht, unterbrichst du ihn, indem du das Wake Word sagst. Das Stoppwort Stopp, Stop, Abbrechen, Halt, Ruhe oder Sei still beendet nur den Dialog und die Ausgabe. Ein laufender Auftrag läuft weiter, und sein Ergebnis wird später angesagt. Einen laufenden Auftrag kannst du per Sprache abbrechen, indem du ihn beim Namen oder Thema nennst."
     },
     {
       "id": "sprachbetrieb#hintergrundauftraege-und-ansagen",

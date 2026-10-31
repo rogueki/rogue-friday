@@ -198,7 +198,7 @@ def configure(mode: str, voice_id: str | None, key_source: str | None, key_file:
         "speaker_profile": str(STATE_PATH / "voice" / "profiles" / "owner" / "embeddings" / "owner_ecapa.npy"),
         "speaker_threshold": 0.4, "vad_threshold": 0.5,
         "command_start_timeout_s": 5.0, "command_end_silence_s": 0.7,
-        "command_max_s": 12.0, "followup_window_s": 15.0,
+        "command_max_s": 12.0, "followup_window_s": 20.0,
         "trusted_session_s": 90,
         "hermes_model": "friday", "cloud_provider": "kimi-coding",
         "cloud_models": {"cloud_low": "kimi-for-coding", "cloud_high": "k3", "cloud_max": "k3"},

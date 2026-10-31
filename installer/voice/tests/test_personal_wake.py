@@ -994,6 +994,86 @@ def test_cancelled_generation_cannot_queue_late_speech():
     assert spoken == ["before stop"]
 
 
+@pytest.mark.parametrize(("text", "expected"), [
+    ("Danke, das war's", True),
+    ("danke das wars", True),
+    ("Okay, danke, das war’s für jetzt.", True),
+    ("Tschüss", True),
+    ("Das ist alles", True),
+    ("bis später", True),
+    ("Danke", False),
+    ("Danke für die Info", False),
+    ("Was war das", False),
+    ("das war's mit dem Wetter in Berlin?", False),
+    ("Stopp", False),
+])
+def test_goodbye_phrases_are_recognised(text, expected):
+    jv = load_voice_module()
+    assert jv.is_goodbye(text) is expected
+
+
+def test_goodbye_ends_conversation_without_reaching_the_model(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"speaker_threshold": 0.4, "trusted_session_s": 90})
+    svc.verifier = types.SimpleNamespace(score=lambda audio: 0.8)
+    turns, ended, spoken = [], [], []
+    svc.qwen_dialog = types.SimpleNamespace(turn=lambda pcm, on_sentence, cancelled: turns.append(pcm) or "")
+    svc.conversation = types.SimpleNamespace(end_conversation=lambda: ended.append(True))
+    svc._transcribe = lambda audio: "Danke, das war's"
+    svc._say_if_current = lambda text, generation: spoken.append(text) or True
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._handle_command(np.ones(jv.SR, dtype=np.float32), None)
+    assert turns == []
+    assert ended == [True]
+    assert svc.conversation_ended is True
+    assert svc.trusted_until == 0.0
+    assert spoken == [jv.GOODBYE_REPLY]
+
+
+def test_goodbye_in_local_mode_ends_without_hermes(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"speaker_threshold": 0.4, "trusted_session_s": 90})
+    svc.verifier = types.SimpleNamespace(score=lambda audio: 0.8)
+    svc.qwen_dialog = None
+    ended, spoken = [], []
+    svc.conversation = types.SimpleNamespace(end_conversation=lambda: ended.append(True))
+    svc._transcribe = lambda audio: "Danke, das war's"
+    svc._say_if_current = lambda text, generation: spoken.append(text) or True
+    svc._route = lambda text: (_ for _ in ()).throw(AssertionError("router called"))
+    svc._ask_hermes_interruptible = lambda *args: (_ for _ in ()).throw(AssertionError("hermes called"))
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._handle_command(np.ones(jv.SR, dtype=np.float32), None)
+    assert ended == [True]
+    assert svc.conversation_ended is True and svc.trusted_until == 0.0
+    assert spoken == [jv.GOODBYE_REPLY]
+
+
+def test_goodbye_ends_the_followup_loop(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kw: None)
+    svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
+    svc._drain = lambda: None
+    svc._wake_detected = lambda chunk: False
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    calls = []
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+    def handle(audio, wake_audio):
+        svc.trusted_until = jv.time.monotonic() + 10
+        svc.tts.speaking.set()
+        svc.conversation_ended = True
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session()
+    assert calls == [5.0]
+    assert svc.status["state"] == "wake_only"
+
+
 def test_cloud_routes_select_model_and_reasoning(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
@@ -1055,7 +1135,7 @@ def test_voice_model_policy_never_retries_after_agent_request(monkeypatch):
 def test_followup_window_starts_after_answer(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
-    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 15.0})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
     monkeypatch.setattr(jv, "log_event", lambda **kw: None)
     svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
     svc._drain = lambda: None
@@ -1071,15 +1151,15 @@ def test_followup_window_starts_after_answer(monkeypatch):
     svc._record_command = record
     svc._handle_command = handle
     svc._session()
-    assert calls == [5.0, 15.0]
-    assert 14 <= svc.trusted_until - jv.time.monotonic() <= 15
+    assert calls == [5.0, 20.0]
+    assert 19 <= svc.trusted_until - jv.time.monotonic() <= 20
     assert svc.status["state"] == "wake_only"
 
 
 def test_background_reply_reopens_followup_window(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
-    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 15.0})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 20.0})
     monkeypatch.setattr(jv, "log_event", lambda **kw: None)
     svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
     svc._drain = lambda: None
@@ -1099,7 +1179,7 @@ def test_background_reply_reopens_followup_window(monkeypatch):
     svc._record_command = record
     svc._handle_command = handle
     svc._session()
-    assert calls == [5.0, 15.0, 15.0, 15.0]
+    assert calls == [5.0, 20.0, 20.0, 20.0]
     assert svc.status["state"] == "wake_only"
 
 

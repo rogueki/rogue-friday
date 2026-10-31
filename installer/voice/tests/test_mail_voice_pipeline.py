@@ -21,7 +21,7 @@ def _method(name):
     method.returns = None
     for argument in method.args.args:
         argument.annotation = None
-    namespace = {"time": time, "SR": 16000, "STOP_WORDS": re.compile(r"^stopp?$", re.I),
+    namespace = {"time": time, "SR": 16000, "STOP_WORDS": re.compile(r"^stopp?$", re.I), "is_goodbye": lambda text: False,
                  "log_event": lambda **kwargs: None, "record_latency": lambda *args: None}
     exec(compile(ast.Module(body=[method], type_ignores=[]), SOURCE, "exec"), namespace)
     return namespace[name]

@@ -114,7 +114,7 @@ Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kal
 ## Benutzung
 
 - **Dein Wake Word** (z. B. „Hey Friday“) → kurzer Piepton → deine Frage, z. B. *„Wie spät ist es?“*
-- **Folgefragen** gehen 15 Sekunden nach der Antwort ohne erneutes Wake Word.
+- **Folgefragen** gehen 20 Sekunden nach der Antwort ohne erneutes Wake Word; „Danke, das war's“ beendet das Gespräch sofort.
 - **Unterbrechen:** während dein Assistent spricht einfach das Wake Word sagen.
 - Uhrzeit und Datum beantwortet Friday direkt. Bei lokaler Sprache übernimmt Qwen die schnelle Vorauswahl; im Cloud-Modus wählt ein leichter Router zwischen Routine, komplex und kritisch. Standardmäßig nutzt Routine `kimi-for-coding`, anspruchsvolle Aufgaben `k3`. Unter **Einstellungen → Modelle & Routing** kannst du die drei Sprachrouten mit `anbieter:modell-id` ändern; OpenAI- oder Anthropic-Modelle brauchen einen separat eingerichteten Hermes-API-Zugang.
 - **Command Center:** <http://127.0.0.1:3100> – beim ersten Öffnen richtest du deinen Zugang ein. Danach kannst du
