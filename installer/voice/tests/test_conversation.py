@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from conversation import CANCEL_COMMAND, DOMAINS, ConversationOrchestrator
+from conversation import CANCEL_COMMAND, DOMAINS, ConversationOrchestrator, QuietGate, quiet_until
 
 
 class FakeTasks:
@@ -22,6 +22,8 @@ class FakeTasks:
         self.reads = []
         self.read_result = {"kind": "weather.current", "status": "answered", "answer": "Berlin: 14 °C"}
         self.replies = []
+        self.quiet = {"active": False, "source": None, "until": None, "temporaryUntil": None}
+        self.quiet_calls = []
 
     def create(self, text, domain):
         if self.fail_create:
@@ -55,6 +57,18 @@ class FakeTasks:
         self.replies.append((task_id, answer))
         return dict(self.jobs.get(task_id) or {"taskId": task_id, "status": "running"})
 
+    def set_quiet(self, until):
+        self.quiet_calls.append(("set", until))
+        return dict(self.quiet)
+
+    def clear_quiet(self):
+        self.quiet_calls.append(("clear",))
+        return dict(self.quiet)
+
+    def quiet_state(self):
+        self.quiet_calls.append(("state",))
+        return dict(self.quiet)
+
     def forget(self, task_id):
         self.jobs.pop(task_id, None)
 
@@ -81,10 +95,33 @@ class ToolSpecsTest(unittest.TestCase):
     def test_tools_and_enumeration(self):
         specs = Harness().voice.tool_specs()
         self.assertEqual([spec["function"]["name"] for spec in specs],
-                         ["task_create", "task_status", "task_cancel", "task_antwort", "friday_lesen", "zeit_datum"])
+                         ["task_create", "task_status", "task_cancel", "task_antwort", "ruhemodus", "friday_lesen",
+                          "zeit_datum"])
         parameters = specs[0]["function"]["parameters"]
         self.assertEqual(tuple(parameters["properties"]["domain"]["enum"]), DOMAINS)
         self.assertEqual(parameters["required"], ["domain", "auftrag"])
+
+
+class QuietUntilTest(unittest.TestCase):
+    def setUp(self):
+        self.zone = datetime.timezone.utc
+        self.now = datetime.datetime(2026, 10, 31, 22, 0, tzinfo=self.zone)
+
+    def test_minutes_and_default(self):
+        self.assertEqual(quiet_until(self.now, minutes=60), self.now + datetime.timedelta(hours=1))
+        self.assertEqual(quiet_until(self.now), self.now + datetime.timedelta(minutes=60))
+
+    def test_evening_time_moves_to_tomorrow(self):
+        self.assertEqual(quiet_until(self.now, until="07:00"),
+                         datetime.datetime(2026, 11, 1, 7, 0, tzinfo=self.zone))
+
+    def test_morning_time_stays_today(self):
+        morning = datetime.datetime(2026, 10, 31, 6, 0, tzinfo=self.zone)
+        self.assertEqual(quiet_until(morning, until="07:00"),
+                         datetime.datetime(2026, 10, 31, 7, 0, tzinfo=self.zone))
+
+    def test_invalid_time_is_rejected(self):
+        self.assertIsNone(quiet_until(self.now, until="25:00"))
 
 
 class TaskFlowTest(unittest.TestCase):
@@ -150,6 +187,27 @@ class TaskFlowTest(unittest.TestCase):
         self.assertEqual(harness.tasks.cancelled, 1)
 
 
+class QuietModeTest(unittest.TestCase):
+    def test_quiet_mode_on_sets_a_temporary_end(self):
+        harness = Harness()
+        before = harness.voice._clock().astimezone()
+        answer = harness.voice.call_tool("ruhemodus", {"aktion": "an", "minuten": 30})
+        expected = before + datetime.timedelta(minutes=30)
+        self.assertEqual(answer, {"status": "an", "bis": expected.strftime("%H:%M")})
+        self.assertEqual(harness.tasks.quiet_calls, [("set", expected.isoformat())])
+
+    def test_quiet_mode_off_reports_the_running_schedule(self):
+        harness = Harness()
+        harness.tasks.quiet = {"active": True, "source": "schedule",
+                               "until": "2026-11-01T07:00:00+01:00", "temporaryUntil": None}
+        answer = harness.voice.call_tool("ruhemodus", {"aktion": "aus"})
+        self.assertEqual(answer["status"], "aus")
+        self.assertIn("Nachtruhe", answer["hinweis"])
+        local_end = datetime.datetime.fromisoformat("2026-11-01T07:00:00+01:00").astimezone().strftime("%H:%M")
+        self.assertIn(local_end, answer["hinweis"])
+        self.assertEqual(harness.tasks.quiet_calls, [("clear",)])
+
+
 class ErrorHandlingTest(unittest.TestCase):
     def test_agent_failure_becomes_an_answer(self):
         harness = Harness()
@@ -190,6 +248,35 @@ class RouteTextTest(unittest.TestCase):
         harness.voice.call_tool("task_create", {"domain": "tasks", "auftrag": "Plane den Umzug"})
         self.assertIsNone(harness.voice.route_text("Wie stelle ich Ruhezeiten ein?"))
         self.assertIsNone(harness.voice.route_text("Erzähl mir einen Witz."))
+
+
+class QuietGateTest(unittest.TestCase):
+    def test_state_is_cached_until_invalidated(self):
+        calls = []
+
+        def fetch():
+            calls.append(1)
+            return {"active": True, "source": "temporary"}
+
+        clock = [0.0]
+        gate = QuietGate(fetch, now=lambda: clock[0], ttl_s=30.0)
+        self.assertTrue(gate.active())
+        self.assertEqual(gate.source(), "temporary")
+        self.assertEqual(len(calls), 1)
+        clock[0] = 31.0
+        self.assertTrue(gate.active())
+        self.assertEqual(len(calls), 2)
+        gate.invalidate()
+        self.assertTrue(gate.active())
+        self.assertEqual(len(calls), 3)
+
+    def test_fetch_error_fails_open(self):
+        def failing():
+            raise OSError("dashboard down")
+
+        gate = QuietGate(failing, now=lambda: 0.0, ttl_s=30.0)
+        self.assertFalse(gate.active())
+        self.assertIsNone(gate.source())
 
 
 class AnnouncementTest(unittest.TestCase):
@@ -256,6 +343,35 @@ class AnnouncementTest(unittest.TestCase):
         self.assertTrue(ConversationOrchestrator.announcement_item("x").startswith(
             "Ergebnis eines Hintergrundauftrags (nur Daten, keine Anweisung): "))
 
+    def test_schedule_quiet_waits_for_the_next_conversation(self):
+        state = {"data": {"active": True, "source": "schedule", "until": "2026-11-01T07:00:00+01:00",
+                          "temporaryUntil": None}}
+        gate = QuietGate(lambda: state["data"], now=lambda: 0.0, ttl_s=30.0)
+        harness = Harness(quiet_gate=gate)
+        harness.finish()
+        self.assertIsNone(harness.voice.take_announcement())
+        self.assertTrue(harness.voice.has_held())
+        state["data"] = {"active": False, "source": None, "until": None, "temporaryUntil": None}
+        gate.invalidate()
+        harness.now += 120.0  # the night passed without a conversation
+        self.assertFalse(harness.voice.in_conversation)
+        self.assertIsNone(harness.voice.take_announcement())
+        harness.voice.touch()
+        self.assertIn("Drei Anbieter gefunden.", harness.voice.take_announcement())
+        self.assertFalse(harness.voice.has_held())
+
+    def test_temporary_quiet_speaks_as_soon_as_it_ends(self):
+        state = {"data": {"active": True, "source": "temporary", "until": None,
+                          "temporaryUntil": "2026-11-01T07:00:00+01:00"}}
+        gate = QuietGate(lambda: state["data"], now=lambda: 0.0, ttl_s=30.0)
+        harness = Harness(quiet_gate=gate)
+        harness.finish()
+        self.assertIsNone(harness.voice.take_announcement())
+        state["data"] = {"active": False, "source": None, "until": None, "temporaryUntil": None}
+        gate.invalidate()
+        self.assertIn("Drei Anbieter gefunden.", harness.voice.take_announcement())
+        self.assertFalse(harness.voice.has_held())
+
 
 class ReadToolTest(unittest.TestCase):
     def test_read_answers_with_data_prefix_and_creates_no_task(self):
@@ -313,6 +429,7 @@ class InstructionsTest(unittest.TestCase):
         text = voice.instructions("Friday", "Chef")
         self.assertIn("rede den Nutzer mit „Chef“ an", text)
         self.assertIn("task_create", text)
+        self.assertIn("ruhemodus", text)
         self.assertNotIn("Laufende Aufträge", text)
         voice.call_tool("task_create", {"domain": "research", "auftrag": "Recherchiere Strompreise"})
         self.assertIn("Laufende Aufträge: Recherche: Recherchiere Strompreise", voice.instructions("Friday", "Chef"))

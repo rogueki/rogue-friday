@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/notifications/quiet-mode-request.schema.json",
+  "title": "QuietModeRequest",
+  "description": "Starts or extends a temporary quiet mode until the given time (at most 24 hours ahead).",
+  "type": "object",
+  "properties": {
+    "until": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "until"
+  ],
+  "additionalProperties": false
+}

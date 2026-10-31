@@ -369,4 +369,21 @@ export const en: Record<keyof typeof de, string> = {
   "timeline.due": "due",
   "time.minutes": "min",
   "time.hours": "h",
+
+  // quiet mode
+  "quietMode.title": "Quiet mode",
+  "quietMode.schedule": "Night quiet",
+  "quietMode.status.temporary": "Quiet mode until",
+  "quietMode.status.schedule": "Night quiet until",
+  "quietMode.status.inactive": "F.R.I.D.A.Y. announces results immediately.",
+  "quietMode.duration.label": "Duration",
+  "quietMode.duration.30": "30 minutes",
+  "quietMode.duration.60": "1 hour",
+  "quietMode.duration.120": "2 hours",
+  "quietMode.duration.240": "4 hours",
+  "quietMode.duration.tomorrow": "Until 7:00 tomorrow",
+  "quietMode.start": "Start quiet mode",
+  "quietMode.stop": "End quiet mode",
+  "quietMode.hint":
+    "In quiet mode F.R.I.D.A.Y. holds back results and follow-up questions and summarises them afterwards. Anything you ask yourself is answered as usual.",
 };

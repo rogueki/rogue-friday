@@ -18,6 +18,7 @@ import type { MessageKey } from "@/i18n";
 import { WakeEnrollment } from "./WakeEnrollment";
 import { SttModelsControl } from "./SttModelsControl";
 import { ConversationBackendControl } from "./ConversationBackendControl";
+import { QuietModeControl } from "./QuietModeControl";
 import { voiceDeviceOptions } from "./voiceDeviceOptions";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
@@ -434,6 +435,9 @@ export function NotificationsArea() {
             ))}
           </div>
         ) : null}
+      </Section>
+      <Section title={t("quietMode.title")} description={t("quietMode.hint")}>
+        <QuietModeControl readOnly={readOnly} />
       </Section>
       <Section title={t("settings.notifications.quiet")} description={t("settings.notifications.quietDesc")}>
         <FieldGrid columns={3}>

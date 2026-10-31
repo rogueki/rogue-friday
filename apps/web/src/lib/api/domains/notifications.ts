@@ -1,6 +1,6 @@
 "use client";
 
-import type { NotificationListResponse, NotificationResponse, Priority } from "@friday/sdk";
+import type { NotificationListResponse, NotificationResponse, Priority, QuietModeResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -70,5 +70,32 @@ export function useResolveNotification() {
       ),
     invalidate,
     conflictKeys: [queryKeys.notifications.all],
+  });
+}
+
+const quietModeInvalidate = [queryKeys.quietMode] as const;
+
+export const useQuietMode = (enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.quietMode,
+    queryFn: (): Promise<QuietModeResponse> => call(getApiClient().GET("/api/v1/quiet-mode")),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    enabled,
+  });
+
+export function useSetQuietMode() {
+  return useApiMutation<QuietModeResponse, { until: string } & IntentVars>({
+    label: "Ruhemodus starten",
+    mutationFn: ({ until }) => call(getApiClient().PUT("/api/v1/quiet-mode", { body: { until } })),
+    invalidate: quietModeInvalidate,
+  });
+}
+
+export function useClearQuietMode() {
+  return useApiMutation<QuietModeResponse, IntentVars>({
+    label: "Ruhemodus beenden",
+    mutationFn: () => call(getApiClient().DELETE("/api/v1/quiet-mode")),
+    invalidate: quietModeInvalidate,
   });
 }

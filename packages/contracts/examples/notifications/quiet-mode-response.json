@@ -1,0 +1,14 @@
+{
+  "$schema": "https://friday.local/schemas/notifications/quiet-mode-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "active": true,
+    "source": "temporary",
+    "until": "2026-10-31T15:40:00.000Z",
+    "temporaryUntil": "2026-10-31T15:40:00.000Z"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-31T14:40:00.000Z"
+  }
+}

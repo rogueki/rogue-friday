@@ -1,14 +1,15 @@
 "use client";
 
 import { TopStatusBar, useMediaQuery, useNow, type ConnectionState, type TopBarAction } from "@friday/ui";
-import { Bell, Download, LayoutGrid, Settings } from "lucide-react";
+import { Bell, BellOff, Download, LayoutGrid, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import { quietModeStatusLabel } from "@/features/settings/QuietModeControl";
 import { formatRelative } from "@/features/shared/time";
 import { toneFromHealth } from "@/features/shared/presentation";
 import { useT, type MessageKey } from "@/i18n";
 import { useFridayStatus } from "@/lib/api/domains/core";
-import { useNotifications } from "@/lib/api/domains/notifications";
+import { useNotifications, useQuietMode } from "@/lib/api/domains/notifications";
 import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
 import { useSession } from "@/lib/session";
 import { useAppSettings } from "@/lib/settings";
@@ -52,6 +53,7 @@ export function AppTopBar() {
   const realtime = useRealtimeStatus();
   const now = useNow(1000);
   const notifications = useNotifications({ status: ["open"], limit: 20 });
+  const quietMode = useQuietMode(Boolean(session.role));
   const compact = useMediaQuery("(max-width: 1599px)");
   const narrow = useMediaQuery("(max-width: 699px)");
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
@@ -59,8 +61,17 @@ export function AppTopBar() {
 
   const notificationCount = notifications.data?.pageInfo.totalCount ?? notifications.data?.items.length ?? 0;
   const friday = status.data?.data;
+  const quiet = quietMode.data?.data;
 
   const actions = useMemo<TopBarAction[]>(() => {
+    const quietModeAction: TopBarAction[] = quiet?.active
+      ? [{
+          id: "quiet-mode",
+          label: quietModeStatusLabel(quiet.source, quiet.until, t, locale, timeZone),
+          icon: <BellOff size={17} strokeWidth={1.5} />,
+          onClick: () => router.push("/settings?area=notifications"),
+        }]
+      : [];
     const bell: TopBarAction = {
       id: "notifications",
       label: t("top.notifications"),
@@ -70,14 +81,15 @@ export function AppTopBar() {
     };
     const update: TopBarAction = { id: "dashboard-update", label: t("settings.update.available"), icon: <Download size={17} strokeWidth={1.5} />, badge: 1,
       onClick: () => router.push("/settings?area=dashboard#dashboard-update-title") };
-    if (narrow) return dashboardUpdate.data?.available ? [update, bell] : [bell];
+    if (narrow) return [...(dashboardUpdate.data?.available ? [update] : []), ...quietModeAction, bell];
     return [
       ...(dashboardUpdate.data?.available ? [update] : []),
       { id: "layout", label: t("top.layout"), icon: <LayoutGrid size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
+      ...quietModeAction,
       bell,
       { id: "settings", label: t("top.settings"), icon: <Settings size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
     ];
-  }, [t, router, notificationCount, setNotificationsOpen, narrow, dashboardUpdate.data?.available]);
+  }, [t, locale, timeZone, router, notificationCount, setNotificationsOpen, narrow, dashboardUpdate.data?.available, quiet]);
 
   const statusLabel = friday ? friday.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
   const statusTone = friday ? toneFromHealth(friday.status) : "muted";

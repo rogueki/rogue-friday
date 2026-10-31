@@ -5455,6 +5455,67 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: voice.deleteHistory
       x-required-role: owner
+  /api/v1/quiet-mode:
+    get:
+      operationId: getQuietMode
+      tags: [notifications]
+      summary: Whether spoken announcements are currently held back (temporary quiet mode or nightly quiet hours)
+      description: Also callable by the local voice bridge, which checks it before every proactive announcement.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Current quiet state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietModeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: notifications.read
+      x-required-role: viewer
+    put:
+      operationId: setQuietMode
+      tags: [notifications]
+      summary: Start or extend a temporary quiet mode until the given time
+      description: Owner or the local voice bridge. The end must lie in the future and at most 24 hours ahead.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuietModeRequest"
+      responses:
+        "200":
+          description: Current quiet state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietModeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: notifications.update
+      x-required-role: owner
+    delete:
+      operationId: clearQuietMode
+      tags: [notifications]
+      summary: End a temporary quiet mode now (the nightly quiet hours stay as configured)
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Current quiet state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuietModeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: notifications.update
+      x-required-role: owner
   /api/v1/notifications:
     get:
       operationId: listNotifications
@@ -10304,6 +10365,12 @@ components:
       $ref: ../schemas/notifications/notification-list-response.schema.json
     NotificationResponse:
       $ref: ../schemas/notifications/notification-response.schema.json
+    QuietModeState:
+      $ref: ../schemas/notifications/quiet-mode-state.schema.json
+    QuietModeRequest:
+      $ref: ../schemas/notifications/quiet-mode-request.schema.json
+    QuietModeResponse:
+      $ref: ../schemas/notifications/quiet-mode-response.schema.json
     NotificationSettings:
       $ref: ../schemas/settings/notifications-settings.schema.json
     NotificationSnoozeRequest:
