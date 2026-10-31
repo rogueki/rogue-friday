@@ -1,0 +1,53 @@
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
+# Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
+# Geaendert wird nach einem Neustart der Aufgabe FRIDAY_Dashboard wirksam.
+
+dataMode: live # nur eingerichtete Kategorien liefern Daten, es gibt keine Ersatzdaten
+
+server:
+  host: 127.0.0.1 # nur Loopback
+  port: 3100
+  allowRemote: false
+
+# Pfade ohne Backslash (YAML), abgeleitet vom InstallRoot.
+paths:
+  dataDir: "D:/Friday/dashboard/data"
+  logDir: "D:/Friday/logs/dashboard"
+  backupDir: "D:/Friday/dashboard/backups"
+  webRoot: "D:/Friday/dashboard/apps/web/out"
+
+auth:
+  mode: local
+  ownerUsername: owner
+  # Nur der scrypt-Hash, nie das Passwort. Datei mit Zugriff nur fuer den Installationsbenutzer (icacls).
+  ownerPasswordHash: "file:D:/Friday/config/dashboard_owner.hash"
+  sessionTtlMinutes: 720
+  reauthWindowMinutes: 5
+  idleTimeoutMinutes: 30
+  secureCookies: false
+
+realtime:
+  ringBufferSize: 5000
+  heartbeatSeconds: 15
+
+ui:
+  locale: de-DE
+  timezone: Europe/Berlin
+  assistantName: "Friday" # Anzeigename; settings.profile.assistantName (in der Oberflaeche geaendert) hat Vorrang
+  theme: friday-command-midnight
+  layout: friday-command-overview
+  # Creator Studio gehoert zum Standardpaket: Menueeintrag und API sind ohne Zusatzschritt da.
+  # Abschalten: contentStudio: false (oder in der Oberflaeche unter Einstellungen).
+  contentStudio: true
+
+dev:
+  scenarioConsole: false
+  responseValidation: true
+
+logging:
+  level: info
+  redactEmails: false
+  file:
+    enabled: true
+    maxBytes: 10485760
+    maxFiles: 5

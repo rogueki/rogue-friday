@@ -12,7 +12,12 @@ foreach ($name in @('Test-DashboardPortOwner', 'Health-Ready')) {
 $dash = Join-Path ([IO.Path]::GetTempPath()) ("friday health owner " + [guid]::NewGuid().ToString('N'))
 $script:owner = $null
 $script:listening = $true
-function Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200 } }
+$script:page = [pscustomobject]@{ StatusCode = 200; Content = '<!DOCTYPE html><html lang="de"><body></body></html>' }
+function Invoke-WebRequest([string]$Uri, [switch]$UseBasicParsing, [int]$TimeoutSec) {
+    if ($Uri -like '*/api/v1/health') { return [pscustomobject]@{ StatusCode = 200 } }
+    if ($null -eq $script:page) { throw 'Die Remoteserver hat einen Fehler zurueckgegeben: (404) Nicht gefunden.' }
+    return $script:page
+}
 function Start-Sleep { }
 function Get-NetTCPConnection { if ($script:listening) { [pscustomobject]@{ OwningProcess = 4242 } } }
 function Get-CimInstance { $script:owner }
@@ -20,6 +25,13 @@ function Get-CimInstance { $script:owner }
 # 1) Die neu gestartete Control API dieser Installation antwortet.
 $script:owner = [pscustomobject]@{ CommandLine = "`"C:\Program Files\nodejs\node.exe`" $dash\apps\control-api\dist\main.js" }
 if (-not (Health-Ready)) { throw 'Die eigene Control API wurde nicht als bereit erkannt.' }
+
+# 1b) API gesund, aber die Weboberflaeche fehlt (404) oder ist leer.
+$script:page = $null
+if (Health-Ready) { throw 'Ein Dashboard ohne ausgelieferte Oberflaeche wurde als bereit gewertet.' }
+$script:page = [pscustomobject]@{ StatusCode = 200; Content = '' }
+if (Health-Ready) { throw 'Eine leere Startseite wurde als bereit gewertet.' }
+$script:page = [pscustomobject]@{ StatusCode = 200; Content = '<!DOCTYPE html><html lang="de"><body></body></html>' }
 
 # 2) Ein altes Dashboard aus einem anderen Ordner haelt den Port und antwortet mit 200.
 $script:owner = [pscustomobject]@{ CommandLine = '"C:\Program Files\nodejs\node.exe" C:\Alt\dashboard\apps\control-api\dist\main.js' }

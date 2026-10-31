@@ -1433,6 +1433,12 @@ entfernt) rot; pyflakes ohne Befund.
   (gekürzt auf 1 500 Zeichen) an das Gesprächsmodell. Tests `voice-read.test.ts`, `ReadToolTest`,
   `test_read_posts_voice_read_and_truncates_text`; Gegenproben (Sperre/Owner-Fallback entfernt) rot.
 - **Rechte-Zuordnung:** `setVoiceConversationKey` ist jetzt `settings.update` in der Aktionsmatrix.
+- **Update-Prüfung (W4):** Der Healthcheck nach dem GitHub-Update verlangt zusätzlich, dass `/` die Weboberfläche
+  ausliefert (vorher galt eine gesunde API ohne `apps/web/out` als Erfolg); sonst Rollback. Die installierten Build-Dateien
+  vergleicht `Sync-BuildOutput` bereits per SHA256 mit dem Zielstand. Neuer Test `packages/config/test/installer-config.test.ts`:
+  die vom Installer geschriebenen `dashboard.yaml`/`adapters.yaml` (aktuelle Vorlage aus `install-friday.ps1` und eingefrorene
+  Fassung vom 2026-10-31 unter `test/fixtures/`) müssen mit dem aktuellen Schema laden, weil das Update diese Dateien nie
+  ändert. Gegenproben rot (leere Startseite; entfernter Schlüssel).
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Rückfragen von Agenten per Stimme beantworten (LG-2.01), Wissensbasis/Hilfe (LG-2b.03–05), Ruhemodus per Stimme (LG-2c).
 
