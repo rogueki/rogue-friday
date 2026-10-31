@@ -4751,6 +4751,42 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: tasks.create
       x-required-role: owner
+  /api/v1/voice/tasks/{taskId}/reply:
+    post:
+      operationId: replyVoiceDomainTask
+      tags: [tasks]
+      summary: Answer the open question of a voice domain task through the local voice bridge
+      description: Local voice bridge only. Accepted only while the task waits for input (blocker input_needed); the answer is forwarded to the agent, which then continues.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, pattern: "^task_[0-9A-Za-z]{26}$" }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceDomainTaskReplyRequest"
+      responses:
+        "200":
+          description: Answer forwarded; the task view after the reply
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceDomainTaskResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: tasks.input
+      x-required-role: owner
   /api/v1/voice/tasks/{taskId}:
     get:
       operationId: getVoiceDomainTask
@@ -10684,6 +10720,8 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-request.schema.json
     VoiceConversationKeyStatus:
       $ref: ../schemas/voice/voice-conversation-key-status.schema.json
+    VoiceDomainTaskReplyRequest:
+      $ref: ../schemas/tasks/voice-domain-task-reply-request.schema.json
     VoiceReadRequest:
       $ref: ../schemas/voice/voice-read-request.schema.json
     VoiceReadAnswer:

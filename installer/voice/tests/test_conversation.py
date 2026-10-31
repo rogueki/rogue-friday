@@ -21,6 +21,7 @@ class FakeTasks:
         self.fail_read = False
         self.reads = []
         self.read_result = {"kind": "weather.current", "status": "answered", "answer": "Berlin: 14 °C"}
+        self.replies = []
 
     def create(self, text, domain):
         if self.fail_create:
@@ -50,6 +51,10 @@ class FakeTasks:
         self.reads.append(text)
         return dict(self.read_result)
 
+    def reply(self, task_id, answer):
+        self.replies.append((task_id, answer))
+        return dict(self.jobs.get(task_id) or {"taskId": task_id, "status": "running"})
+
     def forget(self, task_id):
         self.jobs.pop(task_id, None)
 
@@ -76,7 +81,7 @@ class ToolSpecsTest(unittest.TestCase):
     def test_tools_and_enumeration(self):
         specs = Harness().voice.tool_specs()
         self.assertEqual([spec["function"]["name"] for spec in specs],
-                         ["task_create", "task_status", "task_cancel", "friday_lesen", "zeit_datum"])
+                         ["task_create", "task_status", "task_cancel", "task_antwort", "friday_lesen", "zeit_datum"])
         parameters = specs[0]["function"]["parameters"]
         self.assertEqual(tuple(parameters["properties"]["domain"]["enum"]), DOMAINS)
         self.assertEqual(parameters["required"], ["domain", "auftrag"])
@@ -316,6 +321,65 @@ class InstructionsTest(unittest.TestCase):
         text = Harness().voice.instructions("Friday")
         self.assertIn("Du bist Friday. Sprich Deutsch, kurz und natürlich.", text)
         self.assertNotIn("rede den Nutzer", text)
+
+
+class TaskReplyTest(unittest.TestCase):
+    def question(self, harness, task_id="t1", domain="research", title="Strompreise",
+                 question="Welche Region?"):
+        harness.tasks.jobs[task_id] = {"taskId": task_id, "domain": domain, "title": title,
+                                       "createdAt": harness.wall, "status": "waiting"}
+        harness.voice.task_finished({"taskId": task_id, "domain": domain, "status": "waiting",
+                                     "title": title, "question": question})
+
+    def test_question_is_announced_and_task_kept(self):
+        harness = Harness()
+        self.question(harness)
+        text = harness.voice.take_announcement()
+        self.assertIn("fragt zu", text)
+        self.assertIn("Strompreise", text)
+        self.assertIn("Welche Region?", text)
+        instructions = harness.voice.instructions("Friday")
+        self.assertIn("Welche Region?", instructions)
+        self.assertIn("task_antwort", instructions)
+        self.assertIn("t1", harness.tasks.jobs)
+
+    def test_answer_is_forwarded_and_question_closed(self):
+        harness = Harness()
+        self.question(harness)
+        harness.voice.take_announcement()
+        result = harness.voice.call_tool("task_antwort", {"antwort": "  Nur   Europa "})
+        self.assertEqual(harness.tasks.replies, [("t1", "Nur Europa")])
+        self.assertEqual(result["status"], "weitergegeben")
+        self.assertEqual(result["auftrag"], "Strompreise")
+        self.assertNotIn("Welche Region?", harness.voice.instructions("Friday"))
+
+    def test_two_questions_need_a_target(self):
+        harness = Harness()
+        self.question(harness, "t1", "research", "Strompreise", "Welche Region?")
+        self.question(harness, "t2", "audit", "Backups", "Welches Lager?")
+        result = harness.voice.call_tool("task_antwort", {"antwort": "Europa"})
+        self.assertIn("error", result)
+        self.assertEqual(result["auftraege"], ["Strompreise", "Backups"])
+        self.assertEqual(harness.tasks.replies, [])
+        result = harness.voice.call_tool("task_antwort", {"antwort": "Europa", "auftrag": "Backups"})
+        self.assertEqual(harness.tasks.replies, [("t2", "Europa")])
+        self.assertEqual(result["status"], "weitergegeben")
+
+    def test_without_an_open_question_it_is_an_error(self):
+        harness = Harness()
+        result = harness.voice.call_tool("task_antwort", {"antwort": "Europa"})
+        self.assertIn("error", result)
+        self.assertEqual(harness.tasks.replies, [])
+
+    def test_summary_and_open_question_are_both_spoken(self):
+        harness = Harness()
+        harness.finish("research", "Recherchiere Strompreise", "21 Cent.")
+        harness.finish("audit", "Prüfe die Backups", "Alles grün.")
+        harness.finish("tasks", "Plane den Umzug", "Termin steht.")
+        self.question(harness)
+        text = harness.voice.take_announcement()
+        self.assertIn("3 Aufträge sind fertig", text)
+        self.assertIn("fragt zu „Strompreise“: Welche Region?", text)
 
 
 if __name__ == "__main__":

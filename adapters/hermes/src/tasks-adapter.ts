@@ -1,4 +1,4 @@
-import type { Task, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Task, TaskActionRequest, TaskCreateRequest, TaskInputRequest, TaskUpdateRequest } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -301,6 +301,31 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
     if (after.task.status !== "ready" && after.task.status !== "running") {
       throw new AdapterError({ code: "CONFLICT", message: "Hermes hat den Neustart nicht bestaetigt.", retryable: false });
     }
+    return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
+      freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  async provideTaskInput(
+    params: IdParam & { body: TaskInputRequest },
+    call: MutationContext,
+  ): Promise<Single<Task>> {
+    const { kanban, context } = this.ready();
+    const ref = await this.resolveTask(params.id, call);
+    const before = await kanban.taskDetail(ref, "provideTaskInput", call);
+    this.assertLifecycleVersion(before.task, call);
+    if (before.task.status !== "blocked" || before.task.blockKind !== "needs_input") {
+      throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe wartet nicht auf eine Antwort.", retryable: false });
+    }
+    // The blocker id is derived from the task id; a stale one belongs to a question that is gone.
+    if (params.body.blockerId && params.body.blockerId !== `blk_${ref.taskId}`) {
+      throw new AdapterError({ code: "NOT_FOUND", message: "Diese Rückfrage gibt es nicht (mehr).", retryable: false });
+    }
+    // The comment reaches the next worker's context; the status patch releases the blocked card.
+    await kanban.addComment(ref, params.body.input, { idempotencyKey: call.idempotencyKey }, call);
+    await kanban.patchTask(ref, { status: "ready" }, {
+      idempotencyKey: call.idempotencyKey ? `${call.idempotencyKey}:unblock` : undefined,
+    }, call);
+    const after = await kanban.taskDetail(ref, "provideTaskInput", call);
     return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
       freshness: { state: "fresh", asOf: toIso(context.clock) } };
   }

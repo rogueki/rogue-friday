@@ -9127,6 +9127,76 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "replyVoiceDomainTask",
+    "method": "POST",
+    "path": "/api/v1/voice/tasks/{taskId}/reply",
+    "tag": "tasks",
+    "capability": "tasks.input",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "taskId"
+    ],
+    "pathParamRules": {
+      "taskId": {
+        "pattern": "^task_[0-9A-Za-z]{26}$"
+      }
+    },
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "VoiceDomainTaskReplyRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "VoiceDomainTaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "getVoiceDomainTask",
     "method": "GET",
     "path": "/api/v1/voice/tasks/{taskId}",

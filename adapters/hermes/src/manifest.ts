@@ -22,7 +22,7 @@ const NAMES: Readonly<Record<HermesCategory, string>> = {
  * still be checked against the installed Hermes build before enabling live mode.
  */
 const CAPABILITIES: Readonly<Record<HermesCategory, readonly string[]>> = {
-  tasks: ["tasks.read", "tasks.create", "tasks.update", "tasks.cancel", "tasks.retry", "tasks.stream"],
+  tasks: ["tasks.read", "tasks.create", "tasks.update", "tasks.input", "tasks.cancel", "tasks.retry", "tasks.stream"],
   activity: ["activity.read", "activity.stream", "activity.backfill"],
   agents: ["agents.read", "agents.stop"],
   // No version history and no conditions in Hermes cron; those capabilities stay unadvertised on purpose.

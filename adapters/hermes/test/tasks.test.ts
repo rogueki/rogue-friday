@@ -543,13 +543,78 @@ describe("tasks: write", () => {
       (await rejection(h.adapter.updateTask({ id: task.id, body: { labels: ["neu"] } }, h.mutation()))).code,
     ).toBe("VALIDATION_FAILED");
   });
+
+  it("answers a needs_input question with an owner comment and releases the card", async () => {
+    const raw = fake.state.addTask("default", { title: "Stromtarif", status: "blocked", block_kind: "needs_input" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+
+    const { data } = await h.adapter.provideTaskInput(
+      { id: task.id, body: { input: "Nur Ökostrom" } },
+      h.mutation({ idempotencyKey: "idem-answer-0001" }),
+    );
+
+    expect(data.status).not.toBe("waiting");
+    expect(data.status).toBe("ready");
+    const comments = fake.state.board("default").comments.filter((comment) => comment.task_id === raw.id);
+    expect(comments.map((comment) => [comment.body, comment.author])).toEqual([["Nur Ökostrom", "friday-owner"]]);
+    expect(raw.status).toBe("ready");
+    const post = fake
+      .callsTo("dashboard", `/api/plugins/kanban/tasks/${raw.id}/comments`)
+      .find((call) => call.method === "POST");
+    expect(post?.body).toEqual({ body: "Nur Ökostrom", author: "friday-owner" });
+    expect(post?.headers["idempotency-key"]).toBe("idem-answer-0001");
+  });
+
+  it("refuses to answer a task that is not waiting for input", async () => {
+    const raw = fake.state.addTask("default", { title: "Läuft", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+
+    const error = await rejection(
+      h.adapter.provideTaskInput({ id: task.id, body: { input: "Nur Ökostrom" } }, h.mutation()),
+    );
+
+    expect(error.code).toBe("CONFLICT");
+    expect(fake.state.board("default").comments).toHaveLength(0);
+  });
+
+  it("refuses to answer a card blocked for another reason", async () => {
+    fake.state.addTask("default", { title: "Wartet", status: "blocked", block_kind: "dependency" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+
+    const error = await rejection(
+      h.adapter.provideTaskInput({ id: task.id, body: { input: "Nur Ökostrom" } }, h.mutation()),
+    );
+
+    expect(error.code).toBe("CONFLICT");
+    expect(fake.state.board("default").comments).toHaveLength(0);
+  });
+
+  it("rejects an answer for a question that no longer exists", async () => {
+    fake.state.addTask("default", { title: "Stromtarif", status: "blocked", block_kind: "needs_input" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+
+    const error = await rejection(
+      h.adapter.provideTaskInput(
+        { id: task.id, body: { input: "Nur Ökostrom", blockerId: "blk_veraltet" } },
+        h.mutation(),
+      ),
+    );
+
+    expect(error.code).toBe("NOT_FOUND");
+    expect(fake.state.board("default").comments).toHaveLength(0);
+  });
 });
 
 describe("tasks: capabilities", () => {
   it("declares cancel and retry but no pause/resume", async () => {
     const h = await open();
     const { capabilities } = await h.adapter.getCapabilities();
-    expect(capabilities.sort()).toEqual(["tasks.cancel", "tasks.create", "tasks.read", "tasks.retry", "tasks.stream", "tasks.update"]);
+    expect(capabilities.sort()).toEqual(["tasks.cancel", "tasks.create", "tasks.input", "tasks.read", "tasks.retry", "tasks.stream", "tasks.update"]);
     for (const method of ["pauseTask", "resumeTask"]) {
       expect((h.adapter as unknown as Record<string, unknown>)[method]).toBeUndefined();
     }

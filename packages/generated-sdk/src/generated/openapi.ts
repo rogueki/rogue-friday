@@ -4346,6 +4346,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/tasks/{taskId}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer the open question of a voice domain task through the local voice bridge
+         * @description Local voice bridge only. Accepted only while the task waits for input (blocker input_needed); the answer is forwarded to the agent, which then continues.
+         */
+        post: operations["replyVoiceDomainTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/test": {
         parameters: {
             query?: never;
@@ -11154,9 +11174,18 @@ export interface components {
             /** @enum {string} */
             domain: "research" | "tasks" | "alerts" | "audit";
             error: string | null;
+            /** @description Open question of the agent while the task waits for input (blocker input_needed); null otherwise. */
+            question: string | null;
             resultSummary: string | null;
             status: components["schemas"]["TaskStatus"];
             taskId: string;
+        };
+        /**
+         * VoiceDomainTaskReplyRequest
+         * @description Spoken answer of the verified owner to the open question of a voice domain task (status waiting, blocker input_needed).
+         */
+        VoiceDomainTaskReplyRequest: {
+            answer: string;
         };
         /**
          * VoiceDomainTaskRequest
@@ -21501,6 +21530,43 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    replyVoiceDomainTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceDomainTaskReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Answer forwarded; the task view after the reply */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDomainTaskResponse"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

@@ -237,6 +237,16 @@ def test_switch_hands_unspoken_results_to_the_new_mode():
     assert closed.wait(2)
 
 
+def test_announced_question_keeps_the_task_registered():
+    jv = voice_module()
+    svc = make_service(jv)
+    forgotten = []
+    svc.domain_tasks = types.SimpleNamespace(forget=forgotten.append)
+    svc._forget_announced([{"taskId": "task_done", "status": "done"},
+                           {"taskId": "task_wait", "status": "waiting", "question": "Welche Region?"}])
+    assert forgotten == ["task_done"]
+
+
 def test_announcement_text_without_conversation_uses_bundle():
     jv = voice_module()
     svc = make_service(jv)

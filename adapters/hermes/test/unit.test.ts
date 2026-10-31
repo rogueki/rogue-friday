@@ -223,6 +223,8 @@ describe("configuration and manifests", () => {
       "tasks.read",
       "tasks.create",
       "tasks.update",
+      // Comment route + PATCH status ready (unblock_task) checked against the installed Hermes kanban plugin.
+      "tasks.input",
       "tasks.cancel",
       "tasks.retry",
       "tasks.stream",

@@ -1439,8 +1439,20 @@ entfernt) rot; pyflakes ohne Befund.
   die vom Installer geschriebenen `dashboard.yaml`/`adapters.yaml` (aktuelle Vorlage aus `install-friday.ps1` und eingefrorene
   Fassung vom 2026-10-31 unter `test/fixtures/`) müssen mit dem aktuellen Schema laden, weil das Update diese Dateien nie
   ändert. Gegenproben rot (leere Startseite; entfernter Schlüssel).
+- **Rückfragen per Stimme (LG-2.01):** Blockiert ein Agent eine Sprachaufgabe mit `needs_input`, liefert
+  `getVoiceDomainTask` die Frage (`VoiceDomainTask.question`). Der Sprachdienst sagt sie sofort an, einmal je Frage; der Wächter
+  läuft danach bis zum Endstatus weiter, und die Aufgabe bleibt im Register (vergessen werden nur Aufträge mit Endstatus). Der Orchestrator nimmt sie in seine Anweisungen auf (als Daten markiert), und das Werkzeug
+  `task_antwort` gibt die Antwort über die neue Operation `replyVoiceDomainTask` (POST `/api/v1/voice/tasks/{taskId}/reply`, nur
+  Voice-Bridge, Idempotency-Key Pflicht, Audit `tasks.voice_task_reply` ohne Antworttext) weiter; bei mehreren offenen Fragen fragt es
+  nach. Der Hermes-Adapter kann jetzt `provideTaskInput` (Fähigkeit `tasks.input`): Besitzer-Kommentar über die Upstream-Route
+  `POST /tasks/{id}/comments` (fließt in den Kontext des nächsten Workers) und danach `PATCH status ready` (`unblock_task`); nur bei
+  `blocked` + `needs_input`, sonst 409. Beide Upstream-Routen gegen die Hermes-Installation in FRIDAY-2 geprüft (nur gelesen). Damit
+  funktioniert auch die allgemeine Operation `provideTaskInput` des Dashboards mit Hermes. Tests: Hermes `tasks.test.ts` (4 neue),
+  `voice-domain-task-reply.test.ts`, `TaskReplyTest`, `test_domain_task_voice.py`; Gegenproben (Statusprüfung, Entprellung) rot.
+  Grenze: Offene Rückfragen kennt der Orchestrator nach einem Neustart des Sprachdienstes nicht mehr (die Aufgabe wartet weiter und
+  lässt sich im Dashboard beantworten).
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
-  Rückfragen von Agenten per Stimme beantworten (LG-2.01), Wissensbasis/Hilfe (LG-2b.03–05), Ruhemodus per Stimme (LG-2c).
+  Wissensbasis/Hilfe (LG-2b.03–05), Ruhemodus per Stimme (LG-2c), Push statt Polling (LG-2.03).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
 Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);

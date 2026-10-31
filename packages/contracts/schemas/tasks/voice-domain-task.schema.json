@@ -10,8 +10,9 @@
     "agentName": { "type": ["string", "null"], "maxLength": 120 },
     "status": { "$ref": "../tasks/task-status.schema.json" },
     "resultSummary": { "type": ["string", "null"], "maxLength": 4000 },
-    "error": { "type": ["string", "null"], "maxLength": 500 }
+    "error": { "type": ["string", "null"], "maxLength": 500 },
+    "question": { "type": ["string", "null"], "maxLength": 1000, "description": "Open question of the agent while the task waits for input (blocker input_needed); null otherwise." }
   },
-  "required": ["taskId", "domain", "agentName", "status", "resultSummary", "error"],
+  "required": ["taskId", "domain", "agentName", "status", "resultSummary", "error", "question"],
   "additionalProperties": false
 }

@@ -66,7 +66,8 @@ from mail_voice import MailVoice  # noqa: E402
 from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
-from domain_task_voice import AGENT_LABEL, DomainTaskVoice, bundle_text, classify_domain  # noqa: E402
+from domain_task_voice import (AGENT_LABEL, FINAL as FINAL_DOMAIN_STATUSES, DomainTaskVoice, bundle_text,  # noqa: E402
+                              classify_domain)
 import qwen_realtime  # noqa: E402
 from conversation import ConversationOrchestrator  # noqa: E402
 from qwen_dialog import QwenDialog  # noqa: E402
@@ -1873,11 +1874,14 @@ class VoiceService:
     def _background_domain(self, kanban_task: str, task_id: str, generation: int) -> None:
         # "Stopp" ends dialog and audio only; the Kanban task keeps running and its result is still announced.
         try:
-            job = self.domain_tasks.wait(kanban_task, lambda: False)
-            if job is None:
-                return
-            # The announce thread bundles several results into one reply so the voice does not interrupt itself.
-            self.domain_tasks.collect(job)
+            while True:
+                job = self.domain_tasks.wait(kanban_task, lambda: False)
+                if job is None:
+                    return
+                # The announce thread bundles several results into one reply so the voice does not interrupt itself.
+                self.domain_tasks.collect(job)
+                if job.get("status") in FINAL_DOMAIN_STATUSES:
+                    return
         finally:
             self.background_jobs.discard(task_id)
             if not self.control_cancel.is_set() and generation == self.control_generation:
@@ -1890,6 +1894,13 @@ class VoiceService:
             self.conversation.task_finished(job)
         return self.conversation.take_announcement()
 
+    def _forget_announced(self, jobs: list[dict]) -> None:
+        # A waiting task asked a question and is still running: it must stay registered so the next question and
+        # its final result are reported, also after a restart.
+        for job in jobs:
+            if job.get("status") in FINAL_DOMAIN_STATUSES:
+                self.domain_tasks.forget(job["taskId"])
+
     def _announce_domain_results(self) -> None:
         while True:
             try:
@@ -1899,8 +1910,7 @@ class VoiceService:
                 while self.tts.speaking.is_set():
                     time.sleep(0.05)  # never cut off a running announcement
                 text = self._announcement_text(jobs)
-                for job in jobs:
-                    self.domain_tasks.forget(job["taskId"])
+                self._forget_announced(jobs)
                 if not text:
                     continue
                 print(f"< {text}", flush=True)

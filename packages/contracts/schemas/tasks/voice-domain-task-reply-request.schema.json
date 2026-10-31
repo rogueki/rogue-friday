@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/tasks/voice-domain-task-reply-request.schema.json",
+  "title": "VoiceDomainTaskReplyRequest",
+  "description": "Spoken answer of the verified owner to the open question of a voice domain task (status waiting, blocker input_needed).",
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    }
+  },
+  "required": [
+    "answer"
+  ],
+  "additionalProperties": false
+}

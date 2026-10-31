@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type Task, type VoiceDomainTask, type VoiceDomainTaskRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type Task, type VoiceDomainTask, type VoiceDomainTaskReplyRequest, type VoiceDomainTaskRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { routeAgentTask } from "../services/task-model-routing";
@@ -23,9 +23,16 @@ function lastErrorMessage(task: Task): string | null {
   return message?.trim() ? message.slice(0, 500) : null;
 }
 
+function taskQuestion(task: Task): string | null {
+  if (task.status !== "waiting") return null;
+  const blocker = (task.blockers ?? []).find((entry) => entry.kind === "input_needed");
+  const description = blocker?.description?.trim();
+  return description ? description.slice(0, 1000) : null;
+}
+
 function voiceTaskView(task: Task, domain: VoiceDomainTask["domain"]): VoiceDomainTask {
   return { taskId: task.id, domain, agentName: task.agentName ?? null, status: task.status,
-    resultSummary: task.resultSummary ?? null, error: lastErrorMessage(task) };
+    resultSummary: task.resultSummary ?? null, error: lastErrorMessage(task), question: taskQuestion(task) };
 }
 
 function domainOf(task: Task): VoiceDomainTask["domain"] | null {
@@ -78,5 +85,23 @@ export const voiceTaskHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "tasks.voice_domain_task_cancelled";
     ctx.audit.after = { taskId: task.id, domain };
     return { status: 200, body: single(voiceTaskView(cancelled.data, domain)) };
+  },
+  async replyVoiceDomainTask(ctx) {
+    requireVoiceBridge(ctx);
+    if (!ctx.mutation.idempotencyKey) throw validationFailed("Ein Idempotency-Key ist fuer die Sprachantwort erforderlich.");
+    const task = (await ctx.runtime.registry.getPort("tasks").getTask({ id: ctx.pathParams.taskId as string }, ctx.call)).data;
+    const domain = domainOf(task);
+    if (!domain) throw new ApiError({ code: "NOT_FOUND", message: "Diese Aufgabe stammt nicht aus einem Sprachauftrag." });
+    const blocker = (task.blockers ?? []).find((entry) => entry.kind === "input_needed");
+    if (task.status !== "waiting" || !blocker) {
+      throw new ApiError({ code: "CONFLICT", message: "Diese Aufgabe wartet gerade auf keine Antwort." });
+    }
+    const provide = ctx.runtime.registry.getPort("tasks").provideTaskInput;
+    if (!provide) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Antworten an Agenten sind mit diesem Aufgabenanbieter nicht moeglich." });
+    const request = ctx.body as VoiceDomainTaskReplyRequest;
+    const answered = await provide({ id: task.id, body: { input: request.answer, blockerId: blocker.id } }, ctx.mutation);
+    ctx.audit.action = "tasks.voice_task_reply";
+    ctx.audit.after = { taskId: task.id, domain };
+    return { status: 200, body: single(voiceTaskView(answered.data, domain)) };
   },
 };

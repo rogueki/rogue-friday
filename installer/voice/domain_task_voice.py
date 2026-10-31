@@ -48,6 +48,9 @@ def classify_domain(text: str) -> str:
 
 def result_text(job: dict) -> str:
     status = job.get("status")
+    question = str(job.get("question") or "").strip()
+    if status == "waiting" and question:
+        return "Rueckfrage: " + question
     if status == "failed":
         error = (job.get("error") or "").strip()
         return "Die Aufgabe ist fehlgeschlagen" + (": " + error if error else "") + "."
@@ -138,6 +141,17 @@ class DomainTaskVoice:
     def read(self, text) -> dict:
         """Direct read answer from the dashboard (weather, settings, tasks ...); no agent is started."""
         return self._request("POST", "/api/v1/voice/read", {"text": str(text)[:500]})
+
+    def reply(self, task_id, answer) -> dict:
+        job = self._request("POST", f"/api/v1/voice/tasks/{task_id}/reply", {"answer": str(answer)[:2000]},
+                            key="voice-reply-" + uuid.uuid4().hex)
+        with self.lock:
+            entry = self.jobs.get(task_id)
+            if entry is not None:
+                entry["status"] = job.get("status")
+                entry.pop("question", None)
+        self._save()
+        return job
 
     def pending(self) -> list[dict]:
         with self.lock:
@@ -233,6 +247,18 @@ class DomainTaskVoice:
                     return None
             if job is not None and job.get("status") in FINAL:
                 return job
+            if job is not None and job.get("status") == "waiting" and job.get("question"):
+                question = str(job["question"]).strip()
+                with self.lock:
+                    entry = self.jobs.get(task_id)
+                    # The same question is reported once; the next wait only returns on a new one or a final status.
+                    fresh = entry is not None and entry.get("question") != question
+                    if fresh:
+                        entry["question"] = question
+                        entry["status"] = "waiting"
+                if fresh:
+                    self._save()
+                    return job
             if cancelled() or self.now() >= deadline:
                 return None
             # Sleep in short steps so a spoken "Stopp" takes effect at once instead of after poll_s.
