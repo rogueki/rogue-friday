@@ -18,7 +18,7 @@ INPUT_RATE = 16000
 OUTPUT_RATE = 24000
 CHUNK_BYTES = 3200  # 100 ms of PCM16 mono at 16 kHz
 LINUX_SECRET_FILE = "/etc/friday/secrets/alibaba-tokenplan.key"
-ERROR_KINDS = ("auth", "quota", "rate", "idle", "network", "protocol")
+ERROR_KINDS = ("auth", "quota", "rate", "idle", "model", "network", "protocol")
 
 
 async def _close_quietly(ws) -> None:
@@ -42,6 +42,8 @@ def classify(code, message: str) -> str:
     text = f"{code or ''} {message or ''}".lower()
     if "no response was generated" in text:
         return "idle"
+    if any(marker in text for marker in ("model not exist", "model_not_found", "modelnotfound", "model not found")):
+        return "model"
     if any(marker in text for marker in ("401", "403", "unauthorized", "invalidapikey", "invalid api key",
                                          "invalid_api_key", "access denied", "accessdenied", "forbidden")):
         return "auth"
@@ -130,12 +132,13 @@ class QwenRealtimeSession:
         if self._ws is not None:
             await self.close()
         self._closing = False
-        from websockets.exceptions import InvalidStatus
-        if self._connect is None:
+        try:
+            from websockets.exceptions import InvalidStatus
             from websockets.asyncio.client import connect as ws_connect
-            connect_fn = ws_connect
-        else:
-            connect_fn = self._connect
+        except ImportError as error:
+            # An install updated before the package was added must fall back to the local answer, not crash the turn.
+            raise RealtimeError("protocol", "Python-Paket websockets fehlt im Sprachdienst") from error
+        connect_fn = ws_connect if self._connect is None else self._connect
         try:
             ws = await connect_fn(self._url, additional_headers={"Authorization": f"Bearer {self._api_key}"},
                                   open_timeout=self._open_timeout, max_size=None, ping_interval=20)

@@ -15,6 +15,7 @@ Rohaudio wird nur nach ausdruecklicher Aktivierung fuer akzeptierte Befehle gesp
 import argparse
 import atexit
 import collections
+import contextlib
 import datetime
 import http.server
 import hashlib
@@ -66,6 +67,9 @@ from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from domain_task_voice import AGENT_LABEL, DomainTaskVoice, bundle_text, classify_domain  # noqa: E402
+import qwen_realtime  # noqa: E402
+from conversation import ConversationOrchestrator  # noqa: E402
+from qwen_dialog import QwenDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
 from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
@@ -134,6 +138,7 @@ HERMES_VOICE_SYSTEM = ("Diese Anfrage kommt per Sprache vom Owner (Sprecher veri
                        "Termin aendern, Finanzen) NICHT ausfuehren, sondern Entwurf erstellen und Bestaetigung "
                        "anfordern.")
 
+STOP_PROBE_S = 1.6
 STOP_WORDS = re.compile(r"^\s*(stopp?|stop|abbrechen|halt|ruhe|sei still)[\s.!]*$", re.IGNORECASE)
 
 
@@ -199,6 +204,41 @@ def record_latency(service, name: str, value_ms: float) -> None:
     samples = getattr(service, "latency", {}).get(name)
     if samples is not None:
         samples.append(value_ms)
+
+
+CONVERSATION_BACKENDS = ("local", "qwen")
+
+# Gesprochen ueber die lokale Stimme, bevor der lokale Weg dieselbe Aeusserung beantwortet (Plan F-02, F-03).
+QWEN_FALLBACK_NOTICE = {
+    "auth": "Der Alibaba-Schlüssel wird nicht akzeptiert. Ich antworte lokal; der Schlüssel lässt sich im Dashboard prüfen.",
+    "quota": "Das Alibaba-Kontingent ist aufgebraucht. Ich antworte vorerst lokal.",
+    "rate": "Alibaba bremst gerade die Anfragen. Ich antworte lokal.",
+    "model": "Das Qwen-Audio-Modell ist im Alibaba-Tarif nicht verfügbar. Ich antworte lokal.",
+}
+QWEN_UNREACHABLE_NOTICE = "Qwen Audio ist gerade nicht erreichbar, ich nutze die lokale Stimme."
+
+
+def conversation_backend(cfg: dict) -> str:
+    backend = cfg.get("conversation_backend", "local")
+    if backend not in CONVERSATION_BACKENDS:
+        raise SystemExit("conversation_backend muss local oder qwen sein")
+    return backend
+
+
+class WatchedTasks:
+    """Task-Port fuer die Gespraechsschicht: jeder neue Auftrag bekommt denselben Hintergrund-Waechter wie im klassischen Ablauf."""
+
+    def __init__(self, tasks, on_created):
+        self._tasks = tasks
+        self._on_created = on_created
+
+    def create(self, text, domain):
+        job = self._tasks.create(text, domain)
+        self._on_created(job)
+        return job
+
+    def __getattr__(self, name):
+        return getattr(self._tasks, name)
 
 
 class Speaker:
@@ -716,6 +756,18 @@ class VoiceService:
                            browser_audio=self.browser_audio)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         self.latency = {name: collections.deque(maxlen=LATENCY_WINDOW) for name in ("speaker", "stt", "router", "model")}
+        # Alte Installationen kennen den Schluesselpfad noch nicht; der Dashboard-Schalter braucht ihn.
+        cfg.setdefault("qwen_key_file", qwen_realtime.LINUX_SECRET_FILE if os.name == "posix"
+                       else os.path.join(INSTALL_ROOT, "config", "alibaba_tokenplan.key.dpapi"))
+        self.conversation = None
+        self.qwen_dialog = None
+        try:
+            self._use_conversation(self._build_conversation(cfg))
+        except (RuntimeError, OSError) as exc:
+            # Ohne lesbaren Schluessel bleibt der Dienst lokal nutzbar; das Dashboard zeigt den Fehler.
+            log_event(event="qwen_unavailable", error=type(exc).__name__)
+            self.status["qwen_error"] = "auth"
+        atexit.register(self._close_conversation)
         if not self.cloud_voice:
             self._route("Hallo")  # lokaler Router-Warmup
 
@@ -1391,6 +1443,30 @@ class VoiceService:
             self.tts.say(text)
             return True
 
+    def _qwen_turn(self, audio: np.ndarray, generation: int) -> bool:
+        """Qwen Audio beantwortet eine gepruefte Aeusserung; False uebergibt sie dem lokalen Weg (Rueckfall)."""
+        self.processing = "thinking"
+        pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
+
+        def cancelled() -> bool:
+            return self.control_cancel.is_set() or generation != self.control_generation
+
+        try:
+            text = self.qwen_dialog.turn(pcm, lambda sentence: self._say_if_current(sentence, generation), cancelled)
+        except qwen_realtime.RealtimeError as exc:
+            log_event(event="qwen_turn_failed", kind=exc.kind)
+            # Nur beim Wechsel der Ausfallart ansagen: sonst haengt vor jeder Antwort derselbe Hinweis.
+            if self.status.get("qwen_error") != exc.kind:
+                self._say_if_current(QWEN_FALLBACK_NOTICE.get(exc.kind, QWEN_UNREACHABLE_NOTICE), generation)
+            self.status["qwen_error"] = exc.kind
+            return False
+        self.status["qwen_error"] = None
+        self.status["commands"] += 1
+        if text:
+            self.history += [{"role": "assistant", "content": text}]
+        log_event(event="qwen_turn", chars=len(text))
+        return True
+
     def _handle_command(self, audio: np.ndarray, wake_audio: np.ndarray | None) -> None:
         generation = self.control_generation
         if self.control_cancel.is_set():
@@ -1429,6 +1505,17 @@ class VoiceService:
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         if getattr(self, "tts", None) is not None:
             self.tts.answer_clock = t0
+        if owner_required and getattr(self, "qwen_dialog", None) is not None:
+            # Qwen versteht "Stopp" als Gespraechsbeitrag; kurze Aeusserungen erst lokal auf das Stoppwort pruefen.
+            if len(audio) <= STOP_PROBE_S * SR:
+                with getattr(self, "transcribe_lock", None) or contextlib.nullcontext():
+                    short = self._transcribe(audio)
+                if STOP_WORDS.fullmatch(short):
+                    self.cancel_active_interaction()
+                    log_event(event="stop", generation=generation)
+                    return
+            if self._qwen_turn(audio, generation):
+                return
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:
@@ -1731,6 +1818,41 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _build_conversation(self, cfg: dict):
+        """(Orchestrator, Dialog) fuer den Qwen-Modus, sonst None; wirft RuntimeError/OSError bei unlesbarem Schluessel."""
+        if conversation_backend(cfg) != "qwen":
+            return None
+        conversation = ConversationOrchestrator(WatchedTasks(self.domain_tasks, self._watch_domain_task))
+        session = qwen_realtime.QwenRealtimeSession(
+            qwen_realtime.load_key(cfg["qwen_key_file"]), region=cfg.get("qwen_region", "ap-southeast-1"),
+            instructions="")
+        dialog = QwenDialog(session, conversation, assistant_name=self.name,
+                            persona=cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)))
+        return conversation, dialog
+
+    def _use_conversation(self, built) -> None:
+        previous = getattr(self, "qwen_dialog", None)
+        previous_conversation = getattr(self, "conversation", None)
+        self.conversation, self.qwen_dialog = built if built is not None else (None, None)
+        self.status["qwen_error"] = None
+        if previous_conversation is not None:
+            # Noch nicht gesprochene Ergebnisse gehen zurueck in die Ansage-Warteschlange des neuen Modus.
+            for job in previous_conversation.drain_announcements():
+                self.domain_tasks.collect(job)
+        if previous is not None:
+            # close() wartet bis zu 5 s auf die Sitzung; die Einstellungsanfrage soll darauf nicht warten.
+            threading.Thread(target=previous.close, daemon=True).start()
+
+    def _close_conversation(self) -> None:
+        if getattr(self, "qwen_dialog", None) is not None:
+            self.qwen_dialog.close()
+
+    def _watch_domain_task(self, job: dict) -> None:
+        watcher = uuid.uuid4().hex[:8]
+        self.background_jobs.add(watcher)
+        threading.Thread(target=self._background_domain, args=(job["taskId"], watcher, self.control_generation),
+                         daemon=True).start()
+
     def _background_domain(self, kanban_task: str, task_id: str, generation: int) -> None:
         # "Stopp" ends dialog and audio only; the Kanban task keeps running and its result is still announced.
         try:
@@ -1744,6 +1866,13 @@ class VoiceService:
             if not self.control_cancel.is_set() and generation == self.control_generation:
                 self.background_reply_ready.set()
 
+    def _announcement_text(self, jobs: list[dict]) -> str | None:
+        if getattr(self, "conversation", None) is None:
+            return bundle_text(jobs)
+        for job in jobs:
+            self.conversation.task_finished(job)
+        return self.conversation.take_announcement()
+
     def _announce_domain_results(self) -> None:
         while True:
             try:
@@ -1752,12 +1881,17 @@ class VoiceService:
                     continue
                 while self.tts.speaking.is_set():
                     time.sleep(0.05)  # never cut off a running announcement
-                text = bundle_text(jobs)
+                text = self._announcement_text(jobs)
+                for job in jobs:
+                    self.domain_tasks.forget(job["taskId"])
+                if not text:
+                    continue
                 print(f"< {text}", flush=True)
                 self._say_if_current(text, self.control_generation)
                 self.history += [{"role": "assistant", "content": text}]
-                for job in jobs:
-                    self.domain_tasks.forget(job["taskId"])
+                if getattr(self, "qwen_dialog", None) is not None:
+                    # Qwen kennt das Ergebnis danach und kann Rueckfragen dazu beantworten.
+                    self.qwen_dialog.note(self.conversation.announcement_item(text))
             except Exception as exc:
                 log_event(event="domain_announce_error", error=type(exc).__name__)
 
@@ -1936,6 +2070,8 @@ class VoiceService:
         if hasattr(self, "memory_capture_error"):
             self.memory_session_id = "ses_" + uuid.uuid4().hex
         self.status["state"] = "command"
+        if getattr(self, "qwen_dialog", None) is not None:
+            self.qwen_dialog.warm_up()  # Verbindung waehrend des Pieptons aufbauen (Plan D-10)
         if manual:
             self.preroll = []
             self._drain()
@@ -2087,6 +2223,9 @@ class VoiceService:
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
                 "latency": self.latency_payload(),
                 "runtime_settings": runtime_settings.effective(self.cfg),
+                "conversation": {"backend": runtime_settings.effective(self.cfg)["conversationBackend"],
+                                 "key_configured": bool(self.cfg.get("qwen_key_file")) and os.path.isfile(self.cfg["qwen_key_file"]),
+                                 "last_error": self.status.get("qwen_error")},
                 "config_revision": getattr(self, "config_disk_hash", None),
                 "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
                 "ptt_active": self.ptt_active,
@@ -2336,6 +2475,8 @@ class VoiceService:
                     prepared_wake = None
                     prepared_from_enrollment = False
                     prepared_stt = None
+                    prepared_conversation = None
+                    conversation_change = False
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
@@ -2388,6 +2529,14 @@ class VoiceService:
                             if "model" not in prepared:
                                 raise ValueError("Whisper model is not cached or cannot load locally")
                             prepared_stt = prepared["model"]
+                        conversation_change = (requested["conversationBackend"] !=
+                                               runtime_settings.effective(service.cfg)["conversationBackend"])
+                        if conversation_change:
+                            try:
+                                prepared_conversation = service._build_conversation(
+                                    {**service.cfg, "conversation_backend": requested["conversationBackend"]})
+                            except (RuntimeError, OSError) as exc:
+                                raise ValueError("Qwen Audio key cannot be read") from exc
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
                             phrase = requested["wakeWord"]
                             if personal_wake.is_pretrained_phrase(phrase) or (getattr(service, "wake_rollback", None) is not None and
@@ -2434,6 +2583,8 @@ class VoiceService:
                                 service.cfg = updated
                                 if prepared_stt is not None:
                                     service.whisper = prepared_stt
+                                if conversation_change:
+                                    service._use_conversation(prepared_conversation)
                                 service.config_disk_hash = runtime_settings.file_hash(config_path)
                                 service.tts.tts_config = updated
                                 if prepared_wake is not None:

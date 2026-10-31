@@ -44,7 +44,7 @@ function Invoke-Simulation([string]$voiceChoice) {
     $path = Join-Path $privateDir (([guid]::NewGuid().ToString('N')) + '.json')
     $answers = [ordered]@{
         assistantName = 'Friday'; wakePhrase = 'Hey Friday'; ownerName = 'Test'; about = 'Test'; linuxUser = 'friday'
-        voiceMode = '1'; voiceChoice = $voiceChoice; voiceReference = ''; voiceId = ''; inputDevice = '0'; outputDevice = '0'
+        voiceMode = '1'; voiceChoice = $voiceChoice; voiceReference = ''; voiceId = ''; conversationBackend = '1'; qwenRegion = '1'; inputDevice = '0'; outputDevice = '0'
         address = '1'; character = '1'; length = '1'; migrateLegacy = 'false'; disableLegacy = 'false'; reuseDistro = 'false'
         disableForeignTasks = 'false'; overwriteDashboardConfig = 'false'; keepIdentity = 'false'; repeatEnrollment = 'false'
         retryEnrollment = 'false'; openBrowser = 'false'; useExistingKimi = 'true'; restartNow = 'false'

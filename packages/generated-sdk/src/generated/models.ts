@@ -5455,6 +5455,14 @@ export interface VoiceStatus {
    */
   audioDeviceWaiting?: boolean;
   audioOutputDeviceId: string | null;
+  /**
+   * Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; lastError is the failure kind of the last Qwen turn (null after a successful turn).
+   */
+  conversation?: {
+    backend: "local" | "qwen";
+    keyConfigured: boolean;
+    lastError: "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null;
+  };
   pushToTalk: {
     enabled: boolean;
     active: boolean;
@@ -5964,6 +5972,10 @@ export interface VoiceSettings {
   voiceHistoryEnabled: boolean;
   sttLanguage?: "de" | "en";
   sttModel?: string | null;
+  /**
+   * Who leads the spoken conversation: the local pipeline or Qwen Audio over the Alibaba Token Plan (wake word, speaker check and voice stay local).
+   */
+  conversationBackend?: "local" | "qwen";
   ttsVoice: string;
   ttsRate: number;
   inputDeviceId: string | null;

@@ -154,6 +154,14 @@ class ConversationOrchestrator:
             # the register file is best effort; the task itself is durable in Hermes
             pass
 
+    def drain_announcements(self) -> list[dict]:
+        """Unspoken finished jobs, for handing over when the conversation backend is switched."""
+        with self._lock:
+            jobs = list(self._announcements)
+            self._announcements.clear()
+            self._held_in_quiet = False
+        return jobs
+
     def take_announcement(self) -> str | None:
         with self._lock:
             if not self._announcements:

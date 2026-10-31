@@ -1359,3 +1359,67 @@ Abhängigkeitsprüfung und `test_configure_voice.py` 7/7; `dashboard-update-voic
 
 **Zuletzt verifiziert:** `installer/voice/tests/test_conversation.py` 22/22 (neu in CI); Gegenprobe (Ruhezeit-Sperre
 entfernt) rot; pyflakes ohne Befund.
+
+## 2026-10-31 Live-Gespräch Phase 1: Qwen Audio im Sprachdienst (Branch `feat/qwen-dialog`, LG-1.03)
+
+- **Entscheidung:** Der Gesprächsmodus ist ein eigener Schlüssel `conversation_backend` (`local` | `qwen`) in
+  `config/voice.json`, nicht ein dritter Wert von `voice_mode`. `voice_mode` beschreibt den Audio-Stapel (lokal/ElevenLabs)
+  und wird an rund 30 Stellen in Installer und Diensten geprüft; der Qwen-Modus braucht ohnehin den lokalen Audio-Stapel
+  (lokale Stimme laut D-08, Whisper als Rückfall). Weitere Schlüssel: `qwen_key_file`, `qwen_region`.
+- **`installer/voice/qwen_dialog.py` – `QwenDialog`:** hält die Realtime-Sitzung auf einer eigenen asyncio-Schleife für
+  den threadbasierten Dienst. Verbindung beim Wake Word (während des Pieptons), Turn = geprüfte Äußerung senden und
+  committen, Werkzeugaufrufe an den Orchestrator, Antworttext satzweise an die lokale Stimme, Cloud-Audio verworfen.
+  Abbruch per Wake Word/Stopp sendet `response.cancel`; ein abgebrochener Turn schließt die Verbindung (keine
+  Ereignisse der alten Antwort im nächsten Turn); nach 60 s ohne Turn wird die Sitzung geschlossen.
+- **`friday_voice.py`:** Im Qwen-Modus beantwortet Qwen jede **geprüfte** Äußerung; Gäste ohne Sprecherprüfung bleiben
+  lokal (kein unbestätigtes Audio in die Cloud). Fehler (`auth`, `quota`, Netz …) → derselbe Satz geht über den
+  bisherigen lokalen Weg, Fehlerart steht in `status.qwen_error`. Von Qwen angelegte Aufträge bekommen denselben
+  Hintergrund-Wächter; Ergebnisse laufen über die Ansage-Warteschlange des Orchestrators und werden Qwen danach als
+  Daten mitgeteilt, damit Rückfragen dazu funktionieren. Bestehende Modi sind unverändert.
+- **Installer/Update:** `qwen_realtime.py`, `qwen_dialog.py`, `conversation.py` in `Get-VoiceSourcePaths` und
+  `update-voice-personas.ps1`; `websockets>=15,<17` in beiden Windows-Pip-Listen der Voice-Venv.
+- **Rückfall (LG-1.04, F-02/F-03):** Vor der lokalen Antwort sagt die lokale Stimme einmal je Ausfallart an, was los ist
+  (Schlüssel abgelehnt, Kontingent aufgebraucht, Drosselung, Modell nicht im Tarif, sonst „nicht erreichbar, ich nutze
+  die lokale Stimme“); nach einem erfolgreichen Turn wird der nächste Ausfall wieder angesagt. Neue Fehlerart `model`.
+- **Installer (GUI und Terminal):** Seite „Sprache & Stimme“ hat die Auswahlfelder „Gespräch“ (Lokal | Qwen Audio
+  Live-Gespräch) und „Alibaba-Region“ sowie ein verdecktes Feld für den Token-Plan-Schlüssel. Ist beim KI-Zugang Alibaba
+  Token Plan mit Schlüssel gewählt, wird dieser Schlüssel samt Region übernommen und das Feld darf leer bleiben. Der
+  Schlüssel liegt DPAPI-verschlüsselt in `configlibaba_tokenplan.key.dpapi`; `voice_setup.py` schreibt
+  `conversation_backend`, `qwen_region`, `qwen_key_file`. Ein Wechsel von Modus oder Region richtet den Sprachdienst neu ein.
+- **Dashboard (LG-3):** Einstellungen → Sprache hat den Abschnitt „Gespräch“ (Lokal | Qwen Audio Live-Gespräch) mit
+  Live-Status (aktiv, oder z. B. „Kontingent aufgebraucht – antwortet lokal“). Vertrag: `voice.conversationBackend`
+  (optional, Standard `local`) und `VoiceStatus.conversation {backend, keyConfigured, lastError}`. Der Wert läuft als
+  zehntes Laufzeitfeld über `POST /control/settings`; der Sprachdienst baut die Qwen-Sitzung vor dem Speichern auf (fehlt
+  oder ist der Schlüssel unlesbar → 422, alter Modus bleibt) und tauscht sie nach dem Schreiben ohne Neustart aus.
+  Ohne hinterlegten Schlüssel ist Qwen im Dashboard nicht wählbar und der Hinweis nennt den Installer-Weg. Alte
+  voice.json ohne `qwen_key_file` bekommen den Standardpfad.
+- **Stoppwort im Qwen-Modus:** Kurze Äußerungen (≤ 1,6 s) eines geprüften Sprechers prüft der Dienst zuerst lokal auf
+  das Stoppwort („Stopp“, „Abbrechen“ …) und bricht ab, statt sie als Gesprächsbeitrag an Qwen zu senden; längere gehen
+  direkt an Qwen (`STOP_PROBE_S`, Test `test_short_stop_word_cancels_instead_of_reaching_qwen`).
+- **Moduswechsel ohne Ansageverlust:** Beim Umschalten Lokal↔Qwen gibt der alte Orchestrator noch nicht gesprochene
+  Ergebnisse (`drain_announcements`) an die Ansage-Warteschlange zurück; der neue Modus spricht sie.
+- **GitHub-Update (W4):** Das Update kopierte neue Sprachmodule, installierte aber keine neuen Python-Pakete; auf einer
+  bestehenden Installation hätte `websockets` gefehlt. `update-voice-personas.ps1` installiert jetzt fehlende Pakete aus
+  `$requiredPackages` in die Voice-Venv (nur wenn `import` scheitert; Ergebnis `present|installed|failed` in `result.json`,
+  kein Abbruch des Updates). Zusätzlich meldet `QwenRealtimeSession.connect` ein fehlendes Paket als `RealtimeError
+  protocol`, damit der Turn lokal beantwortet wird statt abzustürzen. Test `voice-update-packages.Tests.ps1`
+  (inkl. Gleichstand der Versionsangabe mit dem Installer); Gegenproben rot.
+- **GitHub-Update robuster (W4):** pnpm-Aufrufe laufen über `Invoke-Pnpm` (vorher brach unter PowerShell 5.1 mit
+  `ErrorActionPreference = Stop` jede pnpm-Warnung auf stderr das Update ab – lokal belegt). Abhängigkeiten werden
+  auch bei Änderungen an `pnpm-workspace.yaml`/`.npmrc` neu installiert (`Test-DependencyInstallNeeded`); ein
+  fehlgeschlagenes `pnpm install` im Rollback wird jetzt als nicht bestätigter Rollback gemeldet. Die Update-Paketliste
+  deckt alle Voice-Pakete ab, die der Installer in beiden Sprachbetrieben installiert; der Test erzwingt den Gleichstand.
+  Tests `dashboard-update-pnpm.Tests.ps1`, `voice-update-packages.Tests.ps1`; Gegenproben rot.
+- **Installer-Kopie per Update (W4):** `change-voice.bat`/`change-assistant-name.bat` starten `install-friday.ps1` aus
+  `<Install>\installer`; das Update erneuerte diesen Ordner bisher nicht (neue Optionen wie Qwen Audio fehlten nach einem
+  GitHub-Update in „Sprache ändern“). `Sync-InstallerCopy` überträgt jetzt geänderte, neue und gelöschte Installer-Dateien
+  (Testdateien wie beim Erstinstaller ausgenommen) als letzten Schritt vor dem Revisionsmarker; lokal geänderte Dateien
+  bleiben erhalten und werden gemeldet; bei einem Fehler wird die Kopie aus `updates\installer-copy-<RunId>`
+  wiederhergestellt. Test `dashboard-update-installer-copy.Tests.ps1` (Git-Fixture, Fehlerfall); Gegenprobe rot.
+- **Noch nicht enthalten:** Schlüssel direkt im Dashboard eingeben, Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+  Transkript; Unterbrechen per Wake Word funktioniert).
+
+**Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
+Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
+PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
+`voice-native-capture`, alle `gui-*.Tests.ps1` (9) PASS.

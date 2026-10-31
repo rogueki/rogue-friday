@@ -89,6 +89,7 @@
     "voiceHistoryEnabled": false,
     "sttLanguage": "de",
     "sttModel": "small",
+    "conversationBackend": "local",
     "ttsVoice": "de_DE-thorsten",
     "ttsRate": 1,
     "inputDeviceId": null,

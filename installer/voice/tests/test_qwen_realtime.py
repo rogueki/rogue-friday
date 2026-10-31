@@ -33,6 +33,7 @@ class ConfigTest(unittest.TestCase):
 
     def test_classify_maps_server_messages(self):
         self.assertEqual(qwen_realtime.classify(1007, IDLE_REASON), "idle")
+        self.assertEqual(qwen_realtime.classify("InvalidParameter", "Model not exist."), "model")
         self.assertEqual(qwen_realtime.classify("InvalidApiKey", ""), "auth")
         self.assertEqual(qwen_realtime.classify("Throttling.RateQuota", ""), "rate")
         self.assertEqual(qwen_realtime.classify("Arrearage", ""), "quota")
@@ -59,6 +60,17 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(qwen_realtime.load_key("x"), "k")
         load.assert_called_once_with("x", linux_file=qwen_realtime.LINUX_SECRET_FILE,
                                      label="Alibaba-Token-Plan")
+
+
+class MissingWebsocketsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_package_is_a_realtime_error(self):
+        # An install updated before websockets was added must get the local fallback, not an ImportError.
+        session = QwenRealtimeSession(KEY, instructions=INSTRUCTIONS)
+        with patch.dict(sys.modules, {"websockets.asyncio.client": None}):
+            with self.assertRaises(RealtimeError) as raised:
+                await session.connect()
+        self.assertEqual(raised.exception.kind, "protocol")
+        self.assertFalse(session.connected)
 
 
 class RealtimeSessionTest(unittest.IsolatedAsyncioTestCase):

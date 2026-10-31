@@ -66,6 +66,8 @@ jobs:
             installer/voice/tests/test_calendar_voice.py \
             installer/voice/tests/test_domain_task_voice.py \
             installer/voice/tests/test_conversation.py \
+            installer/voice/tests/test_qwen_dialog.py \
+            installer/voice/tests/test_qwen_voice_wiring.py \
             installer/voice/tests/test_headless_compat.py \
             installer/voice/tests/test_speech_redaction.py \
             installer/voice/tests/test_apply_audio_rollback.py \

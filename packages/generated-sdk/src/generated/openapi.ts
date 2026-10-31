@@ -11314,6 +11314,11 @@ export interface components {
         };
         /** VoiceSettings */
         VoiceSettings: {
+            /**
+             * @description Who leads the spoken conversation: the local pipeline or Qwen Audio over the Alibaba Token Plan (wake word, speaker check and voice stay local).
+             * @enum {string}
+             */
+            conversationBackend?: "local" | "qwen";
             inputDeviceId: string | null;
             outputDeviceId: string | null;
             pushToTalkKey: string;
@@ -11343,6 +11348,14 @@ export interface components {
                 host: null | ("windows" | "linux");
                 /** @enum {string} */
                 transport: "device" | "browser";
+            };
+            /** @description Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; lastError is the failure kind of the last Qwen turn (null after a successful turn). */
+            conversation?: {
+                /** @enum {string} */
+                backend: "local" | "qwen";
+                keyConfigured: boolean;
+                /** @enum {string|null} */
+                lastError: "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null;
             };
             focusMode: boolean;
             localModel: {

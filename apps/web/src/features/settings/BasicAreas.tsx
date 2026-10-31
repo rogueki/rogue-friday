@@ -17,6 +17,7 @@ import { DEFAULT_ASSISTANT_NAME } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { WakeEnrollment } from "./WakeEnrollment";
 import { SttModelsControl } from "./SttModelsControl";
+import { ConversationBackendControl } from "./ConversationBackendControl";
 import { voiceDeviceOptions } from "./voiceDeviceOptions";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
@@ -301,6 +302,7 @@ export function VoiceArea() {
             ["storeRawRecordings", t("settings.voice.raw")], ["voiceHistoryEnabled", t("settings.voice.history")],
             ["ttsRate", t("settings.voice.ttsRate")],
             ["sttLanguage", "Erkennungssprache"], ["sttModel", "Whisper-Modell"],
+            ["conversationBackend", "Gesprächsmodus"],
           ] as const).map(([field, label]) => <li key={field}>{label}: {
             integration.data.data.settings[field]?.verification === "verified" ? "Laufzeit bestätigt" : "Wirkung nicht bestätigt"
           }</li>)}
@@ -315,6 +317,10 @@ export function VoiceArea() {
           <TextField label={t("settings.voice.ptt")} value={value.pushToTalkKey} disabled={readOnly} onChange={(event) => update({ pushToTalkKey: event.target.value })} />
           <Switch label={t("settings.voice.speaker")} description={t("settings.voice.speakerDesc")} checked={value.speakerVerificationRequired} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(speakerVerificationRequired) => update({ speakerVerificationRequired })} />
         </FieldGrid>
+      </Section>
+      <Section title="Gespräch" description="Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf diesem PC. Fällt Qwen aus, antwortet der Assistent lokal.">
+        <ConversationBackendControl value={value.conversationBackend ?? "local"} status={voiceStatus.data?.data.conversation}
+          readOnly={readOnly} onSelect={(conversationBackend) => update({ conversationBackend })} />
       </Section>
       <Section title="Spracherkennung" description="Ein Modellwechsel lädt ausschließlich ein bereits lokal vorhandenes Whisper-Modell. Fehlt es oder ist Cloud-Erkennung aktiv, bleibt das bisherige Modell erhalten.">
         <FieldGrid>

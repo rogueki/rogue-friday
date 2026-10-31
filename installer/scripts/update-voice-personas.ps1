@@ -21,11 +21,26 @@ $files = @(
     'voice\content_studio_voice.py', 'voice\cuda_dlls.py', 'voice\elevenlabs_cloud.py', 'voice\enroll_record.py',
     'voice\film_filter.py', 'voice\friday_voice.py', 'voice\mail_voice.py', 'voice\research_voice.py', 'voice\domain_task_voice.py',
     'voice\model_routing.py', 'voice\personal_wake.py', 'voice\powerpoint_voice.py', 'voice\runtime_settings.py', 'voice\speech_redaction.py',
-    'voice\qwen_tts.py', 'voice\skills_onboarding_voice.py', 'voice\stt_models.py', 'voice\voice_persona.py', 'voice\wake_enrollment.py',
+    'voice\qwen_tts.py', 'voice\qwen_realtime.py', 'voice\qwen_dialog.py', 'voice\conversation.py', 'voice\skills_onboarding_voice.py', 'voice\stt_models.py', 'voice\voice_persona.py', 'voice\wake_enrollment.py',
     'voice\voice_runtime_paths.py', 'voice\prepare_voice_pairs.py',
     'installer\fast_tts\server.py', 'installer\fast_tts\install_wsl.sh', 'installer\fast_tts\update_personas.sh',
     'installer\voice_models\friday_ref.wav', 'installer\voice_models\friday_ref.txt',
     'installer\voice_models\jarvis_ref.wav', 'installer\voice_models\jarvis_ref.txt'
+)
+# Gemeinsame Pakete beider Sprachbetriebe (install-friday.ps1); das Update installiert nur, was fehlt.
+# Modusabhaengige Grosspakete (faster-whisper, CUDA, piper) bleiben beim Installer.
+$requiredPackages = @(
+    @{ Module='openwakeword'; Spec='openwakeword' },
+    @{ Module='speechbrain'; Spec='speechbrain' },
+    @{ Module='silero_vad'; Spec='silero-vad' },
+    @{ Module='sounddevice'; Spec='sounddevice' },
+    @{ Module='soundfile'; Spec='soundfile' },
+    @{ Module='scipy'; Spec='scipy' },
+    @{ Module='sklearn'; Spec='scikit-learn' },
+    @{ Module='huggingface_hub'; Spec='huggingface_hub' },
+    @{ Module='tzdata'; Spec='tzdata' },
+    @{ Module='av'; Spec='av' },
+    @{ Module='websockets'; Spec='websockets>=15,<17' }
 )
 $defaults = @(
     @{ Src='installer\voice_models\friday_ref.wav'; Dst='config\voice-references\friday-female-reference.wav' },
@@ -117,6 +132,15 @@ function Invoke-NativeCaptured([string]$executable, [string[]]$arguments) {
     }
     return [pscustomobject]@{ ExitCode = $exitCode; Lines = $lines }
 }
+function Install-MissingVoicePackages([string]$python, [object[]]$packages) {
+    foreach ($package in $packages) {
+        $probe = Invoke-NativeCaptured $python @('-c', "import $($package.Module)")
+        if ($probe.ExitCode -eq 0) { [pscustomobject]@{ name=$package.Module; result='present' }; continue }
+        $install = Invoke-NativeCaptured $python @('-m', 'pip', 'install', '--disable-pip-version-check', '--no-input', '-q', $package.Spec)
+        # Ohne das Paket faellt nur Qwen Audio auf die lokale Antwort zurueck; deshalb kein Abbruch des ganzen Updates.
+        [pscustomobject]@{ name=$package.Module; result=$(if ($install.ExitCode -eq 0) { 'installed' } else { 'failed' }) }
+    }
+}
 function Wsl-Path([string]$path, [string]$distro, [string]$user) {
     $result = Invoke-NativeCaptured 'wsl.exe' @('-d', $distro, '-u', $user, '--exec', 'wslpath', '-a', '-u', $path)
     $translated = @($result.Lines | Where-Object { $_.StartsWith('/') } | Select-Object -First 1)
@@ -205,7 +229,7 @@ if ($Mode -eq 'Rollback') {
 if (Test-Path -LiteralPath $resultFile -PathType Leaf) { throw 'Voice-Update-Lauf-ID wurde bereits verwendet.' }
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Installationsordner fehlt.' }
 Assert-PathSafe $run $root
-$state = [pscustomobject]@{ status='starting'; voice=''; wasRunning=$false; wsl=$false; wslAttempted=$false; distro=''; user=''; files=@(); windowsChanged=$false; wslChanged=$false; memoryAttempted=$false }
+$state = [pscustomobject]@{ status='starting'; voice=''; wasRunning=$false; wsl=$false; wslAttempted=$false; distro=''; user=''; files=@(); packages=@(); windowsChanged=$false; wslChanged=$false; memoryAttempted=$false }
 $configured = Test-Path -LiteralPath (Join-Path $root 'config\voice.json') -PathType Leaf
 if (-not $configured) { $files = @($files | Where-Object { $_ -like 'installer\voice_models\*' }) }
 if ($configured) {
@@ -282,6 +306,8 @@ try {
         if (Should-CopyDefault $default) { New-Item -ItemType Directory -Force (Split-Path $to -Parent) | Out-Null; Copy-Item -LiteralPath (Join-Path $source $default.Src) -Destination $to }
     }
     $state.windowsChanged = $true
+    $venvPython = Join-Path $root 'voice\.venv\Scripts\python.exe'
+    if (Test-Path -LiteralPath $venvPython -PathType Leaf) { $state.packages = @(Install-MissingVoicePackages $venvPython $requiredPackages) }
     if (-not $configured) { $state.status='runtimeNotConfigured'; Write-Result $state; return }
     if ($state.wsl) {
         $python = Join-Path $root 'voice\.venv\Scripts\python.exe'

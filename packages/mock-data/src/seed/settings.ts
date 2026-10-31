@@ -143,6 +143,7 @@ export function buildSettings(ctx: SeedContext): Settings {
       voiceHistoryEnabled: true,
       sttLanguage: "de",
       sttModel: "small",
+      conversationBackend: "local",
       ttsVoice: "de_DE-thorsten-medium",
       ttsRate: 1,
       inputDeviceId: null,

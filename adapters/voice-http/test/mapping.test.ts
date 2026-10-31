@@ -321,6 +321,7 @@ describe("speaker verification from the service (DASH-11.03)", () => {
     voiceHistoryEnabled: true,
     sttLanguage: "de",
     sttModel: null,
+    conversationBackend: "local",
     ttsRate: 1,
   });
 
@@ -435,5 +436,22 @@ describe("voice artifacts (DASH-12.02)", () => {
     }));
     expect(status.wakeCalibration).toBeUndefined();
     expect(status.outputVoice).toBeUndefined();
+  });
+});
+
+describe("conversation", () => {
+  const raw = (patch: Record<string, unknown>): RawVoiceStatus =>
+    parseRawVoiceStatus({ ...makeVoiceStatus(), ...patch });
+
+  it("maps the conversation backend, key state and last error", () => {
+    const status = map(raw({ conversation: { backend: "qwen", key_configured: true, last_error: "quota" } }));
+    expect(status.conversation).toEqual({ backend: "qwen", keyConfigured: true, lastError: "quota" });
+  });
+
+  it("drops an invalid conversation block", () => {
+    expect(map(raw({ conversation: { backend: "cloud", key_configured: true, last_error: null } })).conversation)
+      .toBeUndefined();
+    expect(map(raw({ conversation: { backend: "qwen", key_configured: true, last_error: "boom" } })).conversation)
+      .toBeUndefined();
   });
 });

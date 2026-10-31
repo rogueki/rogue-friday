@@ -11,7 +11,7 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 # --- 1. Freitextfelder: nur die erlaubten Namen
 $allowedText = @('installRoot', 'distroLocation', 'voiceReference', 'elevenlabsKey', 'assistantName', 'wakePhrase',
-                 'ownerName', 'modelBaseUrl', 'providerKey', 'linuxUser', 'linuxPassword', 'linuxPasswordRepeat')
+                 'ownerName', 'modelBaseUrl', 'providerKey', 'linuxUser', 'linuxPassword', 'linuxPasswordRepeat', 'qwenAudioKey')
 $textFields = @([regex]::Matches($gui, "Add-Row \`$[A-Za-z]+\.Panel '([A-Za-z]+)'") | ForEach-Object { $_.Groups[1].Value })
 Assert-True ($textFields.Count -ge 10) "Nur $($textFields.Count) Textfelder gefunden; der Suchausdruck passt nicht mehr."
 foreach ($name in $textFields) { Assert-True ($allowedText -contains $name) "Freitextfeld '$name' ist nicht erlaubt; Auswahl, Haken oder Durchsuchen verwenden." }
@@ -27,7 +27,7 @@ Assert-True ($gui -match 'OpenFileDialog') 'Die Stimmreferenz braucht einen Date
 
 # --- 3. Auswahlfelder
 foreach ($name in @('distroName', 'voiceMode', 'voiceChoice', 'voiceId', 'inputDevice', 'outputDevice', 'address',
-                    'character', 'length', 'providerChoice', 'alibabaRegion', 'modelName')) {
+                    'character', 'length', 'providerChoice', 'alibabaRegion', 'modelName', 'conversationBackend', 'qwenRegion')) {
     Assert-True ($gui -match "Add-Choice \`$[A-Za-z]+\.Panel '$name'") "Auswahlfeld '$name' fehlt."
 }
 foreach ($label in @('OpenAI', 'Anthropic (Claude)', 'Alibaba Cloud Qwen (Token Plan)', 'Kimi Coding (Moonshot)', 'DeepSeek', 'OpenRouter')) {
@@ -41,7 +41,7 @@ Assert-True ($gui -match "api\.elevenlabs\.io/v1/voices") 'ElevenLabs-Stimmen we
 Assert-True ($gui -notmatch "Kimi-API-Schlüssel fehlt") 'Der Kimi-Schlüssel ist wieder für jeden Anbieter Pflicht.'
 Assert-True ($gui -match 'KeyLabel\) fehlt\.') 'Der Schlüssel des gewählten Anbieters wird nicht verlangt.'
 Assert-True ($gui -match "Server-Adresse: vollständige URL") 'Die Adresse eines eigenen Servers wird nicht geprüft.'
-foreach ($secret in @('openaiKey', 'anthropicKey', 'customKey', 'kimiKey', 'elevenlabsKey', 'linuxPassword')) {
+foreach ($secret in @('openaiKey', 'anthropicKey', 'customKey', 'kimiKey', 'elevenlabsKey', 'qwenAudioKey', 'linuxPassword')) {
     Assert-True ($gui -match "\b$secret = ") "Zugangsdaten '$secret' fehlen im Übergabeobjekt."
 }
 

@@ -43,12 +43,12 @@ if ($GuiMode) {
     finally { Remove-Item -LiteralPath $configFull -Force -ErrorAction SilentlyContinue }
     if ($GuiConfig.protocol -ne 1 -or -not $GuiConfig.answers -or -not $GuiConfig.secrets) { throw 'Unbekanntes GUI-Protokoll.' }
     foreach ($key in @('assistantName','wakePhrase','ownerName','about','linuxUser','voiceMode','voiceChoice',
-                      'voiceReference','voiceId','inputDevice','outputDevice','address','character','length','migrateLegacy','disableLegacy',
+                      'voiceReference','voiceId','conversationBackend','qwenRegion','inputDevice','outputDevice','address','character','length','migrateLegacy','disableLegacy',
                       'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
                       'repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
         if (-not $GuiConfig.answers.PSObject.Properties[$key]) { throw "GUI-Antwort fehlt: $key" }
     }
-    foreach ($key in @('voiceMode','length')) {
+    foreach ($key in @('voiceMode','length','conversationBackend','qwenRegion')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2')) { throw "Ungültige GUI-Auswahl: $key" }
     }
     # Drei Stimmen: die dritte ist die eigene MP3/WAV. Ob die Datei vorliegt, prueft der
@@ -1269,7 +1269,7 @@ if ($GuiMode -and -not (IsDone 'voicepython')) {
     # nonsecret answers so a WSL reboot can restore decisions made in the wizard.
     $State.gui_pending = @{}
     foreach ($key in @('ownerName','about','address','character','length','inputDevice','outputDevice',
-                      'voiceMode','voiceChoice','voiceReference','voiceId','migrateLegacy','disableLegacy',
+                      'voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend','qwenRegion','migrateLegacy','disableLegacy',
                       'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
                       'repeatEnrollment','openBrowser')) {
         $State.gui_pending[$key] = [string]$GuiConfig.answers.$key
@@ -1399,6 +1399,28 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
         if ($voiceId -notmatch '^[A-Za-z0-9]{10,64}$') { Stop-Install 'ElevenLabs Voice ID ist ungueltig.' }
         $State.elevenlabs_voice_id = $voiceId
     }
+    Info 'Gespräch: 1  Lokal   2  Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet nötig; Wake Word, Sprecherprüfung und Stimme bleiben lokal)'
+    $defaultConversation = if ($State.conversation_backend -eq 'qwen') { '2' } else { '1' }
+    do {
+        $answer = $(if ($GuiMode) { Gui-Answer 'conversationBackend' } else { Read-Host "  Gespräch [1/2, Standard $defaultConversation]" }).Trim()
+        if (-not $answer) { $answer = $defaultConversation }
+    } while ($answer -notin @('1', '2'))
+    $newConversation = if ($answer -eq '2') { 'qwen' } else { 'local' }
+    $newRegion = if ($State.qwen_region -eq 'cn-beijing') { 'cn-beijing' } else { 'ap-southeast-1' }
+    if ($newConversation -eq 'qwen') {
+        $defaultRegion = if ($newRegion -eq 'cn-beijing') { '2' } else { '1' }
+        do {
+            $answer = $(if ($GuiMode) { Gui-Answer 'qwenRegion' } else { Read-Host "  Alibaba-Region: 1 International (Singapur), 2 China (Peking) [Standard $defaultRegion]" }).Trim()
+            if (-not $answer) { $answer = $defaultRegion }
+        } while ($answer -notin @('1', '2'))
+        $newRegion = if ($answer -eq '2') { 'cn-beijing' } else { 'ap-southeast-1' }
+    }
+    if ([string]$State.conversation_backend -ne $newConversation -or [string]$State.qwen_region -ne $newRegion) {
+        # voice.json entsteht im Schritt voicepython; danach muss der Sprachdienst neu starten.
+        $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
+    }
+    $State.conversation_backend = $newConversation
+    $State.qwen_region = $newRegion
     Save-State
 }
 
@@ -2017,7 +2039,7 @@ if (-not (IsDone 'voicepython')) {
     }
     if ($State.voice_mode -eq 'elevenlabs') {
         if ((Invoke-Pip $vpy @('openwakeword', 'speechbrain', 'silero-vad', 'sounddevice', 'soundfile', 'scipy',
-                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av', 'websockets>=15,<17') 'voice') -ne 0) {
             Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
         }
         $secretPath = "$Root\config\elevenlabs_api.key.dpapi"
@@ -2031,8 +2053,18 @@ if (-not (IsDone 'voicepython')) {
     } else {
         if ((Invoke-Pip $vpy @('faster-whisper', 'nvidia-cublas-cu12', 'nvidia-cudnn-cu12==9.*', 'openwakeword',
                                'speechbrain', 'silero-vad', 'piper-tts', 'sounddevice', 'soundfile', 'scipy',
-                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av', 'websockets>=15,<17') 'voice') -ne 0) {
             Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
+        }
+    }
+    if ($State.conversation_backend -eq 'qwen') {
+        $qwenSecretPath = "$Root\config\alibaba_tokenplan.key.dpapi"
+        if (-not (Test-Path -LiteralPath $qwenSecretPath -PathType Leaf)) {
+            Info 'Alibaba-Token-Plan-Schlüssel für Qwen Audio wird verschlüsselt für diesen Windows-Benutzer gespeichert.'
+            $secret = if ($GuiMode) { Gui-Secret 'qwenAudioKey' } else { Read-Host '  Alibaba-Token-Plan-Schlüssel' -AsSecureString }
+            if ($secret.Length -eq 0) { Stop-Install 'Alibaba-Token-Plan-Schlüssel für Qwen Audio fehlt.' }
+            $secret | ConvertFrom-SecureString | Set-Content -LiteralPath $qwenSecretPath -Encoding Ascii
+            $secret.Dispose()
         }
     }
     if ($LASTEXITCODE -ne 0) { Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip.log)." }
@@ -2041,6 +2073,9 @@ if (-not (IsDone 'voicepython')) {
                    '--qwen-port', [string]$Ports.Qwen, '--hermes-port', [string]$Ports.HermesApi,
                    '--voice-port', [string]$Ports.Voice)
     if ($State.voice_mode -eq 'elevenlabs') { $voiceArgs += @('--elevenlabs-voice-id', $State.elevenlabs_voice_id) }
+    if ($State.conversation_backend -eq 'qwen') {
+        $voiceArgs += @('--conversation-backend', 'qwen', '--qwen-region', [string]$State.qwen_region)
+    }
     if ($State.voice_reference -and $State.voice_mode -eq 'local') { $voiceArgs += @('--voice-reference', $State.voice_reference) }
     $ttsPort = [int]$Ports.Voice + 1
     if ($ttsPort -gt 65535) { Stop-Install 'Kein freier TTS-Port nach dem Sprachdienst-Port vorhanden.' }
