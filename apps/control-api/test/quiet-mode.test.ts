@@ -1,4 +1,7 @@
 import { expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { startTestApi } from "./helpers";
 
 const path = "/api/v1/quiet-mode";
@@ -79,4 +82,27 @@ it("records a new pending approval for the summary while quiet, but not a draft"
     await new Promise((resolve) => setImmediate(resolve));
     expect(runtime.quietMode.summary().items).toMatchObject([{ class: "approvals", title: "Nachricht versenden", delivery: "skipped" }]);
   } finally { await api.close(); }
+});
+
+it("keeps a temporary quiet mode across a restart (acceptance case 23)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "friday-api-"));
+  const first = await startTestApi({ dir, dataMode: "mock", authMode: "local", ownerPassword: "synthetic-test-password" });
+  let until: string;
+  try {
+    const headers = { authorization: `Bearer ${first.runtime.voiceBridgeKey.toString("base64")}` };
+    until = new Date(first.runtime.nowMs() + 60 * 60_000).toISOString();
+    const set = await first.client().request("PUT", path, { body: { until, level: "voice_off" }, headers });
+    expect(set.statusCode, set.body).toBe(200);
+  } finally { await first.close(); }
+  const second = await startTestApi({ dir, dataMode: "mock", authMode: "local", ownerPassword: "synthetic-test-password" });
+  try {
+    const headers = { authorization: `Bearer ${second.runtime.voiceBridgeKey.toString("base64")}` };
+    const read = await second.client().get(path, { headers });
+    expect(read.statusCode, read.body).toBe(200);
+    expect(read.json().data).toMatchObject({ active: true, source: "temporary", level: "voice_off" });
+    expect(Date.parse(read.json().data.temporaryUntil)).toBe(Date.parse(until));
+  } finally {
+    await second.close();
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
 });
