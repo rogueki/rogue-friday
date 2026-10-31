@@ -76,6 +76,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   updateSettings: "settings.update",
   setVoiceConversationKey: "settings.update",
   adoptVoiceConversationKeyFromBrain: "settings.update",
+  checkVoiceConversationKey: "settings.update",
   setQuietMode: "settings.update",
   clearQuietMode: "settings.update",
   recordQuietNotice: "settings.update",

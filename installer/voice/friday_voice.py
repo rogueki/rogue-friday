@@ -1930,6 +1930,22 @@ class VoiceService:
                 self.status["qwen_error"] = "auth"
         return {"keyConfigured": True}
 
+    def check_conversation_key(self) -> dict:
+        """Checks the stored key with one short Qwen session; changes nothing and never returns the key."""
+        try:
+            key = qwen_realtime.load_key(self.cfg["qwen_key_file"])
+        except (KeyError, RuntimeError, OSError):
+            return {"ok": False, "reason": "missing"}
+        try:
+            qwen_realtime.verify_key(key, region=self.cfg.get("qwen_region", "ap-southeast-1"))
+        except qwen_realtime.RealtimeError as exc:
+            log_event(event="qwen_key_check", ok=False, kind=exc.kind)
+            return {"ok": False, "reason": exc.kind}
+        finally:
+            key = None
+        log_event(event="qwen_key_check", ok=True)
+        return {"ok": True, "reason": None}
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2583,10 +2599,13 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/conversation-key", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
+                    return
+                if self.path == "/control/conversation-key/check":
+                    self._json(service.check_conversation_key())
                     return
                 if self.path == "/control/conversation-key":
                     try:

@@ -1477,6 +1477,72 @@ def test_conversation_key_endpoint_verifies_before_storing(monkeypatch, tmp_path
     assert "good-key-1234" not in repr(events)
 
 
+def test_conversation_key_check_reports_the_stored_key_without_changing_it(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0, snapshot=lambda: {})
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-conversation-key-check"
+    svc.cfg.update(wake_phrase=svc.phrase, conversation_backend="local")
+    svc.cfg["qwen_key_file"] = str(tmp_path / "config" / "alibaba_tokenplan.key.dpapi")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    svc.conversation = None
+    svc.qwen_dialog = None
+    svc.domain_tasks = object()
+    stored = []
+    monkeypatch.setattr(jv.qwen_realtime, "save_key", lambda path, key: stored.append((path, key)))
+    events = []
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: events.append(kwargs))
+    state = {"error": RuntimeError("missing")}
+
+    def load_key(path):
+        if state["error"] is not None:
+            raise state["error"]
+        return "sk-sp-STORED-0123"
+
+    checked = []
+
+    def verify_key(key, **kwargs):
+        checked.append((key, kwargs["region"]))
+        if len(checked) == 1:
+            raise jv.qwen_realtime.RealtimeError("quota", "x")
+
+    monkeypatch.setattr(jv.qwen_realtime, "load_key", load_key)
+    monkeypatch.setattr(jv.qwen_realtime, "verify_key", verify_key)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/conversation-key/check"
+
+    def post(authenticated=True):
+        request = urllib.request.Request(url, data=b"{}", method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    assert post(False)[0] == 401
+    assert post() == (200, {"ok": False, "reason": "missing"})
+    state["error"] = None
+    assert post() == (200, {"ok": False, "reason": "quota"})
+    assert checked == [("sk-sp-STORED-0123", svc.cfg.get("qwen_region", "ap-southeast-1"))]
+    assert post() == (200, {"ok": True, "reason": None})
+    assert len(checked) == 2
+    assert stored == []
+    assert "sk-sp-STORED-0123" not in json.dumps(events)
+
+
 class ScriptedVad:
     """Speech probability per 32 ms frame from a script; silence once the script is used up."""
 

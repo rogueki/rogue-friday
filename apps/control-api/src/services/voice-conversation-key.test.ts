@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
-import { adoptBrainConversationKey, setConversationKey } from "./voice-conversation-key";
+import { adoptBrainConversationKey, checkConversationKey, setConversationKey } from "./voice-conversation-key";
 
 vi.mock("./voice-settings", () => ({
   readRuntimeVoiceSettings: vi.fn(async () => ({
@@ -86,6 +86,34 @@ describe("brain key for Qwen Audio (LG-4.05)", () => {
     const message = settlement instanceof Error ? settlement.message : "";
     expect(message).toContain("Festlandchina (Peking)");
     expect(message).not.toContain("sk-sp-BRAINKEY-0123");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("stored key check (LG-5.02)", () => {
+  it("reports the stored key check and posts to the local voice service", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, reason: "quota" })));
+    await expect(checkConversationKey(runtime)).resolves.toEqual({ ok: false, reason: "quota" });
+    const [target, init] = fetcher.mock.calls[0] ?? [];
+    expect(String(target).endsWith("/control/conversation-key/check")).toBe(true);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBe("{}");
+  });
+
+  it("reports a working stored key", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, reason: null })));
+    await expect(checkConversationKey(runtime)).resolves.toEqual({ ok: true, reason: null });
+  });
+
+  it("rejects an unknown check reason", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, reason: "secret" })));
+    await expect(checkConversationKey(runtime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+
+  it("refuses a non-local voice service address without calling it", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch");
+    await expect(checkConversationKey(foreignRuntime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

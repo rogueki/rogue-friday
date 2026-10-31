@@ -1601,6 +1601,11 @@ entfernt) rot; pyflakes ohne Befund.
   Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
   Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
   (Filter aus, Zeile aus) je rot.
+- **„Verbindung prüfen“ für den gespeicherten Qwen-Schlüssel (LG-5.02):** Neben „Schlüssel ersetzen“. `POST
+  /api/v1/voice/conversation-key/check` (Owner, CSRF) → Sprachdienst `/control/conversation-key/check` lädt den gespeicherten
+  Schlüssel, öffnet eine kurze Qwen-Sitzung mit der gespeicherten Region und meldet `ok` oder den Grund (`missing`, `auth`,
+  `quota`, …). Nichts wird gespeichert oder umgeschaltet, der Schlüssel verlässt den Sprachdienst nicht (Test). Neues Schema
+  `VoiceConversationKeyCheck`; 305 Operationen. Der Guthabenstand aus LG-5.02 entfällt (P0-08).
 - **Schlüssel des Denkmodells für Qwen Audio übernehmen (LG-4.05):** Neuer Knopf unter Einstellungen → Sprache → Gespräch.
   `POST /api/v1/voice/conversation-key/from-brain` (Owner, CSRF, ohne Body): Die Hermes-Bridge liest in WSL mit der neuen Aktion
   `brain-qwen-key` die Basis-URL (`model.base_url`, sonst `OPENAI_BASE_URL`) und den Schlüssel (`model.api_key`, sonst

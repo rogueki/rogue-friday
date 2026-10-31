@@ -4973,6 +4973,26 @@ paths:
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
       x-required-role: owner
+  /api/v1/voice/conversation-key/check:
+    post:
+      operationId: checkVoiceConversationKey
+      tags: [voice]
+      summary: Check the stored Qwen Audio key against the saved region
+      description: Windows installs only. Opens one short Qwen Audio session with the stored key and reports the result; nothing is stored or changed and the key never leaves the voice service.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceConversationKeyCheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
   /api/v1/voice/stt-models/cancel:
     post:
       operationId: cancelVoiceSttModelDownload
@@ -10890,6 +10910,8 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-request.schema.json
     VoiceConversationKeyStatus:
       $ref: ../schemas/voice/voice-conversation-key-status.schema.json
+    VoiceConversationKeyCheck:
+      $ref: ../schemas/voice/voice-conversation-key-check.schema.json
     VoiceDomainTaskReplyRequest:
       $ref: ../schemas/tasks/voice-domain-task-reply-request.schema.json
     VoiceReadRequest:

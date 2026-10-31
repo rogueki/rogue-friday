@@ -1260,6 +1260,7 @@ export interface FridayModelMap {
   VoiceCodingRunRequest: VoiceCodingRunRequest;
   VoiceConnectedCalendarConfirm: VoiceConnectedCalendarConfirm;
   VoiceConnectedCalendarRequest: VoiceConnectedCalendarRequest;
+  VoiceConversationKeyCheck: VoiceConversationKeyCheck;
   VoiceConversationKeyRequest: VoiceConversationKeyRequest;
   VoiceConversationKeyStatus: VoiceConversationKeyStatus;
   VoiceDevice: VoiceDevice;
@@ -6811,6 +6812,14 @@ export interface VoiceConnectedCalendarRequest {
   start?: string;
   end?: string;
   timeZone?: string;
+}
+/**
+ * Result of a live check of the stored Qwen Audio key against the saved region. reason is null when ok is true.
+ */
+export interface VoiceConversationKeyCheck {
+  contractVersion: ContractVersion;
+  ok: boolean;
+  reason: "missing" | "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null;
 }
 /**
  * Alibaba Token Plan key for the Qwen Audio conversation. The voice service checks it against Qwen before storing it per Windows user (DPAPI); it is never returned or logged.
