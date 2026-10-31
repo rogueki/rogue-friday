@@ -25,6 +25,7 @@ args.add_argument("--qwen-port", type=int)
 args.add_argument("--hermes-port", type=int)
 args.add_argument("--voice-port", type=int)
 args.add_argument("--conversation-backend", choices=("local", "qwen"), default="local")
+args.add_argument("--qwen-consent", action="store_true")
 args.add_argument("--qwen-region", choices=("ap-southeast-1", "cn-beijing"), default="ap-southeast-1")
 options = args.parse_args()
 for port in (options.qwen_port, options.hermes_port, options.voice_port):
@@ -282,6 +283,8 @@ cfg.update({"voice_mode": options.voice_mode, "elevenlabs_voice_id": options.ele
             "qwen_key_file": os.path.join(CONFIG, "alibaba_tokenplan.key.dpapi"),
             "tts_voice": voice, "tts_film_filter": film_filter,
             "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
+if options.qwen_consent:
+    cfg["qwen_consent"] = True
 if options.voice_mode == "elevenlabs":
     saved_ids = cfg.get("elevenlabs_voice_ids")
     ids = dict(saved_ids) if isinstance(saved_ids, dict) else {}

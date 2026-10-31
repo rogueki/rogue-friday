@@ -96,6 +96,7 @@ function isConversation(value: unknown): value is NonNullable<RawVoiceStatus["co
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
   return (item.backend === "local" || item.backend === "qwen") && typeof item.key_configured === "boolean" &&
+    typeof item.consent === "boolean" &&
     (item.last_error === null || CONVERSATION_ERRORS.includes(String(item.last_error)));
 }
 
@@ -193,6 +194,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
         (typeof (raw.runtime_settings as Record<string, unknown>).sttModel === "string" &&
           /^[a-z0-9][a-z0-9.-]{0,63}$/.test((raw.runtime_settings as Record<string, string>).sttModel ?? ""))) &&
       ["local", "qwen"].includes(String((raw.runtime_settings as Record<string, unknown>).conversationBackend)) &&
+      typeof (raw.runtime_settings as Record<string, unknown>).conversationConsent === "boolean" &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"
@@ -328,7 +330,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       voiceHistoryEnabled: raw.runtime_settings?.voiceHistoryEnabled ?? true,
       ...(raw.conversation
         ? { conversation: { backend: raw.conversation.backend, keyConfigured: raw.conversation.key_configured,
-            lastError: raw.conversation.last_error } }
+            consent: raw.conversation.consent, lastError: raw.conversation.last_error } }
         : {}),
     };
   },

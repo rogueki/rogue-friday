@@ -4,7 +4,7 @@ import { applyVoiceSettings, readRuntimeVoiceSettings, type RuntimeVoiceSettings
 
 const requested: RuntimeVoiceSettings = {
   wakeWordEnabled: false, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", conversationBackend: "local", ttsRate: 1.25,
+  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1.25,
 };
 const runtime = {
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
@@ -54,6 +54,15 @@ describe("voice settings bridge", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
       service_started_at: "process-A", config_revision: "rev-A",
       runtime_settings: { ...requested, conversationBackend: "cloud" },
+    })));
+    await expect(readRuntimeVoiceSettings(runtime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+
+  it("rejects a runtime readback without conversation consent", async () => {
+    const { conversationConsent: _consent, ...withoutConsent } = requested;
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+      service_started_at: "process-A", config_revision: "rev-A",
+      runtime_settings: withoutConsent,
     })));
     await expect(readRuntimeVoiceSettings(runtime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
   });

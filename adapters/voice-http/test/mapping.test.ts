@@ -322,6 +322,7 @@ describe("speaker verification from the service (DASH-11.03)", () => {
     sttLanguage: "de",
     sttModel: null,
     conversationBackend: "local",
+    conversationConsent: false,
     ttsRate: 1,
   });
 
@@ -443,15 +444,20 @@ describe("conversation", () => {
   const raw = (patch: Record<string, unknown>): RawVoiceStatus =>
     parseRawVoiceStatus({ ...makeVoiceStatus(), ...patch });
 
-  it("maps the conversation backend, key state and last error", () => {
-    const status = map(raw({ conversation: { backend: "qwen", key_configured: true, last_error: "quota" } }));
-    expect(status.conversation).toEqual({ backend: "qwen", keyConfigured: true, lastError: "quota" });
+  it("maps the conversation backend, consent, key state and last error", () => {
+    const status = map(raw({ conversation: { backend: "qwen", key_configured: true, consent: true, last_error: "quota" } }));
+    expect(status.conversation).toEqual({ backend: "qwen", keyConfigured: true, consent: true, lastError: "quota" });
   });
 
   it("drops an invalid conversation block", () => {
-    expect(map(raw({ conversation: { backend: "cloud", key_configured: true, last_error: null } })).conversation)
+    expect(map(raw({ conversation: { backend: "cloud", key_configured: true, consent: false, last_error: null } })).conversation)
       .toBeUndefined();
-    expect(map(raw({ conversation: { backend: "qwen", key_configured: true, last_error: "boom" } })).conversation)
+    expect(map(raw({ conversation: { backend: "qwen", key_configured: true, consent: false, last_error: "boom" } })).conversation)
+      .toBeUndefined();
+  });
+
+  it("drops a conversation block without consent", () => {
+    expect(map(raw({ conversation: { backend: "qwen", key_configured: true, last_error: null } })).conversation)
       .toBeUndefined();
   });
 });

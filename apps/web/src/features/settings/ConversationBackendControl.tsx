@@ -19,25 +19,48 @@ const ERROR_TEXT: Record<ConversationError, string> = {
   protocol: "unerwartete Antwort",
 };
 
-export function ConversationBackendControl({ value, status, readOnly, onSelect }: {
+export function ConversationBackendControl({ value, consent, status, readOnly, onSelect }: {
   value: ConversationBackend;
+  consent: boolean;
   status: VoiceStatus["conversation"] | undefined;
   readOnly: boolean;
-  onSelect: (value: ConversationBackend) => void;
+  onSelect: (value: ConversationBackend, consent: boolean) => void;
 }) {
+  const [consentChecked, setConsentChecked] = useState(consent);
   const [missingKey, setMissingKey] = useState(false);
+  const [missingConsent, setMissingConsent] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [replaceKey, setReplaceKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySaved, setKeySaved] = useState(false);
   const mutation = useSetVoiceConversationKey();
   const select = (next: ConversationBackend): void => {
-    if (next === "qwen" && status?.keyConfigured !== true) {
-      setMissingKey(true);
+    if (next === "qwen") {
+      if (status?.keyConfigured !== true) {
+        setMissingKey(true);
+        return;
+      }
+      setMissingKey(false);
+      if (!consentChecked) {
+        setMissingConsent(true);
+        return;
+      }
+      setMissingConsent(false);
+      onSelect("qwen", true);
       return;
     }
     setMissingKey(false);
-    onSelect(next);
+    setMissingConsent(false);
+    onSelect("local", consentChecked);
+  };
+  const toggleConsent = (checked: boolean): void => {
+    setConsentChecked(checked);
+    if (checked) {
+      setMissingConsent(false);
+    } else {
+      // A withdrawn consent is saved at once and ends a running Qwen conversation.
+      onSelect("local", false);
+    }
   };
   const saveKey = (): void => {
     setKeyError(null);
@@ -56,9 +79,10 @@ export function ConversationBackendControl({ value, status, readOnly, onSelect }
     );
   };
   const statusText = !status ? "Status des Sprachdienstes wird geladen…"
-    : status.backend === "local" ? "Aktiv: lokales Gespräch."
-      : status.lastError === null ? "Aktiv: Qwen Audio."
-        : `Qwen Audio: ${ERROR_TEXT[status.lastError]}. Der Assistent antwortet bis dahin lokal.`;
+    : status.consent === false && value === "qwen" ? "Qwen Audio wartet auf deine Zustimmung; bis dahin antwortet der Assistent lokal."
+      : status.backend === "local" ? "Aktiv: lokales Gespräch."
+        : status.lastError === null ? "Aktiv: Qwen Audio."
+          : `Qwen Audio: ${ERROR_TEXT[status.lastError]}. Der Assistent antwortet bis dahin lokal.`;
   return (
     <div>
       <Select
@@ -71,7 +95,18 @@ export function ConversationBackendControl({ value, status, readOnly, onSelect }
         ]}
         onChange={(event) => select(event.target.value as ConversationBackend)}
       />
+      {!readOnly ? (
+        <label>
+          <input
+            type="checkbox"
+            checked={consentChecked}
+            onChange={(event) => toggleConsent(event.target.checked)}
+          />
+          {" "}Ich stimme zu: Für das Live-Gespräch gehen Sprache und Gesprächsinhalte an Alibaba Cloud (Qwen Audio, Token Plan).
+        </label>
+      ) : null}
       {missingKey && status?.keyConfigured !== true ? <p role="alert">Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel. Bitte unten eingeben.</p> : null}
+      {missingConsent ? <p role="alert">Für Qwen Audio ist deine Zustimmung zur Datenübertragung an Alibaba Cloud nötig.</p> : null}
       <p role="status">{statusText}</p>
       {keySaved ? <p role="status">Schlüssel gespeichert.</p> : null}
       {keyError ? <p role="alert">{keyError}</p> : null}

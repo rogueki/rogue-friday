@@ -16,7 +16,7 @@ def requested(**overrides):
     return {"wakeWordEnabled": True, "wakeWord": "Hey Friday", "pushToTalkKey": "Ctrl+Space",
             "speakerVerificationRequired": True, "storeRawRecordings": False,
             "voiceHistoryEnabled": True, "sttLanguage": "de", "sttModel": None,
-            "conversationBackend": "local", "ttsRate": 1.0, **overrides}
+            "conversationBackend": "local", "conversationConsent": False, "ttsRate": 1.0, **overrides}
 
 
 def test_validation_rejects_invalid_phrase_and_implicit_recording():
@@ -44,12 +44,43 @@ def test_conversation_backend_requires_known_value_and_stored_key(tmp_path):
     with pytest.raises(ValueError):
         runtime_settings.validate(requested(conversationBackend="cloud"), cfg)
     with pytest.raises(ValueError, match="not configured"):
-        runtime_settings.validate(requested(conversationBackend="qwen"), cfg)
+        runtime_settings.validate(requested(conversationBackend="qwen", conversationConsent=True), cfg)
     (tmp_path / "alibaba_tokenplan.key.dpapi").write_text("x", encoding="utf-8")
-    applied = runtime_settings.validate(requested(conversationBackend="qwen"), cfg)
+    applied = runtime_settings.validate(requested(conversationBackend="qwen", conversationConsent=True), cfg)
     assert applied["conversation_backend"] == "qwen"
     assert runtime_settings.effective(applied)["conversationBackend"] == "qwen"
     assert runtime_settings.effective({})["conversationBackend"] == "local"
+
+
+def test_qwen_without_consent_is_rejected_even_with_stored_key(tmp_path):
+    key = tmp_path / "alibaba_tokenplan.key.dpapi"
+    key.write_text("x", encoding="utf-8")
+    cfg = {"wake_phrase": "Hey Friday", "qwen_key_file": str(key)}
+    with pytest.raises(ValueError, match="consent"):
+        runtime_settings.validate(requested(conversationBackend="qwen", conversationConsent=False), cfg)
+
+
+def test_conversation_consent_must_be_a_real_bool():
+    cfg = {"wake_phrase": "Hey Friday"}
+    for value in ("yes", 1):
+        with pytest.raises(ValueError, match="conversationConsent"):
+            runtime_settings.validate(requested(conversationConsent=value), cfg)
+
+
+def test_effective_reports_local_until_consent_is_given():
+    off = runtime_settings.effective({"conversation_backend": "qwen"})
+    assert off["conversationBackend"] == "local" and off["conversationConsent"] is False
+    on = runtime_settings.effective({"conversation_backend": "qwen", "qwen_consent": True})
+    assert on["conversationBackend"] == "qwen" and on["conversationConsent"] is True
+
+
+def test_validate_stores_requested_qwen_consent(tmp_path):
+    key = tmp_path / "alibaba_tokenplan.key.dpapi"
+    key.write_text("x", encoding="utf-8")
+    cfg = {"wake_phrase": "Hey Friday", "qwen_key_file": str(key)}
+    applied = runtime_settings.validate(requested(conversationBackend="qwen", conversationConsent=True), cfg)
+    assert applied["qwen_consent"] is True
+    assert runtime_settings.validate(requested(conversationConsent=False), cfg)["qwen_consent"] is False
 
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):

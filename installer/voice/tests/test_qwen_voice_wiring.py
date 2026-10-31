@@ -56,9 +56,15 @@ def make_service(jv):
 def test_conversation_backend_defaults_to_local():
     jv = voice_module()
     assert jv.conversation_backend({}) == "local"
-    assert jv.conversation_backend({"conversation_backend": "qwen"}) == "qwen"
+    assert jv.conversation_backend({"conversation_backend": "qwen", "qwen_consent": True}) == "qwen"
     with pytest.raises(SystemExit):
         jv.conversation_backend({"conversation_backend": "cloud"})
+
+
+def test_conversation_backend_stays_local_without_owner_consent():
+    jv = voice_module()
+    assert jv.conversation_backend({"conversation_backend": "qwen"}) == "local"
+    assert jv.conversation_backend({"conversation_backend": "qwen", "qwen_consent": True}) == "qwen"
 
 
 def test_watched_tasks_watch_every_new_job():

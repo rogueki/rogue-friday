@@ -21,7 +21,7 @@ import numpy as np
 
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
           "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel",
-          "conversationBackend", "ttsRate")
+          "conversationBackend", "conversationConsent", "ttsRate")
 
 
 def key_pressed_from_state(key, pressed):
@@ -130,6 +130,7 @@ else { [IO.File]::SetAccessControl($path, $acl) }
 
 
 def effective(cfg):
+    backend = cfg.get("conversation_backend", "local")
     return {"wakeWordEnabled": cfg.get("wake_word_enabled", True),
             "wakeWord": cfg.get("wake_phrase", ""),
             "pushToTalkKey": cfg.get("push_to_talk_key", "Ctrl+Space"),
@@ -138,14 +139,16 @@ def effective(cfg):
             "voiceHistoryEnabled": cfg.get("voice_history_enabled", True),
             "sttLanguage": cfg.get("stt_language", "de"),
             "sttModel": cfg.get("whisper_model"),
-            "conversationBackend": cfg.get("conversation_backend", "local"),
+            "conversationBackend": backend if backend != "qwen" or cfg.get("qwen_consent") is True else "local",
+            "conversationConsent": cfg.get("qwen_consent") is True,
             "ttsRate": cfg.get("tts_rate", 1.0)}
 
 
 def validate(request, cfg):
     if not isinstance(request, dict) or set(request) != set(FIELDS):
-        raise ValueError("Voice settings require exactly ten fields")
-    for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled"):
+        raise ValueError("Voice settings require exactly eleven fields")
+    for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled",
+                "conversationConsent"):
         if type(request[key]) is not bool:
             raise ValueError(f"Invalid {key}")
     phrase = request["wakeWord"]
@@ -167,6 +170,8 @@ def validate(request, cfg):
     backend = request["conversationBackend"]
     if backend not in ("local", "qwen"):
         raise ValueError("Invalid conversation backend")
+    if backend == "qwen" and request["conversationConsent"] is not True:
+        raise ValueError("Qwen Audio needs the owner's consent")
     if backend == "qwen" and not (cfg.get("qwen_key_file") and os.path.isfile(cfg["qwen_key_file"])):
         raise ValueError("Qwen Audio key is not configured")
     return {**cfg, "wake_phrase": phrase,
@@ -175,7 +180,7 @@ def validate(request, cfg):
             "store_raw_recordings": request["storeRawRecordings"],
             "voice_history_enabled": request["voiceHistoryEnabled"],
             "stt_language": request["sttLanguage"], "whisper_model": request["sttModel"],
-            "conversation_backend": backend,
+            "conversation_backend": backend, "qwen_consent": request["conversationConsent"],
             "tts_rate": float(rate)}
 
 

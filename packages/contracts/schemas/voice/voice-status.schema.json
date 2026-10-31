@@ -202,13 +202,14 @@
     },
     "conversation": {
       "type": "object",
-      "description": "Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; lastError is the failure kind of the last Qwen turn (null after a successful turn).",
+      "description": "Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; consent whether the owner agreed to the data transfer to Alibaba Cloud (Qwen stays off without it); lastError is the failure kind of the last Qwen turn (null after a successful turn).",
       "properties": {
         "backend": { "type": "string", "enum": ["local", "qwen"] },
         "keyConfigured": { "type": "boolean" },
+        "consent": { "type": "boolean" },
         "lastError": { "type": ["string", "null"], "enum": ["auth", "quota", "rate", "idle", "model", "network", "protocol", null] }
       },
-      "required": ["backend", "keyConfigured", "lastError"],
+      "required": ["backend", "keyConfigured", "consent", "lastError"],
       "additionalProperties": false
     },
     "pushToTalk": {

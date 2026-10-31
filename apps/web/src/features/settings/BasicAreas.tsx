@@ -321,8 +321,8 @@ export function VoiceArea() {
         </FieldGrid>
       </Section>
       <Section title="Gespräch" description="Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf diesem PC. Fällt Qwen aus, antwortet der Assistent lokal.">
-        <ConversationBackendControl value={value.conversationBackend ?? "local"} status={voiceStatus.data?.data.conversation}
-          readOnly={readOnly} onSelect={(conversationBackend) => update({ conversationBackend })} />
+        <ConversationBackendControl value={value.conversationBackend ?? "local"} consent={value.conversationConsent ?? false} status={voiceStatus.data?.data.conversation}
+          readOnly={readOnly} onSelect={(conversationBackend, conversationConsent) => update({ conversationBackend, conversationConsent })} />
       </Section>
       <Section title="Spracherkennung" description="Ein Modellwechsel lädt ausschließlich ein bereits lokal vorhandenes Whisper-Modell. Fehlt es oder ist Cloud-Erkennung aktiv, bleibt das bisherige Modell erhalten.">
         <FieldGrid>

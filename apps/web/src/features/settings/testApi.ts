@@ -34,7 +34,7 @@ export function makeSettings(partial: Partial<Settings> = {}): Settings {
     },
     navigation: { order: ["overview", "tasks", "activity", "memory", "agents", "approvals", "communication", "calendar", "automations", "research", "files", "voice", "alerts", "system", "audit", "settings"], hidden: [], defaultPage: "overview", mode: "expanded" },
     modelsRouting: { defaultModel: "Kimi K3", localFirst: true, routes: [{ taskKind: "coding", model: "Kimi K3", reasoningLevel: "high", fallbackModel: null }], monthlyBudgetEur: 150 },
-    voice: { wakeWordEnabled: true, wakeWord: "Hey Jarvis", pushToTalkKey: "Ctrl+Space", speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", ttsVoice: "de_DE-thorsten-medium", ttsRate: 1, inputDeviceId: null, outputDeviceId: null },
+    voice: { wakeWordEnabled: true, wakeWord: "Hey Jarvis", pushToTalkKey: "Ctrl+Space", speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsVoice: "de_DE-thorsten-medium", ttsRate: 1, inputDeviceId: null, outputDeviceId: null },
     notifications: { channels: [{ kind: "dashboard", enabled: true, minPriority: "P3" }], quietHours: { enabled: false, from: "22:00", to: "07:00" }, defaultEscalation: [], snoozeDefaultMinutes: 15 },
     security: { sessionTimeoutMinutes: 480, reauthWindowMinutes: 10, allowRemoteAccess: false, auditHashChain: true, trustedOrigins: ["http://127.0.0.1:3100"] },
     approvals: { defaultExpiryMinutes: 60, draftOnlyByDefault: true, confirmTier2: true, reauthTier3: true, notifyOnRequest: true },

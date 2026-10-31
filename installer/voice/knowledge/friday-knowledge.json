@@ -287,9 +287,12 @@
         "token plan",
         "übertragung",
         "was wird gesendet",
-        "gast audio"
+        "gast audio",
+        "zustimmung",
+        "einwilligung",
+        "widerruf"
       ],
-      "text": "Nur wenn du im Bereich Sprache das Gespräch auf Qwen Audio stellst, geht Sprache an Alibaba Cloud über den Token Plan. Gesendet wird die Äußerung eines bestätigten Sprechers, also die Frage selbst. Die Stimme eines Gastes ohne Sprecherprüfung geht nie an Qwen und bleibt lokal. Ergebnisse von Aufträgen und Antworten aus der Abfrage gehen als Text an das Gesprächsmodell, damit Rückfragen funktionieren. Die Antwort kommt als Text zurück und wird lokal gesprochen. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC."
+      "text": "Nur wenn du im Bereich Sprache das Gespräch auf Qwen Audio stellst und der Datenübertragung ausdrücklich zustimmst, geht Sprache an Alibaba Cloud über den Token Plan. Die Zustimmung gibst du im Installer oder unter Einstellungen → Sprache → Gespräch mit dem Haken Ich stimme zu; ohne sie bleibt das Gespräch lokal. Entfernst du den Haken, ist die Zustimmung widerrufen und das Gespräch läuft sofort wieder lokal. Gesendet wird die Äußerung eines bestätigten Sprechers, also die Frage selbst. Die Stimme eines Gastes ohne Sprecherprüfung geht nie an Qwen und bleibt lokal. Ergebnisse von Aufträgen und Antworten aus der Abfrage gehen als Text an das Gesprächsmodell, damit Rückfragen funktionieren. Die Antwort kommt als Text zurück und wird lokal gesprochen. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC."
     },
     {
       "id": "datenschutz#standort-und-wetter",

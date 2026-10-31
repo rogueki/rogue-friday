@@ -6,9 +6,9 @@ Bereich: datenschutz
 Die Kernfunktionen laufen auf deinem PC. Das Wake Word hört lokal zu, und die Sprecherprüfung läuft ebenfalls lokal. Auch die Aufnahmen zum Einlernen des Wake Words bleiben lokal und werden nach dem Training gelöscht. Im lokalen Betrieb läuft die Spracherkennung mit einem lokal vorhandenen Whisper-Modell. Das Dashboard speichert seine Daten in einer lokalen Datenbank, und das Obsidian-Gedächtnis liegt in deinem lokalen Vault. Ins Internet gehen Daten nur für Funktionen, die du wählst oder einrichtest, etwa Qwen, Mail, Kalender, Messenger oder das Wetter, und für Updates.
 
 ## Was an Qwen Audio geht
-Stichworte: qwen daten, alibaba, cloud audio, token plan, übertragung, was wird gesendet, gast audio
+Stichworte: qwen daten, alibaba, cloud audio, token plan, übertragung, was wird gesendet, gast audio, zustimmung, einwilligung, widerruf
 Bereich: datenschutz
-Nur wenn du im Bereich Sprache das Gespräch auf Qwen Audio stellst, geht Sprache an Alibaba Cloud über den Token Plan. Gesendet wird die Äußerung eines bestätigten Sprechers, also die Frage selbst. Die Stimme eines Gastes ohne Sprecherprüfung geht nie an Qwen und bleibt lokal. Ergebnisse von Aufträgen und Antworten aus der Abfrage gehen als Text an das Gesprächsmodell, damit Rückfragen funktionieren. Die Antwort kommt als Text zurück und wird lokal gesprochen. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC.
+Nur wenn du im Bereich Sprache das Gespräch auf Qwen Audio stellst und der Datenübertragung ausdrücklich zustimmst, geht Sprache an Alibaba Cloud über den Token Plan. Die Zustimmung gibst du im Installer oder unter Einstellungen → Sprache → Gespräch mit dem Haken Ich stimme zu; ohne sie bleibt das Gespräch lokal. Entfernst du den Haken, ist die Zustimmung widerrufen und das Gespräch läuft sofort wieder lokal. Gesendet wird die Äußerung eines bestätigten Sprechers, also die Frage selbst. Die Stimme eines Gastes ohne Sprecherprüfung geht nie an Qwen und bleibt lokal. Ergebnisse von Aufträgen und Antworten aus der Abfrage gehen als Text an das Gesprächsmodell, damit Rückfragen funktionieren. Die Antwort kommt als Text zurück und wird lokal gesprochen. Wake Word, Sprecherprüfung und die Stimme bleiben auf deinem PC.
 
 ## Standort und Wetter
 Stichworte: standort, wetter, koordinaten, ortsname, open-meteo, bigdatacloud, position, ort speichern

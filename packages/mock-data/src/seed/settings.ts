@@ -144,6 +144,7 @@ export function buildSettings(ctx: SeedContext): Settings {
       sttLanguage: "de",
       sttModel: "small",
       conversationBackend: "local",
+      conversationConsent: false,
       ttsVoice: "de_DE-thorsten-medium",
       ttsRate: 1,
       inputDeviceId: null,
