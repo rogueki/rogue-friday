@@ -54,3 +54,8 @@ Nach dem Wake Word kannst du zum Beispiel sagen: Wie spät ist es? Oder: Wie wei
 Stichworte: selbstdiagnose, selbsttest, prüf dich, hörst mich nicht, antwortest nicht, keine ansagen, funktioniert alles, fehler finden
 Bereich: sprache
 Sag „Prüf dich“ oder „Selbsttest“, dann prüft F.R.I.D.A.Y. sich mit Live-Werten und nennt zuerst, was auffällt: ob das Mikrofon aufnimmt, ob das Wake Word an ist, ob die Sprecherprüfung ein Profil hat oder viele Befehle abgelehnt hat, ob der Qwen-Gesprächsmodus seinen Schlüssel hat, ob das Dashboard erreichbar ist, ob gerade Ruhemodus oder Nachtruhe gilt, wie der Systemstatus aussieht und ob das Gedächtnis Einträge nicht übertragen kann. Findet sie nichts, sagt sie das. Die Antwort kommt direkt, ohne Agent und ohne Rohfehlertexte. Die Prüfschritte zu einem Befund erklärt die Hilfe, etwa mit der Frage „Wie prüfe ich das Mikrofon?“.
+
+## Rückfragen der Agenten beantworten
+Stichworte: rückfrage, agent fragt, antworten, antworte, auftrag wartet, sag dem agenten, weitergeben, wartet auf antwort
+Bereich: sprache
+Braucht ein Hintergrundagent eine Entscheidung, sagt F.R.I.D.A.Y. die Rückfrage an, etwa: Recherche fragt zu „Hotels in Rom“: Welcher Zeitraum? Im Gesprächsmodus Qwen Audio und im lokalen Betrieb sagst du die Antwort einfach, F.R.I.D.A.Y. gibt sie an den Auftrag weiter und bestätigt das. Sicher klappt es in jedem Sprachbetrieb, auch mit ElevenLabs, wenn du mit Antworte beginnst: Antworte: vom 3. bis 7. Mai. Laufen mehrere Rückfragen, fragt F.R.I.D.A.Y. nach, welcher Auftrag gemeint ist. Offene Rückfragen siehst du auch auf der Seite Sprache unter Aufträge aus Gesprächen. Den Stand aller Aufträge erfährst du mit Was macht die Recherche, abbrechen kannst du mit Brich die Recherche ab.
