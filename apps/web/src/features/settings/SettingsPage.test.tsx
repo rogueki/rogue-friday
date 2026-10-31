@@ -409,4 +409,43 @@ describe("conversation settings", () => {
     await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
     expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { conversationSilenceSeconds: 45, proactiveAnnouncements: false } });
   });
+
+  it("saves the Qwen region of the Token Plan", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=voice" });
+    await user.selectOptions(await screen.findByLabelText("Qwen-Region"), "cn-beijing");
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { conversationRegion: "cn-beijing" } });
+  });
+});
+
+describe("voice sample", () => {
+  it("posts to /voice/sample when the owner asks for a sample", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=voice", extra: ({ method, path }) => method === "POST" && path === "/voice/sample"
+      ? Response.json({ contractVersion: "2.0.0", accepted: true })
+      : undefined });
+    await user.click(await screen.findByRole("button", { name: "Hörprobe" }));
+    await waitFor(() => expect(api.find("POST", "/voice/sample")).toHaveLength(1));
+  });
+
+  it("shows the service message when the sample cannot be played", async () => {
+    const user = userEvent.setup();
+    setup({ area: "area=voice", extra: ({ method, path }) => method === "POST" && path === "/voice/sample"
+      ? Response.json({ error: { code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst ist derzeit nicht erreichbar." } }, { status: 503 })
+      : undefined });
+    await user.click(await screen.findByRole("button", { name: "Hörprobe" }));
+    await waitFor(() => expect(screen.getAllByRole("alert").map((node) => node.textContent))
+      .toContain("Der Sprachdienst ist derzeit nicht erreichbar."));
+  });
+
+  it("disables the sample until a changed voice is saved", async () => {
+    const user = userEvent.setup();
+    setup({ area: "area=voice" });
+    const voice = await screen.findByLabelText("Stimme (TTS)") as HTMLSelectElement;
+    await user.selectOptions(voice, voice.value === "classic" ? "friday-female" : "classic");
+    expect(screen.getByRole("button", { name: "Hörprobe" })).toBeDisabled();
+    expect(screen.getByText(/Erst speichern/)).toBeInTheDocument();
+  });
 });

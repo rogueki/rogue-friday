@@ -150,6 +150,7 @@ GOODBYE_WORDS = re.compile(
     r"(?:das\s+wars|das\s+war's|das\s+war\s+es|das\s+wär's|das\s+wärs|das\s+ist\s+alles|tschüss|tschuess|bis\s+später|bis\s+spaeter|auf\s+wiedersehen)"
     r"(?:\s+(?:für|fuer)\s+(?:jetzt|heute))?[\s.!]*$", re.IGNORECASE)
 GOODBYE_REPLY = "Gern. Ich bin da, wenn du mich rufst."
+VOICE_SAMPLE_TEXT = "Hallo, ich bin {name}. So klinge ich mit dieser Stimme."
 
 
 def is_goodbye(text: str) -> bool:
@@ -699,6 +700,7 @@ class VoiceService:
         self.stop_audio_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=64)
         self.transcribe_lock = threading.Lock()
         self.manual_start = threading.Event()
+        self.reply_window = threading.Event()
         self.manual_release = threading.Event()
         # Set while the microphone hears the user's sentence; an announcement must wait for the pause after it.
         self.user_speaking = threading.Event()
@@ -1017,6 +1019,7 @@ class VoiceService:
             self.control_generation += 1
             self.control_cancel.set()
             self.manual_start.clear()
+            self.reply_window.clear()
             self.manual_release.set()
             self.ptt_active = False
             self.trusted_until = 0.0
@@ -1930,6 +1933,33 @@ class VoiceService:
                 self.status["qwen_error"] = "auth"
         return {"keyConfigured": True}
 
+    def check_conversation_key(self) -> dict:
+        """Checks the stored key with one short Qwen session; changes nothing and never returns the key."""
+        try:
+            key = qwen_realtime.load_key(self.cfg["qwen_key_file"])
+        except (KeyError, RuntimeError, OSError):
+            return {"ok": False, "reason": "missing"}
+        try:
+            qwen_realtime.verify_key(key, region=self.cfg.get("qwen_region", "ap-southeast-1"))
+        except qwen_realtime.RealtimeError as exc:
+            log_event(event="qwen_key_check", ok=False, kind=exc.kind)
+            return {"ok": False, "reason": exc.kind}
+        finally:
+            key = None
+        log_event(event="qwen_key_check", ok=True)
+        return {"ok": True, "reason": None}
+
+    def speak_voice_sample(self) -> bool:
+        """Speaks one sample sentence when nothing else runs; False while busy. Not part of history or memory."""
+        with self.manual_start_lock:
+            busy = (self.processing or self.tts.speaking.is_set() or getattr(self, "control_paused", False)
+                    or self.status.get("state") not in ("listening", "wake_only"))
+            if busy:
+                return False
+            self.tts.say(VOICE_SAMPLE_TEXT.format(name=self.name))
+        log_event(event="voice_sample")
+        return True
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2012,14 +2042,17 @@ class VoiceService:
             self.held_proactive = held
         log_event(event="announcement_held", reason="proactive_off", count=len(held))
 
-    def _speak_held_announcements(self) -> None:
+    def _speak_held_announcements(self) -> bool:
         with self._held_lock:
             held = getattr(self, "held_proactive", [])
             self.held_proactive = []
         if held:
             self._speak_announcement("Seit unserem letzten Gespräch: " + " ".join(held))
+        return bool(held)
 
     def _deliver_announcement(self, jobs: list[dict]) -> None:
+        idle = self.status.get("state") in ("listening", "wake_only")
+        spoke = False
         if jobs:
             text = self._announcement_text(jobs)
             self._forget_announced(jobs)
@@ -2032,9 +2065,13 @@ class VoiceService:
             return
         # Quiet mode outranks the switch: turning announcements back on must not break a quiet period.
         if self._proactive_allowed() and not self._quiet_active():
-            self._speak_held_announcements()
+            spoke = self._speak_held_announcements()
         if text:
             self._speak_announcement(text)
+            spoke = True
+        if spoke and idle and self.cfg.get("speaker_verification_required", True) and not getattr(self, "control_paused", False):
+            # U-11: the user may answer without the wake word; _handle_command still checks the speaker.
+            self.reply_window.set()
 
     def _quiet_active(self) -> bool:
         try:
@@ -2141,11 +2178,13 @@ class VoiceService:
                     manual = self.manual_start.is_set()
                     if manual:
                         self.manual_start.clear()
-                    if manual or detected:
+                    reply = self.reply_window.is_set() and not (manual or detected)
+                    self.reply_window.clear()
+                    if manual or detected or reply:
                         self.status["state"] = "command"
                         self.control_cancel.clear()
-                if manual or detected:
-                    self._session(manual=manual)
+                if manual or detected or reply:
+                    self._session(manual=manual, reply=reply)
 
     def _beep(self, frequency: int, duration_ms: int) -> None:
         if getattr(self, "browser_audio", None) is not None:
@@ -2243,9 +2282,10 @@ class VoiceService:
         self.preroll = backlog
         return wake_audio
 
-    def _session(self, manual: bool = False) -> None:
+    def _session(self, manual: bool = False, reply: bool = False) -> None:
         """Ein Wake-Ereignis: Befehl, danach Folgefragen ohne Wake Word, solange die Trusted Session laeuft.
-        Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
+        Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In).
+        reply: a proactive announcement opened the turn; no wake word, the speaker check stays."""
         cfg = self.cfg
         generation = self.control_generation
         self.conversation_ended = False
@@ -2254,7 +2294,22 @@ class VoiceService:
         self.status["state"] = "command"
         if getattr(self, "qwen_dialog", None) is not None:
             self.qwen_dialog.warm_up()  # Verbindung waehrend des Pieptons aufbauen (Plan D-10)
-        if manual:
+        timeout = cfg["command_start_timeout_s"]
+        if reply:
+            interrupted = False
+            while self.tts.speaking.is_set() and not self.control_cancel.is_set() and generation == self.control_generation:
+                if self.cfg.get("wake_word_enabled", True) and self._wake_detected(self._read_chunk()):
+                    interrupted = True
+                    break
+            self._drain()
+            if interrupted:
+                wake_audio = self._acknowledge_wake()
+            else:
+                wake_audio = None
+                timeout = cfg["followup_window_s"]
+                self.status["state"] = "followup"
+                log_event(event="announcement_reply_window")
+        elif manual:
             self.preroll = []
             self._drain()
             self._beep(1200, 80)
@@ -2263,7 +2318,7 @@ class VoiceService:
             log_event(event="manual_start")
         else:
             wake_audio = self._acknowledge_wake()
-        audio = self._record_command(cfg["command_start_timeout_s"])
+        audio = self._record_command(timeout)
         if self.control_cancel.is_set() or generation != self.control_generation:
             self.processing = None
             self.status["state"] = "paused" if self.control_paused else "wake_only"
@@ -2583,10 +2638,19 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/conversation-key", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/voice/sample", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
+                    return
+                if self.path == "/control/conversation-key/check":
+                    self._json(service.check_conversation_key())
+                    return
+                if self.path == "/control/voice/sample":
+                    if not service.speak_voice_sample():
+                        self.send_error(423, "Voice is busy")
+                        return
+                    self._json({"accepted": True})
                     return
                 if self.path == "/control/conversation-key":
                     try:
@@ -2734,13 +2798,17 @@ class VoiceService:
                             if "model" not in prepared:
                                 raise ValueError("Whisper model is not cached or cannot load locally")
                             prepared_stt = prepared["model"]
-                        conversation_change = (requested["conversationBackend"] !=
-                                               runtime_settings.effective(service.cfg)["conversationBackend"])
+                        current = runtime_settings.effective(service.cfg)
+                        # A new region means a new Qwen endpoint; the running session keeps the old one.
+                        conversation_change = (requested["conversationBackend"] != current["conversationBackend"] or
+                                               requested["conversationBackend"] == "qwen" and
+                                               requested["conversationRegion"] != current["conversationRegion"])
                         if conversation_change:
                             try:
                                 prepared_conversation = service._build_conversation(
                                     {**service.cfg, "conversation_backend": requested["conversationBackend"],
-                                     "qwen_consent": requested["conversationConsent"]})
+                                     "qwen_consent": requested["conversationConsent"],
+                                     "qwen_region": requested["conversationRegion"]})
                             except (RuntimeError, OSError) as exc:
                                 raise ValueError("Qwen Audio key cannot be read") from exc
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:

@@ -195,13 +195,13 @@ function Protect-PrivatePath([string]$path, [bool]$directory) {
     if ($directory) { [IO.Directory]::SetAccessControl($path, $acl) }
     else { [IO.File]::SetAccessControl($path, $acl) }
 }
-function Secure-Field([string]$name) {
-    $value = $script:fields[$name].Text
+function Secure-Text([string]$value) {
     if (-not $value) { return '' }
     $secure = ConvertTo-SecureString -String $value -AsPlainText -Force
     try { return (ConvertFrom-SecureString -SecureString $secure) }
     finally { $secure.Dispose() }
 }
+function Secure-Field([string]$name) { return Secure-Text $script:fields[$name].Text }
 function Test-VoiceReferenceAnswer([int]$ModeIndex, [int]$ChoiceIndex, [string]$Reference) {
     # Die eigene Stimme hat keine mitgelieferte Ersatzdatei; ohne Datei braeche der Installer erst spaeter ab.
     if ($ModeIndex -eq 0 -and $ChoiceIndex -eq 2 -and -not "$Reference".Trim()) {
@@ -214,9 +214,16 @@ function Get-VoiceIdValue {
     if ($text -match '\(([A-Za-z0-9]{10,64})\)$') { return $Matches[1] }
     return $text
 }
+function Use-AlibabaEnvironment {
+    return (Get-ProviderPreset).BaseUrl -eq 'alibaba' -and [bool]$alibabaEnvironment -and (Checked 'useExistingAlibaba')
+}
+function Get-ProviderKeyText {
+    if (Use-AlibabaEnvironment) { return [string]$alibabaEnvironment }
+    return $script:fields.providerKey.Text.Trim()
+}
 function Use-ProviderKeyForQwen {
     # One Token Plan key serves the brain and Qwen Audio when the owner says so on the model page (U-02).
-    return (Test-QwenSameKeyOffered) -and (Checked 'qwenSameKey') -and $script:fields.providerKey.Text.Trim() -ne ''
+    return (Test-QwenSameKeyOffered) -and (Checked 'qwenSameKey') -and (Get-ProviderKeyText) -ne ''
 }
 function Test-Wizard {
     $root = Value 'installRoot'; $location = Value 'distroLocation'; $distro = Value 'distroName'
@@ -240,7 +247,7 @@ function Test-Wizard {
     if ($done -notcontains 'hermes' -and -not ($state -and $state.model_provider)) {
         $preset = Get-ProviderPreset
         $usesKimiEnvironment = $preset.Backend -eq '4' -and [bool]$kimiEnvironment -and (Checked 'useExistingKimi')
-        if (-not $usesKimiEnvironment -and $script:fields.providerKey.Text.Trim() -eq '') { throw "$($preset.KeyLabel) fehlt." }
+        if (-not $usesKimiEnvironment -and (Get-ProviderKeyText) -eq '') { throw "$($preset.KeyLabel) fehlt." }
         if ($preset.BaseUrl -eq 'custom' -and (Value 'modelBaseUrl') -notmatch '^https?://[^\s/]+') { throw 'Server-Adresse: vollständige URL mit https:// eintragen.' }
         if ($preset.Backend -ne '4' -and (Value 'modelName') -eq '') { throw 'Bitte ein Modell wählen.' }
         if ((Value 'modelName').Length -gt 200) { throw 'Der Modellname ist zu lang.' }
@@ -516,6 +523,7 @@ $modelBox.DropDownStyle = 'DropDown'
 [void](Add-Row $modelPage.Panel 'modelBaseUrl' 'Server-Adresse (https://…/v1)' 114)
 [void](Add-Row $modelPage.Panel 'providerKey' 'API-Schlüssel' 152 '' $true)
 [void](Add-Check $modelPage.Panel 'useExistingKimi' 'Auf diesem PC gefundenen Kimi-Schlüssel verwenden' 190 $true)
+[void](Add-Check $modelPage.Panel 'useExistingAlibaba' 'Auf diesem PC gefundenen Alibaba-Schlüssel verwenden' 190 $true)
 [void](Add-Check $modelPage.Panel 'qwenSameKey' 'Diesen Schlüssel auch für Qwen Audio (Live-Gespräch) verwenden' 190 $true)
 $testKey = New-Object Windows.Forms.Button; $testKey.Name = 'testKey'; $testKey.Text = 'Schlüssel prüfen'
 $testKey.Location = New-Object Drawing.Point(196, 222); $testKey.Size = New-Object Drawing.Size(150, 28)
@@ -523,6 +531,8 @@ $modelPage.Panel.Controls.Add($testKey)
 $script:keyResult = Add-Text $modelPage.Panel '' 256 40
 $modelHelp = Add-Text $modelPage.Panel 'Der Schlüssel landet ausschließlich in der WSL-Installation unter ~/.hermes/.env. Modell und Anbieter lassen sich später im Command Center ändern.' 300 60
 $kimiEnvironment = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
+# Alibaba's own tools keep the Token Plan key in one of these user variables; it is reused like the Kimi key.
+$alibabaEnvironment = @(@('BAILIAN_API_KEY', 'DASHSCOPE_API_KEY') | ForEach-Object { [Environment]::GetEnvironmentVariable($_, 'User') } | Where-Object { $_ }) | Select-Object -First 1
 
 function Get-ProviderPreset { return $script:providerPresets[[Math]::Max(0, $script:fields.providerChoice.SelectedIndex)] }
 function Get-ProviderBaseUrl {
@@ -548,13 +558,15 @@ function Update-ProviderFields {
     $script:captions.providerKey.Text = $preset.KeyLabel
     $testKey.Enabled = -not $locked -and [bool]$preset.Probe
     $script:keyResult.Text = if ($preset.Probe) { '' } else { 'Der Kimi-Zugang wird während der Installation geprüft.' }
-    foreach ($name in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'useExistingKimi')) { $script:fields[$name].Enabled = -not $locked }
+    foreach ($name in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'useExistingKimi', 'useExistingAlibaba')) { $script:fields[$name].Enabled = -not $locked }
 }
 function Update-ProviderLayout {
     $preset = Get-ProviderPreset
     $locked = [bool]$script:providerLocked
     $useKimi = $preset.Backend -eq '4' -and [bool]$kimiEnvironment
+    $useAlibaba = $preset.BaseUrl -eq 'alibaba' -and [bool]$alibabaEnvironment
     $script:fields.useExistingKimi.Visible = $useKimi
+    $script:fields.useExistingAlibaba.Visible = $useAlibaba
     $script:fields.qwenSameKey.Visible = Test-QwenSameKeyOffered
     # Derived from the preset: .Visible of a control reads false while its page is hidden.
     $script:fields.alibabaRegion.Visible = $preset.BaseUrl -eq 'alibaba'
@@ -568,6 +580,7 @@ function Update-ProviderLayout {
         modelBaseUrl = $preset.BaseUrl -eq 'custom'
         providerKey = $true
         useExistingKimi = $useKimi
+        useExistingAlibaba = $useAlibaba
         qwenSameKey = Test-QwenSameKeyOffered
     }
     $y = 38
@@ -580,11 +593,11 @@ function Update-ProviderLayout {
     $testKey.Top = $y + 4
     $script:keyResult.Top = $y + 40
     $modelHelp.Top = $y + 84
-    $script:fields.providerKey.Enabled = -not $locked -and -not ($useKimi -and $script:fields.useExistingKimi.Checked)
+    $script:fields.providerKey.Enabled = -not $locked -and -not ($useKimi -and $script:fields.useExistingKimi.Checked) -and -not ($useAlibaba -and $script:fields.useExistingAlibaba.Checked)
 }
 function Test-ProviderKey {
     $preset = Get-ProviderPreset
-    $key = $script:fields.providerKey.Text.Trim()
+    $key = Get-ProviderKeyText
     if (-not $key) { $script:keyResult.Text = 'Bitte zuerst den Schlüssel eintragen.'; return }
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     if ($preset.Probe -eq 'anthropic') {
@@ -608,6 +621,7 @@ function Test-ProviderKey {
 }
 $script:fields.providerChoice.Add_SelectedIndexChanged({ Update-ProviderFields })
 $script:fields.useExistingKimi.Add_CheckedChanged({ Update-ProviderFields })
+$script:fields.useExistingAlibaba.Add_CheckedChanged({ Update-ProviderFields })
 $testKey.Add_Click({ Test-ProviderKey })
 $script:providerLocked = $false
 Update-ProviderFields
@@ -1064,7 +1078,7 @@ function Start-Backend {
         modelName = $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' })
     }
     $backendChoice = [string](Get-ProviderPreset).Backend
-    $providerSecret = Secure-Field 'providerKey'
+    $providerSecret = if (Use-AlibabaEnvironment) { Secure-Text ([string]$alibabaEnvironment) } else { Secure-Field 'providerKey' }
     $secrets = @{
         linuxPassword = Secure-Field 'linuxPassword'; linuxPasswordRepeat = Secure-Field 'linuxPasswordRepeat'
         elevenlabsKey = Secure-Field 'elevenlabsKey'
@@ -1076,6 +1090,7 @@ function Start-Backend {
     }
     $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey','qwenAudioKey') |
         ForEach-Object { $script:fields[$_].Text } | Where-Object { $_ })
+    if (Use-AlibabaEnvironment) { $script:redactions += [string]$alibabaEnvironment }
     $config = @{ protocol = 1; answers = $answers; secrets = $secrets }
     if ($Simulation) { $config.simulation = $Simulation }
     $privateDir = Join-Path $env:LOCALAPPDATA 'FridayInstaller'
@@ -1236,7 +1251,7 @@ if ($Simulation) {
                 Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-        foreach ($required in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'modelName', 'providerKey', 'useExistingKimi', 'elevenlabsKey', 'conversationBackend', 'qwenRegion', 'qwenAudioKey')) {
+        foreach ($required in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'modelName', 'providerKey', 'useExistingKimi', 'useExistingAlibaba', 'elevenlabsKey', 'conversationBackend', 'qwenRegion', 'qwenAudioKey')) {
             if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
         }
         if ($script:pages.Count -ne 8 -or $script:pages[4].Title -ne 'KI-Zugang') { throw 'GUI provider page missing.' }
@@ -1330,6 +1345,7 @@ if ($Simulation) {
         $script:focusSummary = ($focusSummary -join ',')
         # Geheimnisse erst jetzt: Load-RootState im Tastaturdurchlauf leert Passwort- und Schluesselfelder.
         $script:fields.useExistingKimi.Checked = $false
+        $script:fields.useExistingAlibaba.Checked = $false
         $script:fields.providerKey.Text = 'synthetic-test-key'
         $script:fields.linuxPassword.Text = 'synthetic-test-password'
         $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'

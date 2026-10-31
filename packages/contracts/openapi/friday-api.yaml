@@ -4951,6 +4951,70 @@ paths:
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
       x-required-role: owner
+  /api/v1/voice/conversation-key/from-brain:
+    post:
+      operationId: adoptVoiceConversationKeyFromBrain
+      tags: [voice]
+      summary: Use the brain's Alibaba Token Plan key for Qwen Audio
+      description: Windows installs only. Reads the key of the Hermes brain inside the machine when the brain uses an Alibaba Cloud Token Plan, checks it against Qwen Audio and stores it for the voice service like setVoiceConversationKey. The key never reaches the browser, a log or the audit trail. The brain's region must match the saved Qwen region.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Key verified and stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceConversationKeyStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-required-role: owner
+  /api/v1/voice/conversation-key/check:
+    post:
+      operationId: checkVoiceConversationKey
+      tags: [voice]
+      summary: Check the stored Qwen Audio key against the saved region
+      description: Windows installs only. Opens one short Qwen Audio session with the stored key and reports the result; nothing is stored or changed and the key never leaves the voice service.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceConversationKeyCheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/sample:
+    post:
+      operationId: playVoiceSample
+      tags: [voice]
+      summary: Speak a short sample with the saved voice
+      description: Windows installs only. The local voice service speaks one sample sentence through the configured output when nothing else is running; nothing is stored.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Sample accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceSampleResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-required-role: owner
   /api/v1/voice/stt-models/cancel:
     post:
       operationId: cancelVoiceSttModelDownload
@@ -10868,6 +10932,10 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-request.schema.json
     VoiceConversationKeyStatus:
       $ref: ../schemas/voice/voice-conversation-key-status.schema.json
+    VoiceConversationKeyCheck:
+      $ref: ../schemas/voice/voice-conversation-key-check.schema.json
+    VoiceSampleResult:
+      $ref: ../schemas/voice/voice-sample-result.schema.json
     VoiceDomainTaskReplyRequest:
       $ref: ../schemas/tasks/voice-domain-task-reply-request.schema.json
     VoiceReadRequest:

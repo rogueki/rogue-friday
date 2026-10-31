@@ -966,6 +966,26 @@ export class HermesConfigService {
     return this.present(observed);
   }
 
+  /** The brain's Token Plan key for Qwen Audio; it stays inside the Control API and goes only to the local voice service. */
+  async brainQwenKey(): Promise<{ key: string; region: "ap-southeast-1" | "cn-beijing" }> {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["brain-qwen-key"], undefined, 30000, 20000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("brain_not_token_plan"))
+        throw validationFailed("Das Denkmodell nutzt keinen Alibaba Token Plan. Den Qwen-Audio-Schlüssel bitte selbst eintragen.");
+      if (message.includes("brain_key_missing"))
+        throw validationFailed("Beim Denkmodell ist kein Alibaba-Schlüssel hinterlegt.");
+      throw unavailable();
+    }
+    if (typeof raw.key !== "string" || raw.key.length < 8 || raw.key.length > 4096 || !/^[\x21-\x7e]+$/.test(raw.key) ||
+        (raw.region !== "ap-southeast-1" && raw.region !== "cn-beijing"))
+      throw unavailable();
+    return { key: raw.key, region: raw.region };
+  }
+
   async updatePlugin(patch: HermesPluginPatch, revision: number) {
     if (patch.key !== "plugin.activation" || !/^[A-Za-z0-9._/-]{1,100}$/.test(patch.pluginId) ||
         !patch.pluginId.split("/").every((part) => part !== "" && part !== "." && part !== "..") ||

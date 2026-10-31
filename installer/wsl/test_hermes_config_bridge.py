@@ -694,6 +694,35 @@ class BridgeTest(unittest.TestCase):
                 self.assertFalse(bridge.valid_field_value("model.base_url", value,
                                                           bridge.FIELDS["model.base_url"]))
 
+    def test_brain_qwen_key_returns_the_token_plan_key_and_region(self):
+        self.config.write_text("model:\n  base_url: https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1\n")
+        (self.home / ".hermes" / ".env").write_text("OPENAI_API_KEY=sk-sp-SYNTHETIC-0123456789\n")
+        code, result = self.invoke(None, action="brain-qwen-key")
+        self.assertEqual(code, 0)
+        self.assertEqual(result, {"key": "sk-sp-SYNTHETIC-0123456789", "region": "cn-beijing"})
+
+    def test_brain_qwen_key_refuses_other_providers(self):
+        self.config.write_text("model:\n  base_url: https://openrouter.ai/api/v1\n  api_key: CANARY-PRIVATE\n")
+        code, result = self.invoke(None, action="brain-qwen-key")
+        self.assertEqual(code, 6)
+        self.assertEqual(result, {"error": "brain_not_token_plan"})
+        self.assertNotIn("CANARY-PRIVATE", json.dumps(result))
+
+    def test_brain_qwen_key_reports_a_missing_key(self):
+        self.config.write_text("model:\n  base_url: https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1\n")
+        code, result = self.invoke(None, action="brain-qwen-key")
+        self.assertEqual(code, 6)
+        self.assertEqual(result, {"error": "brain_key_missing"})
+
+    def test_brain_qwen_key_uses_the_env_base_url(self):
+        self.config.write_text("model: {}\n")
+        (self.home / ".hermes" / ".env").write_text(
+            "OPENAI_BASE_URL=https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1\n"
+            'DASHSCOPE_API_KEY="sk-sp-SYNTHETIC-ABCDEFGHIJ"\n')
+        code, result = self.invoke(None, action="brain-qwen-key")
+        self.assertEqual(code, 0)
+        self.assertEqual(result, {"key": "sk-sp-SYNTHETIC-ABCDEFGHIJ", "region": "ap-southeast-1"})
+
     def test_custom_provider_requirement_is_canonical(self):
         source = Path(bridge.__file__).read_text()
         self.assertGreaterEqual(source.count("custom_provider_required"), 2)

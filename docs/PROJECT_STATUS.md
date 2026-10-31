@@ -1601,6 +1601,38 @@ entfernt) rot; pyflakes ohne Befund.
   Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
   Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
   (Filter aus, Zeile aus) je rot.
+- **Hörprobe und vorhandener Alibaba-Schlüssel (LG-5.03, LG-6.01):** Einstellungen → Sprache → Ausgabe hat „Hörprobe“:
+  `POST /api/v1/voice/sample` (Owner, CSRF) → Sprachdienst `/control/voice/sample` spricht einen Satz mit der gespeicherten
+  Stimme, nur wenn nichts anderes läuft (sonst 423 → CONFLICT), ohne Verlauf; gesperrt, solange eine neu gewählte Stimme nicht
+  gespeichert ist (Gegenprobe rot). 306 Operationen. Das Anlernen einer eigenen Cloud-Stimme entfällt (P0-01, D-08). Der
+  Installer erkennt `BAILIAN_API_KEY`/`DASHSCOPE_API_KEY` im Benutzerprofil wie den Kimi-Schlüssel: GUI-Haken „Auf diesem PC
+  gefundenen Alibaba-Schlüssel verwenden“ (verschlüsselt übergeben, im Laufprotokoll geschwärzt), Konsole fragt einmal.
+- **Antwortfenster nach einer Ansage von sich aus (LG-2.04):** Spricht der Sprachdienst eine Ansage, während kein Gespräch
+  läuft, öffnet er danach ein Antwortfenster ohne Aktivierungswort (`reply_window`, Länge `followup_window_s`). Die
+  Sprecherprüfung bleibt (`_handle_command` mit `wake_audio=None`); kein Fenster im Gastmodus, pausiert oder mitten im
+  Gespräch; Stopp schließt es; das Aktivierungswort während der Ansage hat Vorrang. Qwen Audio bekommt Ansagen, die ohne
+  offene Sitzung gesprochen wurden, beim nächsten Verbindungsaufbau als System-Item (höchstens fünf), damit es Rückfragen
+  beantworten kann. Gegenproben: ohne `reply_window.set()` bzw. ohne das Nachreichen werden die Tests rot.
+- **„Verbindung prüfen“ für den gespeicherten Qwen-Schlüssel (LG-5.02):** Neben „Schlüssel ersetzen“. `POST
+  /api/v1/voice/conversation-key/check` (Owner, CSRF) → Sprachdienst `/control/conversation-key/check` lädt den gespeicherten
+  Schlüssel, öffnet eine kurze Qwen-Sitzung mit der gespeicherten Region und meldet `ok` oder den Grund (`missing`, `auth`,
+  `quota`, …). Nichts wird gespeichert oder umgeschaltet, der Schlüssel verlässt den Sprachdienst nicht (Test). Neues Schema
+  `VoiceConversationKeyCheck`; 305 Operationen. Der Guthabenstand aus LG-5.02 entfällt (P0-08).
+- **Schlüssel des Denkmodells für Qwen Audio übernehmen (LG-4.05):** Neuer Knopf unter Einstellungen → Sprache → Gespräch.
+  `POST /api/v1/voice/conversation-key/from-brain` (Owner, CSRF, ohne Body): Die Hermes-Bridge liest in WSL mit der neuen Aktion
+  `brain-qwen-key` die Basis-URL (`model.base_url`, sonst `OPENAI_BASE_URL`) und den Schlüssel (`model.api_key`, sonst
+  `OPENAI_API_KEY`/`DASHSCOPE_API_KEY` aus `~/.hermes/.env`). Nur bei einer Token-Plan-URL gibt sie Schlüssel und Region auf der
+  Pipe an die Control API zurück; die reicht ihn an `setConversationKey` (Prüfung bei Qwen, DPAPI). Er erscheint in keiner
+  Antwort, Meldung oder Audit-Zeile (Kanarientests in Bridge und Control API). Weicht die Region des Denkmodells von der
+  gespeicherten Qwen-Region ab, kommt vorher eine klare Meldung statt eines scheinbar falschen Schlüssels. Live gegen eine echte
+  Hermes-Installation nicht geprüft.
+- **Qwen-Region im Dashboard (LG-4.01):** Einstellungen → Sprache → Gespräch hat „Qwen-Region“ (International/Singapur oder
+  Festlandchina/Peking). Neues Laufzeitfeld `voice.conversationRegion` (fehlend = `ap-southeast-1`), im Sprachdienst
+  `qwen_region`; Vorprüfung und Rücklesen wie die übrigen Laufzeitfelder (14 statt 13; Matrix 120 Einträge). Ein Wechsel
+  während Qwen spricht baut die Sitzung auf dem neuen Endpunkt neu auf (bei lokalem Gespräch kein Neuaufbau; Gegenprobe rot).
+  Da der Sprachdienst einen neuen Schlüssel gegen die gespeicherte Region prüft, sperrt die Oberfläche „Prüfen und speichern“,
+  solange eine geänderte Region ungespeichert ist, und sagt das. Die Ablehnungsmeldung nennt jetzt Schlüssel und Region.
+  Live gegen Alibaba nicht geprüft.
 - **Installer fragt nach demselben Alibaba-Schlüssel (LG-6.02, U-02):** Mit Qwen Audio als Gespräch und Alibaba Cloud Qwen
   (Token Plan) als Denkmodell zeigt die Seite KI-Zugang den Haken „Diesen Schlüssel auch für Qwen Audio (Live-Gespräch)
   verwenden“ (vorbelegt; nur sichtbar, wenn auf der Sprachseite kein eigener Qwen-Schlüssel steht). Bisher wurde der

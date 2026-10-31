@@ -19,10 +19,11 @@ import personal_wake
 import numpy as np
 
 
+QWEN_REGIONS = ("ap-southeast-1", "cn-beijing")
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
           "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel",
           "conversationBackend", "conversationConsent", "ttsRate",
-          "conversationSilenceSeconds", "proactiveAnnouncements")
+          "conversationSilenceSeconds", "proactiveAnnouncements", "conversationRegion")
 
 
 def key_pressed_from_state(key, pressed):
@@ -144,12 +145,13 @@ def effective(cfg):
             "conversationConsent": cfg.get("qwen_consent") is True,
             "ttsRate": cfg.get("tts_rate", 1.0),
             "conversationSilenceSeconds": int(round(float(cfg.get("followup_window_s", 20.0)))),
-            "proactiveAnnouncements": cfg.get("proactive_announcements", True) is not False}
+            "proactiveAnnouncements": cfg.get("proactive_announcements", True) is not False,
+            "conversationRegion": cfg.get("qwen_region") if cfg.get("qwen_region") in QWEN_REGIONS else "ap-southeast-1"}
 
 
 def validate(request, cfg):
     if not isinstance(request, dict) or set(request) != set(FIELDS):
-        raise ValueError("Voice settings require exactly thirteen fields")
+        raise ValueError("Voice settings require exactly fourteen fields")
     for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled",
                 "conversationConsent", "proactiveAnnouncements"):
         if type(request[key]) is not bool:
@@ -166,6 +168,8 @@ def validate(request, cfg):
     silence = request["conversationSilenceSeconds"]
     if isinstance(silence, bool) or not isinstance(silence, int) or not 5 <= silence <= 120:
         raise ValueError("Invalid conversation silence")
+    if request["conversationRegion"] not in QWEN_REGIONS:
+        raise ValueError("Invalid conversation region")
     if request["sttLanguage"] not in ("de", "en"):
         raise ValueError("Invalid STT language")
     if request["sttModel"] is not None and (not isinstance(request["sttModel"], str) or
@@ -188,7 +192,8 @@ def validate(request, cfg):
             "stt_language": request["sttLanguage"], "whisper_model": request["sttModel"],
             "conversation_backend": backend, "qwen_consent": request["conversationConsent"],
             "tts_rate": float(rate), "followup_window_s": float(silence),
-            "proactive_announcements": request["proactiveAnnouncements"]}
+            "proactive_announcements": request["proactiveAnnouncements"],
+            "qwen_region": request["conversationRegion"]}
 
 
 def prepare_personal_wake(install_root, state_root, phrase, raw_dir=None, cancel_event=None):

@@ -615,7 +615,7 @@
         "gesprächsende",
         "ansagen"
       ],
-      "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio, stellst die Stille bis Gesprächsende ein (5 bis 120 Sekunden, Standard 20) und entscheidest, ob F.R.I.D.A.Y. Ergebnisse von sich aus ansagt. Ist das aus, sagt sie fertige Aufträge und Rückfragen erst nach deiner nächsten Anfrage. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein."
+      "text": "Der Bereich Sprache steuert Aktivierung, Gespräch und Ausgabe. Unter Aktivierung schaltest du das Wake Word ein, legst es fest und bestimmst, ob eine Sprecherprüfung nötig ist. Mit eingeschalteter Sprecherprüfung reagiert F.R.I.D.A.Y. nur auf die eingelernte Stimme. Unbekannte Stimmen bekommen lokale Antworten ohne Verlauf, ohne Werkzeuge und ohne Zugriff auf verbundene Dienste. Unter Gespräch wählst du Lokal oder Qwen Audio und die Qwen-Region deines Token Plans, stellst die Stille bis Gesprächsende ein (5 bis 120 Sekunden, Standard 20) und entscheidest, ob F.R.I.D.A.Y. Ergebnisse von sich aus ansagt. Ist das aus, sagt sie fertige Aufträge und Rückfragen erst nach deiner nächsten Anfrage. Bei der Spracherkennung wählst du Deutsch oder Englisch und ein bereits lokal vorhandenes Whisper-Modell. Im Abschnitt Datenschutz entscheidest du, ob der Sprachverlauf gespeichert wird und ob Rohaufnahmen bleiben. Zuletzt stellst du Stimme, Tempo und die Geräte für Ein- und Ausgabe ein. Mit „Hörprobe“ spricht F.R.I.D.A.Y. einen kurzen Satz mit der gespeicherten Stimme; eine neu gewählte Stimme erst speichern, dann anhören."
     },
     {
       "id": "einstellungen#benachrichtigungen",
@@ -1200,9 +1200,12 @@
         "cloud",
         "token plan",
         "fallback",
-        "antwort lokal"
+        "antwort lokal",
+        "region",
+        "singapur",
+        "peking"
       ],
-      "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt."
+      "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt. Die Qwen-Region (International über Singapur oder Festlandchina über Peking) muss zu deinem Token Plan passen; ein Schlüssel aus der anderen Region wird abgelehnt. Nutzt das Denkmodell bereits einen Alibaba Token Plan, übernimmt der Knopf „Schlüssel des Denkmodells übernehmen“ unter Einstellungen → Sprache → Gespräch dessen Schlüssel direkt auf diesem PC, ohne dass du ihn noch einmal eintippen musst. Ist ein Schlüssel gespeichert, prüft „Verbindung prüfen“ ihn mit einer kurzen Qwen-Sitzung gegen die gespeicherte Region und nennt das Ergebnis, etwa „Kontingent aufgebraucht“; geändert wird dabei nichts."
     },
     {
       "id": "sprachbetrieb#folgefragen-und-unterbrechen",
@@ -1240,7 +1243,7 @@
         "ansagen aus",
         "von sich aus"
       ],
-      "text": "Gibst du einen Auftrag, etwa Recherchiere, welche Laptops neu erschienen sind, läuft er im Hintergrund bei einem der Agenten für Recherche, Aufgaben, Warnungen oder Prüfung. Bis zu fünf Aufträge laufen parallel. Fertige Ergebnisse sagt F.R.I.D.A.Y. an. Hast du unter Einstellungen → Sprache die Ansagen von sich aus ausgeschaltet, hebt sie sie bis nach deiner nächsten Anfrage auf und beginnt dann mit „Seit unserem letzten Gespräch“. Ab drei Ergebnissen fasst er sie zusammen. Lange Ergebnisse werden nach 1.500 Zeichen gekürzt, den Rest findest du im Dashboard. Ergebnisse gelten als Daten und nicht als Anweisungen. Wer gerade spricht, bekommt die Ansage erst nach einer Pause. Während eines Ruhemodus werden Ansagen zurückgehalten und danach mit Hinweis nachgeholt."
+      "text": "Gibst du einen Auftrag, etwa Recherchiere, welche Laptops neu erschienen sind, läuft er im Hintergrund bei einem der Agenten für Recherche, Aufgaben, Warnungen oder Prüfung. Bis zu fünf Aufträge laufen parallel. Fertige Ergebnisse sagt F.R.I.D.A.Y. an. Hast du unter Einstellungen → Sprache die Ansagen von sich aus ausgeschaltet, hebt sie sie bis nach deiner nächsten Anfrage auf und beginnt dann mit „Seit unserem letzten Gespräch“. Ab drei Ergebnissen fasst er sie zusammen. Lange Ergebnisse werden nach 1.500 Zeichen gekürzt, den Rest findest du im Dashboard. Ergebnisse gelten als Daten und nicht als Anweisungen. Wer gerade spricht, bekommt die Ansage erst nach einer Pause. Während eines Ruhemodus werden Ansagen zurückgehalten und danach mit Hinweis nachgeholt. Nach einer Ansage außerhalb eines Gesprächs kannst du direkt antworten, ohne das Aktivierungswort zu sagen, etwa auf eine Rückfrage des Auftrags; F.R.I.D.A.Y. prüft dabei wie immer deine Stimme. Das Antwortfenster ist so lang wie die Zeit für Folgefragen."
     },
     {
       "id": "sprachbetrieb#rueckfragen-von-agenten-beantworten",

@@ -445,6 +445,23 @@ it("does not report a timed-out credential write as failed or safe to retry", as
       message: expect.stringContaining("Status neu laden") });
 });
 
+it("reads the brain's Token Plan key for Qwen Audio from the bridge", async () => {
+  const invoke = vi.fn(async () => ({ key: "sk-sp-BRAINKEY-0123", region: "ap-southeast-1" })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  await expect(service.brainQwenKey()).resolves.toEqual({ key: "sk-sp-BRAINKEY-0123", region: "ap-southeast-1" });
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["brain-qwen-key"]);
+});
+
+it("explains a brain without a Token Plan and rejects an invalid region", async () => {
+  const invoke = vi.fn()
+    .mockRejectedValueOnce(new Error("runner_6:brain_not_token_plan"))
+    .mockResolvedValueOnce({ key: "sk-sp-BRAINKEY-0123", region: "eu-central-1" }) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  await expect(service.brainQwenKey()).rejects.toMatchObject({ code: "VALIDATION_FAILED",
+    message: expect.stringContaining("keinen Alibaba Token Plan") });
+  await expect(service.brainQwenKey()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+});
+
 it("stops a change on an unsupported Hermes version with a clear reason instead of an outage or unconfirmed write", async () => {
   const drifted = vi.fn(async () => { throw new Error("bridge_exit_5: unsupported_source_revision"); }) as unknown as RunnerInvoker;
   const service = fixture(drifted);

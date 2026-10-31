@@ -4,7 +4,7 @@ import { ApiError, validationFailed } from "../util/errors";
 export type VoicePersona = "friday-female" | "classic" | "custom";
 export const VOICE_PERSONAS: readonly VoicePersona[] = ["friday-female", "classic", "custom"];
 
-export async function applyVoicePersona(runtime: Runtime, choice: VoicePersona): Promise<void> {
+function voiceEndpoint(runtime: Runtime, path: string): URL {
   const adapter = runtime.config.adapters.voice;
   const configured = adapter.config.baseUrl;
   if (adapter.provider !== "friday-voice-http" || typeof configured !== "string") {
@@ -18,9 +18,14 @@ export async function applyVoicePersona(runtime: Runtime, choice: VoicePersona):
   } catch {
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die lokale Adresse des Sprachdiensts ist ungültig." });
   }
-  endpoint.pathname = "/control/voice";
+  endpoint.pathname = path;
   endpoint.search = "";
   endpoint.hash = "";
+  return endpoint;
+}
+
+export async function applyVoicePersona(runtime: Runtime, choice: VoicePersona): Promise<void> {
+  const endpoint = voiceEndpoint(runtime, "/control/voice");
   let response: Response;
   try {
     response = await fetch(endpoint, {
@@ -51,4 +56,24 @@ export async function applyVoicePersona(runtime: Runtime, choice: VoicePersona):
   if (body?.applied !== true || body.voice !== choice) {
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die neue Stimme wurde vom Sprachdienst nicht bestätigt." });
   }
+}
+
+export async function playVoiceSample(runtime: Runtime): Promise<void> {
+  const endpoint = voiceEndpoint(runtime, "/control/voice/sample");
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${runtime.voiceBridgeKey.toString("base64")}`, "Content-Type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(5_000),
+      redirect: "error",
+    });
+  } catch {
+    throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst ist derzeit nicht erreichbar." });
+  }
+  if (response.status === 404) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst benötigt das Update für die Hörprobe." });
+  if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "F.R.I.D.A.Y. ist gerade beschäftigt. Hörprobe nach dem Gespräch erneut starten." });
+  const body = await response.json().catch(() => null) as { accepted?: unknown } | null;
+  if (!response.ok || body?.accepted !== true) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Sprachdienst hat die Hörprobe nicht bestätigt." });
 }

@@ -424,6 +424,15 @@
           "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local."
         },
         {
+          "name": "conversationRegion",
+          "type": "string",
+          "enum": [
+            "ap-southeast-1",
+            "cn-beijing"
+          ],
+          "description": "Alibaba Cloud region of the Token Plan used by Qwen Audio (international Singapore or mainland China); must match where the key was issued. Missing means ap-southeast-1."
+        },
+        {
           "name": "conversationSilenceSeconds",
           "type": "integer",
           "minimum": 5,
@@ -502,6 +511,7 @@
       "defaults": {
         "conversationBackend": "local",
         "conversationConsent": false,
+        "conversationRegion": "ap-southeast-1",
         "conversationSilenceSeconds": 20,
         "inputDeviceId": null,
         "outputDeviceId": null,

@@ -1,10 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
-import { setConversationKey } from "./voice-conversation-key";
+import { adoptBrainConversationKey, checkConversationKey, setConversationKey } from "./voice-conversation-key";
+
+vi.mock("./voice-settings", () => ({
+  readRuntimeVoiceSettings: vi.fn(async () => ({
+    settings: { conversationRegion: "ap-southeast-1" },
+    serviceStartedAt: "x",
+    configRevision: "y",
+  })),
+}));
+
+const brainKey = vi.fn(async (): Promise<{ key: string; region: "ap-southeast-1" | "cn-beijing" }> => ({
+  key: "sk-sp-BRAINKEY-0123",
+  region: "ap-southeast-1",
+}));
 
 const runtime = {
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43790" } } } },
   voiceBridgeKey: Buffer.alloc(32, 1),
+  hermesConfig: { brainQwenKey: brainKey },
 } as unknown as Runtime;
 
 const foreignRuntime = {
@@ -52,5 +66,54 @@ describe("voice conversation key bridge", () => {
   it("does not accept an unconfirmed key", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ keyConfigured: false })));
     await expect(setConversationKey(runtime, "good-key-1234")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+});
+
+describe("brain key for Qwen Audio (LG-4.05)", () => {
+  it("adopts the brain key through the local voice service", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ keyConfigured: true })));
+    await expect(adoptBrainConversationKey(runtime)).resolves.toEqual({ keyConfigured: true });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ apiKey: "sk-sp-BRAINKEY-0123" }));
+  });
+
+  it("refuses a brain key from another region before contacting the voice service", async () => {
+    brainKey.mockResolvedValueOnce({ key: "sk-sp-BRAINKEY-0123", region: "cn-beijing" });
+    const fetcher = vi.spyOn(globalThis, "fetch");
+    const settlement = await adoptBrainConversationKey(runtime).then(() => null, (reason: unknown) => reason);
+    expect(settlement).toMatchObject({ code: "VALIDATION_FAILED" });
+    const message = settlement instanceof Error ? settlement.message : "";
+    expect(message).toContain("Festlandchina (Peking)");
+    expect(message).not.toContain("sk-sp-BRAINKEY-0123");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("stored key check (LG-5.02)", () => {
+  it("reports the stored key check and posts to the local voice service", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, reason: "quota" })));
+    await expect(checkConversationKey(runtime)).resolves.toEqual({ ok: false, reason: "quota" });
+    const [target, init] = fetcher.mock.calls[0] ?? [];
+    expect(String(target).endsWith("/control/conversation-key/check")).toBe(true);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBe("{}");
+  });
+
+  it("reports a working stored key", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, reason: null })));
+    await expect(checkConversationKey(runtime)).resolves.toEqual({ ok: true, reason: null });
+  });
+
+  it("rejects an unknown check reason", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, reason: "secret" })));
+    await expect(checkConversationKey(runtime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  });
+
+  it("refuses a non-local voice service address without calling it", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch");
+    await expect(checkConversationKey(foreignRuntime)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

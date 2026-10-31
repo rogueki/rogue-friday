@@ -81,6 +81,7 @@ class VoiceProbe:
         self.control_cancel = threading.Event()
         self.manual_start_lock = threading.Lock()
         self.manual_start = threading.Event()
+        self.reply_window = threading.Event()
         self.manual_release = threading.Event()
         self.background_jobs = set()
         self.background_reply_ready = threading.Event()

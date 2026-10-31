@@ -1795,6 +1795,7 @@ if (-not (IsDone 'hermes')) {
     # eigene Konfiguration (~/.hermes/.env + `hermes config set`) - kein eigener Auth-Stack, damit wir
     # update-fest bleiben. Das Hermes-Dashboard braucht der Nutzer dafuer nie zu oeffnen.
     $detectedKimi = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
+    $detectedAlibaba = @(@('BAILIAN_API_KEY', 'DASHSCOPE_API_KEY') | ForEach-Object { [Environment]::GetEnvironmentVariable($_, 'User') } | Where-Object { $_ }) | Select-Object -First 1
     if ($GuiMode -and -not $State.model_provider -and -not $GuiConfig.answers.PSObject.Properties['providerChoice']) {
         # Kein stiller Standardanbieter: fehlt die Antwort der Oberflaeche, bricht der Lauf ab, statt
         # eine vom Benutzer nie getroffene Wahl zu installieren.
@@ -1808,6 +1809,7 @@ if (-not (IsDone 'hermes')) {
         Info '3  Erweitert   Alibaba Qwen, DeepSeek, OpenRouter oder eigener OpenAI-kompatibler Server'
         Info '4  Kimi Coding (Moonshot, Modell k3)'
         if ($detectedKimi) { Info '   (Auf diesem PC liegt ein Kimi-Key bereit - er passt zu Option 4.)' }
+        if ($detectedAlibaba) { Info '   (Auf diesem PC liegt ein Alibaba-Schlüssel bereit - er passt zu Option 3 mit dem Alibaba Token Plan.)' }
         do {
             $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-4, Standard 1]' }).Trim()
             if (-not $answer) { $answer = '1' }
@@ -1862,8 +1864,14 @@ if (-not (IsDone 'hermes')) {
                 $enteredModel = $(if ($GuiMode) { Gui-Answer 'modelName' } else { Read-Host '  Modellname (z. B. deepseek-chat)' }).Trim()
                 $modelName = if ($enteredModel) { $enteredModel } else { 'deepseek-chat' }
             }
-            Info 'API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
-            $key = Plain $(if ($GuiMode) { Gui-Secret 'customKey' } else { Read-Host '  API-Key' -AsSecureString })
+            if (-not $GuiMode -and $detectedAlibaba -and $baseUrl -match '^https://token-plan\.(ap-southeast-1|cn-beijing)\.maas\.aliyuncs\.com/' -and
+                (YesNo 'Auf diesem PC liegt ein Alibaba-Schlüssel (BAILIAN_API_KEY/DASHSCOPE_API_KEY) bereit. Verwenden?' $true)) {
+                $key = [string]$detectedAlibaba
+                Info 'Alibaba-Schlüssel dieses PCs übernommen.'
+            } else {
+                Info 'API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
+                $key = Plain $(if ($GuiMode) { Gui-Secret 'customKey' } else { Read-Host '  API-Key' -AsSecureString })
+            }
             if ($key -and $key -match '^sk-kimi-') {
                 $provider = 'kimi-coding'; $modelName = 'k3'; $baseUrl = ''
                 Info 'Der eingegebene Key ist ein Kimi-Code-Key - es wird der Kimi-Coding-Zugang (Modell k3) eingerichtet.'
