@@ -10,6 +10,23 @@ sudo bash installer/install-friday-linux.sh --skills-source /absolute/path/frida
 
 `--dry-run` lists host prerequisites without changes. Python needs the distribution's `python3-venv` package. In ElevenLabs mode the installer creates `/var/lib/friday/voice/.venv`, downloads CPU wake/speaker/VAD assets and stores `pip freeze` in `/var/lib/friday/voice/pip-freeze.txt` **before** enrollment. It writes `/etc/systemd/system/friday-voice.service`; the service starts and the dashboard voice adapter becomes live only when the private readiness check passes. If it reports `VOICE_PENDING`, the dashboard stays available. Sign in as owner, open **Stimme → Browser-Stimme einrichten**, and record the guided activation phrase, short form if shown, other words and reading samples. The optional dialog can be closed at any time; the rest of the dashboard stays usable. After training, `friday-voice-activate.path` checks readiness, starts the voice service and enables its dashboard adapter. No manual file transfer or installer rerun is needed. A valid existing Voice ID and key are reused on later installs.
 
+## Live conversation with Qwen Audio (optional)
+
+With the ElevenLabs voice, the spoken conversation can be led by Qwen Audio over the Alibaba Token Plan instead of the
+local pipeline. Speech and conversation content then go to Alibaba Cloud; wake word, speaker check and the voice stay on
+the machine. The installer asks for the choice and for explicit consent; without consent the conversation stays local.
+Unattended:
+
+```bash
+sudo bash installer/install-friday-linux.sh --skills-source /absolute/path/friday-skills --voice-mode elevenlabs   --elevenlabs-voice-id YOUR_OWN_VOICE_ID --key-prompt   --conversation qwen --qwen-consent --qwen-region ap-southeast-1 --qwen-key-prompt
+```
+
+`--qwen-key-file ABS_PATH` reads the Token Plan key from a private file instead. The key is stored only in
+`/etc/friday/secrets/alibaba-tokenplan.key` (service-owned, mode 0600) and is part of the installer's rollback backup. A
+later install without `--conversation` keeps the existing choice, consent and key. The dashboard (Settings → Voice →
+Conversation) switches between local and Qwen and can withdraw the consent; storing a new key works only through the
+installer on Linux.
+
 ## Private enrollment
 
 The browser submits one bounded 16-kHz PCM sample at a time through owner-session and CSRF-protected Control API routes. Recordings are written with private permissions under `/var/lib/friday/voice/profiles/owner/raw`, then removed after successful training; incomplete recordings expire after seven days while the dashboard runs. ECAPA speaker and personal wake models remain private on the server. The service remains off if training, model files, the Hermes API, or the voice key fail readiness. A failed activation can be retried from the same dialog without repeating the recordings. Training can take several minutes on CPU. Keep the browser on `localhost` or HTTPS so microphone access is allowed.
