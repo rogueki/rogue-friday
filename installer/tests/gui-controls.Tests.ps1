@@ -81,5 +81,12 @@ Assert-True ($installer -match 'Gleichen Alibaba-Schlüssel auch für Qwen Audio
 Assert-True ($installer -match 'if \(-not \$GuiMode[\s\S]{0,400}Gleichen Alibaba-Schlüssel') 'Die Frage nach demselben Qwen-Schlüssel läuft auch im GUI-Modus.'
 Assert-True ($installer -match 'alibaba_tokenplan\.key\.dpapi') 'Der Qwen-Schlüssel wird nicht als Datei gespeichert.'
 
+# --- Alibaba key already on this PC (LG-6.01)
+Assert-True ($gui -match "GetEnvironmentVariable\(\`$_, 'User'\)" -and $gui -match "'BAILIAN_API_KEY', 'DASHSCOPE_API_KEY'") 'Der GUI-Installer erkennt keinen vorhandenen Alibaba-Schlüssel.'
+Assert-True ($gui -match '(?m)^\[void\]\(Add-Check \$modelPage\.Panel ''useExistingAlibaba''[^\r\n]* 190 \$true\)') 'Der Haken useExistingAlibaba fehlt auf der KI-Zugangsseite.'
+Assert-True ($gui -match "function Get-ProviderKeyText[\s\S]{0,300}Use-AlibabaEnvironment") 'Get-ProviderKeyText nutzt den gefundenen Alibaba-Schlüssel nicht.'
+Assert-True ($gui -match "Test-ProviderKey[\s\S]{0,200}Get-ProviderKeyText") 'Test-ProviderKey prüft nicht den übernommenen Alibaba-Schlüssel.'
+Assert-True ($gui -match 'if \(Use-AlibabaEnvironment\) \{ \$script:redactions \+=') 'Der übernommene Alibaba-Schlüssel wird nicht aus dem Protokoll entfernt.'
+Assert-True ($installer -match "if \(-not \`$GuiMode -and \`$detectedAlibaba") 'Die Konsolenfrage zum Alibaba-Schlüssel läuft auch im GUI-Modus.'
 Write-Host "Klick-Bedienung: $($script:checks) Prüfungen bestanden"
 Write-Host 'Klick-Bedienung: PASS'
