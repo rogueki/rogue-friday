@@ -16,7 +16,8 @@ def requested(**overrides):
     return {"wakeWordEnabled": True, "wakeWord": "Hey Friday", "pushToTalkKey": "Ctrl+Space",
             "speakerVerificationRequired": True, "storeRawRecordings": False,
             "voiceHistoryEnabled": True, "sttLanguage": "de", "sttModel": None,
-            "conversationBackend": "local", "conversationConsent": False, "ttsRate": 1.0, **overrides}
+            "conversationBackend": "local", "conversationConsent": False, "ttsRate": 1.0,
+            "conversationSilenceSeconds": 20, "proactiveAnnouncements": True, **overrides}
 
 
 def test_validation_rejects_invalid_phrase_and_implicit_recording():
@@ -81,6 +82,29 @@ def test_validate_stores_requested_qwen_consent(tmp_path):
     applied = runtime_settings.validate(requested(conversationBackend="qwen", conversationConsent=True), cfg)
     assert applied["qwen_consent"] is True
     assert runtime_settings.validate(requested(conversationConsent=False), cfg)["qwen_consent"] is False
+
+
+def test_effective_reports_conversation_silence_and_proactive_defaults():
+    assert runtime_settings.effective({"followup_window_s": 15.0})["conversationSilenceSeconds"] == 15
+    assert runtime_settings.effective({})["conversationSilenceSeconds"] == 20
+    assert runtime_settings.effective({})["proactiveAnnouncements"] is True
+    assert runtime_settings.effective({"proactive_announcements": False})["proactiveAnnouncements"] is False
+
+
+def test_validate_maps_conversation_silence_and_proactive_announcements():
+    applied = runtime_settings.validate(
+        requested(conversationSilenceSeconds=30, proactiveAnnouncements=False), {"wake_phrase": "Hey Friday"})
+    assert applied["followup_window_s"] == 30.0
+    assert applied["proactive_announcements"] is False
+
+
+def test_validate_rejects_invalid_conversation_silence_and_proactive_flag():
+    cfg = {"wake_phrase": "Hey Friday"}
+    for value in (4, 121, 20.5, True):
+        with pytest.raises(ValueError, match="Invalid conversation silence"):
+            runtime_settings.validate(requested(conversationSilenceSeconds=value), cfg)
+    with pytest.raises(ValueError, match="proactiveAnnouncements"):
+        runtime_settings.validate(requested(proactiveAnnouncements="yes"), cfg)
 
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):

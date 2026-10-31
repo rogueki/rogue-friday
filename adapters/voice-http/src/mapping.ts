@@ -195,6 +195,8 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
           /^[a-z0-9][a-z0-9.-]{0,63}$/.test((raw.runtime_settings as Record<string, string>).sttModel ?? ""))) &&
       ["local", "qwen"].includes(String((raw.runtime_settings as Record<string, unknown>).conversationBackend)) &&
       typeof (raw.runtime_settings as Record<string, unknown>).conversationConsent === "boolean" &&
+      Number.isInteger((raw.runtime_settings as Record<string, unknown>).conversationSilenceSeconds) &&
+      typeof (raw.runtime_settings as Record<string, unknown>).proactiveAnnouncements === "boolean" &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"

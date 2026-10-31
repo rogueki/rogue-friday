@@ -323,6 +323,8 @@ describe("speaker verification from the service (DASH-11.03)", () => {
     sttModel: null,
     conversationBackend: "local",
     conversationConsent: false,
+    conversationSilenceSeconds: 20,
+    proactiveAnnouncements: true,
     ttsRate: 1,
   });
 

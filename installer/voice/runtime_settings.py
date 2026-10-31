@@ -21,7 +21,8 @@ import numpy as np
 
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
           "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel",
-          "conversationBackend", "conversationConsent", "ttsRate")
+          "conversationBackend", "conversationConsent", "ttsRate",
+          "conversationSilenceSeconds", "proactiveAnnouncements")
 
 
 def key_pressed_from_state(key, pressed):
@@ -141,14 +142,16 @@ def effective(cfg):
             "sttModel": cfg.get("whisper_model"),
             "conversationBackend": backend if backend != "qwen" or cfg.get("qwen_consent") is True else "local",
             "conversationConsent": cfg.get("qwen_consent") is True,
-            "ttsRate": cfg.get("tts_rate", 1.0)}
+            "ttsRate": cfg.get("tts_rate", 1.0),
+            "conversationSilenceSeconds": int(round(float(cfg.get("followup_window_s", 20.0)))),
+            "proactiveAnnouncements": cfg.get("proactive_announcements", True) is not False}
 
 
 def validate(request, cfg):
     if not isinstance(request, dict) or set(request) != set(FIELDS):
-        raise ValueError("Voice settings require exactly eleven fields")
+        raise ValueError("Voice settings require exactly thirteen fields")
     for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled",
-                "conversationConsent"):
+                "conversationConsent", "proactiveAnnouncements"):
         if type(request[key]) is not bool:
             raise ValueError(f"Invalid {key}")
     phrase = request["wakeWord"]
@@ -160,6 +163,9 @@ def validate(request, cfg):
     rate = request["ttsRate"]
     if isinstance(rate, bool) or not isinstance(rate, (float, int)) or not 0.5 <= rate <= 2:
         raise ValueError("Invalid TTS rate")
+    silence = request["conversationSilenceSeconds"]
+    if isinstance(silence, bool) or not isinstance(silence, int) or not 5 <= silence <= 120:
+        raise ValueError("Invalid conversation silence")
     if request["sttLanguage"] not in ("de", "en"):
         raise ValueError("Invalid STT language")
     if request["sttModel"] is not None and (not isinstance(request["sttModel"], str) or
@@ -181,7 +187,8 @@ def validate(request, cfg):
             "voice_history_enabled": request["voiceHistoryEnabled"],
             "stt_language": request["sttLanguage"], "whisper_model": request["sttModel"],
             "conversation_backend": backend, "qwen_consent": request["conversationConsent"],
-            "tts_rate": float(rate)}
+            "tts_rate": float(rate), "followup_window_s": float(silence),
+            "proactive_announcements": request["proactiveAnnouncements"]}
 
 
 def prepare_personal_wake(install_root, state_root, phrase, raw_dir=None, cancel_event=None):

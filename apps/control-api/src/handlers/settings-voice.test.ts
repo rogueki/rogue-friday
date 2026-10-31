@@ -26,7 +26,7 @@ describe("voice settings commit", () => {
   it("rejects a concurrent policy write between snapshot and apply", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const { ttsVoice: _ttsVoice, inputDeviceId: _inputDeviceId, outputDeviceId: _outputDeviceId, ...live } = stored;
     const ctx = context(() => 1, () => { throw new Error("must not persist"); });
     ctx.runtime.settings.area = vi.fn(() => stored) as never;
@@ -43,7 +43,7 @@ describe("voice settings commit", () => {
   it("rolls back only against the revision produced by its own settings apply", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const { ttsVoice: _ttsVoice, inputDeviceId: _inputDeviceId, outputDeviceId: _outputDeviceId, ...live } = stored;
     const target = { ...live, voiceHistoryEnabled: false };
     const ctx = context(() => 1, () => { throw new Error("synthetic persistence failure"); });
@@ -65,16 +65,17 @@ describe("voice settings commit", () => {
   it("imports the voice settings through runtime apply and keeps the acknowledged legacy phrase", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const live = { wakeWordEnabled: true, wakeWord: "Hey Jarvis", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const expected = { ...stored, wakeWord: "Hey Jarvis", ttsVoice: "classic" };
     const ctx = context(() => 1, () => { throw new Error("unused"); });
     ctx.runtime.settings.area = vi.fn(() => stored) as never;
     ctx.runtime.settings.patch = vi.fn(() => ({ changed: ["voice"], settings: { version: 2, voice: expected } })) as never;
     const importMock = vi.fn((_document: unknown) => ({ settings: { version: 3, voice: expected }, repairs: [] }));
     ctx.runtime.settings.import = importMock as never;
-    const { sttLanguage: _language, sttModel: _model, conversationBackend: _backend, conversationConsent: _consent, ...legacyVoice } = stored;
+    const { sttLanguage: _language, sttModel: _model, conversationBackend: _backend, conversationConsent: _consent,
+      conversationSilenceSeconds: _silence, proactiveAnnouncements: _proactive, ...legacyVoice } = stored;
     ctx.body = { settings: { voice: { ...legacyVoice, ttsVoice: "classic" } }, themes: [], layouts: [] } as never;
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
@@ -91,9 +92,9 @@ describe("voice settings commit", () => {
   it("preserves live legacy wake phrase when a different voice field changes", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const live = { wakeWordEnabled: true, wakeWord: "Hey Jarvis", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const desired = { ...live, voiceHistoryEnabled: false };
     const write = vi.fn((patch: { voice: typeof stored }, version: number) => ({
       changed: ["voice"], settings: { version: version + 1, voice: patch.voice },
@@ -118,7 +119,7 @@ describe("voice settings commit", () => {
   it("does not persist or roll back a policy rejected with 422", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1 };
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1 };
     const ctx = context(() => 1, () => { throw new Error("persisted"); });
     ctx.runtime.settings.area = vi.fn(() => stored) as never;
     ctx.body = { voice: { ...stored, wakeWord: "Hey 123" } };

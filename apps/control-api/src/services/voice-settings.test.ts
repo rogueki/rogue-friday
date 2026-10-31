@@ -4,7 +4,7 @@ import { applyVoiceSettings, readRuntimeVoiceSettings, type RuntimeVoiceSettings
 
 const requested: RuntimeVoiceSettings = {
   wakeWordEnabled: false, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, ttsRate: 1.25,
+  speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: false, sttLanguage: "de", sttModel: "small", conversationBackend: "local", conversationConsent: false, conversationSilenceSeconds: 20, proactiveAnnouncements: true, ttsRate: 1.25,
 };
 const runtime = {
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },

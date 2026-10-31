@@ -1535,6 +1535,96 @@ def test_announcements_wait_for_the_pause_after_the_users_turn():
     assert not svc._user_turn_active()
 
 
+def test_proactive_off_holds_results_outside_a_conversation(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    svc.cfg["proactive_announcements"] = False
+    svc.trusted_until = 0
+    svc.status["state"] = "wake_only"
+    spoken = []
+    svc._speak_announcement = spoken.append
+    svc._announcement_text = lambda jobs: "Recherche \u2013 Wetter: sonnig."
+    svc._forget_announced = lambda jobs: None
+    svc._deliver_announcement([{"taskId": "t1"}])
+    assert spoken == []
+    assert svc.held_proactive == ["Recherche \u2013 Wetter: sonnig."]
+
+
+def test_held_results_are_spoken_after_the_next_request(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    svc.cfg["proactive_announcements"] = False
+    svc.trusted_until = 0
+    svc.status["state"] = "wake_only"
+    spoken = []
+    svc._speak_announcement = spoken.append
+    svc._announcement_text = lambda jobs: "Recherche \u2013 Wetter: sonnig."
+    svc._forget_announced = lambda jobs: None
+    svc._deliver_announcement([{"taskId": "t1"}])
+    svc._speak_held_announcements()
+    assert len(spoken) == 1
+    assert spoken[0].startswith("Seit unserem letzten Gespr\u00e4ch: ")
+    assert "Recherche \u2013 Wetter: sonnig." in spoken[0]
+    assert svc.held_proactive == []
+
+
+def test_proactive_off_still_speaks_inside_a_conversation(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    svc.cfg["proactive_announcements"] = False
+    svc.trusted_until = time.monotonic() + 10
+    svc.status["state"] = "wake_only"
+    spoken = []
+    svc._speak_announcement = spoken.append
+    svc._announcement_text = lambda jobs: "Recherche \u2013 Wetter: sonnig."
+    svc._forget_announced = lambda jobs: None
+    svc._deliver_announcement([{"taskId": "t1"}])
+    assert spoken == ["Recherche \u2013 Wetter: sonnig."]
+    assert getattr(svc, "held_proactive", []) == []
+
+
+def test_switching_proactive_back_on_releases_held_results(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    svc.cfg["proactive_announcements"] = True
+    svc.held_proactive = ["Recherche \u2013 Wetter: sonnig."]
+    spoken = []
+    svc._speak_announcement = spoken.append
+    assert svc._has_held_announcements() is True
+    svc._deliver_announcement([])
+    assert spoken == ["Seit unserem letzten Gespr\u00e4ch: Recherche \u2013 Wetter: sonnig."]
+    assert svc.held_proactive == []
+
+
+def test_quiet_mode_keeps_held_results_after_switching_back_on():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg["proactive_announcements"] = True
+    svc.held_proactive = ["Recherche – Wetter: sonnig."]
+    spoken = []
+    svc._speak_announcement = spoken.append
+    svc.quiet_gate = types.SimpleNamespace(active=lambda: True)
+    svc._deliver_announcement([])
+    assert spoken == []
+    assert svc.held_proactive == ["Recherche – Wetter: sonnig."]
+
+def test_proactive_default_speaks_immediately(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc = make_service(jv, {})
+    spoken = []
+    svc._speak_announcement = spoken.append
+    svc._announcement_text = lambda jobs: "Recherche \u2013 Wetter: sonnig."
+    svc._forget_announced = lambda jobs: None
+    svc._deliver_announcement([{"taskId": "t1"}])
+    assert spoken == ["Recherche \u2013 Wetter: sonnig."]
+    assert getattr(svc, "held_proactive", []) == []
+
+
 def test_wait_for_pause_gives_up_after_its_limit():
     jv = load_voice_module()
     svc = make_service(jv, {})

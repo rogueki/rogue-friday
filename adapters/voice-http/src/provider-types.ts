@@ -82,7 +82,8 @@ export interface RawVoiceStatus {
   runtime_settings?: {
     wakeWordEnabled: boolean; wakeWord: string; pushToTalkKey: string; speakerVerificationRequired: boolean;
     storeRawRecordings: boolean; voiceHistoryEnabled: boolean; sttLanguage: "de" | "en";
-      sttModel: string | null; conversationBackend: "local" | "qwen"; conversationConsent: boolean; ttsRate: number;
+      sttModel: string | null; conversationBackend: "local" | "qwen"; conversationConsent: boolean; conversationSilenceSeconds: number;
+      proactiveAnnouncements: boolean; ttsRate: number;
   };
   conversation?: { backend: "local" | "qwen"; key_configured: boolean; consent: boolean;
     last_error: "auth" | "quota" | "rate" | "idle" | "model" | "network" | "protocol" | null };

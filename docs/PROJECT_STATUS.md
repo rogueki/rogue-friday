@@ -1584,6 +1584,16 @@ entfernt) rot; pyflakes ohne Befund.
   Download fehl; CI installiert `soundfile` (Version der Sprachumgebung). Dabei gefunden: `test_configure_voice` lud
   `elevenlabs_cloud` gegen einen numpy-Stub neu und ließ das Modul so zurück, nachfolgende ElevenLabs-Tests scheiterten; lädt jetzt
   echtes numpy nach. WSL, komplette CI-Liste: 800 bestanden, 16 übersprungen.
+- **Gesprächseinstellungen im Dashboard (LG-5.04):** Einstellungen → Sprache → Gespräch hat jetzt „Stille bis Gesprächsende“
+  (5–120 s, Standard 20; `voice.conversationSilenceSeconds` ⇒ `followup_window_s`) und „Ergebnisse von sich aus ansagen“
+  (`voice.proactiveAnnouncements` ⇒ `proactive_announcements`, fehlend = an). Beide sind Laufzeitfelder (13 statt 11, Vorprüfung im
+  Sprachdienst, CAS/Rücklesen wie die übrigen). Aus: Ein Ergebnis außerhalb eines Gesprächs wird zurückgehalten (höchstens 10) und
+  direkt nach der nächsten Anfrage als „Seit unserem letzten Gespräch: …“ gesagt; wieder an gibt die Rückstände innerhalb von 30 s
+  frei, außer der Ruhemodus ist aktiv (Ruhemodus hat Vorrang). Ankündigungsweg dafür in `_deliver_announcement` gebündelt.
+  Ruhezeiten bleiben unter Benachrichtigungen (Text verweist darauf); Vollduplex (D-09, Option für Headsets) ist nicht
+  enthalten. Vertrag: zwei optionale Felder ohne Default, SDK neu; Einstellungsmatrix 119. Tests: Python (Laufzeitfelder,
+  Zurückhalten/Freigabe/Gespräch offen/Ruhemodus), Control API und Adapter mit vollständigem Feldsatz, Dashboard (Regler und
+  Schalter speichern); Gegenproben (Zurückhalten aus, Ruhemodus-Vorrang aus, Mapping aus) je rot.
 - **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
   Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 

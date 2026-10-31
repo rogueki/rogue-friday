@@ -424,6 +424,13 @@
           "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local."
         },
         {
+          "name": "conversationSilenceSeconds",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 120,
+          "description": "Silence after an answer until the conversation ends and the wake word is needed again; missing means 20."
+        },
+        {
           "name": "inputDeviceId",
           "type": [
             "string",
@@ -436,6 +443,11 @@
             "string",
             "null"
           ]
+        },
+        {
+          "name": "proactiveAnnouncements",
+          "type": "boolean",
+          "description": "Friday speaks background results on her own; false holds them until the owner's next request. Missing means true."
         },
         {
           "name": "pushToTalkKey",
@@ -490,8 +502,10 @@
       "defaults": {
         "conversationBackend": "local",
         "conversationConsent": false,
+        "conversationSilenceSeconds": 20,
         "inputDeviceId": null,
         "outputDeviceId": null,
+        "proactiveAnnouncements": true,
         "pushToTalkKey": "Ctrl+Space",
         "speakerVerificationRequired": true,
         "storeRawRecordings": false,

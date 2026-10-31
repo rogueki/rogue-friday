@@ -11647,8 +11647,12 @@ export interface components {
             conversationBackend?: "local" | "qwen";
             /** @description The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local. */
             conversationConsent?: boolean;
+            /** @description Silence after an answer until the conversation ends and the wake word is needed again; missing means 20. */
+            conversationSilenceSeconds?: number;
             inputDeviceId: string | null;
             outputDeviceId: string | null;
+            /** @description Friday speaks background results on her own; false holds them until the owner's next request. Missing means true. */
+            proactiveAnnouncements?: boolean;
             pushToTalkKey: string;
             speakerVerificationRequired: boolean;
             /** @default false */

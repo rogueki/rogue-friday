@@ -6117,6 +6117,14 @@ export interface VoiceSettings {
    * The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local.
    */
   conversationConsent?: boolean;
+  /**
+   * Silence after an answer until the conversation ends and the wake word is needed again; missing means 20.
+   */
+  conversationSilenceSeconds?: number;
+  /**
+   * Friday speaks background results on her own; false holds them until the owner's next request. Missing means true.
+   */
+  proactiveAnnouncements?: boolean;
   ttsVoice: string;
   ttsRate: number;
   inputDeviceId: string | null;
