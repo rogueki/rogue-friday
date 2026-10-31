@@ -206,6 +206,34 @@ describe("Voice: outage is not 'Capability fehlt' and is shown in the sidebar wi
     expect(container.querySelector(".web-flag")).toBeNull();
     expect(container.querySelector(".jv-flag")).not.toBeNull();
     expect(container.querySelector("span.jv-flag[aria-label]")).toBeNull();
+    expect(within(flags).queryByText(/Gespräch/)).toBeNull();
+  });
+
+  it("the sidebar names the conversation mode and a Qwen fault (LG-5.05)", async () => {
+    const online = adapterInfoOf({ id: "friday-voice-http", category: "voice" });
+    const status = {
+      updatedAt: "2026-10-14T08:15:00Z",
+      source: { adapterId: "friday-voice-http", system: "voice", lastSyncedAt: "2026-10-14T08:15:00Z" },
+      mode: "idle",
+      microphone: { state: "idle", active: false, deviceId: null, inputLevel: 0 },
+      wakeWord: { enabled: true, state: "armed", phrase: "Hey Friday" },
+      speakerVerification: { enabled: false, state: "disabled", recognizedSpeaker: null, confidence: null },
+      trustedSession: { active: false, expiresAt: null },
+      stt: { engine: "x", state: "ready", latencyMs: null },
+      tts: { engine: "x", state: "ready", latencyMs: null },
+      localModel: { name: null, state: "offline", latencyMs: null },
+      audioInputDeviceId: null,
+      audioOutputDeviceId: null,
+      pushToTalk: { enabled: true, active: false },
+      focusMode: false,
+      rawRecordingEnabled: false,
+      voiceHistoryEnabled: true,
+      conversation: { backend: "qwen", keyConfigured: true, consent: true, lastError: "network" },
+    };
+    const api = routerFetch({ "GET /voice/status": dataOf(status) });
+    renderWithProviders(<VoiceNavPanel />, { capabilities: capabilitiesOf({ voice: { read: true } }), adapters: [online], fetchImpl: api.fetch });
+    const flags = await screen.findByRole("list", { name: "Sprachstatus im Detail" });
+    expect(within(flags).getAllByText(/Qwen gestört, lokal/).length).toBeGreaterThan(0);
   });
 });
 

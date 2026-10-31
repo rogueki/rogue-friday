@@ -1,7 +1,8 @@
 "use client";
 
+import type { VoiceStatus } from "@friday/sdk";
 import { StatusFlag, Tooltip, VoiceStatusPanel } from "@friday/ui";
-import { AudioLines, Fingerprint, KeyRound, Mic, ShieldCheck } from "lucide-react";
+import { AudioLines, Fingerprint, KeyRound, MessagesSquare, Mic, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useVoiceUi } from "@/features/voice/useVoiceUi";
@@ -13,6 +14,17 @@ interface Flag {
   label: string;
   value: string;
   tone: "ok" | "warn" | "off";
+}
+
+function conversationFlag(conversation: NonNullable<VoiceStatus["conversation"]>, t: (key: MessageKey) => string): Flag {
+  const qwen = conversation.backend === "qwen";
+  return {
+    id: "conversation",
+    icon: <MessagesSquare size={13} strokeWidth={1.6} />,
+    label: t("voice.conversation"),
+    value: !qwen ? t("voice.conversationLocal") : conversation.lastError === null ? t("voice.conversationQwen") : t("voice.conversationFallback"),
+    tone: !qwen ? "off" : conversation.lastError === null ? "ok" : "warn",
+  };
 }
 
 /** Voice status in the nav footer (PLAN §27.12): wake word, mic, speaker verification, trusted session, waveform, PTT, focus. */
@@ -53,6 +65,7 @@ export function VoiceNavPanel() {
           value: status.trustedSession.active ? t("voice.active") : t("voice.inactive"),
           tone: status.trustedSession.active ? "ok" : "off",
         },
+        ...(status.conversation ? [conversationFlag(status.conversation, t)] : []),
       ]
     : [];
 

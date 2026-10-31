@@ -1,7 +1,8 @@
-import type { VoiceEnrollment, VoiceMetrics, VoiceProfile, VoiceStatus } from "@friday/sdk";
+import type { Task, VoiceEnrollment, VoiceMetrics, VoiceProfile, VoiceStatus } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { deC } from "@/i18n/modules/c.de";
 import { setApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
@@ -55,6 +56,7 @@ const routes = (overrides: Record<string, unknown> = {}) => ({
   "GET /api/v1/voice/metrics": single(metrics),
   "GET /api/v1/voice/profiles": listOf([profile]),
   "GET /api/v1/voice/devices": listOf(devices),
+  "GET /api/v1/tasks": listOf([]),
   ...overrides,
 });
 
@@ -391,6 +393,92 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Endgültig löschen" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.queryByText("Voice-History gelöscht")).toBeNull();
+  });
+});
+
+describe("conversation mode and voice tasks (LG-5.05)", () => {
+  const de = deC as Record<string, string>;
+  // Renders the German messages with their placeholders filled, like useT does on the page.
+  const t = ((key: string, vars?: Record<string, string | number>) => {
+    const values = vars ?? {};
+    return (de[key] ?? key).replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
+  }) as never;
+
+  const task = (partial: Partial<Task> = {}): Task => ({
+    id: "task_voice",
+    version: 1,
+    createdAt: NOW,
+    updatedAt: NOW,
+    source: SOURCE,
+    title: "Wetter Hamburg prüfen",
+    status: "waiting",
+    priority: "P2",
+    agentId: null,
+    model: null,
+    progress: { mode: "determinate", value: 0 },
+    startedAt: null,
+    runtimeMs: null,
+    dueAt: null,
+    estimatedCompletionAt: null,
+    blockers: [],
+    lastActivityAt: null,
+    artifactCount: 0,
+    artifacts: [],
+    steps: [],
+    toolCalls: [],
+    sourceRefs: [],
+    approvalIds: [],
+    errors: [],
+    createdBy: { type: "user", id: "owner" },
+    labels: [],
+    ...partial,
+  });
+
+  const voiceAndTasks = capabilitiesOf({ voice: { read: true }, tasks: { read: true } });
+
+  it("shows a Qwen conversation as connected", () => {
+    const rows = buildStatusRows(status({ conversation: { backend: "qwen", keyConfigured: true, consent: true, lastError: null } }), [], t, "de-DE", "x");
+    const row = rows.find((entry) => entry.id === "conversation");
+    expect(row?.value).toBe("Qwen Audio (Alibaba Cloud)");
+    expect(row?.tone).toBe("green");
+    expect(row?.detail).toBe("Cloud-Verbindung in Ordnung");
+    expect(row?.stateLabel).toBe("Aktiv");
+  });
+
+  it("names the cloud reason and the local fallback when Qwen reports an error", () => {
+    const rows = buildStatusRows(status({ conversation: { backend: "qwen", keyConfigured: true, consent: true, lastError: "quota" } }), [], t, "de-DE", "x");
+    const row = rows.find((entry) => entry.id === "conversation");
+    expect(row?.tone).toBe("amber");
+    expect(String(row?.detail)).toContain("Kontingent aufgebraucht");
+    expect(row?.stateLabel).toBe("Lokal vertreten");
+  });
+
+  it("shows no conversation row for an older voice service", () => {
+    const rows = buildStatusRows(status(), [], t, "de-DE", "x");
+    expect(rows.some((entry) => entry.id === "conversation")).toBe(false);
+  });
+
+  it("lists tasks started by voice with their status and opens them", async () => {
+    const user = userEvent.setup();
+    const voiceTask = task({ id: "task_voice", labels: ["tenant:voice-research"], status: "waiting", title: "Wetter Hamburg prüfen" });
+    const otherTask = task({ id: "task_other", labels: [], status: "done", title: "Bericht schreiben" });
+    const fake = routedFetch(routes({ "GET /api/v1/tasks": listOf([voiceTask, otherTask]) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: voiceAndTasks });
+    const panel = (await screen.findByText("Aufträge aus Gesprächen")).closest("section") as HTMLElement | null;
+    expect(panel).not.toBeNull();
+    const scope = within(panel as HTMLElement);
+    expect(await scope.findByText("Wetter Hamburg prüfen")).toBeInTheDocument();
+    expect(scope.getByText("Wartet")).toBeInTheDocument();
+    expect(scope.getByText("Wartet auf deine Antwort – du kannst sie Friday einfach sagen")).toBeInTheDocument();
+    expect(scope.queryByText("Bericht schreiben")).toBeNull();
+    await user.click(scope.getByRole("button", { name: "Wetter Hamburg prüfen" }));
+    expect(push).toHaveBeenCalledWith("/tasks?task=task_voice");
+  });
+
+  it("says that no task was started by voice yet", async () => {
+    const fake = routedFetch(routes({ "GET /api/v1/tasks": listOf([]) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: voiceAndTasks });
+    expect(await screen.findByText("Noch keine Aufträge per Stimme")).toBeInTheDocument();
   });
 });
 

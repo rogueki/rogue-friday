@@ -1077,9 +1077,12 @@
         "sprecherprofil",
         "metriken",
         "latenz",
-        "sprachverlauf"
+        "sprachverlauf",
+        "gesprächsmodus",
+        "qwen",
+        "aufträge aus gesprächen"
       ],
-      "text": "Die Seite Sprache zeigt den Zustand der Sprachsteuerung. Du siehst, ob das Mikrofon aufnimmt, wartet oder nicht verbunden ist, und welche Audiogeräte für Eingabe und Ausgabe gewählt sind. Die Live-Metriken zeigen Latenzen der Sprachverarbeitung als Mittelwert und P95. Unter Sprecherprofile findest du das eingelernte Profil mit Qualität und Schwellwert. Ein Einlernen aus dem Dashboard ist nur möglich, wenn der Sprachdienst es meldet. Sonst läuft es über den Installer. Den Sprachverlauf kann nur der Owner hier löschen. Die Einstellungen zur Sprache findest du unter Einstellungen → Sprache."
+      "text": "Die Seite Sprache zeigt den Zustand der Sprachsteuerung. Du siehst, ob das Mikrofon aufnimmt, wartet oder nicht verbunden ist, und welche Audiogeräte für Eingabe und Ausgabe gewählt sind. Die Live-Metriken zeigen Latenzen der Sprachverarbeitung als Mittelwert und P95. Unter Sprecherprofile findest du das eingelernte Profil mit Qualität und Schwellwert. Ein Einlernen aus dem Dashboard ist nur möglich, wenn der Sprachdienst es meldet. Sonst läuft es über den Installer. Die Zeile Gespräch zeigt, ob gerade lokal oder mit Qwen Audio gesprochen wird; ist die Cloud gestört, steht dort der Grund, und ich antworte bis dahin lokal. Dieselbe Angabe steht auch unten in der Seitenleiste. Unter Aufträge aus Gesprächen siehst du die Aufgaben, die du mir per Stimme gegeben hast, mit ihrem Stand; ein Klick öffnet die Aufgabe. Wartet eine davon auf deine Antwort, kannst du sie mir einfach sagen. Den Sprachverlauf kann nur der Owner hier löschen. Die Einstellungen zur Sprache findest du unter Einstellungen → Sprache."
     },
     {
       "id": "seiten#meldungen-alarme",

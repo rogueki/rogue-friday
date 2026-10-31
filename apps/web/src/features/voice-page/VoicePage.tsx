@@ -1,6 +1,6 @@
 "use client";
 
-import type { LatencyStat, VoiceDevice, VoiceProfile, VoiceStatus, VoiceTestKind, VoiceTestResult } from "@friday/sdk";
+import type { LatencyStat, Task, VoiceDevice, VoiceProfile, VoiceStatus, VoiceTestKind, VoiceTestResult } from "@friday/sdk";
 import {
   Button,
   ConfirmDialog,
@@ -22,7 +22,9 @@ import {
   Fingerprint,
   Headphones,
   KeyRound,
+  ListChecks,
   Lock,
+  MessagesSquare,
   Mic,
   MicOff,
   Radio,
@@ -42,6 +44,7 @@ import { PanelFrame } from "@/components/PanelFrame";
 import { KeyValue, StatusStrip, useFormatters, useQueryPanelState } from "@/features/system/common";
 import { bcp47, formatFraction, formatMs, MISSING } from "@/features/system/format";
 import { useT, type MessageKey } from "@/i18n";
+import { useTasks } from "@/lib/api/domains/tasks";
 import { useDeleteVoiceHistory, useStopVoice, useVoiceDevices, useVoiceMetrics, useVoiceProfiles, useVoiceStatus, useVoiceTest } from "@/lib/api/domains/voice";
 import { useModuleAvailability, useModulePanelGate } from "@/features/shared/useAvailability";
 import { useCapability } from "@/lib/capabilities";
@@ -135,6 +138,43 @@ function outputVoiceRow(voice: NonNullable<VoiceStatus["outputVoice"]>, t: Trans
   };
 }
 
+/** The conversation mode: Qwen in the cloud, or local while consent or the key is missing (the service reports local then). */
+function conversationRow(conversation: NonNullable<VoiceStatus["conversation"]>, t: Translate): StatusRow {
+  const title = t("voicePage.status.conversation");
+  if (conversation.backend === "qwen") {
+    return conversation.lastError === null
+      ? {
+          id: "conversation",
+          icon: MessagesSquare,
+          title,
+          value: t("voicePage.conversation.qwen"),
+          detail: t("voicePage.conversation.cloudOk"),
+          tone: "green",
+          stateLabel: t("voicePage.active"),
+        }
+      : {
+          id: "conversation",
+          icon: MessagesSquare,
+          title,
+          value: t("voicePage.conversation.qwen"),
+          detail: t("voicePage.conversation.cloudError", { reason: t(`voicePage.conversation.error.${conversation.lastError}` as MessageKey) }),
+          tone: "amber",
+          stateLabel: t("voicePage.conversation.fallback"),
+        };
+  }
+  // Local is honest: Qwen is selected but the service still waits for consent or the key.
+  const localOnly = !conversation.consent || !conversation.keyConfigured;
+  return {
+    id: "conversation",
+    icon: MessagesSquare,
+    title,
+    value: t("voicePage.conversation.local"),
+    detail: localOnly ? undefined : t("voicePage.conversation.qwenReady"),
+    tone: "muted",
+    stateLabel: t("voicePage.conversation.localOnly"),
+  };
+}
+
 export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string, expires: string, live = true): StatusRow[] {
   const mic = status.microphone;
   const wake = status.wakeWord;
@@ -208,6 +248,7 @@ export function buildStatusRows(status: VoiceStatus, devices: VoiceDevice[] | un
       tone: PIPELINE_TONE[status.tts.state],
       stateLabel: pipelineLabel(status.tts.state),
     },
+    ...(status.conversation !== undefined ? [conversationRow(status.conversation, t)] : []),
     ...(status.outputVoice ? [outputVoiceRow(status.outputVoice, t, locale)] : []),
     {
       id: "localModel",
@@ -727,6 +768,63 @@ function DevicesPanel() {
   );
 }
 
+/* ── Tasks started by voice ───────────────────────────────────────────── */
+
+const TASK_TONES: Partial<Record<Task["status"], Tone>> = {
+  running: "cyan",
+  ready: "cyan",
+  todo: "cyan",
+  triage: "cyan",
+  waiting: "amber",
+  review: "amber",
+  done: "green",
+  failed: "red",
+  cancelled: "muted",
+};
+
+const VOICE_TASK_LABEL = "tenant:voice-";
+
+/** Tasks the Control API creates for spoken requests carry a `tenant:voice-<domain>` label; the panel lists them as they are. */
+function ConversationTasksPanel() {
+  const { t } = useT();
+  const router = useRouter();
+  const query = useTasks({ sort: "-updatedAt", limit: 50 });
+  const voiceTasks = useMemo(
+    () => (query.data?.items ?? []).filter((task) => (task.labels ?? []).some((label) => label.startsWith(VOICE_TASK_LABEL))).slice(0, 6),
+    [query.data],
+  );
+  const state = useQueryPanelState(query, {
+    module: "tasks",
+    empty: query.isSuccess && voiceTasks.length === 0,
+    emptyTitle: t("voicePage.tasks.empty"),
+    emptyIcon: <ListChecks {...ICON} />,
+    freshness: query.data?.freshness,
+  });
+  return (
+    <PanelFrame
+      title={t("voicePage.tasks.title")}
+      subtitle={t("voicePage.tasks.subtitle")}
+      icon={<ListChecks {...ICON} />}
+      state={state}
+      skeletonRows={3}
+    >
+      <ul className="mc-list">
+        {voiceTasks.map((task) => (
+          <li key={task.id} className="vp-device">
+            <span>
+              <button type="button" className="vp-task__title" onClick={() => router.push(`/tasks?task=${encodeURIComponent(task.id)}`)}>
+                {task.title}
+              </button>
+              {task.status === "waiting" ? <span className="vp-task__hint">{t("voicePage.tasks.waiting")}</span> : null}
+            </span>
+            <TagPill tone={TASK_TONES[task.status] ?? "muted"}>{t(`tasks.status.${task.status}` as MessageKey)}</TagPill>
+          </li>
+        ))}
+      </ul>
+    </PanelFrame>
+  );
+}
+
 export function VoicePage() {
   return (
     <div className="mc-page vp-page">
@@ -737,6 +835,7 @@ export function VoicePage() {
         <div className="mc-stack">
           <MetricsPanel />
           <TestPanel />
+          <ConversationTasksPanel />
         </div>
       </div>
       <div className="mc-grid mc-grid--3 vp-bottom">

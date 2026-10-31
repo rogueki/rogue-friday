@@ -1594,6 +1594,13 @@ entfernt) rot; pyflakes ohne Befund.
   enthalten. Vertrag: zwei optionale Felder ohne Default, SDK neu; Einstellungsmatrix 119. Tests: Python (Laufzeitfelder,
   Zurückhalten/Freigabe/Gespräch offen/Ruhemodus), Control API und Adapter mit vollständigem Feldsatz, Dashboard (Regler und
   Schalter speichern); Gegenproben (Zurückhalten aus, Ruhemodus-Vorrang aus, Mapping aus) je rot.
+- **Gesprächsmodus und Sprachaufträge sichtbar (LG-5.05):** Die Sprachseite hat eine Statuszeile „Gespräch“ (Lokal / Qwen Audio,
+  Cloud in Ordnung oder Grund der Störung mit „antwortet bis dahin lokal“, Hinweis wenn Qwen eingerichtet, aber nicht gewählt
+  ist) und einen Bereich „Aufträge aus Gesprächen“: Aufgaben mit Label `tenant:voice-<domain>` (höchstens 6, neueste zuerst)
+  mit Status, Hinweis bei „Wartet“, Klick öffnet die Aufgabe. Die Seitenleiste zeigt den Gesprächsmodus als fünfte Statusmarke.
+  Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
+  Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
+  (Filter aus, Zeile aus) je rot.
 - **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
   Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 
