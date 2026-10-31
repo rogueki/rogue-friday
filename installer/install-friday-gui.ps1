@@ -214,6 +214,11 @@ function Get-VoiceIdValue {
     if ($text -match '\(([A-Za-z0-9]{10,64})\)$') { return $Matches[1] }
     return $text
 }
+function Use-ProviderKeyForQwen {
+    # Derselbe Token-Plan-Schluessel gilt fuer Denkmodell und Qwen Audio; doppelte Eingabe ist unnoetig.
+    return (Value 'qwenAudioKey') -eq '' -and -not $script:providerLocked -and
+        (Get-ProviderPreset).BaseUrl -eq 'alibaba' -and $script:fields.providerKey.Text.Trim() -ne ''
+}
 function Test-Wizard {
     $root = Value 'installRoot'; $location = Value 'distroLocation'; $distro = Value 'distroName'
     if ($root -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $root -match '[\\/]\.\.?([\\/]|$)') { throw 'Installationsordner: absoluten Windows-Pfad wählen.' }
@@ -244,6 +249,11 @@ function Test-Wizard {
     if ($script:fields['voiceMode'].SelectedIndex -eq 1 -and (Value 'elevenlabsKey') -eq '') {
         $existingCloudKey = Test-Path -LiteralPath (Join-Path $root 'config\elevenlabs_api.key.dpapi') -PathType Leaf
         if (-not $existingCloudKey) { throw 'ElevenLabs-API-Schlüssel fehlt.' }
+    }
+    if ($script:fields.conversationBackend.SelectedIndex -eq 1 -and (Value 'qwenAudioKey') -eq '' -and
+        -not (Test-Path -LiteralPath (Join-Path $root 'config\alibaba_tokenplan.key.dpapi') -PathType Leaf) -and
+        -not (Use-ProviderKeyForQwen)) {
+        throw 'Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel.'
     }
     if (-not ($state -and $state.voice_mode)) {
         Test-VoiceReferenceAnswer $script:fields.voiceMode.SelectedIndex $script:fields.voiceChoice.SelectedIndex (Value 'voiceReference')
@@ -422,6 +432,16 @@ $outputs = @('Windows-Standardlautsprecher') + @($audioEndpoints | Where-Object 
 [void](Add-Choice $voicePage.Panel 'inputDevice' 'Mikrofon' 292 $inputs)
 [void](Add-Choice $voicePage.Panel 'outputDevice' 'Lautsprecher' 330 $outputs)
 $voiceHelp = Add-Text $voicePage.Panel 'Eigene Stimme nutzt deine MP3/WAV (3 bis 30 Sekunden) auf einem eigenen Platz; F.R.I.D.A.Y. und J.A.R.V.I.S. bleiben unverändert. Ohne Datei nutzt Klassisch die mitgelieferte Referenz, weiblich Piper Kerstin.' 368 72
+[void](Add-Choice $voicePage.Panel 'conversationBackend' 'Gespräch' 446 @('Lokal (Standard)', 'Qwen Audio Live-Gespräch (Alibaba Token Plan)'))
+[void](Add-Choice $voicePage.Panel 'qwenRegion' 'Alibaba-Region' 484 @('International (Singapur)', 'China (Peking)'))
+[void](Add-Row $voicePage.Panel 'qwenAudioKey' 'Token-Plan-API-Schlüssel' 522 '' $true)
+[void](Add-Text $voicePage.Panel 'Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf deinem PC. Fällt Qwen aus, antwortet der Assistent lokal. Schlüssel leer lassen, wenn beim KI-Zugang Alibaba Cloud Qwen (Token Plan) gewählt ist.' 560 72)
+function Update-ConversationFields {
+    $qwen = $script:fields.conversationBackend.Enabled -and $script:fields.conversationBackend.SelectedIndex -eq 1
+    $script:fields.qwenRegion.Enabled = $qwen; $script:fields.qwenAudioKey.Enabled = $qwen
+}
+$script:fields.conversationBackend.Add_SelectedIndexChanged({ Update-ConversationFields })
+Update-ConversationFields
 
 $script:fields.voiceId.Enabled = $false
 $script:fields.elevenlabsKey.Enabled = $false; $loadVoices.Enabled = $false
@@ -598,11 +618,13 @@ function Load-RootState {
     $script:fields.ownerName.Text = $env:USERNAME
     $script:fields.linuxUser.Text = if ($saved -and $saved.linux_user) { $saved.linux_user } else { 'friday' }
     $script:fields.address.SelectedIndex = 0; $script:fields.character.SelectedIndex = 0; $script:fields.length.SelectedIndex = 0
-    foreach ($field in @('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey')) { $script:fields[$field].Clear() }
+    foreach ($field in @('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey','qwenAudioKey')) { $script:fields[$field].Clear() }
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
     $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } elseif ($saved -and $saved.voice_choice -eq 'custom') { 2 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
     $script:fields.voiceReference.Text = if ($saved -and $saved.voice_reference) { $saved.voice_reference } else { '' }
+    $script:fields.conversationBackend.SelectedIndex = if ($saved -and $saved.conversation_backend -eq 'qwen') { 1 } else { 0 }
+    $script:fields.qwenRegion.SelectedIndex = if ($saved -and $saved.qwen_region -eq 'cn-beijing') { 1 } else { 0 }
     $script:fields.inputDevice.SelectedIndex = 0; $script:fields.outputDevice.SelectedIndex = 0
     $pending = if ($saved -and $saved.gui_pending) { $saved.gui_pending } else { $null }
     if ($pending) {
@@ -621,6 +643,8 @@ function Load-RootState {
             if ($pending.voiceChoice -in @('1','2','3')) { $script:fields.voiceChoice.SelectedIndex = [int]$pending.voiceChoice - 1 }
             $script:fields.voiceReference.Text = [string]$pending.voiceReference
             $script:fields.voiceId.Text = [string]$pending.voiceId
+            if ($pending.conversationBackend -in @('1','2')) { $script:fields.conversationBackend.SelectedIndex = [int]$pending.conversationBackend - 1 }
+            if ($pending.qwenRegion -in @('1','2')) { $script:fields.qwenRegion.SelectedIndex = [int]$pending.qwenRegion - 1 }
         }
         foreach ($fieldName in @('migrateLegacy','disableLegacy','reuseDistro','disableForeignTasks',
                                  'overwriteDashboardConfig','keepIdentity','repeatEnrollment','openBrowser')) {
@@ -665,9 +689,10 @@ function Load-RootState {
         }
     }
     foreach ($choice in @('assistantName','wakePhrase')) { $script:fields[$choice].Enabled = -not ($saved -and $saved.assistant_name) }
-    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId')) {
+    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend')) {
         $script:fields[$choice].Enabled = -not ($saved -and $saved.voice_mode)
     }
+    Update-ConversationFields
     foreach ($choice in @('inputDevice','outputDevice')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'voicepython') }
     $browse.Enabled = $script:fields.voiceReference.Enabled
     foreach ($choice in @('ownerName','address','character','length')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'persona') }
@@ -700,6 +725,7 @@ Assistent: $(Value 'assistantName') · Wake Word: $(Value 'wakePhrase')
 Person: $(Value 'ownerName')
 KI-Anbieter: $(if ($script:providerLocked) { 'bereits eingerichtet' } else { (Get-ProviderPreset).Label + ' · ' + $(if ((Get-ProviderPreset).Backend -eq '4') { 'k3' } else { Value 'modelName' }) })
 Sprachbetrieb: $mode
+Gespräch: $(if ($script:fields.conversationBackend.SelectedIndex -eq 1) { 'Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet)' } else { 'Lokal' })
 Stimme: $voiceName
 Referenz: $(if ($script:fields.voiceMode.SelectedIndex -eq 1) { 'ElevenLabs (keine lokale Referenz)' } elseif (Value 'voiceReference') { Value 'voiceReference' } else { 'automatische Auswahl' })
 Mikrofon: $(Value 'inputDevice')
@@ -980,6 +1006,8 @@ function Start-Backend {
         about = ''; linuxUser = Value 'linuxUser'; voiceMode = [string]($script:fields.voiceMode.SelectedIndex + 1)
         voiceChoice = [string]($script:fields.voiceChoice.SelectedIndex + 1); voiceReference = Value 'voiceReference'
         voiceId = Get-VoiceIdValue
+        conversationBackend = [string]($script:fields.conversationBackend.SelectedIndex + 1)
+        qwenRegion = $(if (Use-ProviderKeyForQwen) { [string]($script:fields.alibabaRegion.SelectedIndex + 1) } else { [string]($script:fields.qwenRegion.SelectedIndex + 1) })
         inputDevice = $(if ($script:fields.inputDevice.SelectedIndex -gt 0) { Value 'inputDevice' } else { '' })
         outputDevice = $(if ($script:fields.outputDevice.SelectedIndex -gt 0) { Value 'outputDevice' } else { '' })
         address = [string]($script:fields.address.SelectedIndex + 1)
@@ -999,12 +1027,13 @@ function Start-Backend {
     $secrets = @{
         linuxPassword = Secure-Field 'linuxPassword'; linuxPasswordRepeat = Secure-Field 'linuxPasswordRepeat'
         elevenlabsKey = Secure-Field 'elevenlabsKey'
+        qwenAudioKey = $(if ($script:fields.conversationBackend.SelectedIndex -ne 1) { '' } elseif (Use-ProviderKeyForQwen) { $providerSecret } else { Secure-Field 'qwenAudioKey' })
         openaiKey = $(if ($backendChoice -eq '1') { $providerSecret } else { '' })
         anthropicKey = $(if ($backendChoice -eq '2') { $providerSecret } else { '' })
         customKey = $(if ($backendChoice -eq '3') { $providerSecret } else { '' })
         kimiKey = $(if ($backendChoice -eq '4') { $providerSecret } else { '' })
     }
-    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey') |
+    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','elevenlabsKey','providerKey','qwenAudioKey') |
         ForEach-Object { $script:fields[$_].Text } | Where-Object { $_ })
     $config = @{ protocol = 1; answers = $answers; secrets = $secrets }
     if ($Simulation) { $config.simulation = $Simulation }
@@ -1034,7 +1063,7 @@ function Start-Backend {
         $script:stdoutTask = $script:process.StandardOutput.ReadLineAsync()
         $script:stderrTask = $script:process.StandardError.ReadLineAsync()
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
-        $script:fields.elevenlabsKey.Clear(); $script:fields.providerKey.Clear()
+        $script:fields.elevenlabsKey.Clear(); $script:fields.providerKey.Clear(); $script:fields.qwenAudioKey.Clear()
         $script:details.Clear(); $status.Text = 'Installation läuft …'
         Show-GuiPage 7
         $shell.ProgressBar.Value = 0
@@ -1166,7 +1195,7 @@ if ($Simulation) {
                 Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-        foreach ($required in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'modelName', 'providerKey', 'useExistingKimi', 'elevenlabsKey')) {
+        foreach ($required in @('providerChoice', 'alibabaRegion', 'modelBaseUrl', 'modelName', 'providerKey', 'useExistingKimi', 'elevenlabsKey', 'conversationBackend', 'qwenRegion', 'qwenAudioKey')) {
             if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
         }
         if ($script:pages.Count -ne 8 -or $script:pages[4].Title -ne 'KI-Zugang') { throw 'GUI provider page missing.' }

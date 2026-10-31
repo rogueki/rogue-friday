@@ -1381,10 +1381,15 @@ entfernt) rot; pyflakes ohne Befund.
 - **Rückfall (LG-1.04, F-02/F-03):** Vor der lokalen Antwort sagt die lokale Stimme einmal je Ausfallart an, was los ist
   (Schlüssel abgelehnt, Kontingent aufgebraucht, Drosselung, Modell nicht im Tarif, sonst „nicht erreichbar, ich nutze
   die lokale Stimme“); nach einem erfolgreichen Turn wird der nächste Ausfall wieder angesagt. Neue Fehlerart `model`.
-- **Noch nicht enthalten:** Auswahl im Installer/Dashboard und Schlüsselablage (LG-4/LG-3), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+- **Installer (GUI und Terminal):** Seite „Sprache & Stimme“ hat die Auswahlfelder „Gespräch“ (Lokal | Qwen Audio
+  Live-Gespräch) und „Alibaba-Region“ sowie ein verdecktes Feld für den Token-Plan-Schlüssel. Ist beim KI-Zugang Alibaba
+  Token Plan mit Schlüssel gewählt, wird dieser Schlüssel samt Region übernommen und das Feld darf leer bleiben. Der
+  Schlüssel liegt DPAPI-verschlüsselt in `configlibaba_tokenplan.key.dpapi`; `voice_setup.py` schreibt
+  `conversation_backend`, `qwen_region`, `qwen_key_file`. Ein Wechsel von Modus oder Region richtet den Sprachdienst neu ein.
+- **Noch nicht enthalten:** Umschalter im Dashboard (LG-3), Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
 **Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
 Windows `test_qwen_dialog.py` 14/14; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
 PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
-`voice-native-capture`, `gui-controls` PASS.
+`voice-native-capture`, alle `gui-*.Tests.ps1` (9) PASS.

@@ -24,6 +24,8 @@ args.add_argument("--fast-tts-port", type=int, default=43795)
 args.add_argument("--qwen-port", type=int)
 args.add_argument("--hermes-port", type=int)
 args.add_argument("--voice-port", type=int)
+args.add_argument("--conversation-backend", choices=("local", "qwen"), default="local")
+args.add_argument("--qwen-region", choices=("ap-southeast-1", "cn-beijing"), default="ap-southeast-1")
 options = args.parse_args()
 for port in (options.qwen_port, options.hermes_port, options.voice_port):
     if port is not None and not 1 <= port <= 65535:
@@ -276,6 +278,8 @@ if cfg.get("followup_window_s") == 8.0:
 cfg.update(persona.voice_settings(p))
 cfg.update({"voice_mode": options.voice_mode, "elevenlabs_voice_id": options.elevenlabs_voice_id,
             "elevenlabs_key_file": os.path.join(CONFIG, "elevenlabs_api.key.dpapi"),
+            "conversation_backend": options.conversation_backend, "qwen_region": options.qwen_region,
+            "qwen_key_file": os.path.join(CONFIG, "alibaba_tokenplan.key.dpapi"),
             "tts_voice": voice, "tts_film_filter": film_filter,
             "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
 if options.voice_mode == "elevenlabs":
