@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-mode-switch-request.schema.json",
+  "title": "VoiceModeSwitchRequest",
+  "description": "Opens the installer for a change of the voice mode (local voice models or ElevenLabs cloud). Windows asks for administrator rights; the installer then only redoes the voice steps.",
+  "type": "object",
+  "properties": {
+    "target": { "type": "string", "enum": ["local", "elevenlabs"] }
+  },
+  "required": ["target"],
+  "additionalProperties": false
+}

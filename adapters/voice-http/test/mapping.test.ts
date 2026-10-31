@@ -451,6 +451,12 @@ describe("conversation", () => {
     expect(status.conversation).toEqual({ backend: "qwen", keyConfigured: true, consent: true, lastError: "quota" });
   });
 
+  it("maps the installer voice mode and ignores unknown values", () => {
+    expect(map(raw({ voice_mode: "elevenlabs" })).voiceMode).toBe("elevenlabs");
+    expect(map(raw({ voice_mode: "local" })).voiceMode).toBe("local");
+    expect(map(raw({ voice_mode: "cloud" })).voiceMode).toBeUndefined();
+  });
+
   it("drops an invalid conversation block", () => {
     expect(map(raw({ conversation: { backend: "cloud", key_configured: true, consent: false, last_error: null } })).conversation)
       .toBeUndefined();

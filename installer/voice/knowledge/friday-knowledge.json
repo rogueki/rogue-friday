@@ -1208,6 +1208,24 @@
       "text": "Im Modus Lokal läuft das gesamte Gespräch auf diesem PC. Im Modus Qwen Audio führt das Gespräch ein Sprachmodell über das Internet. Qwen beantwortet dann jede geprüfte Äußerung eines bestätigten Sprechers. Wake Word, Sprecherprüfung und die Stimme bleiben trotzdem auf diesem PC. Fällt Qwen aus, etwa wegen eines abgelehnten Schlüssels, eines aufgebrauchten Kontingents oder fehlender Verbindung, antwortet der Assistent lokal. Vor der lokalen Antwort sagt er einmal an, was los ist. Nach einem erfolgreichen Gespräch wird eine neue Störung wieder angesagt. Die Qwen-Region (International über Singapur oder Festlandchina über Peking) muss zu deinem Token Plan passen; ein Schlüssel aus der anderen Region wird abgelehnt. Nutzt das Denkmodell bereits einen Alibaba Token Plan, übernimmt der Knopf „Schlüssel des Denkmodells übernehmen“ unter Einstellungen → Sprache → Gespräch dessen Schlüssel direkt auf diesem PC, ohne dass du ihn noch einmal eintippen musst. Ist ein Schlüssel gespeichert, prüft „Verbindung prüfen“ ihn mit einer kurzen Qwen-Sitzung gegen die gespeicherte Region und nennt das Ergebnis, etwa „Kontingent aufgebraucht“; geändert wird dabei nichts."
     },
     {
+      "id": "sprachbetrieb#sprachbetrieb-wechseln-lokal-oder-elevenlabs",
+      "file": "docs/friday-knowledge/sprachbetrieb.md",
+      "title": "Sprachbetrieb wechseln: lokal oder ElevenLabs",
+      "area": "sprache",
+      "keywords": [
+        "sprachbetrieb",
+        "elevenlabs",
+        "lokale stimme",
+        "grafikkarte",
+        "gpu",
+        "wechseln",
+        "cloud-stimme",
+        "installer",
+        "administratorrechte"
+      ],
+      "text": "Der Sprachbetrieb legt fest, woher die Stimme kommt: Lokal laufen Spracherkennung und Stimme auf der NVIDIA-Grafikkarte dieses PCs, mit ElevenLabs kommt die Stimme aus der ElevenLabs-Cloud. Wake Word und Sprecherprüfung bleiben in beiden Fällen auf diesem PC. Den aktuellen Sprachbetrieb zeigt Einstellungen → Sprache → Sprachbetrieb. Der Knopf zum Wechseln öffnet nach einer Rückfrage am PC den Installer; Windows fragt dabei nach Administratorrechten, und diese Abfrage muss am PC bestätigt werden. Der Installer richtet nur die Sprachteile neu ein, Name, Konten, KI-Zugang und Dashboard bleiben unverändert. Für lokal braucht der PC eine NVIDIA-Grafikkarte mit mindestens 6 GB Speicher, fehlende Sprachmodelle werden geladen (mehrere GB). Für ElevenLabs fragt der Installer nach dem ElevenLabs-Schlüssel und der Stimme; gesprochene Antworten gehen dann zur Sprachausgabe an ElevenLabs. Bis der Installer fertig ist, bleibt der bisherige Sprachbetrieb aktiv, danach zeigt das Dashboard den neuen von selbst. Der Gesprächsmodus Lokal oder Qwen ist davon unabhängig."
+    },
+    {
       "id": "sprachbetrieb#folgefragen-und-unterbrechen",
       "file": "docs/friday-knowledge/sprachbetrieb.md",
       "title": "Folgefragen und Unterbrechen",

@@ -1385,6 +1385,8 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     assert json.load(open(svc.config_path, encoding="utf-8"))["conversation_backend"] == "qwen"
     assert svc.status_payload()["conversation"] == {"backend": "qwen", "key_configured": True,
                                                     "consent": True, "last_error": None}
+    # The installer's voice mode is reported independently of the conversation backend.
+    assert svc.status_payload()["voice_mode"] == ("elevenlabs" if svc.cfg.get("voice_mode") == "elevenlabs" else "local")
     assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "local"}) == 200
     assert svc.qwen_dialog is None
     assert dialog.closed.wait(2) is True

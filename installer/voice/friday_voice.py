@@ -2497,6 +2497,7 @@ class VoiceService:
             self.memory_capture_error = type(exc).__name__
         return {**self.status, "speaking": speaking,
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
+                "voice_mode": "elevenlabs" if self.cfg.get("voice_mode") == "elevenlabs" else "local",
                 "latency": self.latency_payload(),
                 "runtime_settings": runtime_settings.effective(self.cfg),
                 "conversation": {"backend": runtime_settings.effective(self.cfg)["conversationBackend"],

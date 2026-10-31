@@ -18,6 +18,7 @@ import type { MessageKey } from "@/i18n";
 import { WakeEnrollment } from "./WakeEnrollment";
 import { SttModelsControl } from "./SttModelsControl";
 import { ConversationBackendControl } from "./ConversationBackendControl";
+import { VoiceModeControl } from "./VoiceModeControl";
 import { QuietModeControl } from "./QuietModeControl";
 import { QuietSettingsFields } from "./QuietSettingsFields";
 import { voiceDeviceOptions } from "./voiceDeviceOptions";
@@ -325,6 +326,9 @@ export function VoiceArea() {
           <TextField label={t("settings.voice.ptt")} value={value.pushToTalkKey} disabled={readOnly} onChange={(event) => update({ pushToTalkKey: event.target.value })} />
           <Switch label={t("settings.voice.speaker")} description={t("settings.voice.speakerDesc")} checked={value.speakerVerificationRequired} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(speakerVerificationRequired) => update({ speakerVerificationRequired })} />
         </FieldGrid>
+      </Section>
+      <Section title="Sprachbetrieb" description="Ob F.R.I.D.A.Y. lokal auf der Grafikkarte spricht oder über ElevenLabs, legt der Installer fest. Der Wechsel öffnet ihn am PC und richtet nur die Sprachteile neu ein.">
+        <VoiceModeControl status={voiceStatus.data?.data} readOnly={readOnly} />
       </Section>
       <Section title="Gespräch" description="Qwen Audio führt das Gespräch über das Internet; Wake Word, Sprecherprüfung und Stimme bleiben auf diesem PC. Fällt Qwen aus, antwortet der Assistent lokal.">
         <ConversationBackendControl value={value.conversationBackend ?? "local"} consent={value.conversationConsent ?? false} status={voiceStatus.data?.data.conversation}

@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type VoiceTourStepRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type VoiceModeSwitchRequest, type VoiceTourStepRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { addEnrollmentSample, enrollmentStatus, startEnrollmentTraining } from "../services/linux-voice-enrollment";
@@ -39,6 +39,14 @@ export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
     await speakTourStep(ctx.runtime, (ctx.body as VoiceTourStepRequest).area);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true, status: "completed",
       correlationId: ctx.correlationId, message: "Erklärung läuft." } };
+  },
+  async startVoiceModeSwitch(ctx) {
+    const { target } = ctx.body as VoiceModeSwitchRequest;
+    await ctx.runtime.voiceModeSwitch.start(target);
+    ctx.audit.action = "voice.mode_switch_started";
+    ctx.audit.after = { target };
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true, status: "queued", correlationId: ctx.correlationId,
+      message: "Das Installationsfenster öffnet sich am PC. Bitte die Windows-Abfrage nach Administratorrechten bestätigen." } };
   },
   async getWakeEnrollment(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };

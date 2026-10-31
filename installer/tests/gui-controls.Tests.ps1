@@ -88,5 +88,13 @@ Assert-True ($gui -match "function Get-ProviderKeyText[\s\S]{0,300}Use-AlibabaEn
 Assert-True ($gui -match "Test-ProviderKey[\s\S]{0,200}Get-ProviderKeyText") 'Test-ProviderKey prüft nicht den übernommenen Alibaba-Schlüssel.'
 Assert-True ($gui -match 'if \(Use-AlibabaEnvironment\) \{ \$script:redactions \+=') 'Der übernommene Alibaba-Schlüssel wird nicht aus dem Protokoll entfernt.'
 Assert-True ($installer -match "if \(-not \`$GuiMode -and \`$detectedAlibaba") 'Die Konsolenfrage zum Alibaba-Schlüssel läuft auch im GUI-Modus.'
+# --- Sprachbetrieb wechseln: dieselbe GUI, nur Sprachseite, Zusammenfassung und Fortschritt
+Assert-True ($gui -match "\[switch\]\`$ChangeVoice, \[ValidateSet\('','local','elevenlabs'\)\]\[string\]\`$VoiceTarget") 'Die GUI kennt -ChangeVoice/-VoiceTarget nicht.'
+Assert-True ($gui -match "if \(\`$ChangeVoice\) \{ \`$forward \+= '-ChangeVoice' \}" -and $gui -match "if \(\`$VoiceTarget\) \{ \`$forward \+= @\('-VoiceTarget', \`$VoiceTarget\) \}") 'Der Wechselmodus geht beim Anheben der Rechte verloren.'
+Assert-True ($gui -match "\`$keep = @\('voicePage', 'summaryPage', 'progressPage'\)") 'Der Wechselmodus behält nicht genau Sprachseite, Zusammenfassung und Fortschritt.'
+Assert-True ($gui -match "if \(\`$ChangeVoice\) \{ \`$psi\.Arguments \+= ' -ChangeVoice' \}") 'Der Installer bekommt -ChangeVoice nicht.'
+Assert-True ($gui -match "Sprachbetrieb wechseln geht nur bei einer vorhandenen Installation[\s\S]{0,120}exit 5") 'Ohne vorhandene Installation bricht der Wechselmodus nicht ab.'
+Assert-True (-not ($gui -match 'Show-GuiPage 7\b' -or $gui -match 'pageIndex -eq 7' -or $gui -match 'retry\.Add_Click\(\{ Show-GuiPage 6')) 'Feste Seitennummern brechen den Wechselmodus mit nur drei Seiten.'
+Assert-True ($installer -match "\[switch\]\`$ChangeVoice") 'install-friday.ps1 kennt -ChangeVoice nicht mehr.'
 Write-Host "Klick-Bedienung: $($script:checks) Prüfungen bestanden"
 Write-Host 'Klick-Bedienung: PASS'

@@ -181,9 +181,41 @@ function ConvertTo-BatchArgument([string]$Value) {
     if ($escaped.EndsWith('\')) { $escaped += '.' }
     return '"' + $escaped + '"'
 }
+function Restore-VoiceChange {
+    # Bricht ein Sprachwechsel ab, bleibt der bisherige Sprachbetrieb aktiv: Status, voice.json, Referenzen und FRIDAY_Qwen
+    # kommen aus der Sicherung zurueck, die vor der ersten Aenderung angelegt wurde.
+    $rollback = $script:VoiceChangeRollback
+    if (-not $rollback) { return }
+    $script:VoiceChangeRollback = $null
+    try {
+        if (Test-VoiceServiceRunning) { Stop-VoiceService }
+        Copy-Item -LiteralPath "$($rollback.Backup)\install-state.json" -Destination $StateFile -Force -ErrorAction Stop
+        Copy-Item -LiteralPath "$($rollback.Backup)\voice.json" -Destination "$Root\config\voice.json" -Force -ErrorAction Stop
+        $references = "$Root\config\voice-references"
+        if (Test-Path -LiteralPath "$($rollback.Backup)\voice-references" -PathType Container) {
+            if (Test-Path -LiteralPath $references) { Remove-Item -LiteralPath $references -Recurse -Force -ErrorAction Stop }
+            Copy-Item -LiteralPath "$($rollback.Backup)\voice-references" -Destination $references -Recurse -ErrorAction Stop
+        }
+        $qwenTask = Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue
+        if ($qwenTask -and (Test-TaskForInstallRoot $qwenTask)) {
+            if ($rollback.QwenEnabled) {
+                Enable-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction Stop | Out-Null
+                Start-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction Stop
+            } elseif ($qwenTask.State -ne 'Disabled') {
+                Stop-LauncherService 'FRIDAY_Qwen' 'start-qwen-server.ps1' "*llama-server*--port $($Ports.Qwen)*" $Root $ProcessRoots
+                Disable-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction Stop | Out-Null
+            }
+        }
+        if (Get-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction SilentlyContinue) { Start-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction Stop }
+        Write-Host '  [OK] Der bisherige Sprachbetrieb ist wiederhergestellt.' -ForegroundColor Green
+    } catch {
+        Write-Host "  [WARNUNG] Der bisherige Sprachbetrieb konnte nicht vollständig wiederhergestellt werden: $($_.Exception.Message) Sicherung: $($rollback.Backup)" -ForegroundColor Yellow
+    }
+}
 function Stop-Install($text) {
     Write-GuiRunDone 1 'failed'
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
+    Restore-VoiceChange
     # Frueher stand hier nur "install-friday.bat erneut starten". Diese .bat startet das Skript ohne
     # Parameter und faellt damit auf C:\Friday + Standard-Distribution zurueck: bei einem eigenen
     # Zielordner begann so eine zweite, falsche Installation (2026-10-21 real passiert).
@@ -1368,6 +1400,25 @@ $WP = $State.wake_phrase
 $Slug = $State.wake_slug
 $WakeShort = Get-WakeShort $WP
 
+if ($CustomRoot -and $ChangeVoice) {
+    $voiceBackup = "$Root\backups\voice-change-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    try {
+        New-Item -ItemType Directory -Path $voiceBackup -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $StateFile -Destination "$voiceBackup\install-state.json" -ErrorAction Stop
+        Copy-Item -LiteralPath "$Root\config\voice.json" -Destination "$voiceBackup\voice.json" -ErrorAction Stop
+        $referenceDir = "$Root\config\voice-references"
+        if (Test-Path -LiteralPath $referenceDir -PathType Container) {
+            Copy-Item -LiteralPath $referenceDir -Destination "$voiceBackup\voice-references" -Recurse -ErrorAction Stop
+        }
+    } catch { Stop-Install "Stimmen-Sicherung fehlgeschlagen: $($_.Exception.Message)" }
+    # Vor der Moduswahl sichern: dort wird der neue Modus gespeichert und FRIDAY_Qwen fuer ElevenLabs schon abgeschaltet.
+    $qwenBefore = Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue
+    $script:VoiceChangeRollback = @{
+        Backup      = $voiceBackup
+        QwenEnabled = [bool]($qwenBefore -and (Test-TaskForInstallRoot $qwenBefore) -and $qwenBefore.State -ne 'Disabled')
+    }
+    Ok "Bisherige Stimmkonfiguration gesichert: $voiceBackup"
+}
 if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('local', 'elevenlabs') -or -not (IsDone 'preflight'))) {
     Title 'Sprachbetrieb wählen'
     Info '1  Lokal: Sprachmodelle auf NVIDIA-GPU mit mindestens 6 GB VRAM'
@@ -1432,19 +1483,6 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
     Save-State
 }
 
-if ($CustomRoot -and $ChangeVoice) {
-    $voiceBackup = "$Root\backups\voice-change-$(Get-Date -Format yyyyMMdd-HHmmss)"
-    try {
-        New-Item -ItemType Directory -Path $voiceBackup -ErrorAction Stop | Out-Null
-        Copy-Item -LiteralPath $StateFile -Destination "$voiceBackup\install-state.json" -ErrorAction Stop
-        Copy-Item -LiteralPath "$Root\config\voice.json" -Destination "$voiceBackup\voice.json" -ErrorAction Stop
-        $referenceDir = "$Root\config\voice-references"
-        if (Test-Path -LiteralPath $referenceDir -PathType Container) {
-            Copy-Item -LiteralPath $referenceDir -Destination "$voiceBackup\voice-references" -Recurse -ErrorAction Stop
-        }
-    } catch { Stop-Install "Stimmen-Sicherung fehlgeschlagen: $($_.Exception.Message)" }
-    Ok "Bisherige Stimmkonfiguration gesichert: $voiceBackup"
-}
 if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday-female', 'classic')) {
     $State.voice_choice = 'friday-female'
     Save-State
@@ -2288,6 +2326,8 @@ if (-not (IsDone 'voiceservice')) {
     }
     }
     MarkDone 'voiceservice'
+    # Ab hier laeuft der neue Sprachbetrieb; spaetere Fehler betreffen ihn nicht mehr.
+    $script:VoiceChangeRollback = $null
 }
 
 # ================================================================ 15 F.R.I.D.A.Y. Command Center (Dashboard + Control API)

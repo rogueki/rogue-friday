@@ -1305,6 +1305,7 @@ export interface FridayModelMap {
   VoiceMailRequest: VoiceMailRequest;
   VoiceMetrics: VoiceMetrics;
   VoiceMetricsResponse: VoiceMetricsResponse;
+  VoiceModeSwitchRequest: VoiceModeSwitchRequest;
   VoiceProfile: VoiceProfile;
   VoiceProfileListResponse: VoiceProfileListResponse;
   VoiceReadAnswer: VoiceReadAnswer;
@@ -5530,6 +5531,10 @@ export interface VoiceStatus {
   audioDeviceWaiting?: boolean;
   audioOutputDeviceId: string | null;
   /**
+   * Voice mode chosen at installation: local speech models on the NVIDIA GPU or ElevenLabs cloud speech. Changed only by the installer (startVoiceModeSwitch).
+   */
+  voiceMode?: "local" | "elevenlabs";
+  /**
    * Live conversation backend. keyConfigured says whether the Token Plan key for Qwen Audio is stored; consent whether the owner agreed to the data transfer to Alibaba Cloud (Qwen stays off without it); lastError is the failure kind of the last Qwen turn (null after a successful turn).
    */
   conversation?: {
@@ -7059,6 +7064,12 @@ export interface VoiceMetricsResponse {
   contractVersion: ContractVersion;
   data: VoiceMetrics;
   freshness: Freshness;
+}
+/**
+ * Opens the installer for a change of the voice mode (local voice models or ElevenLabs cloud). Windows asks for administrator rights; the installer then only redoes the voice steps.
+ */
+export interface VoiceModeSwitchRequest {
+  target: "local" | "elevenlabs";
 }
 /**
  * Voice enrollment profile (PLAN §38.3).

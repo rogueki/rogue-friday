@@ -73,6 +73,7 @@ export interface RawVoiceStatus {
   /** `device` (host microphone/speaker) or `browser` (Linux: audio travels through the dashboard WebSocket). */
   audio_transport?: "device" | "browser";
   host_platform?: "windows" | "linux";
+  voice_mode?: "local" | "elevenlabs";
   service_started_at?: string;
   /** Build id of the running service (hash of its source at start): tells which code actually runs after an update. */
   service_version?: string;

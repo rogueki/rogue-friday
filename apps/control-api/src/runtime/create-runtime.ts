@@ -50,6 +50,7 @@ import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
 import { DashboardUpdateService } from "../services/dashboard-update";
+import { VoiceModeSwitchService } from "../services/voice-mode-switch";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
@@ -356,6 +357,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     world ? undefined : (result) => alertSafely("backup.result", () => notifyBackupResult(nativeNotifications, result)));
   const installation = new InstallationInfoService(config);
   const dashboardUpdates = new DashboardUpdateService(config);
+  const voiceModeSwitch = new VoiceModeSwitchService(config);
   const retention = new RetentionService(db, settings, audit, auditArchive, systemBackup, notifications);
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
@@ -634,6 +636,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     backupJobs,
     installation,
     dashboardUpdates,
+    voiceModeSwitch,
     retention,
     wikiPath,
     himalayaAccount,

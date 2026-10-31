@@ -4275,6 +4275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/mode-switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open the installer to change the voice mode
+         * @description Windows installs only. Starts the installer window "Sprachbetrieb wechseln" for the given target; Windows asks for administrator rights, the installer loads missing components and only redoes the voice steps. The old mode stays active until the installer has finished.
+         */
+        post: operations["startVoiceModeSwitch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/navigation": {
         parameters: {
             query?: never;
@@ -11700,6 +11720,14 @@ export interface components {
             freshness: components["schemas"]["Freshness"];
         };
         /**
+         * VoiceModeSwitchRequest
+         * @description Opens the installer for a change of the voice mode (local voice models or ElevenLabs cloud). Windows asks for administrator rights; the installer then only redoes the voice steps.
+         */
+        VoiceModeSwitchRequest: {
+            /** @enum {string} */
+            target: "local" | "elevenlabs";
+        };
+        /**
          * VoiceProfile
          * @description Voice enrollment profile (PLAN §38.3).
          */
@@ -11891,6 +11919,11 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             voiceHistoryEnabled: boolean;
+            /**
+             * @description Voice mode chosen at installation: local speech models on the NVIDIA GPU or ElevenLabs cloud speech. Changed only by the installer (startVoiceModeSwitch).
+             * @enum {string}
+             */
+            voiceMode?: "local" | "elevenlabs";
             /** @description The wake-word artifact, separate from the speaker profile: engine, active threshold and the calibration of a personal model. Null when the service reports no wake engine. */
             wakeCalibration?: null | {
                 /** Format: date-time */
@@ -21769,6 +21802,37 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    startVoiceModeSwitch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceModeSwitchRequest"];
+            };
+        };
+        responses: {
+            /** @description Installer started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

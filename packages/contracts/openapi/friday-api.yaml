@@ -5039,6 +5039,32 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
       x-required-role: owner
+  /api/v1/voice/mode-switch:
+    post:
+      operationId: startVoiceModeSwitch
+      tags: [voice]
+      summary: Open the installer to change the voice mode
+      description: Windows installs only. Starts the installer window "Sprachbetrieb wechseln" for the given target; Windows asks for administrator rights, the installer loads missing components and only redoes the voice steps. The old mode stays active until the installer has finished.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceModeSwitchRequest"
+      responses:
+        "200":
+          description: Installer started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-required-role: owner
   /api/v1/voice/tour/speak:
     post:
       operationId: speakVoiceTourStep
@@ -10987,6 +11013,8 @@ components:
       $ref: ../schemas/voice/voice-sample-result.schema.json
     VoiceTourStepRequest:
       $ref: ../schemas/voice/voice-tour-step-request.schema.json
+    VoiceModeSwitchRequest:
+      $ref: ../schemas/voice/voice-mode-switch-request.schema.json
     DashboardNavigation:
       $ref: ../schemas/ui/dashboard-navigation.schema.json
     DashboardArea:
