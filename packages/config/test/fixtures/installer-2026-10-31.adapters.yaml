@@ -1,0 +1,66 @@
+# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
+# Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
+# Nicht eingerichtete Kategorien (memory, approvals, communication, calendar, automations, research, files,
+# notifications, audit, commands) bleiben deaktiviert und werden in der Oberflaeche als nicht eingerichtet gezeigt -
+# es gibt keinen Mock-Fallback. Eine Kategorie wird erst aktiv, wenn hier ein Provider eingetragen ist.
+# Ports werden aus dem gespeicherten Installationszustand uebernommen.
+# Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
+
+allowlist:
+  hermes-tasks: "@friday/adapter-hermes"
+  hermes-activity: "@friday/adapter-hermes"
+  hermes-agents: "@friday/adapter-hermes"
+  hermes-automations: "@friday/adapter-hermes"
+  friday-voice-http: "@friday/adapter-voice-http"
+  local-system: "@friday/adapter-system-local"
+  caldav-calendar: "@friday/adapter-calendar-placeholder"
+
+adapters:
+  tasks:
+    provider: hermes-tasks
+    enabled: true
+    timeoutMs: 10000
+    config:
+      dashboardBaseUrl: http://127.0.0.1:9119
+      dashboardAuth: scrape
+      boards: [default]
+  activity:
+    provider: hermes-activity
+    enabled: true
+    timeoutMs: 10000
+    config:
+      apiBaseUrl: http://127.0.0.1:8642
+      apiKey: "file:D:/Friday/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:9119
+      boards: [default]
+  agents:
+    provider: hermes-agents
+    enabled: true
+    timeoutMs: 10000
+    config:
+      apiBaseUrl: http://127.0.0.1:8642
+      apiKey: "file:D:/Friday/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:9119
+      boards: [default]
+  voice:
+    provider: friday-voice-http
+    enabled: true
+    timeoutMs: 3000
+    config:
+      baseUrl: http://127.0.0.1:43790
+      localModelUrl: http://127.0.0.1:43791
+      cloudMode: false
+      wakePhrase: "hey friday"
+  system:
+    provider: local-system
+    enabled: true
+    timeoutMs: 5000
+    config:
+      qwenUrl: http://127.0.0.1:43791
+      cloudMode: false
+      hermesApiUrl: http://127.0.0.1:8642
+      hermesDashboardUrl: http://127.0.0.1:9119
+      voiceUrl: http://127.0.0.1:43790
+      hermesApiKey: "file:D:/Friday/config/hermes_api.key"
+      storagePaths: ["D:/"]
+      wslDistro: FRIDAY-2

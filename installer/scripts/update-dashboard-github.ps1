@@ -122,7 +122,11 @@ function Health-Ready {
     for ($i = 0; $i -lt 30; $i++) {
         try {
             $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$port/api/v1/health" -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300 -and (Test-DashboardPortOwner $port)) { return $true }
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300 -and (Test-DashboardPortOwner $port)) {
+                # Eine gesunde API ohne ausgelieferte Oberflaeche waere fuer den Nutzer trotzdem ein kaputtes Dashboard.
+                $page = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$port/" -TimeoutSec 5
+                if ($page.StatusCode -eq 200 -and [string]$page.Content -match '<html') { return $true }
+            }
         } catch { }
         Start-Sleep -Seconds 2
     }
