@@ -10,6 +10,8 @@
   "scripts": {
     "contracts:check": "pnpm --filter @friday/contracts check",
     "contracts:generate": "pnpm --filter @friday/contracts generate",
+    "knowledge:build": "tsx scripts/knowledge/build-friday-knowledge.mjs",
+    "knowledge:check": "tsx scripts/knowledge/build-friday-knowledge.mjs --check",
     "dev": "pnpm --parallel --filter @friday/control-api --filter @friday/web dev",
     "dev:api": "pnpm --filter @friday/control-api dev",
     "dev:web": "pnpm --filter @friday/web dev",

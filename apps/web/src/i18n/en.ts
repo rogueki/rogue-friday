@@ -410,5 +410,5 @@ export const en: Record<keyof typeof de, string> = {
   "quietSettings.important.appointments": "Appointments",
   "quietSettings.textTarget.label": "Text recipient",
   "quietSettings.textTarget.none": "No text delivery",
-  "quietSettings.textTarget.empty": "No recipient registered yet. Add one under Communication → Messenger.",
+  "quietSettings.textTarget.empty": "No recipient registered yet. Open Communication, pick a messenger channel on the left and click “Register recipient ID”.",
 };

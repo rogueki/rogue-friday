@@ -83,13 +83,33 @@ class FakeTasks:
         self.jobs.pop(task_id, None)
 
 
+class FakeKnowledge:
+    """Stand-in for the bundled help index."""
+
+    def __init__(self, sections=None, overview=""):
+        self.sections = list(sections or [])
+        self.overview_text = overview
+        self.queries = []
+        self.fail_overview = False
+
+    def search(self, question, limit=3):
+        self.queries.append(question)
+        return [dict(section) for section in self.sections[:limit]]
+
+    def overview(self):
+        if self.fail_overview:
+            raise OSError("help index down")
+        return self.overview_text
+
+
 class Harness:
     def __init__(self, **options):
         self.wall = 1000.0
         self.now = 0.0
         self.tasks = FakeTasks(lambda: self.wall)
         settings = {"clock": lambda: datetime.datetime(2026, 10, 31, 14, 5),
-                    "now": lambda: self.now, "wall": lambda: self.wall}
+                    "now": lambda: self.now, "wall": lambda: self.wall,
+                    "knowledge": FakeKnowledge()}
         settings.update(options)
         self.voice = ConversationOrchestrator(self.tasks, **settings)
 
@@ -106,7 +126,7 @@ class ToolSpecsTest(unittest.TestCase):
         specs = Harness().voice.tool_specs()
         self.assertEqual([spec["function"]["name"] for spec in specs],
                          ["task_create", "task_status", "task_cancel", "task_antwort", "ruhemodus", "friday_lesen",
-                          "zeit_datum"])
+                          "friday_hilfe", "zeit_datum"])
         parameters = specs[0]["function"]["parameters"]
         self.assertEqual(tuple(parameters["properties"]["domain"]["enum"]), DOMAINS)
         self.assertEqual(parameters["required"], ["domain", "auftrag"])
@@ -513,6 +533,50 @@ class ReadToolTest(unittest.TestCase):
         harness = Harness()
         self.assertIn("friday_lesen", [spec["function"]["name"] for spec in harness.voice.tool_specs()])
         self.assertIn("friday_lesen", harness.voice.instructions("Friday"))
+
+
+class HelpToolTest(unittest.TestCase):
+    def test_tool_is_offered(self):
+        harness = Harness()
+        self.assertIn("friday_hilfe", [spec["function"]["name"] for spec in harness.voice.tool_specs()])
+
+    def test_help_answers_with_sections_and_shortens_text(self):
+        knowledge = FakeKnowledge(
+            sections=[{"titel": "Kalender verbinden",
+                       "text": "x" * 1200,
+                       "quelle": "kalender.md › Kalender verbinden"}],
+            overview="Kalender, Einstellungen")
+        harness = Harness(knowledge=knowledge)
+        result = harness.voice.call_tool("friday_hilfe", {"frage": "  Wie verbinde ich den Kalender?  "})
+        self.assertEqual(knowledge.queries, ["Wie verbinde ich den Kalender?"])
+        section = result["abschnitte"][0]
+        self.assertEqual(section["titel"], "Kalender verbinden")
+        self.assertEqual(section["quelle"], "kalender.md › Kalender verbinden")
+        self.assertTrue(section["text"].endswith(" …"))
+        self.assertEqual(len(section["text"]), 902)
+
+    def test_help_without_a_hit_is_a_hint(self):
+        harness = Harness(knowledge=FakeKnowledge())
+        result = harness.voice.call_tool("friday_hilfe", {"frage": "Erzähl einen Witz über Pinguine"})
+        self.assertIn("nichts in der eingebauten Hilfe", result["hinweis"])
+
+    def test_empty_question_is_an_error(self):
+        harness = Harness(knowledge=FakeKnowledge())
+        self.assertEqual(harness.voice.call_tool("friday_hilfe", {"frage": "   "}),
+                         {"error": "Wobei soll ich helfen?"})
+
+    def test_instructions_mention_help_and_dashboard_areas(self):
+        harness = Harness(knowledge=FakeKnowledge(overview="Kalender, Einstellungen"))
+        text = harness.voice.instructions("Friday")
+        self.assertIn("friday_hilfe", text)
+        self.assertIn("Bereiche des Dashboards: Kalender, Einstellungen.", text)
+
+    def test_failing_overview_is_left_out(self):
+        knowledge = FakeKnowledge()
+        knowledge.fail_overview = True
+        harness = Harness(knowledge=knowledge)
+        text = harness.voice.instructions("Friday")
+        self.assertNotIn("Bereiche des Dashboards", text)
 
 
 class ConversationWindowTest(unittest.TestCase):

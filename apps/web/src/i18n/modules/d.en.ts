@@ -32,7 +32,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.area.backups": "Backups",
   "settings.area.backups.desc": "Schedule, target and retention of backups",
   "settings.area.developer": "Developer",
-  "settings.area.developer.desc": "Debug options and scenario console",
+  "settings.area.developer.desc": "Debug mode, raw data, orb performance overlay and log level",
   "settings.update.title": "Dashboard updates",
   "settings.update.desc": "Automatically checks GitHub main. Applies changed dashboard files and rebuilds the app; settings and data stay in place.",
   "settings.update.check": "Check now",

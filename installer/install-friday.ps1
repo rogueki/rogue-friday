@@ -2023,7 +2023,7 @@ if (-not (IsDone 'voicepython')) {
     foreach ($cand in @("$env:LOCALAPPDATA\Programs\Python\Python311\python.exe", 'C:\Program Files\Python311\python.exe')) { if (Test-Path $cand) { $py = $cand; break } }
     if (-not $py -and (Get-Command py.exe -ErrorAction SilentlyContinue)) { $py = (& py.exe -3.11 -c "import sys; print(sys.executable)" 2>$null) }
     if (-not $py -or -not (Test-Path $py)) { Stop-Install 'Python 3.11 nicht gefunden – bitte von python.org installieren und erneut starten.' }
-    Copy-Item "$Inst\voice\*" "$Root\voice\" -Force
+    Copy-Item "$Inst\voice\*" "$Root\voice\" -Recurse -Force
     $venv = "$Root\voice\.venv"
     if ((Test-Path "$venv\Scripts\python.exe") -and -not (Test-VenvUsable $venv)) {
         Warn 'Unvollständige Python-Umgebung aus einem abgebrochenen Lauf - sie wird neu angelegt.'

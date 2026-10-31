@@ -31,7 +31,7 @@ export const deD = {
   "settings.area.backups": "Backups",
   "settings.area.backups.desc": "Zeitplan, Ziel und Aufbewahrung der Sicherungen",
   "settings.area.developer": "Entwickler",
-  "settings.area.developer.desc": "Debug-Optionen und Szenario-Konsole",
+  "settings.area.developer.desc": "Debug-Modus, Rohdaten, Orb-Leistungsanzeige und Protokollstufe",
   "settings.update.title": "Dashboard-Updates",
   "settings.update.desc": "Prüft automatisch GitHub main. Übernimmt nur geänderte Dashboard-Dateien und baut die App neu; Einstellungen und Daten bleiben erhalten.",
   "settings.update.check": "Jetzt prüfen",

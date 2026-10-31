@@ -1474,6 +1474,17 @@ entfernt) rot; pyflakes ohne Befund.
   Benachrichtigungs-Einstellungen bekommen die Standardwerte beim Lesen. Dashboard: `QuietSettingsFields` (Auswahl + Schalter, keine
   Textfelder). P8-Matrix 116 Zeilen. Gegenproben rot (Versand trotz Stufe still, Nachtruhe-Freigabe zur Endzeit).
   Live-Versand (WSL-Bridge `messaging_send.py`) nicht ausgeführt – erst mit Nutzer im Live-Test (W5).
+- **Eingebaute Hilfe (LG-2b.03–05):** Quelle `docs/friday-knowledge/*.md` (77 gepflegte Abschnitte: Seiten, Einstellungen, Abläufe,
+  Fehlerbilder, Sprachbetrieb, Datenschutz; Format `## Titel` / `Stichworte:` / `Bereich:` / Text, gegen den Code geprüft) plus
+  `settings.generated.json` (18 Einstellungsbereiche mit Beschriftung, Feldern und Standardwerten; installationsabhängige Werte
+  markiert). `pnpm knowledge:build` (`scripts/knowledge/build-friday-knowledge.mjs`, tsx) schreibt zusätzlich das Bündel
+  `installer/voice/knowledge/friday-knowledge.json` (95 Abschnitte), weil nur `installer/` auf den Rechner kommt; CI-Schritt
+  `pnpm knowledge:check` schlägt bei veraltetem Stand fehl (Gegenprobe rot). Sprachdienst: `knowledge.py` (Stichwort/Titel/Text-
+  Punkte, gemeinsamer Wortstamm, Stoppwörter, 1–3 Treffer mit Quelle), Werkzeug `friday_hilfe` und Systemprompt-Zeile mit der
+  Bereichsübersicht. Installation kopiert `voice` jetzt rekursiv, beide Update-Dateilisten enthalten `knowledge.py` und das Bündel.
+  Tests: `test_knowledge.py` (7), `test_knowledge_questions.py` (20 Hilfefragen, P0-12), `test_conversation.py`; Gegenprobe (Stamm-
+  vergleich aus) rot; WSL-Voice-Liste 291 bestanden. Offen: `WakeEnrollment.tsx` ruft `fetch()` direkt in der Komponente auf
+  (Regelverstoß, Altbestand) – auf das SDK umstellen.
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 

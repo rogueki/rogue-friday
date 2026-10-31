@@ -355,7 +355,7 @@ function Get-VoiceSourcePaths {
         'installer/voice/friday_voice.py', 'installer/voice/gui_interaction.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py', 'installer/voice/domain_task_voice.py',
         'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
-        'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/qwen_realtime.py', 'installer/voice/qwen_dialog.py', 'installer/voice/conversation.py', 'installer/voice/runtime_settings.py', 'installer/voice/speech_redaction.py', 'installer/voice/stt_models.py', 'installer/voice/wake_enrollment.py',
+        'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/qwen_realtime.py', 'installer/voice/qwen_dialog.py', 'installer/voice/conversation.py', 'installer/voice/knowledge.py', 'installer/voice/knowledge/friday-knowledge.json', 'installer/voice/runtime_settings.py', 'installer/voice/speech_redaction.py', 'installer/voice/stt_models.py', 'installer/voice/wake_enrollment.py',
         'installer/voice/skills_onboarding_voice.py', 'installer/voice/voice_persona.py',
         'installer/voice/voice_runtime_paths.py', 'installer/voice/prepare_voice_pairs.py',
         'installer/fast_tts/server.py',
