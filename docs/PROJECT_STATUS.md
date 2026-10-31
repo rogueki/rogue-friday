@@ -1578,6 +1578,12 @@ entfernt) rot; pyflakes ohne Befund.
   Abschnitte der Wissensbasis (Bereichsbeschreibung aus `einstellungen.md` plus jede Anleitung aus `ablaeufe.md`, die auf den
   Bereich verweist). Der Wissensbasis-Build erzeugt dafür `settingsHelp.generated.json`; das Dashboard braucht keinen
   API-Aufruf, `knowledge:check` meldet einen veralteten Stand, und ein Bereich ohne Hilfe bricht den Build ab.
+- **Sprachtests vollständig in der CI (LG-1.05):** Elf Testdateien lagen neben der CI-Liste und waren teils veraltet. Jetzt in
+  der Liste; repariert: Onboarding-Tests setzen unter Linux `FRIDAY_DATA_DIR` auf das Testverzeichnis (sonst schrieb der Dienst
+  nach `/var/lib/friday`), Dispatcher-Test kennt `record_latency`, Persona-Test stubbt `huggingface_hub` und schlägt bei einem
+  Download fehl; CI installiert `soundfile` (Version der Sprachumgebung). Dabei gefunden: `test_configure_voice` lud
+  `elevenlabs_cloud` gegen einen numpy-Stub neu und ließ das Modul so zurück, nachfolgende ElevenLabs-Tests scheiterten; lädt jetzt
+  echtes numpy nach. WSL, komplette CI-Liste: 800 bestanden, 16 übersprungen.
 - **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
   Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 

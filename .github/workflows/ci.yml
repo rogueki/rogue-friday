@@ -85,6 +85,17 @@ jobs:
             installer/voice/tests/test_update_dependency_closure.py \
             installer/voice/tests/test_qwen_realtime.py \
             installer/voice/tests/test_elevenlabs_cloud.py \
+            installer/voice/tests/test_audio_level.py \
+            installer/voice/tests/test_cloudtalk_voice.py \
+            installer/voice/tests/test_coding_voice.py \
+            installer/voice/tests/test_content_studio_voice.py \
+            installer/voice/tests/test_gui_interaction.py \
+            installer/voice/tests/test_model_routing.py \
+            installer/voice/tests/test_powerpoint_voice.py \
+            installer/voice/tests/test_skills_onboarding_voice.py \
+            installer/voice/tests/test_stt_models.py \
+            installer/voice/tests/test_voice_persona.py \
+            installer/voice/tests/test_voice_phase.py \
             installer/wsl/test_update_wsl_dependency_closure.py \
             installer/wsl/test_setup_hermes_base_url.py \
             installer/wsl/test_setup_profile_isolation.py \

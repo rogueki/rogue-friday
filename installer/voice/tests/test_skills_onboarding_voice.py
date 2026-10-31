@@ -9,8 +9,16 @@ import sys
 import time
 import types
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from skills_onboarding_voice import SkillsOnboardingVoice
+
+
+@pytest.fixture(autouse=True)
+def windows_layout_data_dir(tmp_path, monkeypatch):
+    # On Linux the bridge files live under FRIDAY_DATA_DIR; point it at the Windows layout these tests assert.
+    monkeypatch.setenv("FRIDAY_DATA_DIR", str(tmp_path / "dashboard" / "data"))
 
 
 class FakeApi:
@@ -265,7 +273,8 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
         arg.annotation = None
     namespace = {"time": time, "SR": 16000, "log_event": lambda **kwargs: None,
                  "STOP_WORDS": re.compile("^stopp$"), "is_goodbye": lambda text: False, "uuid": __import__("uuid"),
-                 "DEFAULT_ACK_WAIT": "warte", "DEFAULT_ACK_BACKGROUND": "warte"}
+                 "DEFAULT_ACK_WAIT": "warte", "DEFAULT_ACK_BACKGROUND": "warte",
+                 "record_latency": lambda *args, **kwargs: None}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
     calls = []
     offers = []
