@@ -33,6 +33,7 @@ class ConfigTest(unittest.TestCase):
 
     def test_classify_maps_server_messages(self):
         self.assertEqual(qwen_realtime.classify(1007, IDLE_REASON), "idle")
+        self.assertEqual(qwen_realtime.classify("InvalidParameter", "Model not exist."), "model")
         self.assertEqual(qwen_realtime.classify("InvalidApiKey", ""), "auth")
         self.assertEqual(qwen_realtime.classify("Throttling.RateQuota", ""), "rate")
         self.assertEqual(qwen_realtime.classify("Arrearage", ""), "quota")

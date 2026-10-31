@@ -119,7 +119,36 @@ def test_qwen_turn_reports_realtime_error(monkeypatch):
     svc.qwen_dialog = Dialog()
     assert svc._qwen_turn(np.zeros(800, dtype=np.float32), svc.control_generation) is False
     assert svc.status["qwen_error"] == "quota"
+    assert svc.tts.said == [jv.QWEN_FALLBACK_NOTICE["quota"]]
     assert svc.history == []
+
+
+def test_fallback_notice_is_spoken_once_per_kind(monkeypatch):
+    jv = voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **fields: None)
+    svc = make_service(jv)
+    calls = {"count": 0}
+
+    class Dialog:
+        def turn(self, pcm, say, cancelled):
+            calls["count"] += 1
+            if calls["count"] in (1, 2, 5):
+                raise jv.qwen_realtime.RealtimeError("network", "x")
+            if calls["count"] == 3:
+                raise jv.qwen_realtime.RealtimeError("auth", "y")
+            say("Wieder da.")
+            return "Wieder da."
+
+    svc.qwen_dialog = Dialog()
+    audio = np.zeros(800, dtype=np.float32)
+    assert svc._qwen_turn(audio, svc.control_generation) is False
+    assert svc._qwen_turn(audio, svc.control_generation) is False
+    assert svc._qwen_turn(audio, svc.control_generation) is False
+    assert svc.tts.said == [jv.QWEN_UNREACHABLE_NOTICE, jv.QWEN_FALLBACK_NOTICE["auth"]]
+    assert svc._qwen_turn(audio, svc.control_generation) is True
+    assert svc.status["qwen_error"] is None
+    assert svc._qwen_turn(audio, svc.control_generation) is False
+    assert svc.tts.said.count(jv.QWEN_UNREACHABLE_NOTICE) == 2
 
 
 def test_handle_command_uses_qwen_for_verified_owner(monkeypatch):

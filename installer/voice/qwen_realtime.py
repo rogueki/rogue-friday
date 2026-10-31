@@ -18,7 +18,7 @@ INPUT_RATE = 16000
 OUTPUT_RATE = 24000
 CHUNK_BYTES = 3200  # 100 ms of PCM16 mono at 16 kHz
 LINUX_SECRET_FILE = "/etc/friday/secrets/alibaba-tokenplan.key"
-ERROR_KINDS = ("auth", "quota", "rate", "idle", "network", "protocol")
+ERROR_KINDS = ("auth", "quota", "rate", "idle", "model", "network", "protocol")
 
 
 async def _close_quietly(ws) -> None:
@@ -42,6 +42,8 @@ def classify(code, message: str) -> str:
     text = f"{code or ''} {message or ''}".lower()
     if "no response was generated" in text:
         return "idle"
+    if any(marker in text for marker in ("model not exist", "model_not_found", "modelnotfound", "model not found")):
+        return "model"
     if any(marker in text for marker in ("401", "403", "unauthorized", "invalidapikey", "invalid api key",
                                          "invalid_api_key", "access denied", "accessdenied", "forbidden")):
         return "auth"

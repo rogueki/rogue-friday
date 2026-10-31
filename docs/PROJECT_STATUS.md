@@ -1378,11 +1378,13 @@ entfernt) rot; pyflakes ohne Befund.
   Daten mitgeteilt, damit Rückfragen dazu funktionieren. Bestehende Modi sind unverändert.
 - **Installer/Update:** `qwen_realtime.py`, `qwen_dialog.py`, `conversation.py` in `Get-VoiceSourcePaths` und
   `update-voice-personas.ps1`; `websockets>=15,<17` in beiden Windows-Pip-Listen der Voice-Venv.
-- **Noch nicht enthalten:** Auswahl im Installer/Dashboard und Schlüsselablage (LG-4/LG-3), gesprochene Rückfall-Hinweise
-  (LG-1.04), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
+- **Rückfall (LG-1.04, F-02/F-03):** Vor der lokalen Antwort sagt die lokale Stimme einmal je Ausfallart an, was los ist
+  (Schlüssel abgelehnt, Kontingent aufgebraucht, Drosselung, Modell nicht im Tarif, sonst „nicht erreichbar, ich nutze
+  die lokale Stimme“); nach einem erfolgreichen Turn wird der nächste Ausfall wieder angesagt. Neue Fehlerart `model`.
+- **Noch nicht enthalten:** Auswahl im Installer/Dashboard und Schlüsselablage (LG-4/LG-3), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg), „Stopp“ als Wort im Qwen-Modus (es gibt kein lokales
   Transkript; Unterbrechen per Wake Word funktioniert).
 
-**Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 223 bestanden, 1 übersprungen;
+**Zuletzt verifiziert:** WSL Ubuntu, komplette Voice-Testliste der CI plus neue Tests: 224 bestanden, 1 übersprungen;
 Windows `test_qwen_dialog.py` 14/14; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
 PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
 `voice-native-capture`, `gui-controls` PASS.

@@ -9,7 +9,7 @@ import concurrent.futures
 import re
 import threading
 
-from qwen_realtime import AudioDelta, RealtimeError, ResponseDone, ServerError, TextDelta, ToolCall
+from qwen_realtime import ERROR_KINDS, AudioDelta, RealtimeError, ResponseDone, ServerError, TextDelta, ToolCall
 
 SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
 
@@ -130,8 +130,7 @@ class QwenDialog:
                 await self._session.send_tool_result(event.call_id, result)
                 tool_round = True
             elif isinstance(event, ServerError):
-                kinds = ("auth", "quota", "rate", "idle", "network", "protocol")
-                raise RealtimeError(event.kind if event.kind in kinds else "protocol", event.message)
+                raise RealtimeError(event.kind if event.kind in ERROR_KINDS else "protocol", event.message)
             elif isinstance(event, ResponseDone):
                 if tool_round and not cancel_sent:
                     tool_round = False  # the answer to the tool result is still on its way

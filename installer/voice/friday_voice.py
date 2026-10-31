@@ -206,6 +206,15 @@ def record_latency(service, name: str, value_ms: float) -> None:
 
 CONVERSATION_BACKENDS = ("local", "qwen")
 
+# Gesprochen ueber die lokale Stimme, bevor der lokale Weg dieselbe Aeusserung beantwortet (Plan F-02, F-03).
+QWEN_FALLBACK_NOTICE = {
+    "auth": "Der Alibaba-Schlüssel wird nicht akzeptiert. Ich antworte lokal; der Schlüssel lässt sich im Dashboard prüfen.",
+    "quota": "Das Alibaba-Kontingent ist aufgebraucht. Ich antworte vorerst lokal.",
+    "rate": "Alibaba bremst gerade die Anfragen. Ich antworte lokal.",
+    "model": "Das Qwen-Audio-Modell ist im Alibaba-Tarif nicht verfügbar. Ich antworte lokal.",
+}
+QWEN_UNREACHABLE_NOTICE = "Qwen Audio ist gerade nicht erreichbar, ich nutze die lokale Stimme."
+
 
 def conversation_backend(cfg: dict) -> str:
     backend = cfg.get("conversation_backend", "local")
@@ -1443,6 +1452,9 @@ class VoiceService:
             text = self.qwen_dialog.turn(pcm, lambda sentence: self._say_if_current(sentence, generation), cancelled)
         except qwen_realtime.RealtimeError as exc:
             log_event(event="qwen_turn_failed", kind=exc.kind)
+            # Nur beim Wechsel der Ausfallart ansagen: sonst haengt vor jeder Antwort derselbe Hinweis.
+            if self.status.get("qwen_error") != exc.kind:
+                self._say_if_current(QWEN_FALLBACK_NOTICE.get(exc.kind, QWEN_UNREACHABLE_NOTICE), generation)
             self.status["qwen_error"] = exc.kind
             return False
         self.status["qwen_error"] = None
