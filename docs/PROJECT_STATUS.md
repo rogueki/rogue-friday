@@ -1396,6 +1396,8 @@ entfernt) rot; pyflakes ohne Befund.
 - **Stoppwort im Qwen-Modus:** Kurze Äußerungen (≤ 1,6 s) eines geprüften Sprechers prüft der Dienst zuerst lokal auf
   das Stoppwort („Stopp“, „Abbrechen“ …) und bricht ab, statt sie als Gesprächsbeitrag an Qwen zu senden; längere gehen
   direkt an Qwen (`STOP_PROBE_S`, Test `test_short_stop_word_cancels_instead_of_reaching_qwen`).
+- **Moduswechsel ohne Ansageverlust:** Beim Umschalten Lokal↔Qwen gibt der alte Orchestrator noch nicht gesprochene
+  Ergebnisse (`drain_announcements`) an die Ansage-Warteschlange zurück; der neue Modus spricht sie.
 - **GitHub-Update (W4):** Das Update kopierte neue Sprachmodule, installierte aber keine neuen Python-Pakete; auf einer
   bestehenden Installation hätte `websockets` gefehlt. `update-voice-personas.ps1` installiert jetzt fehlende Pakete aus
   `$requiredPackages` in die Voice-Venv (nur wenn `import` scheitert; Ergebnis `present|installed|failed` in `result.json`,

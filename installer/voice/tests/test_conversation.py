@@ -221,6 +221,16 @@ class AnnouncementTest(unittest.TestCase):
         harness.voice.set_busy(False)
         self.assertIn("Drei Anbieter gefunden.", harness.voice.take_announcement())
 
+    def test_drain_hands_over_unspoken_results(self):
+        harness = Harness()
+        harness.voice.set_busy(True)
+        harness.finish()
+        self.assertIsNone(harness.voice.take_announcement())
+        drained = harness.voice.drain_announcements()
+        self.assertEqual([job["title"] for job in drained], ["Recherchiere Stromanbieter"])
+        harness.voice.set_busy(False)
+        self.assertIsNone(harness.voice.take_announcement())
+
     def test_long_result_is_shortened(self):
         harness = Harness()
         harness.finish(summary="x" * 3000)

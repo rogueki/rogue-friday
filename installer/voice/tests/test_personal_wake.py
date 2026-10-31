@@ -1263,10 +1263,11 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     built = []
     dialog = types.SimpleNamespace(closed=threading.Event())
     dialog.close = dialog.closed.set
+    orchestrator = types.SimpleNamespace(drain_announcements=lambda: [])
 
     def build(cfg):
         built.append(cfg["conversation_backend"])
-        return ("ORCH", dialog) if cfg["conversation_backend"] == "qwen" else None
+        return (orchestrator, dialog) if cfg["conversation_backend"] == "qwen" else None
 
     monkeypatch.setattr(svc, "_build_conversation", build)
     with socket.socket() as sock:
@@ -1292,7 +1293,7 @@ def test_conversation_backend_switches_at_runtime(monkeypatch, tmp_path):
     (tmp_path / "config" / "alibaba_tokenplan.key.dpapi").write_text("x", encoding="utf-8")
     current = jv.runtime_settings.effective(svc.cfg)
     assert post({**current, "conversationBackend": "qwen"}) == 200
-    assert svc.qwen_dialog is dialog and svc.conversation == "ORCH"
+    assert svc.qwen_dialog is dialog and svc.conversation is orchestrator
     assert json.load(open(svc.config_path, encoding="utf-8"))["conversation_backend"] == "qwen"
     assert svc.status_payload()["conversation"] == {"backend": "qwen", "key_configured": True, "last_error": None}
     assert post({**jv.runtime_settings.effective(svc.cfg), "conversationBackend": "local"}) == 200

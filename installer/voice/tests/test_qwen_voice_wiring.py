@@ -222,6 +222,21 @@ def test_guest_audio_never_reaches_qwen(monkeypatch):
         svc._handle_command(np.zeros(16000, dtype=np.float32), None)
 
 
+def test_switch_hands_unspoken_results_to_the_new_mode():
+    jv = voice_module()
+    svc = make_service(jv)
+    collected = []
+    svc.domain_tasks = types.SimpleNamespace(collect=collected.append)
+    job = {"taskId": "task_x", "domain": "research", "status": "done", "title": "Strompreise"}
+    svc.conversation = types.SimpleNamespace(drain_announcements=lambda: [job])
+    closed = threading.Event()
+    svc.qwen_dialog = types.SimpleNamespace(close=closed.set)
+    svc._use_conversation(None)
+    assert svc.conversation is None and svc.qwen_dialog is None
+    assert collected == [job]
+    assert closed.wait(2)
+
+
 def test_announcement_text_without_conversation_uses_bundle():
     jv = voice_module()
     svc = make_service(jv)

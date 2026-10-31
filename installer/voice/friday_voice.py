@@ -1832,8 +1832,13 @@ class VoiceService:
 
     def _use_conversation(self, built) -> None:
         previous = getattr(self, "qwen_dialog", None)
+        previous_conversation = getattr(self, "conversation", None)
         self.conversation, self.qwen_dialog = built if built is not None else (None, None)
         self.status["qwen_error"] = None
+        if previous_conversation is not None:
+            # Noch nicht gesprochene Ergebnisse gehen zurueck in die Ansage-Warteschlange des neuen Modus.
+            for job in previous_conversation.drain_announcements():
+                self.domain_tasks.collect(job)
         if previous is not None:
             # close() wartet bis zu 5 s auf die Sitzung; die Einstellungsanfrage soll darauf nicht warten.
             threading.Thread(target=previous.close, daemon=True).start()
