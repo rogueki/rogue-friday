@@ -23,7 +23,7 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
     for arg in method.args.args:
         arg.annotation = None
     namespace = {"time": time, "SR": 16000, "STOP_WORDS": re.compile(r"^stopp?$", re.I),
-                 "log_event": lambda **kwargs: None}
+                 "log_event": lambda **kwargs: None, "record_latency": lambda *args: None}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
 
     def make_voice():

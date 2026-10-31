@@ -219,13 +219,26 @@ describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py"
       expect((await rig.adapter.listVoiceProfiles({}, call())).freshness.state).toBe("unknown");
     });
 
-    it("metrics: empty statistics, no request to the service", async () => {
+    it("metrics: empty statistics when the service measures nothing", async () => {
       rig = await createRig();
       const metrics = await rig.adapter.getVoiceMetrics({}, call());
       expect(metrics.freshness.state).toBe("unknown");
       expect(metrics.data.sttLatency.sampleCount).toBe(0);
       assertValidResult("voice", "getVoiceMetrics", metrics);
-      expect(rig.voice.requestLines).toHaveLength(0);
+    });
+
+    it("metrics: measured windows of the service, answer start as first audio", async () => {
+      rig = await createRig();
+      const stat = (p95: number, count: number) => ({ current_ms: p95 - 100, avg_ms: p95 - 200, p95_ms: p95, count });
+      rig.voice.setStatus(makeVoiceStatus({ latency: { speaker: stat(280, 12), stt: stat(650, 12), router: stat(290, 12),
+        model: stat(4200, 5), answer_start: stat(1700, 12) } } as never));
+      const metrics = await rig.adapter.getVoiceMetrics({}, call());
+      expect(metrics.freshness.state).toBe("fresh");
+      expect(metrics.data.ttsFirstAudio).toEqual({ currentMs: 1600, avgMs: 1500, p95Ms: 1700, sampleCount: 12 });
+      expect(metrics.data.firstToken.p95Ms).toBe(4200);
+      expect(metrics.data.speakerVerificationLatency.sampleCount).toBe(12);
+      expect(metrics.data.wakeWordLatency.sampleCount).toBe(0);
+      assertValidResult("voice", "getVoiceMetrics", metrics);
     });
   });
 

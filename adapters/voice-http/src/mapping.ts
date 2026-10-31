@@ -1,9 +1,12 @@
 import type { VoiceMetrics, VoiceStatus } from "@friday/sdk";
 import { AdapterError, defineMapper, type MapContext } from "@friday/adapter-core";
 import {
+  RAW_LATENCY_KEYS,
   RAW_VOICE_PHASES,
   RAW_VOICE_STATES,
   type RawAudioLevels,
+  type RawLatency,
+  type RawLatencyStat,
   type RawOutputVoice,
   type RawSpeakerProfile,
   type RawVoicePhase,
@@ -88,6 +91,20 @@ function isOutputVoice(value: unknown): value is RawOutputVoice {
     (item.needs_voice_update === undefined || typeof item.needs_voice_update === "boolean");
 }
 
+const isMillis = (value: unknown): value is number | null => value === null || isCount(value);
+
+function isLatencyStat(value: unknown): value is RawLatencyStat {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return isMillis(item.current_ms) && isMillis(item.avg_ms) && isMillis(item.p95_ms) && isCount(item.count);
+}
+
+function isLatency(value: unknown): value is RawLatency {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return RAW_LATENCY_KEYS.every((key) => item[key] === undefined || isLatencyStat(item[key]));
+}
+
 function isSpeakerDecision(value: unknown): value is { decision: "verified" | "rejected"; score: number; at: string } {
   if (typeof value !== "object" || value === null) return false;
   const item = value as Record<string, unknown>;
@@ -149,6 +166,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(raw.speaker_profile === null || isSpeakerProfile(raw.speaker_profile) ? { speaker_profile: raw.speaker_profile } : {}),
     ...(raw.wake_calibration === null || isWakeCalibration(raw.wake_calibration) ? { wake_calibration: raw.wake_calibration } : {}),
     ...(isOutputVoice(raw.output_voice) ? { output_voice: raw.output_voice } : {}),
+    ...(isLatency(raw.latency) ? { latency: raw.latency } : {}),
     ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
     ...(typeof raw.service_version === "string" ? { service_version: raw.service_version } : {}),
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
@@ -304,7 +322,29 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
 
 const NO_DATA = { currentMs: null, avgMs: null, p95Ms: null, sampleCount: 0 } as const;
 
-/** The status server delivers no latencies; `sampleCount: 0` marks "keine Datenquelle". */
+const toLatencyStat = (stat: RawLatencyStat | undefined) =>
+  stat === undefined ? { ...NO_DATA } : { currentMs: stat.current_ms, avgMs: stat.avg_ms, p95Ms: stat.p95_ms, sampleCount: stat.count };
+
+/**
+ * Measured windows of the voice service. `firstToken` is the complete Hermes reply (no streaming, external model
+ * latency); `ttsFirstAudio` is the answer start from the end of the recording to the first played audio.
+ */
+export const voiceMetricsMapper = defineMapper<RawLatency, VoiceMetrics>({
+  name: "Friday Voice latency -> VoiceMetrics",
+  schema: "VoiceMetrics",
+  toCanonical: (raw, context) => ({
+    sampledAt: context.syncedAt,
+    source: context.source(),
+    wakeWordLatency: { ...NO_DATA },
+    speakerVerificationLatency: toLatencyStat(raw.speaker),
+    sttLatency: toLatencyStat(raw.stt),
+    routerLatency: toLatencyStat(raw.router),
+    firstToken: toLatencyStat(raw.model),
+    ttsFirstAudio: toLatencyStat(raw.answer_start),
+  }),
+});
+
+/** Older status servers deliver no latencies; `sampleCount: 0` marks "keine Datenquelle". */
 export const emptyVoiceMetricsMapper = defineMapper<null, VoiceMetrics>({
   name: "Friday Voice -> VoiceMetrics (keine Datenquelle)",
   schema: "VoiceMetrics",
