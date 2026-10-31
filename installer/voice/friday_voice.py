@@ -15,6 +15,7 @@ Rohaudio wird nur nach ausdruecklicher Aktivierung fuer akzeptierte Befehle gesp
 import argparse
 import atexit
 import collections
+import contextlib
 import datetime
 import http.server
 import hashlib
@@ -137,6 +138,7 @@ HERMES_VOICE_SYSTEM = ("Diese Anfrage kommt per Sprache vom Owner (Sprecher veri
                        "Termin aendern, Finanzen) NICHT ausfuehren, sondern Entwurf erstellen und Bestaetigung "
                        "anfordern.")
 
+STOP_PROBE_S = 1.6
 STOP_WORDS = re.compile(r"^\s*(stopp?|stop|abbrechen|halt|ruhe|sei still)[\s.!]*$", re.IGNORECASE)
 
 
@@ -1503,8 +1505,17 @@ class VoiceService:
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         if getattr(self, "tts", None) is not None:
             self.tts.answer_clock = t0
-        if owner_required and getattr(self, "qwen_dialog", None) is not None and self._qwen_turn(audio, generation):
-            return
+        if owner_required and getattr(self, "qwen_dialog", None) is not None:
+            # Qwen versteht "Stopp" als Gespraechsbeitrag; kurze Aeusserungen erst lokal auf das Stoppwort pruefen.
+            if len(audio) <= STOP_PROBE_S * SR:
+                with getattr(self, "transcribe_lock", None) or contextlib.nullcontext():
+                    short = self._transcribe(audio)
+                if STOP_WORDS.fullmatch(short):
+                    self.cancel_active_interaction()
+                    log_event(event="stop", generation=generation)
+                    return
+            if self._qwen_turn(audio, generation):
+                return
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:

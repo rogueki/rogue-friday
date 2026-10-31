@@ -162,7 +162,30 @@ def test_handle_command_uses_qwen_for_verified_owner(monkeypatch):
         raise AssertionError("Whisper darf im Qwen-Modus nicht laufen")
 
     svc._transcribe = transcribe
+    svc._handle_command(np.zeros(32000, dtype=np.float32), None)
+
+
+def test_short_stop_word_cancels_instead_of_reaching_qwen(monkeypatch):
+    jv = voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **fields: None)
+    svc = make_service(jv)
+    svc.qwen_dialog = types.SimpleNamespace()
+    cancelled = []
+    svc.cancel_active_interaction = lambda: cancelled.append(True)
+
+    def qwen_turn(audio, generation):
+        raise AssertionError("Stoppwort darf nicht an Qwen gehen")
+
+    svc._qwen_turn = qwen_turn
+    svc._transcribe = lambda audio: "Stopp."
     svc._handle_command(np.zeros(16000, dtype=np.float32), None)
+    assert cancelled == [True]
+
+    reached = []
+    svc._qwen_turn = lambda audio, generation: reached.append(True) or True
+    svc._transcribe = lambda audio: "Wie spaet ist es"
+    svc._handle_command(np.zeros(16000, dtype=np.float32), None)
+    assert reached == [True] and cancelled == [True]
 
 
 def test_handle_command_falls_back_to_local_way(monkeypatch):
