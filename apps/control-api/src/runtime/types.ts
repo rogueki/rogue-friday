@@ -14,6 +14,7 @@ import type { LogBuffer } from "../services/log-buffer";
 import type { OrbService, OverviewService, StatusService } from "../services/core-views";
 import type { SettingsService } from "../services/settings";
 import type { NativeApprovalRequests } from "../services/native-approval-requests";
+import type { NativeNotifications } from "../services/native-notifications";
 import type { PendingCommandClarifications } from "../services/pending-command-clarifications";
 import type { RecentCommandListings } from "../services/recent-command-listings";
 import type { QuietModeService } from "../services/quiet-mode";
@@ -102,6 +103,8 @@ export interface Runtime {
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   nativeApprovals: NativeApprovalRequests;
+  /** Alerts Friday raises itself (approvals, tasks, services); the live runtime has no notifications adapter. */
+  nativeNotifications: NativeNotifications;
   pendingCommandClarifications: PendingCommandClarifications;
   recentCommandListings: RecentCommandListings;
   quietMode: QuietModeService;

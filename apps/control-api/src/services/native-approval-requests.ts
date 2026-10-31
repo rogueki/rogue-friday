@@ -230,7 +230,8 @@ export interface CapturedApprovalPolicy {
 export class NativeApprovalRequests {
   constructor(private readonly db: Db, private readonly settings: SettingsService,
     private readonly validator: SchemaValidator, private readonly now: () => number = Date.now,
-    private readonly onPending: (approval: Approval) => void = () => undefined) {}
+    private readonly onPending: (approval: Approval) => void = () => undefined,
+    private readonly onSettled: (approval: Approval) => void = () => undefined) {}
 
   propose(input: NativeApprovalProposal): CapturedApprovalPolicy {
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(input.ownerId) ||
@@ -326,8 +327,10 @@ export class NativeApprovalRequests {
     if (row.state === "draft") {
       const expiry = result.approval?.expiresAt;
       if (expiry && Date.parse(expiry) <= this.now()) throw conflict("Der Entwurf ist abgelaufen.");
-      this.db.prepare("UPDATE native_approval_requests SET state = 'pending', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'draft'")
+      const promoted = this.db.prepare("UPDATE native_approval_requests SET state = 'pending', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'draft'")
         .run(this.now(), ownerId, requestKey);
+      // Executable approvals become visible only here, so this is where the owner has to hear about them.
+      if (promoted.changes === 1 && result.approval) this.onPending(result.approval);
     } else if (row.state !== "pending" && !(!result.requiresApproval && ["completed", "dispatching"].includes(row.state)))
       throw conflict("Der Entwurf ist nicht mehr offen.");
     return result;
@@ -390,6 +393,14 @@ export class NativeApprovalRequests {
     return this.expireIfDue(ownerId, row).approval;
   }
 
+  /** Pending approvals of every owner: orb and overview are installation-wide views of a single-owner dashboard. */
+  listPending(): Approval[] {
+    const rows = this.db.prepare("SELECT owner_id, request_key, result_json, state FROM native_approval_requests WHERE action_json IS NOT NULL AND state = 'pending' ORDER BY created_at DESC LIMIT 200")
+      .all() as Array<{ owner_id: string; request_key: string; result_json: string; state: string }>;
+    return rows.map((row) => this.expireIfDue(row.owner_id, row).approval)
+      .filter((approval): approval is Approval => approval?.status === "pending");
+  }
+
   listApprovals(ownerId: string): Approval[] {
     const rows = this.db.prepare("SELECT request_key, result_json, state FROM native_approval_requests WHERE owner_id = ? AND action_json IS NOT NULL AND state <> 'draft' ORDER BY created_at DESC LIMIT 200")
       .all(ownerId) as Array<{ request_key: string; result_json: string; state: string }>;
@@ -404,6 +415,7 @@ export class NativeApprovalRequests {
       updatedAt: new Date(this.now()).toISOString() };
     const updated = this.db.prepare("UPDATE native_approval_requests SET state = 'expired', result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending'")
       .run(JSON.stringify({ ...result, approval: expired }), this.now(), ownerId, row.request_key);
+    if (updated.changes === 1) this.onSettled(expired);
     return updated.changes === 1 ? { ...result, approval: expired } :
       JSON.parse((this.db.prepare("SELECT result_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
         .get(ownerId, row.request_key) as { result_json: string }).result_json) as CapturedApprovalPolicy;
@@ -428,6 +440,8 @@ export class NativeApprovalRequests {
     const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', dispatch_token = ?, result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending' AND updated_at = ?")
       .run(dispatchToken, JSON.stringify({ ...result, approval: approved }), this.now(), ownerId, row.request_key, row.updated_at);
     if (reserved.changes !== 1) throw conflict("Freigabe wird bereits verarbeitet.");
+    // Decided is decided: the owner's alert closes even if the execution afterwards turns out uncertain.
+    this.onSettled(approved);
     const action = JSON.parse(row.action_json) as NativeExecutableAction;
     try {
       const doneVerb = ACTION_DONE_VERB[action.kind];
@@ -462,6 +476,7 @@ export class NativeApprovalRequests {
     const updated = this.db.prepare("UPDATE native_approval_requests SET state = 'rejected', result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending'")
       .run(JSON.stringify({ ...result, approval: rejected }), this.now(), ownerId, row.request_key);
     if (updated.changes !== 1) throw conflict("Freigabe wurde bereits entschieden.");
+    this.onSettled(rejected);
     return rejected;
   }
 }

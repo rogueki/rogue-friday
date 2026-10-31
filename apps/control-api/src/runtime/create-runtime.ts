@@ -20,7 +20,7 @@ import {
   type FridayMetrics,
   type Logger,
 } from "@friday/observability";
-import type { AdapterHealth, FridayEvent, VoiceStatus } from "@friday/sdk";
+import type { AdapterHealth, FridayEvent, Priority, VoiceStatus } from "@friday/sdk";
 import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../db/audit-anchor-migration";
@@ -28,6 +28,8 @@ import { AuditStore, type AuditVerification } from "../db/audit-store";
 import { AuditArchive } from "../db/audit-archive";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
 import { NotificationStore } from "../services/notification-store";
+import { NativeNotifications } from "../services/native-notifications";
+import { attachNotificationProducers, notifyApprovalPending } from "../services/notification-producers";
 import { QuietModeService } from "../services/quiet-mode";
 import { RetentionService } from "../services/retention";
 import { EventHub } from "../realtime/hub";
@@ -287,10 +289,24 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
+  const nativeNotifications = new NativeNotifications({
+    store: notifications,
+    publish: (type, notification) => { hub.publish("control-api://notifications", { type, subject: `notification/${notification.id}`, data: notification }); },
+    snoozeDefaultMinutes: () => settings.area("notifications").snoozeDefaultMinutes,
+    ...(options.now ? { now: options.now } : {}),
+  });
+  // An alert must never break the approval it belongs to.
+  const alertSafely = (action: string, run: () => void): void => {
+    try { run(); } catch (error) { logger.warn("Benachrichtigung nicht gespeichert", { action, error: error instanceof Error ? error.message : String(error) }); }
+  };
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now, (approval) => {
     // Recorded only while quiet; a failed text send must never break the approval itself.
     void quietMode.notice({ class: "approvals", title: approval.action.slice(0, 200) }).catch(() => undefined);
-  });
+    alertSafely("approval.pending", () => notifyApprovalPending(nativeNotifications, approval));
+  }, (approval) => alertSafely("approval.settled", () => { nativeNotifications.resolveBySource("approval", approval.id); }));
+  // The simulated world raises its own notifications; live installations get theirs from the real domain events.
+  if (!world) attachNotificationProducers(hub, nativeNotifications, (error, type) =>
+    logger.warn("Benachrichtigung aus Ereignis nicht erzeugt", { type, error: error instanceof Error ? error.message : String(error) }));
   const recentCommandListings = new RecentCommandListings(options.now);
   const quietMode = new QuietModeService({
     db,
@@ -391,7 +407,11 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   settingsHolder.current = settings;
 
   const assistantName = (): string => settings.get().profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
-  const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName });
+  const nativeSources = {
+    pendingApprovals: () => nativeApprovals.listPending(),
+    openNotifications: (priority: Priority[]) => nativeNotifications.list({ priority, status: ["open"] }),
+  };
+  const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName, native: nativeSources });
   const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode, assistantName });
 
   const capabilities = (): ReturnType<Runtime["capabilities"]> => {
@@ -412,7 +432,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     if (!module || !flag || !(flag in module)) return true;
     return module[flag] === true;
   };
-  const overview = new OverviewService({ registry, status, orb, capabilityEnabled });
+  const overview = new OverviewService({ registry, status, orb, capabilityEnabled, native: nativeSources });
   const telemetry = new FrontendTelemetryService(metrics, logger, undefined, options.now);
 
   // ---- audit --------------------------------------------------------------------------------------------------
@@ -597,6 +617,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     approvalTokens,
     settings,
     nativeApprovals,
+    nativeNotifications,
     pendingCommandClarifications,
     recentCommandListings,
     quietMode,

@@ -1500,6 +1500,21 @@ entfernt) rot; pyflakes ohne Befund.
   Abschnitt auf Satzgrenzen ≤ 400 Zeichen). Bedienfragen („Wie schalte ich den Ruhemodus ein?“) schalten nichts; ein bloßes
   „Sei still“ bleibt Stoppwort. Ohne Hilfetreffer oder bei Fehlern übernimmt der normale Router. Tests: Parser-Tabelle, Antworten,
   `_route`-Verdrahtung; Gegenprobe (Hilfe-Vorrang entfernt) rot; WSL-Voice-Liste 311 bestanden.
+- **Benachrichtigungen im Live-Betrieb (PLAN §39):** Live gab es keinen Adapter für den Port `notifications`; `/notifications` lieferte
+  CAPABILITY_MISSING, die Benachrichtigungsseite blieb leer, Übersicht und Orb sahen weder native Freigaben noch Alarme.
+  `services/native-notifications.ts` legt eigene Alarme im vorhandenen `NotificationStore` an (Quelle
+  `friday-native-notifications`, nur Dashboard-Eskalation – externe Kanäle brauchen eine Owner-Freigabe, die live noch fehlt),
+  dedupliziert je Quelle+Kategorie, quittiert/schlummert/erledigt mit If-Match wie die Mock-Welt und weckt Geschlummertes beim
+  Lesen; Einträge der Mock-Welt im selben Speicher bleiben unberührt. `handlers/notifications.ts` listet native Einträge neben einem
+  Adapter und allein, wenn keiner konfiguriert ist (ein konfigurierter, ausgefallener Adapter bleibt 503). Erzeuger
+  (`notification-producers.ts`, nur ohne Mock-Welt): Auftrag fehlgeschlagen und Rückfrage (`input_needed`) als P2, erledigt bei
+  running/review/done/cancelled; Dienst offline als P1 (nicht bei STOPPING/STOPPED), erledigt bei online/paused; native Freigabe
+  P2 (Stufe 3: P1), erledigt bei Entscheidung oder Ablauf (`onSettled`). Dabei gefunden: ausführbare Freigaben werden erst in
+  `confirm()` vom Entwurf zu `pending` – dort fehlte `onPending`, also kam auch die Ruhemodus-Notiz für Freigaben nie an.
+  Übersicht und Orb lesen native Freigaben (`listPending`) und Alarme mit; die Aufmerksamkeitsliste zeigt Freigabe- und
+  Dienst-Alarme nicht doppelt. Tests: Dienst (14), Erzeuger (6), Live-Integration (3, Adapter-Alarm, If-Match, Freigabe-Zyklus);
+  Gegenproben (beide Doppelungsregeln aus, `onPending` in `confirm` fehlt) rot. Offen: Backup- und Update-Fehler als Alarm
+  (die Dienste haben keinen Ereignishaken), externe Eskalation live.
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 

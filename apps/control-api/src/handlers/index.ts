@@ -3,6 +3,7 @@ import type { OperationId } from "../http/route-types";
 import { adapterHandlers } from "./adapters";
 import { auditHandlers } from "./audit";
 import { approvalHandlers } from "./approvals";
+import { notificationHandlers } from "./notifications";
 import { authHandlers } from "./auth";
 import { commandHandlers } from "./commands";
 import { devHandlers } from "./dev";
@@ -74,6 +75,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     localResearchReads,
     devHandlers,
     approvalHandlers,
+    notificationHandlers,
     adapterHandlers,
     domainOpHandlers,
     agentActionHandlers,
