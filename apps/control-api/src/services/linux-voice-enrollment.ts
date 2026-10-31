@@ -27,6 +27,7 @@ function paths() {
     meta: join(stateRoot, "models/openwakeword/personal_wake.json"),
     marker: join(stateRoot, "voice/enrollment/activate"),
     active: join(stateRoot, "voice/enrollment/active"),
+    journal: join(stateRoot, "voice/enrollment/training.json"),
   };
 }
 
@@ -51,10 +52,41 @@ function pruneOldSamples(): void {
 }
 setInterval(pruneOldSamples, 60 * 60_000).unref();
 
+type EnrollmentPaths = NonNullable<ReturnType<typeof paths>>;
+
+/** Puts the files saved before training back and removes anything a training created where nothing existed. */
+function restorePrevious(p: EnrollmentPaths, kept: string[]): void {
+  for (const file of [p.profile, p.model, p.meta, p.active]) {
+    if (kept.includes(file) && existsSync(`${file}.prev`)) renameSync(`${file}.prev`, file);
+    else if (!kept.includes(file)) rmSync(file, { force: true });
+  }
+  rmSync(p.journal, { force: true });
+}
+
+/**
+ * A training interrupted by a restart leaves its journal behind: the previous profile is restored instead of keeping
+ * a half-written, deactivated one (DASH-12.05). The recorded samples stay, so the owner can start training again.
+ */
+function recoverInterruptedTraining(p: EnrollmentPaths): void {
+  if (busy || !existsSync(p.journal)) return;
+  const known = [p.profile, p.model, p.meta, p.active];
+  let kept: string[];
+  try {
+    const saved = (JSON.parse(readFileSync(p.journal, "utf8")) as { kept?: unknown }).kept;
+    kept = Array.isArray(saved) ? saved.filter((file): file is string => typeof file === "string" && known.includes(file)) : [];
+  } catch { kept = known.filter((file) => existsSync(`${file}.prev`)); }
+  restorePrevious(p, kept);
+  state = "failed";
+  error = kept.length > 0
+    ? "Training wurde unterbrochen; das bisherige Profil bleibt aktiv. Training bitte erneut starten."
+    : "Training wurde unterbrochen. Training bitte erneut starten.";
+}
+
 export function enrollmentStatus() {
   let p: ReturnType<typeof paths>;
   try { p = paths(); } catch { p = null; }
   if (!p) return { available: false, state: "pending", phrase: "", shortPhrase: null, required: REQUIRED, counts: { wake: 0, short: 0, negatives: 0, speech: 0 }, error: null };
+  recoverInterruptedTraining(p);
   const counts = Object.fromEntries((Object.keys(REQUIRED) as Kind[]).map((kind) => [kind, p.blocks[kind] ? count(join(p.raw, p.blocks[kind])) : 0])) as Record<Kind, number>;
   let trained = existsSync(p.profile) && existsSync(p.model) && existsSync(p.meta);
   if (trained) {
@@ -112,6 +144,10 @@ export function startEnrollmentTraining() {
   // Keep the last working profile until the new one is complete; a failed retrain restores it (DASH-12.05).
   const kept = [p.profile, p.model, p.meta, p.active].filter((file) => existsSync(file));
   for (const file of kept) copyFileSync(file, `${file}.prev`);
+  // The journal is written after the copies, so a restart never restores from an incomplete backup.
+  mkdirSync(join(p.stateRoot, "voice/enrollment"), { recursive: true, mode: 0o700 });
+  writeFileSync(`${p.journal}.tmp`, JSON.stringify({ kept }), { mode: 0o600 });
+  renameSync(`${p.journal}.tmp`, p.journal);
   rmSync(p.active, { force: true });
   const python = join(p.stateRoot, "voice/.venv/bin/python");
   const source = join(p.installRoot, "installer/voice");
@@ -124,14 +160,12 @@ export function startEnrollmentTraining() {
       mkdirSync(join(p.stateRoot, "voice/enrollment"), { recursive: true, mode: 0o700 });
       writeFileSync(p.marker, "ready\n", { flag: "w", mode: 0o600 });
       for (const file of kept) rmSync(`${file}.prev`, { force: true });
+      rmSync(p.journal, { force: true });
       for (const block of Object.values(p.blocks)) if (block) rmSync(join(p.raw, block), { recursive: true, force: true });
       state = "activating";
     } catch {
       state = "failed";
-      for (const file of [p.profile, p.model, p.meta, p.active]) {
-        if (kept.includes(file)) renameSync(`${file}.prev`, file);
-        else rmSync(file, { force: true });
-      }
+      restorePrevious(p, kept);
       error = kept.length > 0
         ? "Training fehlgeschlagen; das bisherige Profil bleibt aktiv. Bitte Proben erneut aufnehmen."
         : "Training fehlgeschlagen. Bitte Proben erneut aufnehmen.";
