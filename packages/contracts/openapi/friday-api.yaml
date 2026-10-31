@@ -7482,6 +7482,38 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-access/oauth:
+    post:
+      operationId: manageHermesProviderOAuth
+      tags: [settings]
+      summary: Start, poll or cancel one owner-bound Hermes provider login through Hermes' own device-code flow
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesProviderOAuthRequest"
+      responses:
+        "200":
+          description: Login flow state; configured means Hermes stored the provider credential itself
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesProviderOAuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-model-catalog:
     get:
       operationId: getHermesModelCatalog
@@ -10419,6 +10451,10 @@ components:
       $ref: ../schemas/integrations/hermes-mcp-oauth-request.schema.json
     HermesMcpOAuthResponse:
       $ref: ../schemas/integrations/hermes-mcp-oauth-response.schema.json
+    HermesProviderOAuthRequest:
+      $ref: ../schemas/integrations/hermes-provider-oauth-request.schema.json
+    HermesProviderOAuthResponse:
+      $ref: ../schemas/integrations/hermes-provider-oauth-response.schema.json
     HermesModelCatalog:
       $ref: ../schemas/integrations/hermes-model-catalog.schema.json
     HermesAccessResponse:

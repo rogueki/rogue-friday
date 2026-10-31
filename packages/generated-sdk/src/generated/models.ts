@@ -478,6 +478,15 @@ export type HermesMcpOAuthRequest =
       action: "status" | "cancel";
       flowId: string;
     };
+export type HermesProviderOAuthRequest =
+  | {
+      action: "start";
+      provider: "nous" | "openai-codex" | "xai-oauth" | "minimax-oauth";
+    }
+  | {
+      action: "status" | "cancel";
+      flowId: string;
+    };
 export type MemoryType =
   | "profile"
   | "preference"
@@ -989,6 +998,8 @@ export interface FridayModelMap {
   HermesMcpProbeResponse: HermesMcpProbeResponse;
   HermesModelCatalog: HermesModelCatalog;
   HermesModelCatalogResponse: HermesModelCatalogResponse;
+  HermesProviderOAuthRequest: HermesProviderOAuthRequest;
+  HermesProviderOAuthResponse: HermesProviderOAuthResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
   HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
@@ -3889,6 +3900,19 @@ export interface HermesModelCatalog {
 export interface HermesModelCatalogResponse {
   contractVersion: ContractVersion;
   data: HermesModelCatalog;
+  freshness: Freshness;
+}
+export interface HermesProviderOAuthResponse {
+  contractVersion: ContractVersion;
+  data: {
+    flowId: string;
+    provider: "nous" | "openai-codex" | "xai-oauth" | "minimax-oauth";
+    status: "starting" | "awaiting_approval" | "cancelling" | "configured" | "failed";
+    userCode: string | null;
+    verificationUrl: string | null;
+    expiresAt: string | null;
+    failureClass: string | null;
+  };
   freshness: Freshness;
 }
 export interface HermesSkillKeyCheck {

@@ -2869,6 +2869,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/hermes-access/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start, poll or cancel one owner-bound Hermes provider login through Hermes' own device-code flow */
+        post: operations["manageHermesProviderOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-config": {
         parameters: {
             query?: never;
@@ -7650,6 +7667,34 @@ export interface components {
         HermesModelCatalogResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesModelCatalog"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesProviderOAuthRequest */
+        HermesProviderOAuthRequest: {
+            /** @constant */
+            action: "start";
+            /** @enum {unknown} */
+            provider: "nous" | "openai-codex" | "xai-oauth" | "minimax-oauth";
+        } | {
+            /** @enum {unknown} */
+            action: "status" | "cancel";
+            flowId: string;
+        };
+        /** HermesProviderOAuthResponse */
+        HermesProviderOAuthResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** Format: date-time */
+                expiresAt: string | null;
+                failureClass: string | null;
+                flowId: string;
+                /** @enum {unknown} */
+                provider: "nous" | "openai-codex" | "xai-oauth" | "minimax-oauth";
+                /** @enum {unknown} */
+                status: "starting" | "awaiting_approval" | "cancelling" | "configured" | "failed";
+                userCode: string | null;
+                verificationUrl: string | null;
+            };
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesSkillKeyCheck */
@@ -18144,6 +18189,38 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    manageHermesProviderOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesProviderOAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Login flow state; configured means Hermes stored the provider credential itself */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesProviderOAuthResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
