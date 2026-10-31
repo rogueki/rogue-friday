@@ -5400,6 +5400,10 @@ export interface VoiceStatus {
     hitRate: number | null;
     ownClips: number | null;
     calibratedAt: string | null;
+    /**
+     * Format version of the personal wake model metadata; null for the bundled model or an older file without version.
+     */
+    formatVersion: number | null;
   };
   /**
    * The output voice artifact: selected slot, whether it is a local clone, a preset or a cloud voice, which slots have a reference, and when the reference in use last changed. Never paths or audio.
@@ -5409,6 +5413,10 @@ export interface VoiceStatus {
     kind: "clone" | "preset" | "cloud";
     available: string[];
     referenceUpdatedAt: string | null;
+    /**
+     * True while an older installation still speaks from a single reference until the voice update prepares one pair per slot.
+     */
+    needsVoiceUpdate: boolean;
   };
   /**
    * Which runtime owns audio right now: local devices of the Windows or Linux voice service, or the browser.

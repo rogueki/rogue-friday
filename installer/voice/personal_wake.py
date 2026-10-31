@@ -28,6 +28,7 @@ import unicodedata
 import numpy as np
 
 SR = 16000
+META_FORMAT = 1              # Formatversion von personal_wake.json; aeltere Dateien ohne Feld gelten als unbekannt
 CHUNK = 1280                 # 80 ms, ein Embedding-Frame je Chunk
 FRAME_S = CHUNK / SR
 DIM = 96

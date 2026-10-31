@@ -102,6 +102,7 @@ def main() -> None:
     os.makedirs(options.output_dir, exist_ok=True)
     model.save(os.path.join(options.output_dir, "personal_wake.npz"))
     pw.save_meta(os.path.join(options.output_dir, "personal_wake.json"), {
+        "format": pw.META_FORMAT,
         "assistant_name": name, "slug": slug, "wake_phrase": phrase, "short_form": short, "engine": "personal",
         "threshold": cal["threshold"], "quality": cal["quality"], "calibration": cal,
         "clips": {"hey": len(hey), "bare": len(bare), "negatives": len(words), "speech": len(speech),

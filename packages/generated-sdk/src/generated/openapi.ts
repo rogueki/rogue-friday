@@ -11321,6 +11321,8 @@ export interface components {
                 choice: string | null;
                 /** @enum {string} */
                 kind: "clone" | "preset" | "cloud";
+                /** @description True while an older installation still speaks from a single reference until the voice update prepares one pair per slot. */
+                needsVoiceUpdate: boolean;
                 /** Format: date-time */
                 referenceUpdatedAt: string | null;
             };
@@ -11366,6 +11368,8 @@ export interface components {
                 calibratedAt: string | null;
                 /** @enum {string} */
                 engine: "openwakeword" | "personal";
+                /** @description Format version of the personal wake model metadata; null for the bundled model or an older file without version. */
+                formatVersion: number | null;
                 hitRate: number | null;
                 ownClips: number | null;
                 quality: null | ("good" | "medium" | "weak");

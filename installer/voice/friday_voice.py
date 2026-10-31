@@ -2117,7 +2117,7 @@ class VoiceService:
         threshold = getattr(self, "wake_threshold", None)
         threshold = float(threshold) if isinstance(threshold, (int, float)) and not isinstance(threshold, bool) else None
         summary = {"engine": engine, "threshold": threshold, "quality": None, "hit_rate": None, "own_clips": None,
-                   "calibrated_at": None}
+                   "calibrated_at": None, "format": None}
         if engine != "personal":
             return summary
         meta_path = self.cfg.get("personal_wake_meta") or getattr(self, "personal_wake_meta_path", None)
@@ -2145,6 +2145,9 @@ class VoiceService:
             own = [clips.get("hey"), clips.get("bare")]
             if all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in own):
                 measured["own_clips"] = own[0] + own[1]
+            version = meta.get("format")
+            if isinstance(version, int) and not isinstance(version, bool) and version >= 1:
+                measured["format"] = version
         self._wake_calibration_cache = ((meta_path, stamp), measured)
         return {**summary, **measured}
 
@@ -2159,7 +2162,7 @@ class VoiceService:
             ids = self.cfg.get("elevenlabs_voice_ids") if isinstance(self.cfg.get("elevenlabs_voice_ids"), dict) else {}
             available = [name for name in CHOICES if isinstance(ids.get(name), str) and ids[name].strip()]
             return {"choice": choice if isinstance(choice, str) else None, "kind": "cloud",
-                    "available": available, "reference_updated_at": None}
+                    "available": available, "reference_updated_at": None, "needs_voice_update": False}
         folder = os.path.join(INSTALL_ROOT, "config", "voice-references")
         available = [name for name in CHOICES
                      if any(os.path.isfile(os.path.join(folder, f"{name}-reference.{extension}")) for extension in ("wav", "mp3"))]
@@ -2173,8 +2176,10 @@ class VoiceService:
                 updated = None
         else:
             kind = "preset"
+        # Aeltere Installationen sprechen mit einer einzelnen Referenz, bis das Stimmen-Update die Paare je Platz anlegt.
+        legacy = backend == "streaming_qwen" and not self.cfg.get("tts_persona_streaming")
         return {"choice": choice if isinstance(choice, str) else None, "kind": kind, "available": available,
-                "reference_updated_at": updated}
+                "reference_updated_at": updated, "needs_voice_update": legacy}
 
     def _start_health(self) -> None:
         service = self

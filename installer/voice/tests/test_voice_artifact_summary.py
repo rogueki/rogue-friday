@@ -15,7 +15,7 @@ for path in (VOICE, HERE):
 from test_voice_phase import make_service  # noqa: E402
 import test_personal_wake as helpers  # noqa: E402
 
-META = {"wake_phrase": "Hey Friday", "engine": "personal", "threshold": 2.4, "quality": "gut",
+META = {"format": 1, "wake_phrase": "Hey Friday", "engine": "personal", "threshold": 2.4, "quality": "gut",
         "calibration": {"frr_cv": 0.05, "threshold": 2.4}, "clips": {"hey": 12, "bare": 8, "negatives": 20, "speech": 6},
         "created": "2026-10-30T09:00:00"}
 
@@ -33,7 +33,8 @@ def test_personal_wake_reports_calibration_without_model_data(tmp_path):
     assert summary["hit_rate"] == 0.95
     assert summary["own_clips"] == 20
     assert summary["calibrated_at"].endswith("Z")
-    assert set(summary) == {"engine", "threshold", "quality", "hit_rate", "own_clips", "calibrated_at"}
+    assert summary["format"] == 1
+    assert set(summary) == {"engine", "threshold", "quality", "hit_rate", "own_clips", "calibrated_at", "format"}
 
 
 def test_personal_wake_with_broken_meta_keeps_engine_and_threshold(tmp_path):
@@ -45,6 +46,18 @@ def test_personal_wake_with_broken_meta_keeps_engine_and_threshold(tmp_path):
     summary = svc.wake_calibration_summary()
     assert summary["threshold"] == 1.7
     assert summary["quality"] is None and summary["hit_rate"] is None and summary["own_clips"] is None
+    assert summary["format"] is None
+
+
+def test_older_personal_wake_without_format_reports_unknown_format(tmp_path):
+    meta_path = tmp_path / "personal_wake.json"
+    meta_path.write_text(json.dumps({key: value for key, value in META.items() if key != "format"}), encoding="utf-8")
+    svc = make_service()
+    svc.engine, svc.wake_threshold = "personal", 2.4
+    svc.cfg["personal_wake_meta"] = str(meta_path)
+    summary = svc.wake_calibration_summary()
+    assert summary["format"] is None
+    assert summary["quality"] == "good"
 
 
 def test_builtin_wake_model_has_no_personal_calibration():
@@ -52,7 +65,7 @@ def test_builtin_wake_model_has_no_personal_calibration():
     svc.engine, svc.wake_threshold = "openwakeword", 0.5
     summary = svc.wake_calibration_summary()
     assert summary == {"engine": "openwakeword", "threshold": 0.5, "quality": None, "hit_rate": None,
-                       "own_clips": None, "calibrated_at": None}
+                       "own_clips": None, "calibrated_at": None, "format": None}
 
 
 def test_output_voice_names_clone_and_available_slots_without_paths(tmp_path, monkeypatch):
@@ -72,6 +85,9 @@ def test_output_voice_names_clone_and_available_slots_without_paths(tmp_path, mo
     assert summary["kind"] == "clone"
     assert summary["available"] == ["friday-female", "custom"]
     assert summary["reference_updated_at"].endswith("Z")
+    assert summary["needs_voice_update"] is True
+    svc.cfg["tts_persona_streaming"] = True
+    assert jv.VoiceService.output_voice_summary(svc)["needs_voice_update"] is False
     assert str(tmp_path) not in json.dumps(summary)
 
 
@@ -81,4 +97,5 @@ def test_output_voice_without_clone_is_a_preset(tmp_path, monkeypatch):
     svc = make_service()
     svc.cfg.update({"tts_voice_choice": "classic", "voice_mode": "local", "tts_backend": "piper"})
     summary = jv.VoiceService.output_voice_summary(svc)
-    assert summary == {"choice": "classic", "kind": "preset", "available": [], "reference_updated_at": None}
+    assert summary == {"choice": "classic", "kind": "preset", "available": [], "reference_updated_at": None,
+                       "needs_voice_update": False}

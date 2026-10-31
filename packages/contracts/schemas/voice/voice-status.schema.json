@@ -161,9 +161,10 @@
             "quality": { "anyOf": [{ "type": "null" }, { "type": "string", "enum": ["good", "medium", "weak"] }] },
             "hitRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
             "ownClips": { "type": ["integer", "null"], "minimum": 0 },
-            "calibratedAt": { "type": ["string", "null"], "format": "date-time" }
+            "calibratedAt": { "type": ["string", "null"], "format": "date-time" },
+            "formatVersion": { "type": ["integer", "null"], "minimum": 1, "description": "Format version of the personal wake model metadata; null for the bundled model or an older file without version." }
           },
-          "required": ["engine", "threshold", "quality", "hitRate", "ownClips", "calibratedAt"],
+          "required": ["engine", "threshold", "quality", "hitRate", "ownClips", "calibratedAt", "formatVersion"],
           "additionalProperties": false
         }
       ]
@@ -175,9 +176,10 @@
         "choice": { "type": ["string", "null"] },
         "kind": { "type": "string", "enum": ["clone", "preset", "cloud"] },
         "available": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
-        "referenceUpdatedAt": { "type": ["string", "null"], "format": "date-time" }
+        "referenceUpdatedAt": { "type": ["string", "null"], "format": "date-time" },
+        "needsVoiceUpdate": { "type": "boolean", "description": "True while an older installation still speaks from a single reference until the voice update prepares one pair per slot." }
       },
-      "required": ["choice", "kind", "available", "referenceUpdatedAt"],
+      "required": ["choice", "kind", "available", "referenceUpdatedAt", "needsVoiceUpdate"],
       "additionalProperties": false
     },
     "audioPath": {

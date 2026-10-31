@@ -93,6 +93,7 @@ export interface RawWakeCalibration {
   hit_rate: number | null;
   own_clips: number | null;
   calibrated_at: string | null;
+  format?: number | null;
 }
 
 export interface RawOutputVoice {
@@ -100,6 +101,7 @@ export interface RawOutputVoice {
   kind: "clone" | "preset" | "cloud";
   available: string[];
   reference_updated_at: string | null;
+  needs_voice_update?: boolean;
 }
 
 /** Measured values are null when the profile predates the metadata file or the metadata belongs to another embedding. */

@@ -493,6 +493,8 @@ export const deC = {
   "voicePage.outputVoice.referenceAt": "Referenz vom {date}",
   "voicePage.outputVoice.available": "Referenzen: {slots}",
   "voicePage.outputVoice.noReference": "Keine Referenzaufnahme",
+  "voicePage.wakeCalibration.formatUnknown": "älteres Modellformat – wird bei der nächsten Kalibrierung erneuert",
+  "voicePage.outputVoice.needsUpdate": "Stimmen-Update ausstehend (spricht noch mit einer einzelnen Referenz)",
   "voicePage.trusted.until": "gültig bis {time}",
   "voicePage.mode.idle": "Bereit",
   "voicePage.mode.listening": "Hört zu",

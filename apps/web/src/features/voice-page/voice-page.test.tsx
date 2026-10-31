@@ -151,8 +151,8 @@ describe("voice artifacts as separate rows (DASH-12.02)", () => {
 
   it("shows the wake model and the output voice apart from the speaker profile", () => {
     const rows = buildStatusRows(status({
-      wakeCalibration: { engine: "personal", threshold: 2.4, quality: "weak", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z" },
-      outputVoice: { choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z" },
+      wakeCalibration: { engine: "personal", threshold: 2.4, quality: "weak", hitRate: 0.95, ownClips: 20, calibratedAt: "2026-10-30T09:00:00Z", formatVersion: 1 },
+      outputVoice: { choice: "custom", kind: "clone", available: ["friday-female", "custom"], referenceUpdatedAt: "2026-10-30T09:05:00Z", needsVoiceUpdate: false },
     }), [], t, "de-DE", "x");
     const wake = rows.find((row) => row.id === "wakeCalibration");
     expect(wake?.value).toContain("voicePage.wakeCalibration.personalQuality");
@@ -162,6 +162,21 @@ describe("voice artifacts as separate rows (DASH-12.02)", () => {
     expect(voice?.value).toBe("voicePage.outputVoice.slot.custom");
     expect(String(voice?.detail)).toContain("voicePage.outputVoice.kind.clone");
     expect(rows.findIndex((row) => row.id === "wakeCalibration")).toBe(rows.findIndex((row) => row.id === "wakeWord") + 1);
+  });
+
+  it("names an older wake model format and a pending voice update", () => {
+    const rows = buildStatusRows(status({
+      wakeCalibration: { engine: "personal", threshold: 2.4, quality: "good", hitRate: null, ownClips: null, calibratedAt: null, formatVersion: null },
+      outputVoice: { choice: "friday-female", kind: "clone", available: ["friday-female"], referenceUpdatedAt: null, needsVoiceUpdate: true },
+    }), [], t, "de-DE", "x");
+    expect(String(rows.find((row) => row.id === "wakeCalibration")?.detail)).toContain("voicePage.wakeCalibration.formatUnknown");
+    const voice = rows.find((row) => row.id === "outputVoice");
+    expect(String(voice?.detail)).toContain("voicePage.outputVoice.needsUpdate");
+    expect(voice?.tone).toBe("amber");
+    const builtin = buildStatusRows(status({
+      wakeCalibration: { engine: "openwakeword", threshold: 0.5, quality: null, hitRate: null, ownClips: null, calibratedAt: null, formatVersion: null },
+    }), [], t, "de-DE", "x");
+    expect(String(builtin.find((row) => row.id === "wakeCalibration")?.detail)).not.toContain("formatUnknown");
   });
 
   it("names a missing wake model and shows no artifact rows for an older service", () => {

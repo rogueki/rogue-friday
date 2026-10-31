@@ -104,6 +104,8 @@ try {
     Assert-True (-not (Test-Path -LiteralPath $paths.Response)) 'Die Antwort blieb nach dem Lesen liegen.'
 
     # --- Abbruch aus der Oberflaeche
+    # Die vorige Aufnahme laesst ihre Anfrage liegen; ohne Aufraeumen ginge der Abbruch an deren Kennung.
+    Clear-GuiInteraction $root
     $process = Start-Captured $py @($probe, $voice, $paths.Request)
     $cancelled = $false
     foreach ($attempt in 1..120) {
