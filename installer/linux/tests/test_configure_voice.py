@@ -22,8 +22,12 @@ class ConfigureVoiceTest(unittest.TestCase):
         sys.path.insert(0, str(voice_dir))
         with patch.dict(sys.modules, {"numpy": numpy_stub}):
             import importlib
+            import importlib.util
             import elevenlabs_cloud
             importlib.reload(elevenlabs_cloud)
+        if importlib.util.find_spec("numpy") is not None:
+            # The stubbed module object would leak into later tests in the same process.
+            self.addCleanup(importlib.reload, elevenlabs_cloud)
         with tempfile.TemporaryDirectory() as root:
             directory = Path(root) / "secrets"
             directory.mkdir(mode=0o700)

@@ -264,7 +264,7 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
     for arg in method.args.args:
         arg.annotation = None
     namespace = {"time": time, "SR": 16000, "log_event": lambda **kwargs: None,
-                 "STOP_WORDS": re.compile("^stopp$"), "uuid": __import__("uuid"),
+                 "STOP_WORDS": re.compile("^stopp$"), "is_goodbye": lambda text: False, "uuid": __import__("uuid"),
                  "DEFAULT_ACK_WAIT": "warte", "DEFAULT_ACK_BACKGROUND": "warte"}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
     calls = []
