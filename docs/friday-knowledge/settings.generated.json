@@ -421,7 +421,7 @@
         {
           "name": "conversationConsent",
           "type": "boolean",
-          "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); without it the conversation stays local."
+          "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local."
         },
         {
           "name": "inputDeviceId",
