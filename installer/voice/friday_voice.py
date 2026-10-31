@@ -1313,11 +1313,22 @@ class VoiceService:
         content = post_json(url, payload, timeout=10)["choices"][0]["message"]["content"]
         return json.loads(content)
 
+    def _local_command(self, text: str) -> str | None:
+        """Quiet-mode orders and help questions: the local router has no tools, so they are answered before it runs."""
+        announcer = getattr(self, "announcer", None)
+        if announcer is None:
+            return None
+        return announcer.local_command(text)
+
     def _route(self, text: str) -> dict:
         direct = clock_answer(text)
         if direct:
             return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
                     "intent": "clock", "answer": direct}
+        local = self._local_command(text)
+        if local:
+            return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
+                    "intent": "local_command", "answer": local}
         policy = load_dashboard_voice_policy(
             os.path.join(self.cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR") or
                          os.path.join(INSTALL_ROOT, "dashboard", "data"), "dashboard.sqlite"),

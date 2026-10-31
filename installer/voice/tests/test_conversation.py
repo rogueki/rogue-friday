@@ -5,7 +5,8 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from conversation import CANCEL_COMMAND, DOMAINS, ConversationOrchestrator, QuietGate, quiet_until
+from conversation import (CANCEL_COMMAND, DOMAINS, ConversationOrchestrator, QuietGate, local_reply,
+                          parse_local_command, quiet_until)
 
 
 class FakeTasks:
@@ -669,6 +670,150 @@ class TaskReplyTest(unittest.TestCase):
         self.assertIn("3 Aufträge sind fertig", text)
         self.assertIn("fragt zu „Strompreise“: Welche Region?", text)
 
+
+class LocalParseTest(unittest.TestCase):
+    CASES = (
+        ("Ist der Ruhemodus an?", "ruhemodus", {"aktion": "abfragen"}),
+        ("Ist Nachtruhe aktiv?", "ruhemodus", {"aktion": "abfragen"}),
+        ("Wie lange ist noch Ruhe?", "ruhemodus", {"aktion": "abfragen"}),
+        ("Wie lange gilt der Ruhemodus?", "ruhemodus", {"aktion": "abfragen"}),
+        ("Ruhemodus aus", "ruhemodus", {"aktion": "aus"}),
+        ("Beende den Ruhemodus", "ruhemodus", {"aktion": "aus"}),
+        ("Ruhemodus beenden", "ruhemodus", {"aktion": "aus"}),
+        ("Stopp den Ruhemodus", "ruhemodus", {"aktion": "aus"}),
+        ("Du darfst wieder sprechen", "ruhemodus", {"aktion": "aus"}),
+        ("Du darfst wieder reden", "ruhemodus", {"aktion": "aus"}),
+        ("Ruhemodus", "ruhemodus", {"aktion": "an"}),
+        ("Ruhemodus an", "ruhemodus", {"aktion": "an"}),
+        ("Schalte den Ruhemodus ein", "ruhemodus", {"aktion": "an"}),
+        ("Bitte nicht stören", "ruhemodus", {"aktion": "an"}),
+        ("Nicht stören", "ruhemodus", {"aktion": "an"}),
+        ("Sei still bis 7 Uhr", "ruhemodus", {"aktion": "an", "bis": "07:00"}),
+        ("Ruhemodus für zwei Stunden", "ruhemodus", {"aktion": "an", "minuten": 120}),
+        ("Ruhemodus fuer fuenfzehn Minuten", "ruhemodus", {"aktion": "an", "minuten": 15}),
+        ("Bitte nicht stören, die nächste Stunde", "ruhemodus", {"aktion": "an", "minuten": 60}),
+        ("Ruhemodus heute Nacht, nur Stimme aus", "ruhemodus",
+         {"aktion": "an", "zeitraum": "heute_nacht", "stufe": "stimme_aus"}),
+        ("Ruhemodus bis 7.30 Uhr", "ruhemodus", {"aktion": "an", "bis": "07:30"}),
+        ("Ruhemodus bis 7:30", "ruhemodus", {"aktion": "an", "bis": "07:30"}),
+        ("Ruhemodus bis 19 Uhr", "ruhemodus", {"aktion": "an", "bis": "19:00"}),
+        ("Ruhemodus halbe Stunde", "ruhemodus", {"aktion": "an", "minuten": 30}),
+        ("Ruhemodus eineinhalb Stunden", "ruhemodus", {"aktion": "an", "minuten": 90}),
+        ("Ruhemodus für 20 Minuten, ganz still", "ruhemodus",
+         {"aktion": "an", "minuten": 20, "stufe": "still"}),
+        ("Wie verbinde ich den Kalender?", "friday_hilfe", {"frage": "Wie verbinde ich den Kalender?"}),
+        ("Wo finde ich die Einstellungen?", "friday_hilfe", {"frage": "Wo finde ich die Einstellungen?"}),
+    )
+
+    def test_parser_table(self):
+        for text, name, arguments in self.CASES:
+            with self.subTest(text=text):
+                self.assertEqual(parse_local_command(text), (name, arguments))
+
+    def test_negative_cases_are_no_command(self):
+        for text in ("Sei still", "Sei ruhig", "Ruhe", "Wie wird das Wetter morgen?", "Was ist 2 plus 2?",
+                     "Erzähl einen Witz", "", "   "):
+            with self.subTest(text=text):
+                self.assertIsNone(parse_local_command(text))
+
+    def test_impossible_clock_is_dropped(self):
+        self.assertEqual(parse_local_command("bis 25 Uhr Ruhemodus"), ("ruhemodus", {"aktion": "an"}))
+
+
+class LocalReplyTest(unittest.TestCase):
+    def test_error_text_is_spoken(self):
+        self.assertEqual(local_reply("ruhemodus", {"error": "Die Dauer habe ich nicht verstanden."}),
+                         "Die Dauer habe ich nicht verstanden.")
+
+    def test_quiet_mode_answers(self):
+        self.assertEqual(local_reply("ruhemodus", {"status": "an", "bis": "14:35"}), "Ruhemodus bis 14:35 Uhr.")
+        self.assertEqual(local_reply("ruhemodus", {"status": "an", "bis": "14:35", "stufe": "still"}),
+                         "Ruhemodus bis 14:35 Uhr. Stufe: still.")
+        self.assertEqual(local_reply("ruhemodus", {"status": "aus"}), "Ruhemodus beendet.")
+        self.assertEqual(local_reply("ruhemodus", {"status": "aus", "hinweis": "Die Nachtruhe gilt weiter."}),
+                         "Ruhemodus beendet. Die Nachtruhe gilt weiter.")
+        self.assertEqual(local_reply("ruhemodus", {"status": "nachtruhe", "von": "22:00", "bis": "06:00"}),
+                         "Nachtruhe von 22:00 bis 06:00 Uhr eingestellt.")
+
+    def test_quiet_status_answers(self):
+        self.assertEqual(local_reply("ruhemodus", {"aktiv": False}), "Der Ruhemodus ist aus.")
+        self.assertEqual(local_reply("ruhemodus", {"aktiv": True, "art": "Nachtruhe", "bis": "07:00",
+                                                   "stufe": "still"}),
+                         "Nachtruhe bis 07:00 Uhr. Stufe: still.")
+
+    def test_help_excerpt_is_cut_at_a_sentence(self):
+        text = "Satz eins ist kurz. " * 3 + "Ein sehr langer Satz " + "y" * 500
+        answer = local_reply("friday_hilfe", {"abschnitte": [{"titel": "Kalender", "text": text}]})
+        self.assertTrue(answer.startswith("Satz eins ist kurz."))
+        self.assertTrue(answer.endswith(" Mehr dazu steht im Dashboard."))
+        self.assertLessEqual(len(answer), 400 + len(" Mehr dazu steht im Dashboard."))
+        self.assertNotIn("y" * 20, answer)
+
+    def test_short_help_text_is_spoken_unchanged(self):
+        answer = local_reply("friday_hilfe", {"abschnitte": [{"titel": "Kalender", "text": "Öffne das Dashboard."}]})
+        self.assertEqual(answer, "Öffne das Dashboard.")
+
+    def test_help_hint_falls_back(self):
+        self.assertIsNone(local_reply("friday_hilfe", {"hinweis": "Dazu steht nichts in der eingebauten Hilfe."}))
+
+    def test_other_tools_have_no_local_reply(self):
+        self.assertIsNone(local_reply("task_status", {"laufend": [], "fertig": []}))
+
+
+class LocalCommandTest(unittest.TestCase):
+    def test_quiet_command_sets_the_mode_and_answers(self):
+        harness = Harness()
+        until = harness.voice._clock().astimezone() + datetime.timedelta(minutes=30)
+        self.assertEqual(harness.voice.local_command("Ruhemodus für 30 Minuten"),
+                         f"Ruhemodus bis {until.strftime('%H:%M')} Uhr.")
+        self.assertEqual(harness.tasks.quiet_calls, [("set", until.isoformat(), None)])
+
+    def test_help_command_answers_from_the_index(self):
+        knowledge = FakeKnowledge(sections=[{"titel": "Kalender verbinden",
+                                             "text": "Öffne das Dashboard und wähle Kalender.",
+                                             "quelle": "kalender.md"}])
+        harness = Harness(knowledge=knowledge)
+        self.assertEqual(harness.voice.local_command("Wie verbinde ich den Kalender?"),
+                         "Öffne das Dashboard und wähle Kalender.")
+        self.assertEqual(knowledge.queries, ["Wie verbinde ich den Kalender?"])
+
+    def test_help_without_a_hit_falls_back(self):
+        harness = Harness(knowledge=FakeKnowledge())
+        self.assertIsNone(harness.voice.local_command("Wie verbinde ich den Kalender?"))
+
+    def test_plain_text_is_no_local_command(self):
+        self.assertIsNone(Harness().voice.local_command("Erzähl einen Witz"))
+
+    def test_failing_help_falls_back(self):
+        harness = Harness()
+
+        def boom(arguments):
+            raise OSError("help index down")
+
+        harness.voice._help = boom
+        self.assertIsNone(harness.voice.local_command("Wie verbinde ich den Kalender?"))
+
+    def test_failing_tool_layer_falls_back(self):
+        harness = Harness()
+
+        def boom(name, arguments):
+            raise OSError("agent service down")
+
+        harness.voice.call_tool = boom
+        self.assertIsNone(harness.voice.local_command("Ruhemodus"))
+
+
+
+class LocalHelpBeforeSwitchTest(unittest.TestCase):
+    def test_how_to_questions_about_quiet_mode_do_not_switch_it(self):
+        for text in ("Wie schalte ich den Ruhemodus ein?", "Wie stelle ich die Nachtruhe ein?",
+                     "Wie beende ich den Ruhemodus?"):
+            with self.subTest(text=text):
+                self.assertEqual(parse_local_command(text), ("friday_hilfe", {"frage": text}))
+
+    def test_orders_still_switch(self):
+        self.assertEqual(parse_local_command("Schalte den Ruhemodus ein")[1]["aktion"], "an")
+        self.assertEqual(parse_local_command("Beende den Ruhemodus")[1]["aktion"], "aus")
 
 if __name__ == "__main__":
     unittest.main()

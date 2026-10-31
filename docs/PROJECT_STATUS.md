@@ -1485,6 +1485,13 @@ entfernt) rot; pyflakes ohne Befund.
   Tests: `test_knowledge.py` (7), `test_knowledge_questions.py` (20 Hilfefragen, P0-12), `test_conversation.py`; Gegenprobe (Stamm-
   vergleich aus) rot; WSL-Voice-Liste 291 bestanden. Offen: `WakeEnrollment.tsx` ruft `fetch()` direkt in der Komponente auf
   (Regelverstoß, Altbestand) – auf das SDK umstellen.
+- **Ruhemodus und Hilfe im lokalen Sprachbetrieb (LG-2c.03):** Der lokale Router hat keine Werkzeuge; eine deterministische Vorstufe
+  in `_route` (nach der Uhrzeit) erkennt Ruhemodus-Befehle (an mit Dauer „für zwei Stunden“, „die nächste Stunde“, „bis 7.30 Uhr“,
+  „heute Nacht“, Stufe „nur Stimme aus“; aus; abfragen) und Hilfefragen (Fragewort + Bedienwort) per `parse_local_command` und
+  antwortet über dieselben Handler wie der Qwen-Modus (`ConversationOrchestrator.local_command`, `local_reply`; Hilfe: erster
+  Abschnitt auf Satzgrenzen ≤ 400 Zeichen). Bedienfragen („Wie schalte ich den Ruhemodus ein?“) schalten nichts; ein bloßes
+  „Sei still“ bleibt Stoppwort. Ohne Hilfetreffer oder bei Fehlern übernimmt der normale Router. Tests: Parser-Tabelle, Antworten,
+  `_route`-Verdrahtung; Gegenprobe (Hilfe-Vorrang entfernt) rot; WSL-Voice-Liste 311 bestanden.
 - **Noch nicht enthalten:** Linux-Installer (bleibt lokal), Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg),
   Wissensbasis/Hilfe (LG-2b.03–05), Push statt Polling (LG-2.03).
 
