@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/tasks/voice-domain-task-reply-request.schema.json",
+  "answer": "Nimm bitte nur Anbieter mit Ökostrom."
+}

@@ -1256,6 +1256,7 @@ export interface FridayModelMap {
   VoiceDevice: VoiceDevice;
   VoiceDeviceListResponse: VoiceDeviceListResponse;
   VoiceDomainTask: VoiceDomainTask;
+  VoiceDomainTaskReplyRequest: VoiceDomainTaskReplyRequest;
   VoiceDomainTaskRequest: VoiceDomainTaskRequest;
   VoiceDomainTaskResponse: VoiceDomainTaskResponse;
   VoiceEnrollment: VoiceEnrollment;
@@ -6711,6 +6712,16 @@ export interface VoiceDomainTask {
   status: TaskStatus;
   resultSummary: string | null;
   error: string | null;
+  /**
+   * Open question of the agent while the task waits for input (blocker input_needed); null otherwise.
+   */
+  question: string | null;
+}
+/**
+ * Spoken answer of the verified owner to the open question of a voice domain task (status waiting, blocker input_needed).
+ */
+export interface VoiceDomainTaskReplyRequest {
+  answer: string;
 }
 /**
  * Spoken long-running request handed to one domain agent. Domains that send, book or change external data keep their own confirmed voice flows.

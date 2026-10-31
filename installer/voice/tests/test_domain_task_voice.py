@@ -260,3 +260,45 @@ def test_take_bundle_returns_collected_jobs(tmp_path):
 def test_take_bundle_returns_empty_when_cancelled(tmp_path):
     voice = DomainTaskVoice(str(tmp_path), sleep=lambda seconds: None)
     assert voice.take_bundle(lambda: True) == []
+
+
+def test_reply_posts_answer_with_idempotency_key(tmp_path, monkeypatch):
+    write_key(str(tmp_path))
+    monkeypatch.setattr(domain_task_voice, "dashboard_port", lambda root: 8765)
+    task_id = "22222222-2222-4222-8222-222222222222"
+    opener = FakeOpener({"data": {**TASK, "taskId": task_id, "status": "running", "question": None}})
+    voice = DomainTaskVoice(str(tmp_path), opener=opener)
+    job = voice.reply(task_id, "Nur Europa")
+    assert job["taskId"] == task_id
+    request = opener.requests[0]
+    assert request.full_url.endswith(f"/api/v1/voice/tasks/{task_id}/reply")
+    assert request.get_method() == "POST"
+    assert request.get_header("Idempotency-key").startswith("voice-reply-")
+    assert json.loads(request.data.decode("utf-8")) == {"answer": "Nur Europa"}
+
+
+def test_wait_reports_a_new_question_once(tmp_path):
+    steps = [
+        {"status": "waiting", "question": "Welche Region?"},
+        {"status": "waiting", "question": "Welche Region?"},
+        {"status": "done", "resultSummary": "Fertig"},
+    ]
+    clock = [0.0]
+
+    def now():
+        clock[0] += 1.0
+        return clock[0]
+
+    voice = DomainTaskVoice(str(tmp_path), now=now, sleep=lambda seconds: None)
+    voice.status = lambda task_id: steps.pop(0)
+    task_id = "11111111-1111-4111-8111-111111111111"
+    voice.jobs[task_id] = {"taskId": task_id, "domain": "research", "title": "Strompreise", "status": "running"}
+    first = voice.wait(task_id, lambda: False)
+    assert first["question"] == "Welche Region?"
+    second = voice.wait(task_id, lambda: False)
+    assert second["status"] == "done"
+    assert second["resultSummary"] == "Fertig"
+
+
+def test_result_text_announces_the_question():
+    assert result_text({"status": "waiting", "question": "Welche Region?"}) == "Rueckfrage: Welche Region?"

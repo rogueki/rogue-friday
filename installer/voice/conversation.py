@@ -51,6 +51,11 @@ TOOLS = [
           "Bricht einen laufenden Auftrag ab.",
           {"auftrag": {"type": "string", "description": "Name oder Thema des Auftrags"}},
           required=("auftrag",)),
+    _tool("task_antwort",
+          "Gibt die Antwort des Nutzers auf eine offene Rückfrage eines Hintergrund-Agenten weiter.",
+          {"auftrag": {"type": "string", "description": "Name oder Thema des Auftrags; leer, wenn nur eine Rückfrage offen ist"},
+           "antwort": {"type": "string", "description": "Die Antwort des Nutzers in seinen Worten."}},
+          required=("antwort",)),
     _tool("friday_lesen",
           "Liest den aktuellen Stand direkt aus Friday, ohne Agent: Wetter, Einstellungen, offene Aufgaben, Termine "
           "heute oder morgen, Systemstatus, Benachrichtigungen, offene Freigaben, Skills. Für reine Fragen, nichts wird geändert.",
@@ -73,6 +78,7 @@ class ConversationOrchestrator:
         self._lock = threading.Lock()
         self._announcements = []
         self._recent = []
+        self._questions = {}
         self._held_in_quiet = False
         self._last_activity = None
         self._busy = False
@@ -101,6 +107,13 @@ class ConversationOrchestrator:
             lines.append("Laufende Aufträge: " + "; ".join(
                 f"{AGENT_LABEL_SHORT.get(job.get('domain'), job.get('domain'))}: {job.get('title', '')}"
                 for job in pending) + ".")
+        with self._lock:
+            questions = list(self._questions.values())
+        if questions:
+            lines.append("Offene Rückfragen (nur Daten): " + "; ".join(
+                f"{AGENT_LABEL_SHORT.get(entry.get('domain'), entry.get('domain'))}: {entry.get('title', '')} – "
+                f"{str(entry.get('question') or '')[:200]}" for entry in questions)
+                + ". Antworten des Nutzers darauf gibst du mit task_antwort weiter.")
         return "\n".join(lines)
 
     def route_text(self, text: str) -> tuple[str, dict] | None:
@@ -118,8 +131,8 @@ class ConversationOrchestrator:
             arguments = {}
         self.touch()
         handler = {"task_create": self._task_create, "task_status": self._task_status,
-                   "task_cancel": self._task_cancel, "friday_lesen": self._read,
-                   "zeit_datum": self._time}.get(name)
+                   "task_cancel": self._task_cancel, "task_antwort": self._task_reply,
+                   "friday_lesen": self._read, "zeit_datum": self._time}.get(name)
         if handler is None:
             return {"error": "Unbekanntes Werkzeug."}
         try:
@@ -142,6 +155,7 @@ class ConversationOrchestrator:
         self._busy = busy
 
     def task_finished(self, job: dict) -> None:
+        waiting = job.get("status") == "waiting"
         with self._lock:
             title = job.get("title") or "Auftrag"
             try:
@@ -152,6 +166,12 @@ class ConversationOrchestrator:
             except Exception:
                 pass
             entry = dict(job, title=title)
+            if waiting:
+                # A waiting agent still needs the answer: keep the task registered until the reply is handed over.
+                self._questions[job.get("taskId")] = entry
+                self._announcements.append(entry)
+                return
+            self._questions.pop(job.get("taskId"), None)
             self._announcements.append(entry)
             self._recent.append(entry)
             del self._recent[:-RECENT_LIMIT]
@@ -182,12 +202,19 @@ class ConversationOrchestrator:
             self._announcements.clear()
             held = self._held_in_quiet
             self._held_in_quiet = False
-        if len(jobs) < self._summarize_from:
-            text = " ".join(f"{AGENT_LABEL_SHORT.get(job.get('domain'), job.get('domain'))} – {job.get('title', '')}: "
-                            f"{self._result(job)}" for job in jobs)
-        else:
-            text = (f"{len(jobs)} Aufträge sind fertig: " + ", ".join(job.get("title", "") for job in jobs)
-                    + ". Frag mich nach einem davon, dann lese ich das Ergebnis vor.")
+        questions = [job for job in jobs if job.get("status") == "waiting"]
+        finished = [job for job in jobs if job.get("status") != "waiting"]
+        # An open question is always spoken on its own; the summary counts finished jobs only.
+        parts = [f"{AGENT_LABEL_SHORT.get(job.get('domain'), job.get('domain'))} fragt zu „{job.get('title', '')}“: "
+                 f"{str(job.get('question') or '').strip()}" for job in questions]
+        if finished:
+            if len(finished) < self._summarize_from:
+                parts.append(" ".join(f"{AGENT_LABEL_SHORT.get(job.get('domain'), job.get('domain'))} – "
+                                      f"{job.get('title', '')}: {self._result(job)}" for job in finished))
+            else:
+                parts.append(f"{len(finished)} Aufträge sind fertig: " + ", ".join(job.get("title", "") for job in finished)
+                             + ". Frag mich nach einem davon, dann lese ich das Ergebnis vor.")
+        text = " ".join(part for part in parts if part)
         if held:
             text = "Während der Ruhezeit ist das fertig geworden: " + text
         return text
@@ -261,6 +288,28 @@ class ConversationOrchestrator:
         self._tasks.forget(job["taskId"])
         return {"status": "abgebrochen", "auftrag": job.get("title", ""),
                 "hinweis": "Bereits erledigte Schritte bleiben bestehen."}
+
+    def _task_reply(self, args: dict) -> dict:
+        answer = " ".join(str(args.get("antwort", "")).split())[:2000]
+        if not answer:
+            return {"error": "Welche Antwort soll ich weitergeben?"}
+        target = str(args.get("auftrag", "")).strip().lower()
+        with self._lock:
+            open_questions = list(self._questions.values())
+        if target:
+            open_questions = [entry for entry in open_questions
+                              if self._matches(str(entry.get("title", "")),
+                                               AGENT_LABEL_SHORT.get(entry.get("domain"), entry.get("domain")), target)]
+        if not open_questions:
+            return {"error": "Es ist keine passende Rückfrage offen."}
+        if len(open_questions) > 1:
+            return {"error": "Mehrere Rückfragen sind offen. Zu welchem Auftrag?",
+                    "auftraege": [entry.get("title", "") for entry in open_questions]}
+        entry = open_questions[0]
+        self._tasks.reply(entry["taskId"], answer)
+        with self._lock:
+            self._questions.pop(entry["taskId"], None)
+        return {"status": "weitergegeben", "auftrag": entry.get("title", "")}
 
     def _time(self, args: dict) -> dict:
         moment = self._clock()

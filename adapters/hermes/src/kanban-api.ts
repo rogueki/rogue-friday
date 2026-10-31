@@ -110,6 +110,29 @@ export class KanbanApi {
     return parseTask(asObject(response.body, "updateTask").task, "updateTask.task");
   }
 
+  /** Adds an owner comment; Hermes injects comments into the next worker's context. */
+  async addComment(
+    ref: TaskRef,
+    body: string,
+    options: { idempotencyKey?: string | undefined },
+    call: CallInfo,
+  ): Promise<void> {
+    const response = await this.dashboard.request({
+      method: "POST",
+      path: `${PLUGIN}/tasks/${encodeURIComponent(ref.taskId)}/comments`,
+      query: { board: ref.board },
+      body: { body, author: "friday-owner" },
+      operation: "provideTaskInput",
+      // A lost answer must not be posted twice.
+      retry: false,
+      ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+      ...extras(call),
+    });
+    if (asObject(response.body, "provideTaskInput").ok !== true) {
+      throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes hat den Kommentar nicht bestaetigt.", retryable: false });
+    }
+  }
+
   async terminateRun(board: string, runId: number, reason: string, call: CallInfo): Promise<string> {
     let probe;
     try {
