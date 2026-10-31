@@ -41,6 +41,49 @@ describe("DurableMemoryService", () => {
     second.close();
   });
 
+  it("finds a decision again in a new service session with its source (MEM-03)", () => {
+    const { data, vault } = fixture();
+    mkdirSync(join(vault, ".obsidian"), { recursive: true });
+    const first = new DurableMemoryService(data, vault);
+    expect(first.capture(event("e-decision", "Entscheidung: Release am Freitag"))).toMatchObject({ pending: false });
+    first.close();
+    const second = new DurableMemoryService(data, vault);
+    const [hit] = second.search("Release Freitag", "owner");
+    expect(hit).toMatchObject({ eventId: "e-decision", source: "dashboard/chat", channel: "dashboard", sessionId: "s1",
+      identityId: "owner", occurredAt: "2026-10-19T10:00:00Z" });
+    expect(hit?.text).toContain("Release am Freitag");
+    second.close();
+  });
+
+  it("refuses to forget or correct a memory of another identity", () => {
+    const { data, vault } = fixture();
+    mkdirSync(join(vault, ".obsidian"), { recursive: true });
+    const service = new DurableMemoryService(data, vault);
+    service.capture(event("e-owned"));
+    expect(() => service.forget("e-owned", "intruder")).toThrow("Identity mismatch");
+    expect(() => service.correct("e-owned", "Projekt Delta verworfen", "intruder")).toThrow("Identity mismatch");
+    expect(service.search("Projekt Delta", "owner").map((hit) => hit.eventId)).toEqual(["e-owned"]);
+    expect(existsSync(join(vault, "Conversations", "2026", "10", "e-owned.md"))).toBe(true);
+    service.close();
+  });
+
+  it("keeps the outbox when the vault cannot be written and writes once it can (MEM-05)", () => {
+    const { data, vault } = fixture();
+    mkdirSync(join(vault, ".obsidian"), { recursive: true });
+    // A file where the notes folder belongs makes every write fail, like a read-only or broken disk path.
+    writeFileSync(join(vault, "Conversations"), "blocked");
+    const service = new DurableMemoryService(data, vault);
+    expect(service.capture(event("e-disk"))).toMatchObject({ accepted: true, pending: true });
+    const failed = service.status();
+    expect(failed.pending).toBe(1);
+    expect(failed.lastError).not.toBeNull();
+    unlinkSync(join(vault, "Conversations"));
+    service.flush();
+    expect(readFileSync(join(vault, "Conversations", "2026", "10", "e-disk.md"), "utf8")).toContain("Projekt Delta");
+    expect(service.status()).toMatchObject({ pending: 0, ready: true });
+    service.close();
+  });
+
   it("excludes private input and rejects mismatched event type", () => {
     const { data, vault } = fixture();
     mkdirSync(join(vault, ".obsidian"), { recursive: true });
