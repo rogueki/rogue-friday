@@ -76,7 +76,7 @@
     "contentStudioKeys": [
       {
         "title": "Content Studio Zugänge",
-        "text": "Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an der Schlüsseldatei auth.key im Datenverzeichnis. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis."
+        "text": "Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an einer Schlüsseldatei im Datenverzeichnis des Dashboards. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis."
       }
     ],
     "modelsRouting": [

@@ -43,7 +43,7 @@ Hier hinterlegst du die Konten und Voraussetzungen der Skills. Links stehen die 
 ## Content Studio Zugänge
 Stichworte: content studio zugänge, medienanbieter, api schlüssel, anbieter, verschlüsselt, zugänge
 Bereich: einstellungen:contentStudioKeys
-Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an der Schlüsseldatei auth.key im Datenverzeichnis. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis.
+Dieser Bereich verwaltet die Zugänge für Medienanbieter, die das Content Studio nutzt. Du trägst den Schlüssel für einen Anbieter ein. Er wird verschlüsselt in der lokalen Datenbank gespeichert und danach nicht mehr angezeigt. Wenn hier kein Schlüssel steht, dienen Umgebungsvariablen des Servers als Ersatz. Die Verschlüsselung hängt an einer Schlüsseldatei im Datenverzeichnis des Dashboards. Geht diese Datei verloren oder wird sie ersetzt, lassen sich die gespeicherten Schlüssel nicht mehr entschlüsseln. Sichere die Datei deshalb zusammen mit dem Datenverzeichnis.
 
 ## Modelle & Routing
 Stichworte: modelle, routing, standardmodell, routen, denkstufe, fallback, lokal zuerst, budget

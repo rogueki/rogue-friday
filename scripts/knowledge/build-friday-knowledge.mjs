@@ -12,6 +12,7 @@ const HELP_OUT = join(ROOT, "apps", "web", "src", "features", "settings", "setti
 // Only installer/ is copied to the user's machine, so the voice service gets its own bundle.
 const BUNDLE_OUT = join(ROOT, "installer", "voice", "knowledge", "friday-knowledge.json");
 const AREAS = new Set(["ablauf", "fehlerbild", "sprache", "datenschutz"]);
+const BROWSER_FORBIDDEN = /auth\.key|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsk-[A-Za-z0-9]{20,}/;
 
 const { de } = await import(pathToFileURL(join(ROOT, "apps", "web", "src", "i18n", "de.ts")).href);
 const { defaultSettingsAreas } = await import(pathToFileURL(join(ROOT, "apps", "control-api", "src", "services", "settings.ts")).href);
@@ -124,6 +125,10 @@ function buildHelp(settings, sections) {
       .map(({ title, text }) => ({ title, text }));
     const entries = [...own, ...steps];
     if (entries.length === 0) throw new Error(`missing help for settings area ${area.id}`);
+    // The help ships in the browser bundle; the security gate on that bundle only runs after a build.
+    for (const entry of entries) {
+      if (BROWSER_FORBIDDEN.test(entry.text)) throw new Error(`help for settings area ${area.id} names a server secret file: ${entry.title}`);
+    }
     return [area.id, entries];
   }));
   return {
