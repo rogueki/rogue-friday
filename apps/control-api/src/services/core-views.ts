@@ -12,6 +12,7 @@ import {
   type HealthStatus,
   type FridayStatus,
   type Notification,
+  type Priority,
   type VoiceStatus,
   type OrbHealth,
   type OrbMode,
@@ -328,8 +329,15 @@ export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
   return done("idle");
 }
 
+/** Approvals and alerts Friday keeps itself; live installations have no adapter for either. */
+export interface NativeSources {
+  pendingApprovals(): Approval[];
+  openNotifications(priorities: Priority[]): Notification[];
+}
+
 export interface OrbServiceDeps {
   registry: AdapterRegistry;
+  native?: NativeSources;
   world: MockWorld | undefined;
   dataMode: DataMode;
   now?: () => number;
@@ -438,7 +446,8 @@ export class OrbService {
         : voiceMode === "listening"
           ? (this.freshLevel("input", nowMs) ?? voice?.data.microphone.inputLevel)
           : undefined;
-    const open = notifications?.items ?? [];
+    const open = [...(this.deps.native?.openNotifications(["P0", "P1"]) ?? []), ...(notifications?.items ?? [])];
+    const pending = [...(this.deps.native?.pendingApprovals() ?? []), ...(approvals?.items ?? [])];
     const snapshot = deriveOrb(
       {
         health: overall.health,
@@ -447,7 +456,7 @@ export class OrbService {
         workingAgentIds: (agents?.items ?? []).map((agent) => agent.id),
         ...(agents?.items[0] ? { currentAgent: { id: agents.items[0].id, name: agents.items[0].name } } : {}),
         runningTasks: tasks?.items ?? [],
-        pendingApprovals: (approvals?.items ?? []).filter((approval) => approval.expiresAt === null || Date.parse(approval.expiresAt) > nowMs),
+        pendingApprovals: pending.filter((approval) => approval.expiresAt === null || Date.parse(approval.expiresAt) > nowMs),
         criticalOpen: open.filter((n) => n.priority === "P0"),
         urgentOpen: open.filter((n) => n.priority === "P1"),
         voiceMode,
@@ -476,6 +485,7 @@ export interface OverviewResult {
 
 export interface OverviewServiceDeps {
   registry: AdapterRegistry;
+  native?: NativeSources;
   status: StatusService;
   orb: OrbService;
   capabilityEnabled: (capability: string) => boolean;
@@ -523,6 +533,15 @@ export class OverviewService {
     };
 
     const port = <C extends PortCategory>(category: C) => registry.getPort(category);
+    // Native entries come first; without a configured adapter they are the whole section instead of a gap.
+    const withNative = async <T>(native: T[], load: () => Promise<T[]>): Promise<T[]> => {
+      try {
+        return [...native, ...(await load())];
+      } catch (error) {
+        if (this.deps.native && normalizeError(error).code === "CAPABILITY_MISSING") return native;
+        throw error;
+      }
+    };
 
     const [agents, tasks, openTasks, approvals, alerts, mail, events, metrics, services, models, storage, voice, memory] = await Promise.all([
       section("agents", [], async () => (await port("agents").listAgents({ status: ["working"], limit: 12 }, call)).items),
@@ -531,8 +550,10 @@ export class OverviewService {
         const page = await port("tasks").listTasks({ status: ["triage", "todo", "ready", "running", "waiting", "review"], limit: 200 }, call);
         return page;
       }),
-      section("approvals", [], async () => (await port("approvals").listApprovals({ status: ["pending"], limit: 50 }, call)).items),
-      section("notifications", [], async () => (await port("notifications").listNotifications({ priority: ["P0", "P1", "P2"], status: ["open"], limit: 50 }, call)).items),
+      section("approvals", [], () => withNative(this.deps.native?.pendingApprovals() ?? [],
+        async () => (await port("approvals").listApprovals({ status: ["pending"], limit: 50 }, call)).items)),
+      section("notifications", [], () => withNative(this.deps.native?.openNotifications(["P0", "P1", "P2"]) ?? [],
+        async () => (await port("notifications").listNotifications({ priority: ["P0", "P1", "P2"], status: ["open"], limit: 50 }, call)).items)),
       section("communication", [], async () => (await port("communication").listThreads({ needsReply: true, limit: 200 }, call)).items),
       section("calendar", [], async () => (await port("calendar").listCalendarEvents({ from: nowIso, limit: 20 }, call)).items),
       section("system", null, async () => (await port("system").getSystemMetrics({}, call)).data),
@@ -575,7 +596,12 @@ export class OverviewService {
       .slice(0, 5);
 
     const attention: AttentionItem[] = [];
+    // An alert about an approval or an unreachable service duplicates the approval and degraded-section items below.
+    const listedApprovals = new Set((approvals as Approval[]).map((approval) => approval.id));
+    const degradedAdapters = new Set(degraded.map((entry) => entry.adapterId));
     for (const n of urgent) {
+      if (n.sourceRef?.type === "approval" && listedApprovals.has(n.sourceRef.id)) continue;
+      if (n.sourceRef?.type === "adapter" && degradedAdapters.has(n.sourceRef.id)) continue;
       attention.push({ id: n.id, kind: "alert", title: n.title, summary: n.body, severity: n.priority === "P0" ? "critical" : "warning", occurredAt: n.createdAt, targetRoute: n.targetRoute ?? `/alerts?notification=${n.id}`, ref: { type: "notification", id: n.id, label: n.title } });
     }
     for (const approval of approvals as Approval[]) {
