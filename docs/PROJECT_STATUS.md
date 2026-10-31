@@ -1317,3 +1317,30 @@ Simulationslauf, acht gezeichneten Seiten und Tastaturdurchlauf), `data-mode.tes
 
 **Offen:** dritter Sprachmodus „Qwen Audio (Alibaba)“ mit Schlüssel-Wiederverwendung wird mit W3 (Live-Gespräch) gebaut,
 damit die Option nicht vor dem Backend erscheint; „Über dich“ im Dashboard-Profil.
+
+## 2026-10-31 Live-Gespräch Phase 1: Qwen-Realtime-Client (Branch `feat/qwen-realtime-client`, LG-1.01)
+
+Vorarbeiten P0-02 bis P0-12 gemessen; Ergebnisse stehen im Plan `PLAN_LIVE_GESPRAECH_QWEN_AUDIO.md` (Abschnitt 0b,
+lokale Planungsdatei). Für die Umsetzung maßgeblich: Sprechende lokal erkennen und manuell committen, Ausgabe immer
+Text+Audio (erste Antwort p50 0,62 s, p95 1,11 s; Server-VAD p95 6,5 s); der Server schließt eine Sitzung nach 180 s ohne
+Antwort (Code 1007); das lokale Qwen3-4B wählt 26/30 Werkzeuge richtig, darum später Regeln vor dem Modell.
+
+- **`installer/voice/qwen_realtime.py`:** asynchroner Client für `qwen-audio-3.0-realtime-plus` über den Token Plan
+  (Region International/China), `session.update` mit Werkzeugen und optionaler Systemstimme, Audio in 100-ms-Stücken,
+  Commit, Text-/System-Einträge, Werkzeugergebnis, Abbrechen, Wiederverbinden (nur bei Leerlauf/Netz/Ratenlimit),
+  Fehlerklassen `auth`, `quota`, `rate`, `idle`, `network`, `protocol`. `websockets` wird erst beim Verbinden geladen.
+- **`installer/voice/cloud_secret.py`:** sicheres Laden eines Cloud-Schlüssels (DPAPI je Windows-Benutzer, Linux feste
+  0600-Datei) aus `elevenlabs_cloud.py` herausgelöst; ElevenLabs nutzt es unverändert, der Token-Plan-Schlüssel liegt
+  unter Linux in `/etc/friday/secrets/alibaba-tokenplan.key`.
+- **Update-Listen:** `cloud_secret.py` in `Get-VoiceSourcePaths` und `update-voice-personas.ps1` (Pflicht, weil
+  `elevenlabs_cloud` es importiert). `qwen_realtime.py` kommt in die Listen, sobald `friday_voice.py` es importiert (LG-1.03).
+- **Tests (CI):** `installer/voice/tests/test_qwen_realtime.py` gegen einen echten lokalen WebSocket-Server (Ablauf mit
+  Text, Audio, Werkzeugaufruf und Leerlauf-Abbruch, HTTP 401, Kontingentfehler beim Aufbau, Schließen während des Lesens,
+  Wiederverbinden) und `test_elevenlabs_cloud.py` neu in der CI-Liste.
+
+**Zuletzt verifiziert:** Windows (websockets 15.0.1) 12/12; WSL Ubuntu (websockets 16.0) 15/15 inkl. POSIX-Schlüsseltest;
+Abhängigkeitsprüfung und `test_configure_voice.py` 7/7; `dashboard-update-voice-integration.Tests.ps1` PASS; Gegenprobe
+(Ratenlimit vor Kontingent vertauscht) rot; pyflakes ohne Befund.
+
+**Als Nächstes:** LG-1.02 `ConversationOrchestrator` (Task-Register, Werkzeuge, Ansage-Queue), danach Einbau in
+`friday_voice.py` (LG-1.03) und dritter Sprachmodus im Installer.
