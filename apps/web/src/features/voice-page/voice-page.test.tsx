@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
 import { errorBody, listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
 import { validateSampleTarget } from "./EnrollmentFlow";
@@ -143,6 +144,24 @@ describe("status rows without fresh data (DASH-11.05)", () => {
   it("keeps the recognized speaker while the data is live", () => {
     const rows = buildStatusRows(status(), [], t, "de-DE", "x");
     expect(rows.find((entry) => entry.id === "recognizedSpeaker")?.value).toBe("Erik Brandt");
+  });
+
+  it("marks the speaker rows as not current during an outage and current again after the resync", async () => {
+    let down = false;
+    const fake = routedFetch(routes({
+      "GET /api/v1/voice/status": () => (down ? errorBody("ADAPTER_UNAVAILABLE", "Sprachdienst nicht erreichbar.", 503) : single(status())),
+    }));
+    const view = renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
+    expect(await screen.findByText("„Hey Friday“")).toBeInTheDocument();
+    expect(screen.queryByText("Keine aktuellen Daten vom Sprachdienst")).not.toBeInTheDocument();
+
+    down = true;
+    await view.queryClient.refetchQueries({ queryKey: queryKeys.voice.status });
+    await waitFor(() => expect(screen.getAllByText("Keine aktuellen Daten vom Sprachdienst")).toHaveLength(3));
+
+    down = false;
+    await view.queryClient.refetchQueries({ queryKey: queryKeys.voice.status });
+    await waitFor(() => expect(screen.queryByText("Keine aktuellen Daten vom Sprachdienst")).not.toBeInTheDocument());
   });
 });
 
