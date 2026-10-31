@@ -1344,3 +1344,18 @@ Abhängigkeitsprüfung und `test_configure_voice.py` 7/7; `dashboard-update-voic
 
 **Als Nächstes:** LG-1.02 `ConversationOrchestrator` (Task-Register, Werkzeuge, Ansage-Queue), danach Einbau in
 `friday_voice.py` (LG-1.03) und dritter Sprachmodus im Installer.
+## 2026-10-31 Live-Gespräch Phase 1: Gesprächsschicht (Branch `feat/conversation-orchestrator`, LG-1.02)
+
+- **`installer/voice/conversation.py` – `ConversationOrchestrator`:** gemeinsame Logik für den Qwen-Audio- und den lokalen
+  Modus, ohne eigenes I/O. Werkzeuge `task_create` (Agenten research/tasks/alerts/audit, höchstens fünf parallel),
+  `task_status` (laufende und zuletzt fertige Aufträge), `task_cancel` (eindeutig, Rückfrage bei mehreren),
+  `zeit_datum` (ohne Locale). Baut auf dem vorhandenen Task-Register `DomainTaskVoice` auf; keine Task-IDs an das Modell.
+  Feste Sätze (Abbruch, Uhrzeit, Stand) werden für das lokale Modell vorab geroutet (P0-06: 26/30 ohne Regeln).
+- **Ansagen:** fertige Aufträge werden gesammelt, ab drei zusammengefasst, Ergebnisse auf 1 500 Zeichen gekürzt (Rest im
+  Dashboard), als Daten markiert (nicht als Anweisung), während der Ruhezeit zurückgehalten und danach mit Hinweis
+  angesagt, während Nutzer oder Stimme sprechen bis zur Pause verschoben. Gesprächsfenster 60 s.
+- Mail und Kalender bleiben bei ihren bestätigten eigenen Sprachabläufen (Vertrag `VoiceDomainTaskRequest`); die
+  Erweiterung der Domänen folgt mit LG-2.01. Einbau in `friday_voice.py` und Update-Listen mit LG-1.03.
+
+**Zuletzt verifiziert:** `installer/voice/tests/test_conversation.py` 22/22 (neu in CI); Gegenprobe (Ruhezeit-Sperre
+entfernt) rot; pyflakes ohne Befund.
