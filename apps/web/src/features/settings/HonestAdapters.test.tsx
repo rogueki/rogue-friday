@@ -63,14 +63,8 @@ describe("honest adapter display in a live installation", () => {
 
   it("does not promise a simulated calendar when the live calendar has no credentials", async () => {
     setup({ dataMode: "live", adapters: [calendarAdapter] });
-    expect(await screen.findByText(/bleibt die Kalenderansicht leer/)).toBeTruthy();
+    expect(await screen.findByText(/Kalenderansicht bleibt leer/)).toBeTruthy();
     expect(screen.queryByText(/Simulation/)).toBeNull();
-  });
-
-  it("keeps the simulation wording while a mock world runs", async () => {
-    setup({ dataMode: "mock", adapters: [calendarAdapter] });
-    expect(await screen.findByText(/verwendet Simulation/)).toBeTruthy();
-    expect(screen.queryByText("Nicht eingerichtete Bereiche")).toBeNull();
   });
 });
 

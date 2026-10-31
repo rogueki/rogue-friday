@@ -63,7 +63,7 @@ const PAGES: ReadonlyArray<readonly [string, string]> = [
   ["skills", "/skills"],
   ["approvals", "/approvals"], ["communication", "/communication"], ["calendar", "/calendar"], ["automations", "/automations"],
   ["research", "/research"], ["content-studio", "/content-studio"], ["files", "/files"], ["voice", "/voice"], ["alerts", "/alerts"], ["system", "/system"],
-  ["audit", "/audit"], ["settings", "/settings"], ["dev-scenarios", "/dev/scenarios"],
+  ["audit", "/audit"], ["settings", "/settings"],
 ];
 
 test.describe("orb states (static 2D render, 14 modes)", () => {

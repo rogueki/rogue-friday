@@ -2,9 +2,8 @@
 
 import { ToastProvider, useToast } from "@friday/ui";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BootScreen, FatalErrorScreen } from "@/components/FullScreen";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BootScreen } from "@/components/FullScreen";
 import { createQueryClient, type ErrorSink } from "@/lib/api/queryClient";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { clearOfflineCache, restoreOfflineCache, startOfflineCache } from "@/lib/offlineCache/controller";
@@ -45,31 +44,6 @@ function AuthenticatedProviders({ children }: { children: ReactNode }) {
   );
 }
 
-// The env check sits directly in front of the import so the bundler removes the whole mock stack from normal builds.
-const MockStarter = process.env.NEXT_PUBLIC_FRIDAY_MSW === "1" ? dynamic(() => import("@/lib/mock/MockStarter"), { ssr: false }) : null;
-
-/** Starts MSW (standalone mock mode) before the first request leaves the app. */
-function MockGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<"ready" | "starting" | "failed">(MockStarter ? "starting" : "ready");
-  const [error, setError] = useState<unknown>(null);
-  const onReady = useCallback(() => setState("ready"), []);
-  const onError = useCallback((reason: unknown) => {
-    console.error("Mock-Plattform konnte nicht gestartet werden", reason);
-    setError(reason);
-    setState("failed");
-  }, []);
-  if (state === "starting" && MockStarter) {
-    return (
-      <>
-        <MockStarter onReady={onReady} onError={onError} />
-        <BootScreen />
-      </>
-    );
-  }
-  if (state === "failed") return <FatalErrorScreen error={error} onRetry={() => window.location.reload()} />;
-  return <>{children}</>;
-}
-
 /**
  * The app is a client-side application (static export, no server data). The UI library renders portals (toasts, overlays)
  * that exist only in the browser, so the tree is mounted after hydration and the server HTML is only the boot screen.
@@ -97,9 +71,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ClientOnly>
         <ToastProvider>
           <ErrorSinkBridge sinkRef={sinkRef} queryClient={queryClient} />
-          <MockGate>
-            <AuthenticatedProviders>{children}</AuthenticatedProviders>
-          </MockGate>
+          <AuthenticatedProviders>{children}</AuthenticatedProviders>
         </ToastProvider>
       </ClientOnly>
     </QueryClientProvider>

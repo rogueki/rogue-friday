@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { formatRelative } from "@/features/shared/time";
 import { toneFromHealth } from "@/features/shared/presentation";
 import { useT, type MessageKey } from "@/i18n";
-import { useMeta, useFridayStatus } from "@/lib/api/domains/core";
+import { useFridayStatus } from "@/lib/api/domains/core";
 import { useNotifications } from "@/lib/api/domains/notifications";
 import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
 import { useSession } from "@/lib/session";
@@ -47,7 +47,6 @@ export function AppTopBar() {
   const { t, locale } = useT();
   const { timeZone, hour12, settings } = useAppSettings();
   const status = useFridayStatus();
-  const meta = useMeta();
   const session = useSession();
   const dashboardUpdate = useDashboardUpdateStatus(session.role === "owner");
   const realtime = useRealtimeStatus();
@@ -60,7 +59,6 @@ export function AppTopBar() {
 
   const notificationCount = notifications.data?.pageInfo.totalCount ?? notifications.data?.items.length ?? 0;
   const friday = status.data?.data;
-  const dataMode = friday?.dataMode ?? meta.data?.dataMode;
 
   const actions = useMemo<TopBarAction[]>(() => {
     const bell: TopBarAction = {
@@ -84,7 +82,6 @@ export function AppTopBar() {
   const statusLabel = friday ? friday.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
   const statusTone = friday ? toneFromHealth(friday.status) : "muted";
   const roleText = session.role ? t(`role.${session.role}` as MessageKey) : undefined;
-  const modeText = dataMode ? t(`dataMode.${dataMode}` as MessageKey) : undefined;
   const displayName = settings?.profile.displayName || session.displayName;
 
   return (
@@ -98,7 +95,7 @@ export function AppTopBar() {
       onSearchClick={() => setPaletteOpen(true)}
       searchLabel={t("top.search")}
       actions={actions}
-      operator={displayName ? { name: displayName, role: [roleText, compact ? undefined : modeText].filter(Boolean).join(" · ") } : undefined}
+      operator={displayName ? { name: displayName, role: roleText ?? "" } : undefined}
       menuLabel={t("top.openNav")}
     />
   );

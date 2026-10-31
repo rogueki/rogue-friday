@@ -8,7 +8,6 @@ import { createRealtimeOrbRouter } from "@/features/orb/bridge/realtimeOrb";
 import { fetchActivitySince } from "../api/domains/activity";
 import { useMeta } from "../api/domains/core";
 import { SNAPSHOT_ROOT_KEYS } from "../api/queryKeys";
-import { getMockTransportFactory } from "../mock/runtime";
 import { applyActivityBackfill, applyEvent } from "./applyEvent";
 import { RealtimeClient } from "./client";
 import { useRealtimeStore } from "./store";
@@ -29,8 +28,7 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
 
   useEffect(() => {
     if (!enabled || !eventsPath) return;
-    const mockFactory = getMockTransportFactory();
-    useRealtimeStore.getState().setTransport(mockFactory ? "mock" : "websocket");
+    useRealtimeStore.getState().setTransport("websocket");
 
     const refreshSnapshots = (): void => {
       for (const key of SNAPSHOT_ROOT_KEYS) void queryClient.invalidateQueries({ queryKey: key, refetchType: "active" });
@@ -41,7 +39,7 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
 
     const client = new RealtimeClient({
       getUrl: (since) => buildEventsUrl({ eventsPath, eventsOrigin }, since),
-      transportFactory: mockFactory ?? webSocketTransportFactory,
+      transportFactory: webSocketTransportFactory,
       callbacks: {
         onEvent: (event) => {
           try {

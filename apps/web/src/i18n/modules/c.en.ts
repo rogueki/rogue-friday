@@ -400,8 +400,6 @@ export const enC: Record<keyof typeof deC, string> = {
   "system.adapters.remoteVersion": "Upstream version",
   "system.adapters.noRemoteVersion": "Upstream reports no version",
   "system.adapters.lastError": "Last error",
-  "system.adapters.mock": "Mock",
-  "system.adapters.live": "Live",
   "system.adapters.disabled": "Disabled",
   "system.adapters.checked": "{name}: health check",
   "system.adapters.reconnected": "{name}: connection test",

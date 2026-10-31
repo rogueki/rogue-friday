@@ -1,7 +1,6 @@
 "use client";
 import { createBrowserVoiceBridge } from "@/features/orb/bridge/browserVoiceBridge";
 import { loadOrbRuntime, orbAudioHandle, orbBridgeHandle } from "@/features/orb/orbHub";
-import { isStandaloneMock } from "@/lib/mock/runtime";
 import { BrowserAudioResampler } from "./browserAudioResampler";
 
 type AudioState = { available: boolean; active: boolean; paused: boolean; speaking: boolean; error: string | null };
@@ -46,7 +45,6 @@ export const browserAudio = {
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
   snapshot() { return state; },
   async check() {
-    if (isStandaloneMock()) return; // the in-browser mock has no Control API (and no gateway) behind the availability route
     if (readiness) return readiness;
     if (Date.now() - lastCheck < 10_000) return;
     readiness = (async () => {

@@ -21,7 +21,7 @@ import { sectionStatus } from "@/features/overview/useOverviewPanel";
 import { isAdapterOutage, outageFromSection } from "@/features/shared/availability";
 import type { PanelGate } from "@/features/shared/useAvailability";
 import { useServerClockOffset } from "@/features/shared/useServerClock";
-import { useMeta, useOverview } from "@/lib/api/domains/core";
+import { useOverview } from "@/lib/api/domains/core";
 import { useCapabilities, capabilityState, type CapabilityModule, type CapabilityState } from "@/lib/capabilities";
 import { useAppSettings } from "@/lib/settings";
 import "./kit.css";
@@ -105,14 +105,12 @@ export function freshAnchor(now: Date, asOf: string | null | undefined): Date {
 /** Source and freshness of a list or detail response (PLAN §8.8/8.9), shown in every page header. */
 export function DataOrigin({ sources, freshness, className, slot = "header" }: { sources?: readonly SourceDescriptor[]; freshness?: Freshness | null; className?: string; slot?: "header" | "body" }) {
   const { locale } = useT();
-  const meta = useMeta();
   const { now } = useDateFormatter();
   const names = useMemo(() => {
     const unique = new Set((sources ?? []).map((source) => source.system || source.adapterId));
     return [...unique].join(", ");
   }, [sources]);
-  const dataMode = meta.data?.dataMode;
-  const mode = freshness?.state === "offline-cache" ? "cache" : dataMode === "mock" ? "mock" : dataMode === "live" ? "live" : undefined;
+  const mode = freshness?.state === "offline-cache" ? "cache" : "live";
   if (!names && !freshness) return null;
   return (
     <span className={className ?? `mod-origin mod-origin--${slot}`}>

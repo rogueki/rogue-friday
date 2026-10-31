@@ -3,7 +3,6 @@
 import type { AdapterInfo, HealthStatus, Overview } from "@friday/sdk";
 import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@friday/ui";
 import { Bot, Brain, CheckCircle2, Database, Mic, ShieldCheck, Sparkles } from "lucide-react";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -20,9 +19,6 @@ import { adapterNotConfigured, isUnconfiguredEntry } from "@/features/shared/ava
 import { sectionStatus, useOverviewPanel } from "./useOverviewPanel";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
-
-// Development-only floating orb lab (`/?orbDebug=1`); the build-time condition removes it from production builds.
-const OrbDebugOverlay = process.env.NODE_ENV !== "production" ? dynamic(() => import("@/features/orb/debug/OrbDebugOverlay"), { ssr: false }) : null;
 
 function formatCount(value: number, locale: string): string {
   return new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-GB").format(value);
@@ -163,7 +159,6 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
   const mode = controllerStatus?.mode ?? status?.mode;
   const agent = overview?.activeAgents.find((a) => a.id === (overview.currentActivity?.agentId ?? status?.currentAgentId));
   const activity = overview?.currentActivity?.text ?? controllerStatus?.activityText ?? status?.activityText;
-  const dataMode = overview?.friday.dataMode;
   const version = overview?.friday.version;
   const progressValue = controllerStatus ? controllerStatus.progress : status?.progressMode === "determinate" && typeof status.progress === "number" ? status.progress : null;
   const progress = typeof progressValue === "number" ? Math.round(Math.min(1, Math.max(0, progressValue)) * 100) : null;
@@ -175,12 +170,11 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
         <div className="ov-orb__stage">
           <OrbSlot onRendererChange={setRenderer} />
         </div>
-        {OrbDebugOverlay ? <OrbDebugOverlay /> : null}
         <div className="ov-orb__brand">
           <span className="ov-orb__name">{assistantName}</span>
           <span className="ov-orb__sub">{t("brand.aiCore")}</span>
           <span className="ov-orb__ver">
-            {[version ? `v${version}` : null, dataMode ? t(`dataMode.${dataMode}` as MessageKey) : null].filter(Boolean).join(" · ")}
+            {version ? `v${version}` : null}
           </span>
         </div>
         <div className="ov-orb__status" role="status">

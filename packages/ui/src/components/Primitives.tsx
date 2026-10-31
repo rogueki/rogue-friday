@@ -256,12 +256,12 @@ export interface SourceBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   /** Source system, e.g. "Hermes". */
   source: string;
   /** Data origin mode. */
-  mode?: 'live' | 'mock' | 'cache';
+  mode?: 'live' | 'cache';
   prefix?: string;
-  modeLabels?: Partial<Record<'live' | 'mock' | 'cache', string>>;
+  modeLabels?: Partial<Record<'live' | 'cache', string>>;
 }
 
-const defaultModeLabels = { live: 'Live', mock: 'Mock', cache: 'Cache' } as const;
+const defaultModeLabels = { live: 'Live', cache: 'Cache' } as const;
 
 export function SourceBadge({ source, mode, prefix = 'Quelle', modeLabels, className, ...rest }: SourceBadgeProps) {
   const modeText = mode ? (modeLabels?.[mode] ?? defaultModeLabels[mode]) : null;

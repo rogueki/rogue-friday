@@ -399,9 +399,6 @@ importers:
       '@friday/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
-      '@friday/mock-data':
-        specifier: workspace:*
-        version: link:../../packages/mock-data
       '@friday/orb':
         specifier: workspace:*
         version: link:../../packages/orb
@@ -429,9 +426,6 @@ importers:
       motion:
         specifier: ^14.2.0
         version: 14.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      msw:
-        specifier: ^3.0.3
-        version: 3.0.3(@types/node@26.6.5)(typescript@5.9.3)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
       next:
         specifier: ^16.4.3
         version: 16.4.3(@babel/core@7.29.7)(@playwright/test@1.64.0)(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

@@ -1,28 +1,16 @@
-// Starts `next` with the standalone-mock flag so the same npm script works on Windows and POSIX shells.
-//
-// The MSW service worker script lives in `mock-worker/` and is copied into `public/` only for mock runs. A normal
-// build therefore never ships `mockServiceWorker.js` (it would register a request interceptor in production).
+// Starts `next` through Node so the same npm script works on Windows and POSIX shells.
 import { spawn } from "node:child_process";
-import { copyFileSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { withLegacyEnv } from "../../../scripts/lib/legacy-env.mjs";
 
-const [command = "dev", ...rest] = process.argv.slice(2);
-const mock = rest.includes("--mock");
-const nextArgs = rest.filter((arg) => arg !== "--mock");
+const [command = "dev", ...nextArgs] = process.argv.slice(2);
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 
-const workerSource = fileURLToPath(new URL("../mock-worker/mockServiceWorker.js", import.meta.url));
-const workerTarget = fileURLToPath(new URL("../public/mockServiceWorker.js", import.meta.url));
-if (mock) copyFileSync(workerSource, workerTarget);
-else rmSync(workerTarget, { force: true });
+// Older checkouts copied an MSW worker into public/; it must never reach a build.
+rmSync(fileURLToPath(new URL("../public/mockServiceWorker.js", import.meta.url)), { force: true });
 
-const child = spawn(process.execPath, [nextBin, command, ...nextArgs], {
-  stdio: "inherit",
-  env: { ...withLegacyEnv(), ...(mock ? { NEXT_PUBLIC_FRIDAY_MSW: "1" } : {}) },
-});
-// The worker is not removed on exit: parallel mock dev servers share public/. Every non-mock run (dev or build)
-// deletes it before starting, so a production export never contains it.
+const child = spawn(process.execPath, [nextBin, command, ...nextArgs], { stdio: "inherit", env: withLegacyEnv() });
 child.on("exit", (code) => process.exit(code ?? 0));
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));

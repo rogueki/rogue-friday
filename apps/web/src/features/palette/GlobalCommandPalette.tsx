@@ -9,7 +9,6 @@ import {
   CircleHelp,
   Database,
   FileText,
-  FlaskConical,
   History,
   MessageCircleQuestion,
   Mic,
@@ -27,7 +26,6 @@ import { orderNavPages } from "@/features/shell/navModel";
 import { EXECUTIVE_BRIEFING_COMMAND, useVoiceUi } from "@/features/voice/useVoiceUi";
 import { useT } from "@/i18n";
 import { agentQueries } from "@/lib/api/domains/agents";
-import { useMeta } from "@/lib/api/domains/core";
 import { automationQueries } from "@/lib/api/domains/automations";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
@@ -102,8 +100,6 @@ export function GlobalCommandPalette() {
   const canSearchMemory = useCapability("memory", "search");
   const canReadAgents = useCapability("agents", "read");
   const canReadFiles = useCapability("files", "read");
-  // The scenario console only exists in development/QA (PLAN §44.6), so the palette only offers it then.
-  const devScenarios = Boolean(useMeta().data?.features.devScenarios);
   const canTestAutomation = useCapability("automations", "test");
 
   const [query, setQuery] = useState("");
@@ -208,9 +204,6 @@ export function GlobalCommandPalette() {
     );
     add({ id: "calendar", label: t("palette.calendar"), icon: <CalendarDays {...ICON} />, group: groups.actions, keywords: ["kalender", "termine"] }, () => router.push("/calendar"));
     add({ id: "settings", label: t("palette.settings"), icon: <Settings {...ICON} />, group: groups.actions, keywords: ["einstellungen", "settings", "konfiguration"] }, () => router.push("/settings"));
-    if (devScenarios) {
-      add({ id: "dev-scenarios", label: t("devScenarios.palette"), icon: <FlaskConical {...ICON} />, group: groups.actions, keywords: ["szenario", "scenario", "konsole", "mock", "dev", "qa"] }, () => router.push("/dev/scenarios"));
-    }
 
     // Navigation to every page
     for (const page of orderNavPages(settings?.navigation.order, undefined)) {
@@ -290,7 +283,7 @@ export function GlobalCommandPalette() {
     if (list.length === 0) add({ id: "none", label: t("palette.none"), icon: <CircleHelp {...ICON} />, disabled: true }, () => undefined);
     return { items: list, handlers: actions };
   }, [
-    query, t, groups, canExecute, canCreateTask, canStop, canPause, canResume, canTestAutomation, voice, settings?.navigation.order, devScenarios,
+    query, t, groups, canExecute, canCreateTask, canStop, canPause, canResume, canTestAutomation, voice, settings?.navigation.order,
     memoryHits.data, agentHits.data, fileHits.data, automations.data, history.data, run, router, openCreateTask, stop, pause, resume, runStagedWrite,
   ]);
 

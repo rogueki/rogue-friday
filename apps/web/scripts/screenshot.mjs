@@ -1,5 +1,5 @@
 // Screenshots the overview at the four reference viewports with Playwright (chromium) into apps/web/screenshots/.
-//   node scripts/screenshot.mjs                       -> http://localhost:3000 (start `pnpm --filter @friday/web dev:mock` first)
+//   node scripts/screenshot.mjs                       -> http://localhost:3000 (start the Control API and `pnpm --filter @friday/web dev` first)
 //   node scripts/screenshot.mjs --base http://127.0.0.1:3100 --path / --only desktop
 //   options: --motion reduced|full|off (default reduced), --wait <ms> (settle time, default 2500), --scenario <id>
 import { chromium } from "@playwright/test";
