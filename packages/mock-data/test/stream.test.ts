@@ -161,6 +161,7 @@ describe("event contract coverage", () => {
       const overlap = world.calendar.createProposal({ type: "reschedule", eventId: first.id, start: second.start, end: second.end, reason: "Test" });
       world.approvals.approve(overlap.approvalId as string);
     }
+    world.voice.requestNavigation("calendar", false);
     world.setCapability("voice", "test", false);
     world.clock.advance(20_000);
 

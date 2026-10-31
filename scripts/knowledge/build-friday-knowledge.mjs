@@ -9,6 +9,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DOCS = join(ROOT, "docs", "friday-knowledge");
 const SETTINGS_OUT = join(DOCS, "settings.generated.json");
 const HELP_OUT = join(ROOT, "apps", "web", "src", "features", "settings", "settingsHelp.generated.json");
+const TOUR_OUT = join(ROOT, "apps", "web", "src", "features", "tour", "tourSteps.generated.json");
 // Only installer/ is copied to the user's machine, so the voice service gets its own bundle.
 const BUNDLE_OUT = join(ROOT, "installer", "voice", "knowledge", "friday-knowledge.json");
 const AREAS = new Set(["ablauf", "fehlerbild", "sprache", "datenschutz"]);
@@ -137,6 +138,14 @@ function buildHelp(settings, sections) {
   };
 }
 
+function buildTour(sections) {
+  const steps = sections.filter((section) => section.file === "docs/friday-knowledge/seiten.md")
+    .map(({ id, title, text }) => ({ id, title, text }));
+  if (steps.length === 0) throw new Error("tour: docs/friday-knowledge/seiten.md has no sections");
+  for (const step of steps) if (BROWSER_FORBIDDEN.test(step.text)) throw new Error(`tour step names a server secret file: ${step.title}`);
+  return { note: "Generiert von scripts/knowledge/build-friday-knowledge.mjs – nicht von Hand ändern.", steps };
+}
+
 function json(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -150,7 +159,7 @@ for (const section of sections) {
   if (ids.has(section.id)) throw new Error(`doppelter Abschnitt ${section.id}`);
   ids.add(section.id);
 }
-const outputs = [[SETTINGS_OUT, json(settings)], [BUNDLE_OUT, json({ version: 1, sections })], [HELP_OUT, json(buildHelp(settings, markdownSections))]];
+const outputs = [[SETTINGS_OUT, json(settings)], [BUNDLE_OUT, json({ version: 1, sections })], [HELP_OUT, json(buildHelp(settings, markdownSections))], [TOUR_OUT, json(buildTour(markdownSections))]];
 
 if (process.argv.includes("--check")) {
   const stale = outputs.filter(([file, content]) => !existsSync(file) || readFileSync(file, "utf8").replace(/\r\n/g, "\n") !== content);

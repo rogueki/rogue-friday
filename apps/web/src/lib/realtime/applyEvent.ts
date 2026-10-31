@@ -210,7 +210,8 @@ export function applyEvent(queryClient: QueryClient, event: FridayEvent): void {
     case "friday.voice.transcript_final":
     case "friday.voice.tts_started":
     case "friday.voice.tts_ended":
-      // High-frequency / ephemeral: consumed by the orb audio store and the voice feature, never cached.
+    case "friday.ui.navigation_requested":
+      // High-frequency / ephemeral: consumed by the orb audio store, the voice feature and the dashboard tour, never cached.
       return;
 
     // ── tasks ───────────────────────────────────────────────────────────

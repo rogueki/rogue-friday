@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/ui/dashboard-area.schema.json",
+  "title": "DashboardArea",
+  "description": "One page of the dashboard navigation (same ids as the sidebar).",
+  "type": "string",
+  "enum": ["overview", "tasks", "activity", "memory", "agents", "skills", "approvals", "communication", "calendar", "automations", "research", "content-studio", "files", "voice", "alerts", "system", "audit", "settings"]
+}

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://friday.local/schemas/ui/dashboard-navigation.schema.json",
+  "area": "calendar",
+  "tour": false
+}

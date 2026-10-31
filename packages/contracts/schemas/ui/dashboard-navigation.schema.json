@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/ui/dashboard-navigation.schema.json",
+  "title": "DashboardNavigation",
+  "description": "A spoken request to open a dashboard page, or to start the guided tour there. Navigation only: it never changes a setting.",
+  "type": "object",
+  "properties": {
+    "area": { "$ref": "../ui/dashboard-area.schema.json" },
+    "tour": { "type": "boolean" }
+  },
+  "required": ["area", "tour"],
+  "additionalProperties": false
+}

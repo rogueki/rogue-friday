@@ -2,6 +2,7 @@
 
 import type {
   ActionResult,
+  DashboardArea,
   VoiceConversationKeyCheck,
   VoiceConversationKeyRequest,
   VoiceConversationKeyStatus,
@@ -166,5 +167,13 @@ export function usePlayVoiceSample() {
   return useApiMutation<VoiceSampleResult, IntentVars>({
     label: "Hörprobe abspielen",
     mutationFn: ({ idempotencyKey: _key }) => call(getApiClient().POST("/api/v1/voice/sample", {})),
+  });
+}
+
+/** POST /voice/tour/speak (owner): der Sprachdienst erklärt einen Bereich der Tour. */
+export function useSpeakVoiceTourStep() {
+  return useApiMutation<ActionResult, IntentVars & { area: DashboardArea }>({
+    label: "Tour-Schritt vorlesen",
+    mutationFn: ({ idempotencyKey: _key, area }) => call(getApiClient().POST("/api/v1/voice/tour/speak", { body: { area } })),
   });
 }

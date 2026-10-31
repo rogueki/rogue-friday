@@ -69,7 +69,8 @@ from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from domain_task_voice import (AGENT_LABEL, FINAL as FINAL_DOMAIN_STATUSES, DomainTaskVoice, bundle_text,  # noqa: E402
                               classify_domain)
 import qwen_realtime  # noqa: E402
-from conversation import ConversationOrchestrator, QuietGate  # noqa: E402
+from conversation import ConversationOrchestrator, QuietGate, _local_excerpt  # noqa: E402
+from knowledge import KnowledgeBase  # noqa: E402
 import self_check  # noqa: E402
 from qwen_dialog import QwenDialog  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
@@ -151,6 +152,13 @@ GOODBYE_WORDS = re.compile(
     r"(?:\s+(?:für|fuer)\s+(?:jetzt|heute))?[\s.!]*$", re.IGNORECASE)
 GOODBYE_REPLY = "Gern. Ich bin da, wenn du mich rufst."
 VOICE_SAMPLE_TEXT = "Hallo, ich bin {name}. So klinge ich mit dieser Stimme."
+TOUR_SECTIONS = {"overview": "seiten#uebersicht", "tasks": "seiten#aufgaben", "activity": "seiten#live-aktivitaet",
+                 "memory": "seiten#gedaechtnis", "agents": "seiten#agenten", "skills": "seiten#skills",
+                 "approvals": "seiten#freigaben", "communication": "seiten#mail-kommunikation",
+                 "calendar": "seiten#kalender", "automations": "seiten#automationen", "research": "seiten#recherche",
+                 "content-studio": "seiten#content-studio", "files": "seiten#dateien-dokumente",
+                 "voice": "seiten#sprache", "alerts": "seiten#meldungen-alarme", "system": "seiten#system",
+                 "audit": "seiten#audit-verlauf", "settings": "seiten#einstellungen"}
 
 
 def is_goodbye(text: str) -> bool:
@@ -1960,6 +1968,32 @@ class VoiceService:
         log_event(event="voice_sample")
         return True
 
+    def _tour_knowledge(self) -> KnowledgeBase:
+        knowledge = getattr(self, "_tour_kb", None)
+        if knowledge is None:
+            knowledge = self._tour_kb = KnowledgeBase()
+        return knowledge
+
+    def speak_tour_step(self, area: str) -> bool | None:
+        """Explains one dashboard page from the built-in help. None: unknown page; False: busy."""
+        section_id = TOUR_SECTIONS.get(area)
+        if section_id is None:
+            return None
+        section = self._tour_knowledge().get(section_id)
+        text = _local_excerpt(section)
+        if not text:
+            return None
+        with self.manual_start_lock:
+            busy = (self.processing or self.tts.speaking.is_set() or getattr(self, "control_paused", False)
+                    or self.status.get("state") not in ("listening", "wake_only"))
+            if busy:
+                return False
+            self.tts.say(text)
+            if self.cfg.get("speaker_verification_required", True):
+                self.reply_window.set()
+        log_event(event="tour_step", area=area)
+        return True
+
     def _watch_domain_task(self, job: dict) -> None:
         watcher = uuid.uuid4().hex[:8]
         self.background_jobs.add(watcher)
@@ -2638,7 +2672,7 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/voice/sample", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/voice/sample", "/control/tour/speak", "/control/audio", "/control/settings", "/control/conversation-key", "/control/conversation-key/check", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
@@ -2648,6 +2682,26 @@ class VoiceService:
                     return
                 if self.path == "/control/voice/sample":
                     if not service.speak_voice_sample():
+                        self.send_error(423, "Voice is busy")
+                        return
+                    self._json({"accepted": True})
+                    return
+                if self.path == "/control/tour/speak":
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 128:
+                            raise ValueError("Invalid request size")
+                        body = json.loads(self.rfile.read(size))
+                        if not isinstance(body, dict) or set(body) != {"area"} or not isinstance(body["area"], str):
+                            raise ValueError("Invalid tour request")
+                    except (ValueError, TypeError, json.JSONDecodeError):
+                        self.send_error(400)
+                        return
+                    spoken = service.speak_tour_step(body["area"])
+                    if spoken is None:
+                        self.send_error(400, "Unknown page")
+                        return
+                    if not spoken:
                         self.send_error(423, "Voice is busy")
                         return
                     self._json({"accepted": True})

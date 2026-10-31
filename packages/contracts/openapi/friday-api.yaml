@@ -5015,6 +5015,55 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
       x-required-role: owner
+  /api/v1/voice/navigation:
+    post:
+      operationId: requestDashboardNavigation
+      tags: [voice]
+      summary: Open a dashboard page or start the tour on behalf of the local voice service
+      description: Local voice bridge only. Publishes friday.ui.navigation_requested to the owner's open dashboards; it only navigates and never changes a setting.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardNavigation"
+      responses:
+        "200":
+          description: Navigation published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-required-role: owner
+  /api/v1/voice/tour/speak:
+    post:
+      operationId: speakVoiceTourStep
+      tags: [voice]
+      summary: Let the voice service explain one dashboard page of the tour
+      description: Windows installs only. The voice service reads the built-in help text of the page aloud when nothing else is running.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceTourStepRequest"
+      responses:
+        "200":
+          description: Explanation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-required-role: owner
   /api/v1/voice/stt-models/cancel:
     post:
       operationId: cancelVoiceSttModelDownload
@@ -10936,6 +10985,12 @@ components:
       $ref: ../schemas/voice/voice-conversation-key-check.schema.json
     VoiceSampleResult:
       $ref: ../schemas/voice/voice-sample-result.schema.json
+    VoiceTourStepRequest:
+      $ref: ../schemas/voice/voice-tour-step-request.schema.json
+    DashboardNavigation:
+      $ref: ../schemas/ui/dashboard-navigation.schema.json
+    DashboardArea:
+      $ref: ../schemas/ui/dashboard-area.schema.json
     VoiceDomainTaskReplyRequest:
       $ref: ../schemas/tasks/voice-domain-task-reply-request.schema.json
     VoiceReadRequest:

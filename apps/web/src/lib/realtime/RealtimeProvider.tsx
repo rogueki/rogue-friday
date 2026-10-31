@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { pushAudioLevel, resetAudioLevels } from "@/features/orb/audioStore";
 import { createRealtimeOrbRouter } from "@/features/orb/bridge/realtimeOrb";
+import { emitNavigationRequest } from "@/features/tour/navigationRequests";
 import { fetchActivitySince } from "../api/domains/activity";
 import { useMeta } from "../api/domains/core";
 import { SNAPSHOT_ROOT_KEYS } from "../api/queryKeys";
@@ -43,7 +44,8 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
       callbacks: {
         onEvent: (event) => {
           try {
-            if (event.type === "friday.voice.audio_level") pushAudioLevel(event.data.direction, event.data.level);
+            if (event.type === "friday.ui.navigation_requested") emitNavigationRequest(event.data);
+            else if (event.type === "friday.voice.audio_level") pushAudioLevel(event.data.direction, event.data.level);
             else applyEvent(queryClient, event);
           } finally {
             orbRouter.route(event);

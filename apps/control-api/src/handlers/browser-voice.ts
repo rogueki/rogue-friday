@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION } from "@friday/sdk";
+import { CONTRACT_VERSION, type VoiceTourStepRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { addEnrollmentSample, enrollmentStatus, startEnrollmentTraining } from "../services/linux-voice-enrollment";
@@ -6,7 +6,7 @@ import { ApiError } from "../util/errors";
 import { startWakeEnrollment, wakeEnrollmentRequest } from "../services/wake-enrollment";
 import { startSttModelDownload, sttModelsRequest } from "../services/stt-models";
 import { adoptBrainConversationKey, checkConversationKey, setConversationKey } from "../services/voice-conversation-key";
-import { playVoiceSample as speakVoiceSample } from "../services/voice-persona";
+import { playVoiceSample as speakVoiceSample, speakTourStep } from "../services/voice-persona";
 
 export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   async listVoiceSttModels(ctx) {
@@ -34,6 +34,11 @@ export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
   async playVoiceSample(ctx) {
     await speakVoiceSample(ctx.runtime);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true } };
+  },
+  async speakVoiceTourStep(ctx) {
+    await speakTourStep(ctx.runtime, (ctx.body as VoiceTourStepRequest).area);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true, status: "completed",
+      correlationId: ctx.correlationId, message: "Erklärung läuft." } };
   },
   async getWakeEnrollment(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };

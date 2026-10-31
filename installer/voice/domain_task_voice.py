@@ -179,6 +179,9 @@ class DomainTaskVoice:
     def clear_quiet(self) -> dict:
         return self._request("DELETE", "/api/v1/quiet-mode")
 
+    def navigate(self, area: str, tour: bool) -> dict:
+        return self._request("POST", "/api/v1/voice/navigation", {"area": area, "tour": bool(tour)}, timeout=6)
+
     def pending(self) -> list[dict]:
         with self.lock:
             return [dict(entry) for entry in self.jobs.values()]

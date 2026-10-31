@@ -1,7 +1,7 @@
 // GENERATED — do not edit. Source of truth: packages/contracts (run `pnpm contracts:generate`).
 
 /* eslint-disable */
-import type { EventEnvelope, ActivityEvent, AdapterHealth, Agent, AgentHeartbeat, Approval, AuditEvent, Automation, AutomationRun, CalendarConflict, CalendarEvent, Capabilities, Draft, FileItem, FridayStatus, Memory, Notification, OrbSnapshot, ResearchFinding, ResearchProject, ResearchSource, ResourceDeleted, ResyncRequired, Service, SystemMetrics, Task, TaskProgressEvent, Thread, VoiceAudioLevel, VoiceStatus, VoiceTranscript, VoiceTtsEnded, VoiceTtsStarted } from "./models";
+import type { EventEnvelope, ActivityEvent, AdapterHealth, Agent, AgentHeartbeat, Approval, AuditEvent, Automation, AutomationRun, CalendarConflict, CalendarEvent, Capabilities, DashboardNavigation, Draft, FileItem, FridayStatus, Memory, Notification, OrbSnapshot, ResearchFinding, ResearchProject, ResearchSource, ResourceDeleted, ResyncRequired, Service, SystemMetrics, Task, TaskProgressEvent, Thread, VoiceAudioLevel, VoiceStatus, VoiceTranscript, VoiceTtsEnded, VoiceTtsStarted } from "./models";
 
 export const FRIDAY_EVENT_TYPES = [
   "friday.activity.appended",
@@ -42,6 +42,7 @@ export const FRIDAY_EVENT_TYPES = [
   "friday.task.failed",
   "friday.task.progress",
   "friday.task.updated",
+  "friday.ui.navigation_requested",
   "friday.voice.audio_level",
   "friday.voice.state_changed",
   "friday.voice.transcript_final",
@@ -92,6 +93,7 @@ export interface FridayEventMap {
   "friday.task.failed": Task;
   "friday.task.progress": TaskProgressEvent;
   "friday.task.updated": Task;
+  "friday.ui.navigation_requested": DashboardNavigation;
   "friday.voice.audio_level": VoiceAudioLevel;
   "friday.voice.state_changed": VoiceStatus;
   "friday.voice.transcript_final": VoiceTranscript;
@@ -140,6 +142,7 @@ export const FRIDAY_EVENT_DATA_SCHEMA_IDS: Readonly<Record<FridayEventType, stri
   "friday.task.failed": "https://friday.local/schemas/tasks/task.schema.json",
   "friday.task.progress": "https://friday.local/schemas/events/task-progress.schema.json",
   "friday.task.updated": "https://friday.local/schemas/tasks/task.schema.json",
+  "friday.ui.navigation_requested": "https://friday.local/schemas/ui/dashboard-navigation.schema.json",
   "friday.voice.audio_level": "https://friday.local/schemas/events/voice-audio-level.schema.json",
   "friday.voice.state_changed": "https://friday.local/schemas/voice/voice-status.schema.json",
   "friday.voice.transcript_final": "https://friday.local/schemas/events/voice-transcript.schema.json",

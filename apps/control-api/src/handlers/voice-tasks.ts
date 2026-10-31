@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type Task, type VoiceDomainTask, type VoiceDomainTaskReplyRequest, type VoiceDomainTaskRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type DashboardNavigation, type Task, type VoiceDomainTask, type VoiceDomainTaskReplyRequest, type VoiceDomainTaskRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { routeAgentTask } from "../services/task-model-routing";
@@ -45,6 +45,15 @@ function domainOf(task: Task): VoiceDomainTask["domain"] | null {
 }
 
 export const voiceTaskHandlers: Partial<Record<OperationId, Handler>> = {
+  async requestDashboardNavigation(ctx) {
+    requireVoiceBridge(ctx);
+    const request = ctx.body as DashboardNavigation;
+    ctx.runtime.hub.publish("control-api://voice-navigation", { type: "friday.ui.navigation_requested", subject: `ui/${request.area}`, data: request });
+    ctx.audit.action = "ui.navigation_requested";
+    ctx.audit.after = { area: request.area, tour: request.tour };
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, accepted: true, status: "completed", correlationId: ctx.correlationId,
+      message: request.tour ? "Tour gestartet." : "Bereich geöffnet." } };
+  },
   async createVoiceDomainTask(ctx) {
     requireVoiceBridge(ctx);
     if (!ctx.mutation.idempotencyKey) throw validationFailed("Ein Idempotency-Key ist fuer den Sprachauftrag erforderlich.");

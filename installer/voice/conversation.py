@@ -22,7 +22,7 @@ from knowledge import KnowledgeBase
 
 DOMAINS = ("research", "tasks", "alerts", "audit")
 # Tools that change something; after external data entered the current turn they need a new owner utterance (LG-2.06).
-EFFECT_TOOLS = frozenset({"task_create", "task_cancel", "task_antwort", "ruhemodus"})
+EFFECT_TOOLS = frozenset({"task_create", "task_cancel", "task_antwort", "ruhemodus", "dashboard_oeffnen"})
 # Tools whose result carries text from agents or lookups, i.e. data that must never act as an instruction.
 DATA_TOOLS = frozenset({"task_status", "friday_lesen"})
 INJECTION_REFUSAL = "Aus einem Ergebnis heraus starte oder ändere ich nichts. Sag mir bitte selbst, was ich tun soll."
@@ -155,6 +155,16 @@ def parse_local_command(text: str) -> tuple[str, dict] | None:
         return "friday_diagnose", {"thema": "alles"}
     if any(pattern.search(norm) for pattern in LOCAL_QUIET_QUERY):
         return "ruhemodus", {"aktion": "abfragen"}
+    # Dictation ends with a full stop and often carries a "bitte"; both must not block the strict full match.
+    nav = re.sub(r"\bbitte\b", " ", re.sub(r"[.!?,;:]+", " ", norm))
+    nav = " ".join(nav.split())
+    if DASHBOARD_TOUR.fullmatch(nav):
+        return "dashboard_oeffnen", {"bereich": "overview", "tour": True}
+    page = DASHBOARD_PAGE.fullmatch(nav)
+    if page is not None:
+        area = DASHBOARD_WORDS.get(page.group("word").strip())
+        if area is not None:
+            return "dashboard_oeffnen", {"bereich": area, "tour": False}
     # "Wie schalte ich den Ruhemodus ein?" asks how it works; it must not switch anything.
     # "Wie prüfe ich das Mikrofon?" asks how it works; the help answers that, the diagnosis only works on orders.
     if LOCAL_HELP_START.match(norm) and (LOCAL_HELP_WORDS.search(norm) or LOCAL_CHECK_WORD.search(norm)):
@@ -232,6 +242,14 @@ def local_reply(name: str, result: dict) -> str | None:
         if sections:
             return _local_excerpt(sections[0])
         return None
+    if name == "dashboard_oeffnen":
+        status = str(result.get("status") or "").strip().lower()
+        if status == "tour":
+            return ("Ich starte die Tour durch das Dashboard. Mit Weiter geht es zum nächsten Bereich, und du kannst "
+                    "jederzeit fragen.")
+        if status == "geöffnet":
+            return f"Ich öffne {result['bereich']} im Dashboard."
+        return None
     return None
 
 
@@ -264,6 +282,35 @@ def quiet_until(now: datetime.datetime, minutes=None, until=None, period=None) -
 
 DIAGNOSE_TOPICS = ("alles", "mikrofon", "wake_word", "sprecher", "qwen", "dashboard", "ruhemodus", "system",
                    "gedaechtnis")
+
+DASHBOARD_AREAS = {
+    "overview": ("die Übersicht", ("übersicht", "startseite")),
+    "tasks": ("die Aufgaben", ("aufgaben",)),
+    "activity": ("die Live-Aktivität", ("live-aktivität", "live aktivität", "aktivität")),
+    "memory": ("das Gedächtnis", ("gedächtnis",)),
+    "agents": ("die Agenten", ("agenten",)),
+    "skills": ("die Skills", ("skills", "fähigkeiten")),
+    "approvals": ("die Freigaben", ("freigaben",)),
+    "communication": ("Mail und Kommunikation", ("mail", "mails", "e-mail", "e-mails", "kommunikation", "nachrichten", "postfach")),
+    "calendar": ("den Kalender", ("kalender",)),
+    "automations": ("die Automationen", ("automationen",)),
+    "research": ("die Recherche", ("recherche",)),
+    "content-studio": ("das Content Studio", ("content studio", "content-studio")),
+    "files": ("die Dateien", ("dateien", "dokumente")),
+    "voice": ("die Sprachseite", ("sprache", "sprachseite")),
+    "alerts": ("die Meldungen", ("meldungen", "alarme")),
+    "system": ("das System", ("system",)),
+    "audit": ("das Audit", ("audit", "verlauf")),
+    "settings": ("die Einstellungen", ("einstellungen",)),
+}
+DASHBOARD_WORDS = {_local_normalize(word): area for area, (_, words) in DASHBOARD_AREAS.items() for word in words}
+DASHBOARD_TOUR = re.compile(
+    r"(?:zeig(?:e)? mir (?:das )?dashboard|starte? (?:die )?(?:dashboard[- ]?)?tour|"
+    r"fuehr(?:e)? mich durch(?: das)? dashboard)")
+DASHBOARD_PAGE = re.compile(
+    r"(?:oeffne|zeig(?:e)? mir|geh(?:e)? (?:zu|in)|wechsle (?:zu|in))\s+"
+    r"(?:den |die |das |dem |der |zum |zur )?(?:bereich |seite )?"
+    r"(?P<word>.+?)(?:\s+im dashboard|\s+seite|\s+bereich)?")
 
 
 def _tool(name, description, properties, required=()):
@@ -322,6 +369,13 @@ TOOLS = [
           "nicht, keine Ansagen, funktioniert alles?",
           {"thema": {"type": "string", "enum": list(DIAGNOSE_TOPICS),
                      "description": "Worum es geht; ohne Angabe alles."}}),
+    _tool("dashboard_oeffnen",
+          "Öffnet einen Bereich im Dashboard oder startet die geführte Tour durch das Dashboard. Nur Navigation, "
+          "ändert nichts. Für: öffne den Kalender, zeig mir die Einstellungen, zeig mir das Dashboard, starte die Tour.",
+          {"bereich": {"type": "string", "enum": list(DASHBOARD_AREAS),
+                       "description": "Bereich, z. B. calendar für den Kalender, settings für die Einstellungen; für die Tour ohne Wunsch overview."},
+           "tour": {"type": "boolean", "description": "true startet die Tour"}},
+          required=("bereich",)),
     _tool("zeit_datum", "Aktuelle Uhrzeit und aktuelles Datum.", {}),
 ]
 
@@ -412,6 +466,7 @@ class ConversationOrchestrator:
             "friday_lesen statt mit task_create.",
             "Fragen zur Bedienung, zu Einstellungen, zu Fehlern oder zum Datenschutz beantwortest du mit friday_hilfe, "
             "nur mit dem Inhalt der gelieferten Abschnitte, kurz und mit dem Klickpfad. Steht dort nichts, sagst du das ehrlich.",
+            "Bittet der Nutzer, einen Bereich des Dashboards zu öffnen oder das Dashboard gezeigt zu bekommen, nutze dashboard_oeffnen.",
             "Meldet der Nutzer ein Problem mit dir (hört nicht, antwortet nicht, keine Ansagen), rufst du zuerst "
             "friday_diagnose auf und nennst die Befunde; danach hilft friday_hilfe mit den Prüfschritten.",
             "Ruhe- oder Bitte-nicht-stören-Wünsche setzt du mit ruhemodus; die Uhrzeit rechnest du nicht selbst aus, "
@@ -478,7 +533,7 @@ class ConversationOrchestrator:
         handler = {"task_create": self._task_create, "task_status": self._task_status,
                    "task_cancel": self._task_cancel, "task_antwort": self._task_reply,
                    "ruhemodus": self._quiet_mode, "friday_hilfe": self._help,
-                   "friday_diagnose": self._diagnose,
+                   "friday_diagnose": self._diagnose, "dashboard_oeffnen": self._open_dashboard,
                    "friday_lesen": self._read, "zeit_datum": self._time}.get(name)
         if handler is None:
             return {"error": "Unbekanntes Werkzeug."}
@@ -835,6 +890,16 @@ class ConversationOrchestrator:
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
             return None
         return f"{hour:02d}:{minute:02d}"
+
+    def _open_dashboard(self, args: dict) -> dict:
+        area = str(args.get("bereich") or "overview").strip().lower()
+        if area not in DASHBOARD_AREAS:
+            return {"error": "Diesen Bereich gibt es im Dashboard nicht."}
+        if not hasattr(self._tasks, "navigate"):
+            return {"error": "Das Dashboard ist gerade nicht erreichbar."}
+        tour = bool(args.get("tour"))
+        self._tasks.navigate(area, tour)
+        return {"status": "tour" if tour else "geöffnet", "bereich": DASHBOARD_AREAS[area][0]}
 
     def _time(self, args: dict) -> dict:
         moment = self._clock()
