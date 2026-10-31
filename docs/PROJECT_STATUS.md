@@ -1584,6 +1584,35 @@ entfernt) rot; pyflakes ohne Befund.
   Download fehl; CI installiert `soundfile` (Version der Sprachumgebung). Dabei gefunden: `test_configure_voice` lud
   `elevenlabs_cloud` gegen einen numpy-Stub neu und ließ das Modul so zurück, nachfolgende ElevenLabs-Tests scheiterten; lädt jetzt
   echtes numpy nach. WSL, komplette CI-Liste: 800 bestanden, 16 übersprungen.
+- **Gesprächseinstellungen im Dashboard (LG-5.04):** Einstellungen → Sprache → Gespräch hat jetzt „Stille bis Gesprächsende“
+  (5–120 s, Standard 20; `voice.conversationSilenceSeconds` ⇒ `followup_window_s`) und „Ergebnisse von sich aus ansagen“
+  (`voice.proactiveAnnouncements` ⇒ `proactive_announcements`, fehlend = an). Beide sind Laufzeitfelder (13 statt 11, Vorprüfung im
+  Sprachdienst, CAS/Rücklesen wie die übrigen). Aus: Ein Ergebnis außerhalb eines Gesprächs wird zurückgehalten (höchstens 10) und
+  direkt nach der nächsten Anfrage als „Seit unserem letzten Gespräch: …“ gesagt; wieder an gibt die Rückstände innerhalb von 30 s
+  frei, außer der Ruhemodus ist aktiv (Ruhemodus hat Vorrang). Ankündigungsweg dafür in `_deliver_announcement` gebündelt.
+  Ruhezeiten bleiben unter Benachrichtigungen (Text verweist darauf); Vollduplex (D-09, Option für Headsets) ist nicht
+  enthalten. Vertrag: zwei optionale Felder ohne Default, SDK neu; Einstellungsmatrix 119. Tests: Python (Laufzeitfelder,
+  Zurückhalten/Freigabe/Gespräch offen/Ruhemodus), Control API und Adapter mit vollständigem Feldsatz, Dashboard (Regler und
+  Schalter speichern); Gegenproben (Zurückhalten aus, Ruhemodus-Vorrang aus, Mapping aus) je rot.
+- **Gesprächsmodus und Sprachaufträge sichtbar (LG-5.05):** Die Sprachseite hat eine Statuszeile „Gespräch“ (Lokal / Qwen Audio,
+  Cloud in Ordnung oder Grund der Störung mit „antwortet bis dahin lokal“, Hinweis wenn Qwen eingerichtet, aber nicht gewählt
+  ist) und einen Bereich „Aufträge aus Gesprächen“: Aufgaben mit Label `tenant:voice-<domain>` (höchstens 6, neueste zuerst)
+  mit Status, Hinweis bei „Wartet“, Klick öffnet die Aufgabe. Die Seitenleiste zeigt den Gesprächsmodus als fünfte Statusmarke.
+  Ältere Sprachdienste ohne `conversation` zeigen weder Zeile noch Marke. Wissensbasis (Seite Sprache) erklärt beides.
+  Tests: Statuszeile (in Ordnung/gestört/fehlt), Aufgabenfilter und Navigation, leere Liste, Seitenleiste; Gegenproben
+  (Filter aus, Zeile aus) je rot.
+- **Installer fragt nach demselben Alibaba-Schlüssel (LG-6.02, U-02):** Mit Qwen Audio als Gespräch und Alibaba Cloud Qwen
+  (Token Plan) als Denkmodell zeigt die Seite KI-Zugang den Haken „Diesen Schlüssel auch für Qwen Audio (Live-Gespräch)
+  verwenden“ (vorbelegt; nur sichtbar, wenn auf der Sprachseite kein eigener Qwen-Schlüssel steht). Bisher wurde der
+  Brain-Schlüssel stillschweigend übernommen. Die Sprachseite hat „Schlüssel prüfen“ gegen
+  `token-plan.<region>.maas.aliyuncs.com/compatible-mode/v1/models` (401/403 ⇒ „lehnt ab, Region prüfen“). Die Konsole fragt im
+  Hermes-Schritt bei Token-Plan-Basis-URL und Qwen-Gespräch „Gleichen Alibaba-Schlüssel auch für Qwen Audio verwenden?“ und legt
+  die DPAPI-Datei samt Region aus der Basis-URL an (GUI-Modus überspringt das, die Oberfläche liefert den Schlüssel selbst).
+  Nebenbei behoben: Die Beschriftungen „Region“ und „Server-Adresse“ fehlten auf der KI-Zugangsseite, weil sie aus `.Visible`
+  einer noch verborgenen Seite abgeleitet wurden; die Anordnung läuft jetzt beim Anzeigen der Seite (`Update-ProviderLayout`).
+  Der Simulationslauf zeichnet zusätzlich den Qwen-Block der Sprachseite und die KI-Zugangsseite mit der Frage und belegt, dass
+  sie bei lokalem Gespräch verschwindet (Gegenprobe rot). Installer-Tests: 48 Dateien; `gui-installer` war im Sammellauf
+  einmal rot (Tastaturrunde Sprachseite) und danach viermal einzeln grün.
 - **Noch nicht enthalten:** Cloud-Stimme ohne lokale TTS (D-08 zweiter Weg, LG-6.04), Umschalt-Auftrag (LG-4.03),
   Einführung im Dashboard (LG-5.07), Push statt Polling (LG-2.03).
 

@@ -393,3 +393,20 @@ describe("voice devices", () => {
     expect(selected?.textContent).toBe("Gewähltes Gerät nicht verbunden");
   });
 });
+
+describe("conversation settings", () => {
+  it("shows silence and proactive announcements and saves both", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=voice" });
+    const silence = await screen.findByRole("slider", { name: "Stille bis Gesprächsende" });
+    expect(silence).toHaveValue("20");
+    const proactive = screen.getByRole("switch", { name: "Ergebnisse von sich aus ansagen" });
+    expect(proactive).toBeChecked();
+
+    fireEvent.change(silence, { target: { value: "45" } });
+    await user.click(proactive);
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ voice: { conversationSilenceSeconds: 45, proactiveAnnouncements: false } });
+  });
+});

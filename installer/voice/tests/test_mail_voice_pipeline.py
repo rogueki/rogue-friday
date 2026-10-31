@@ -79,7 +79,7 @@ def test_session_end_clears_only_mail_approval():
         background_jobs=set(), background_reply_ready=types.SimpleNamespace(is_set=lambda: False),
         tts=types.SimpleNamespace(speaking=types.SimpleNamespace(is_set=lambda: False)),
         _drain=lambda: None, _beep=lambda *args: None, _record_command=lambda timeout: next(recording),
-        _handle_command=lambda audio, wake: None, mail_voice=mail, calendar_voice=empty,
+        _handle_command=lambda audio, wake: None, _speak_held_announcements=lambda: None, mail_voice=mail, calendar_voice=empty,
         powerpoint_voice=types.SimpleNamespace(pending=None), cloudtalk_voice=types.SimpleNamespace(pending=None))
     session(voice, manual=True)
     assert mail.selected == {"mailbox": "Inbox", "id": "506"}

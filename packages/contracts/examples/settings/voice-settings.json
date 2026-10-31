@@ -10,6 +10,8 @@
   "sttModel": "small",
   "conversationBackend": "local",
   "conversationConsent": false,
+  "conversationSilenceSeconds": 20,
+  "proactiveAnnouncements": true,
   "ttsVoice": "de_DE-thorsten",
   "ttsRate": 1,
   "inputDeviceId": null,

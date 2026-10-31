@@ -26,3 +26,6 @@
 .vp-device__name { min-width: 0; overflow-wrap: anywhere; }
 .vp-enroll { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); }
 .vp-progress { width: 100%; height: 8px; accent-color: var(--friday-tone-cyan); }
+.vp-task__title { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.vp-task__title:hover, .vp-task__title:focus-visible { text-decoration: underline; }
+.vp-task__hint { display: block; font-size: .8rem; opacity: .75; }

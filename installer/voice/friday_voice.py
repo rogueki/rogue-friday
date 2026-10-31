@@ -663,6 +663,8 @@ class SpeakerVerifier:
 
 
 class VoiceService:
+    _held_lock = threading.Lock()
+
     def __init__(self, cfg: dict, test_wake_model: str | None, config_path: str | None = None):
         self.cfg = cfg
         self.config_path = config_path or os.path.join(INSTALL_ROOT, "config", "voice.json")
@@ -1992,8 +1994,53 @@ class VoiceService:
             time.sleep(0.05)
 
     def _has_held_announcements(self) -> bool:
+        if getattr(self, "held_proactive", None) and self._proactive_allowed():
+            return True
         owner = getattr(self, "conversation", None) or getattr(self, "announcer", None)
         return owner is not None and owner.has_held()
+
+    def _proactive_allowed(self) -> bool:
+        """Owner switched proactive announcements off: speak results only while a conversation is open."""
+        if self.cfg.get("proactive_announcements", True) is not False:
+            return True
+        return (time.monotonic() < getattr(self, "trusted_until", 0.0)
+                or self.status.get("state") in ("command", "followup", "speaking"))
+
+    def _hold_announcement(self, text: str) -> None:
+        with self._held_lock:
+            held = [*getattr(self, "held_proactive", []), text][-10:]
+            self.held_proactive = held
+        log_event(event="announcement_held", reason="proactive_off", count=len(held))
+
+    def _speak_held_announcements(self) -> None:
+        with self._held_lock:
+            held = getattr(self, "held_proactive", [])
+            self.held_proactive = []
+        if held:
+            self._speak_announcement("Seit unserem letzten Gespräch: " + " ".join(held))
+
+    def _deliver_announcement(self, jobs: list[dict]) -> None:
+        if jobs:
+            text = self._announcement_text(jobs)
+            self._forget_announced(jobs)
+        elif getattr(self, "held_proactive", None):
+            text = None
+        else:
+            text = (self.conversation or self.announcer).take_announcement()
+        if text and not self._proactive_allowed():
+            self._hold_announcement(text)
+            return
+        # Quiet mode outranks the switch: turning announcements back on must not break a quiet period.
+        if self._proactive_allowed() and not self._quiet_active():
+            self._speak_held_announcements()
+        if text:
+            self._speak_announcement(text)
+
+    def _quiet_active(self) -> bool:
+        try:
+            return self._quiet_gate().active()
+        except Exception:
+            return False
 
     def _announce_domain_results(self) -> None:
         while True:
@@ -2005,13 +2052,7 @@ class VoiceService:
                 if not jobs and not self._has_held_announcements():
                     continue
                 self._wait_for_pause()  # never cut off a running announcement or the user's sentence
-                if jobs:
-                    text = self._announcement_text(jobs)
-                    self._forget_announced(jobs)
-                else:
-                    text = (self.conversation or self.announcer).take_announcement()
-                if text:
-                    self._speak_announcement(text)
+                self._deliver_announcement(jobs)
             except Exception as exc:
                 log_event(event="domain_announce_error", error=type(exc).__name__)
 
@@ -2232,6 +2273,8 @@ class VoiceService:
         elif generation == self.control_generation:
             self._handle_command(audio, wake_audio)
         self.processing = None
+        if generation == self.control_generation and not getattr(self, "conversation_ended", False):
+            self._speak_held_announcements()  # results held while proactive announcements are off
         while (self.tts.speaking.is_set() or time.monotonic() < self.trusted_until or
                self.background_jobs or self.background_reply_ready.is_set()) and not self.control_cancel.is_set() and generation == self.control_generation and not getattr(self, "conversation_ended", False):
             self.status["state"] = "speaking"

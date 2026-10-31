@@ -34,6 +34,16 @@
       "type": "boolean",
       "description": "The owner agreed that speech and conversation content go to Alibaba Cloud (Qwen Audio, Token Plan); missing or false keeps the conversation local."
     },
+    "conversationSilenceSeconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 120,
+      "description": "Silence after an answer until the conversation ends and the wake word is needed again; missing means 20."
+    },
+    "proactiveAnnouncements": {
+      "type": "boolean",
+      "description": "Friday speaks background results on her own; false holds them until the owner's next request. Missing means true."
+    },
     "ttsVoice": {
       "type": "string"
     },

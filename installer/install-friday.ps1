@@ -1887,6 +1887,19 @@ if (-not (IsDone 'hermes')) {
         [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
         [IO.File]::WriteAllText($apiKeyFile, (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
     }
+    # One Token Plan key serves the brain and Qwen Audio (U-02); the voice step only asks when no key file exists yet.
+    $qwenKeyFile = "$Root\config\alibaba_tokenplan.key.dpapi"
+    if (-not $GuiMode -and $State.conversation_backend -eq 'qwen' -and
+        $baseUrl -match '^https://token-plan\.(ap-southeast-1|cn-beijing)\.maas\.aliyuncs\.com/' -and
+        -not (Test-Path -LiteralPath $qwenKeyFile -PathType Leaf)) {
+        $brainRegion = $Matches[1]
+        if (YesNo 'Gleichen Alibaba-Schlüssel auch für Qwen Audio (Live-Gespräch) verwenden?' $true) {
+            ConvertTo-SecureString -String $key -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -LiteralPath $qwenKeyFile -Encoding Ascii
+            $State.qwen_region = $brainRegion
+            Save-State
+            Ok 'Qwen Audio nutzt den Schlüssel des Denkmodells (verschlüsselt für diesen Windows-Benutzer gespeichert).'
+        }
+    }
     # Anbieter, Modell und Basis-URL gehen ueber eine eigene Datei im Austauschordner (keine Secrets),
     # der Key weiterhin ueber stdin - so taucht er in keiner Prozessliste auf. Datei danach loeschen.
     $modelSetupFile = "$Root\exchange\model-setup.env"
