@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/voice-read-answer.schema.json",
+  "title": "VoiceReadAnswer",
+  "description": "Speakable answer to a voice read question. status answered: the read ran; clarify: the question needs a narrower subject; unsupported: this kind of read is not available by voice.",
+  "type": "object",
+  "properties": {
+    "kind": { "type": ["string", "null"], "maxLength": 64 },
+    "status": { "enum": ["answered", "clarify", "unsupported"] },
+    "answer": { "type": "string", "maxLength": 4000 }
+  },
+  "required": ["kind", "status", "answer"],
+  "additionalProperties": false
+}

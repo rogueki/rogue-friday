@@ -223,7 +223,7 @@ describe("REST route coverage", () => {
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
       "probeHermesMcp", "manageHermesMcpOAuth", "manageHermesProviderOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
-      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload", "setVoiceConversationKey",
+      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload", "setVoiceConversationKey", "readVoiceQuery",
       "testHermesApproval",
   "testMailConnection",
     ].sort();

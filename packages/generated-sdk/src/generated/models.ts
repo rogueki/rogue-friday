@@ -1272,6 +1272,9 @@ export interface FridayModelMap {
   VoiceMetricsResponse: VoiceMetricsResponse;
   VoiceProfile: VoiceProfile;
   VoiceProfileListResponse: VoiceProfileListResponse;
+  VoiceReadAnswer: VoiceReadAnswer;
+  VoiceReadRequest: VoiceReadRequest;
+  VoiceReadResponse: VoiceReadResponse;
   VoiceSettings: VoiceSettings;
   VoiceStatus: VoiceStatus;
   VoiceStatusResponse: VoiceStatusResponse;
@@ -6888,6 +6891,28 @@ export interface VoiceProfileListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+/**
+ * Speakable answer to a voice read question. status answered: the read ran; clarify: the question needs a narrower subject; unsupported: this kind of read is not available by voice.
+ */
+export interface VoiceReadAnswer {
+  kind: string | null;
+  status: "answered" | "clarify" | "unsupported";
+  answer: string;
+}
+/**
+ * A spoken read question of the verified owner, e.g. weather, a setting value or open tasks. Only read intents from the voice allowlist are answered; nothing is changed and no agent is started.
+ */
+export interface VoiceReadRequest {
+  text: string;
+}
+/**
+ * Single-resource envelope for VoiceReadAnswer.
+ */
+export interface VoiceReadResponse {
+  contractVersion: ContractVersion;
+  data: VoiceReadAnswer;
+  freshness: Freshness;
 }
 /**
  * Single-resource envelope for VoiceStatus.

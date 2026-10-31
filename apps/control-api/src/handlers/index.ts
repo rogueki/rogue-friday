@@ -31,6 +31,7 @@ import { dashboardUpdateHandlers } from "./dashboard-update";
 import { messengerInboundHandlers } from "./messenger-inbound";
 import { taskActionHandlers } from "./task-actions";
 import { voiceTaskHandlers } from "./voice-tasks";
+import { voiceReadHandlers } from "./voice-read";
 import { agentActionHandlers } from "./agent-actions";
 import { knowledgeActionHandlers } from "./knowledge-actions";
 import { automationActionHandlers } from "./automation-actions";
@@ -66,6 +67,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     messengerInboundHandlers,
     taskActionHandlers,
     voiceTaskHandlers,
+    voiceReadHandlers,
     localReads,
     localResearchReads,
     devHandlers,

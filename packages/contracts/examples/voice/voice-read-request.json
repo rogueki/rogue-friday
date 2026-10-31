@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-read-request.schema.json",
+  "text": "Wie ist das Wetter?"
+}

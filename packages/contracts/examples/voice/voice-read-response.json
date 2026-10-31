@@ -1,0 +1,10 @@
+{
+  "$schema": "https://friday.local/schemas/voice/voice-read-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "kind": "weather.current",
+    "status": "answered",
+    "answer": "Berlin: 14 °C, leicht bewölkt (Stand 14:05)."
+  },
+  "freshness": { "state": "fresh", "asOf": "2026-10-31T13:05:00.000Z" }
+}

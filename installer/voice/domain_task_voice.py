@@ -135,6 +135,10 @@ class DomainTaskVoice:
                 entry["status"] = job.get("status")
         return job
 
+    def read(self, text) -> dict:
+        """Direct read answer from the dashboard (weather, settings, tasks ...); no agent is started."""
+        return self._request("POST", "/api/v1/voice/read", {"text": str(text)[:500]})
+
     def pending(self) -> list[dict]:
         with self.lock:
             return [dict(entry) for entry in self.jobs.values()]
