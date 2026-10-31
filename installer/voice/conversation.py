@@ -21,6 +21,11 @@ from knowledge import KnowledgeBase
 
 
 DOMAINS = ("research", "tasks", "alerts", "audit")
+# Tools that change something; after external data entered the current turn they need a new owner utterance (LG-2.06).
+EFFECT_TOOLS = frozenset({"task_create", "task_cancel", "task_antwort", "ruhemodus"})
+# Tools whose result carries text from agents or lookups, i.e. data that must never act as an instruction.
+DATA_TOOLS = frozenset({"task_status", "friday_lesen"})
+INJECTION_REFUSAL = "Aus einem Ergebnis heraus starte oder ändere ich nichts. Sag mir bitte selbst, was ich tun soll."
 MAX_ACTIVE_TASKS = 5
 RESULT_LIMIT = 1500  # characters of an agent result read into the conversation; the full text stays in the dashboard
 RECENT_LIMIT = 10
@@ -390,6 +395,7 @@ class ConversationOrchestrator:
         self._noticed = set()
         self._last_activity = None
         self._busy = False
+        self._data_in_turn = False
 
     def tool_specs(self) -> list[dict]:
         return [dict(spec) for spec in TOOLS]
@@ -448,11 +454,16 @@ class ConversationOrchestrator:
             return "task_status", {}
         return None
 
+    def begin_user_turn(self) -> None:
+        """The owner spoke; actions are allowed again."""
+        self._data_in_turn = False
+
     def local_command(self, text: str) -> str | None:
         """Deterministic answers for the local backend, which has a router instead of tool calls."""
         parsed = parse_local_command(text)
         if parsed is None:
             return None
+        self.begin_user_turn()
         name, arguments = parsed
         try:
             result = self._help(arguments) if name == "friday_hilfe" else self.call_tool(name, arguments)
@@ -471,11 +482,16 @@ class ConversationOrchestrator:
                    "friday_lesen": self._read, "zeit_datum": self._time}.get(name)
         if handler is None:
             return {"error": "Unbekanntes Werkzeug."}
+        if name in EFFECT_TOOLS and self._data_in_turn:
+            return {"error": INJECTION_REFUSAL}
         try:
-            return handler(arguments)
+            result = handler(arguments)
         except Exception:
             # The model must get an answer it can speak, not a crash.
             return {"error": "Der Agentendienst ist gerade nicht erreichbar."}
+        if name in DATA_TOOLS:
+            self._data_in_turn = True
+        return result
 
     def touch(self) -> None:
         self._last_activity = self._now()
