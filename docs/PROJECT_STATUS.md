@@ -1842,7 +1842,10 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Fix: `Wsl-Run` schließt Eingaben immer mit Zeilenumbruch ab; `setup_root.sh` toleriert eine letzte Zeile ohne Umbruch.
   Abbrüche in Schritt 8, bei Hermes und den Sprachmodellen nennen die letzten Ubuntu-Meldungen (`Get-WslFailureTail`),
   weil die Oberfläche nur die Abbruchmeldung zeigt. `setup_root.sh` meldet fehlende Namensauflösung mit Hilfe-Hinweis.
-- Test: `installer/tests/wsl-stdin.Tests.ps1` führt den echten Skriptkopf per Git-Bash über `Invoke-CapturedProcess`
+- Zweiter Fehler derselben Umstellung: `Invoke-CapturedProcess` schrieb die Eingabe in der Konsolen-Codepage (ibm850);
+  ein Linux-Passwort mit Umlauten kam als andere Bytes an (`päss€` → `70 84 73 73 3f`), `sudo` hätte später nicht
+  funktioniert. Jetzt UTF-8 ohne BOM (`70 c3 a4 73 73 e2 82 ac`, am echten WSL geprüft).
+- Test: `installer/tests/wsl-stdin.Tests.ps1` prüft zusätzlich die UTF-8-Bytes und führt den echten Skriptkopf per Git-Bash über `Invoke-CapturedProcess`
   aus (rot mit altem Stand: Exit 1). Übrige Stdin-Skripte geprüft: `setup_hermes.sh` (`|| true`), Bridges (Python liest
   den ganzen Strom). Komplette Installer-Suite lokal grün.
 

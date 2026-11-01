@@ -24,6 +24,17 @@ try {
     }
 } finally { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
 
+# --- 1b. Stdin goes out as UTF-8, not the console code page: "päss€" must reach bash as UTF-8 bytes.
+$encProbe = Join-Path ([IO.Path]::GetTempPath()) ("friday-stdin-enc-" + [guid]::NewGuid().ToString('N') + '.sh')
+try {
+    [IO.File]::WriteAllText($encProbe, "IFS= read -r PW || true`nprintf '%s' `"`$PW`" | od -An -tx1`n", (New-Object Text.UTF8Encoding($false)))
+    $encUnix = '/' + $encProbe.Substring(0, 1).ToLower() + $encProbe.Substring(2).Replace('\', '/')
+    $secret = 'p' + [char]0xE4 + 'ss' + [char]0x20AC + "`n"
+    $run = Invoke-CapturedProcess -FilePath $bash -Arguments @('--noprofile', '--norc', $encUnix) -TimeoutSeconds 60 -StdIn $secret
+    $hex = (("$($run.StdOut)" -split '\s+') | Where-Object { $_ }) -join ' '
+    Assert-True ($hex -eq '70 c3 a4 73 73 e2 82 ac') "Eingabe kommt nicht als UTF-8 an: $hex"
+} finally { Remove-Item -LiteralPath $encProbe -Force -ErrorAction SilentlyContinue }
+
 # --- 2. Wsl-Run always ends stdin with a newline (helper scripts besides setup_root.sh rely on line input too).
 $installer = [IO.File]::ReadAllText((Join-Path $installerDir 'install-friday.ps1'))
 Assert-True ($installer -match 'if \(\$StdIn -and -not \$StdIn\.EndsWith\("`n"\)\) \{ \$StdIn \+= "`n" \}') 'Wsl-Run schliesst die Eingabe nicht mit einem Zeilenumbruch ab.'

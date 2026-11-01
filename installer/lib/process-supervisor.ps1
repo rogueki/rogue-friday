@@ -156,7 +156,12 @@ function Invoke-CapturedProcess {
     $stderrTask = $process.StandardError.ReadToEndAsync()
     if ($startInfo.RedirectStandardInput) {
         try {
-            if ($StdIn) { $process.StandardInput.Write($StdIn) }
+            # UTF-8 bytes, not the console code page (ibm850): a password with umlauts otherwise reached Linux as other bytes.
+            if ($StdIn) {
+                $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($StdIn)
+                $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+                $process.StandardInput.BaseStream.Flush()
+            }
             $process.StandardInput.Close()
         } catch { }
     }
