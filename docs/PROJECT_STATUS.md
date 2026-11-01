@@ -1788,3 +1788,21 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
 - Test: Der GUI-Selbstlauf (`gui-wizard-pages.Tests.ps1`) lädt jetzt einen echten fortgesetzten Zustand und einen
   eingerichteten Zustand und prüft die Bedienbarkeit jedes Felds (`voiceresume=fresh:True open:True locked:True`, auch ein leerer Ordner); rot mit der
   alten Sperrlogik. Dazu Quelltextprüfungen in `gui-controls.Tests.ps1`.
+
+## Testwelt nicht mehr in der Installation (2026-11-01)
+
+- Entscheidung ByteNinja: Die Testwelt (`packages/mock-data`, `adapters/mock`, `apps/storybook`) bleibt im Repo, weil die
+  12 Playwright-Läufe und die Control-API-Tests vor jedem Merge darauf laufen, kommt aber nicht mehr in eine Installation.
+  Das Dashboard lädt sie nie (Control API: nur devDependency und Typimporte; ohne Simulation läuft die Konfiguration
+  immer live, siehe PR #201).
+- Vorab geprüft in einer Kopie von main ohne diese Ordner: `pnpm install --frozen-lockfile` und `pnpm build:app`
+  laufen durch, der gebaute Server importiert keines der Pakete.
+- Windows-Installer (`lib/dashboard-sync.ps1`): Quellhash und Kopie lassen die Testwelt aus; vorhandene
+  Installationen werden aufgeräumt, inklusive des Rests `apps/mock-console`. Das Löschen folgt nie einer pnpm-Junction.
+- GitHub-Updater: Sparse-Checkout lädt die Testwelt nicht, die Änderungsliste filtert sie, und vor der Installation
+  wird sie aus dem Dashboard-Ordner entfernt (protokolliert, nicht fatal). Linux-Installer: rsync-Ausschlüsse.
+- Test: `installer/tests/dashboard-test-world.Tests.ps1` (mit echten Junctions); rot mit altem Installer und altem
+  Updater.
+- Hinweis: Ein Update läuft mit dem bereits installierten Updater. Bei bestehenden Installationen räumt deshalb erst das
+  übernächste Update auf, oder man räumt einmal manuell auf.
+
