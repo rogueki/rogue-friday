@@ -1831,3 +1831,23 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Test: `installer/tests/wsl-reboot-loop.Tests.ps1` (rot mit altem Installer); prüft auch alle anderen Skripte auf
   `$LASTEXITCODE` nach `Invoke-CapturedProcess`. Komplette Installer-Suite lokal grün.
 
+## Installer: Schritt 8 (Ubuntu-Grundeinrichtung) brach bei jeder Neuinstallation ab (2026-11-01)
+
+- Gemeldet bei der Neuinstallation eines Kollegen: Schritte 2–7 liefen, Schritt 8 endete mit „Ubuntu-Grundeinrichtung
+  fehlgeschlagen.“ ohne jede Ausgabe des Skripts.
+- Ursache: Seit `036ae4da` (wsl.exe mit Zeitlimit) übergibt `Wsl-Run` die Eingabe über `Invoke-CapturedProcess`, das sie
+  ohne abschließenden Zeilenumbruch schreibt. `setup_root.sh` (`set -e`) las das Passwort mit `read`, das am Dateiende
+  mit Fehler endet: Das Skript brach vor seiner ersten Ausgabe ab. Am echten WSL nachgestellt (ohne Umbruch Exit 1, mit
+  Umbruch Exit 0). Die CI hat kein WSL und sah den Fehler nicht.
+- Fix: `Wsl-Run` schließt Eingaben immer mit Zeilenumbruch ab; `setup_root.sh` toleriert eine letzte Zeile ohne Umbruch.
+  Abbrüche in Schritt 8, bei Hermes und den Sprachmodellen nennen die letzten Ubuntu-Meldungen (`Get-WslFailureTail`),
+  weil die Oberfläche nur die Abbruchmeldung zeigt. `setup_root.sh` meldet fehlende Namensauflösung mit Hilfe-Hinweis.
+- Zweiter Fehler derselben Umstellung: `Invoke-CapturedProcess` schrieb die Eingabe in der Konsolen-Codepage (ibm850);
+  ein Linux-Passwort mit Umlauten kam als andere Bytes an (`päss€` → `70 84 73 73 3f`), `sudo` hätte später nicht
+  funktioniert. Jetzt UTF-8 ohne BOM (`70 c3 a4 73 73 e2 82 ac`, am echten WSL geprüft). Bei UTF-8-Konsole (CI) schrieb
+  .NET zusätzlich eine BOM vor die Eingabe; beim Start wird die Konsolen-Eingabekodierung deshalb kurz auf UTF-8 ohne BOM
+  gesetzt. Test unter Codepage 850 und UTF-8-Konsole grün.
+- Test: `installer/tests/wsl-stdin.Tests.ps1` prüft zusätzlich die UTF-8-Bytes und führt den echten Skriptkopf per Git-Bash über `Invoke-CapturedProcess`
+  aus (rot mit altem Stand: Exit 1). Übrige Stdin-Skripte geprüft: `setup_hermes.sh` (`|| true`), Bridges (Python liest
+  den ganzen Strom). Komplette Installer-Suite lokal grün.
+

@@ -392,6 +392,9 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '', [int]$Time
     # Zeitlimit und Abbruchbitte gelten fuer den gesamten WSL-Aufruf; ohne Limit konnte ein haengendes
     # Skript den Installer unbegrenzt blockieren.
     $arguments = @('-d', $Distro, '-u', $User, '--exec', 'env') + $wslEnv + @('bash', $Script)
+    # Invoke-CapturedProcess writes stdin verbatim. Without a final newline 'read' in a set -e script hits EOF and the
+    # script ends silently (setup_root.sh never reached its first line on fresh installs, 2026-11-01).
+    if ($StdIn -and -not $StdIn.EndsWith("`n")) { $StdIn += "`n" }
     $run = if ($StdIn) {
         Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments $arguments -TimeoutSeconds $TimeoutSeconds -StdIn $StdIn -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
     } else {
@@ -407,6 +410,12 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '', [int]$Time
     }
     if ($run.Cancelled) { Stop-Install 'Installation abgebrochen.' }
     return ($lines -join "`n")
+}
+function Get-WslFailureTail([string]$Output, [int]$Count = 8) {
+    # The GUI shows only the stop message; without the last script lines a failed WSL step had no visible reason.
+    $tail = @("$Output" -split "`n" | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ } | Select-Object -Last $Count)
+    if (-not $tail.Count) { return ' Keine Ausgabe von Ubuntu.' }
+    return " Letzte Meldungen aus Ubuntu:`n  " + ($tail -join "`n  ")
 }
 function Get-WslPath([string]$WindowsPath, [switch]$Soft) {
     # wslpath antwortet normalerweise in Millisekunden; haengt der Aufruf, darf er den Lauf nicht sperren.
@@ -1839,7 +1848,7 @@ if (-not (IsDone 'linuxuser')) {
     Info 'Richte Ubuntu ein (Pakete, Benutzer, systemd) – dauert einige Minuten …'
     $out = Wsl-Run 'root' "$WslInstPath/wsl/setup_root.sh" "$user`n$p1"
     $p1 = $null; $p2 = $null
-    if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install 'Ubuntu-Grundeinrichtung fehlgeschlagen.' }
+    if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install ('Ubuntu-Grundeinrichtung fehlgeschlagen.' + (Get-WslFailureTail $out)) }
     Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--terminate', $Distro) -TimeoutSeconds 120 | Out-Null
     Start-Sleep 3
     $whoRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '--exec', 'whoami') -TimeoutSeconds 60
@@ -1997,7 +2006,7 @@ if (-not (IsDone 'hermes')) {
         $key = $null
         Remove-Item -LiteralPath $modelSetupFile -Force -ErrorAction SilentlyContinue
     }
-    if ($out -notmatch 'HERMES_SETUP_DONE') { Stop-Install 'Hermes-Einrichtung fehlgeschlagen (siehe graue Ausgabe oben).' }
+    if ($out -notmatch 'HERMES_SETUP_DONE') { Stop-Install ('Hermes-Einrichtung fehlgeschlagen.' + (Get-WslFailureTail $out)) }
     if ($out -match 'MODEL_OK') { Ok "KI-Anbieter $provider antwortet (Modell $modelName)." }
     else { Warn 'Antwort-Test nicht bestanden - Key und Modellname pruefen. Spaeter im Command Center unter Einstellungen aenderbar.' }
     if (Wait-Http "http://127.0.0.1:$($Ports.Dashboard)/" 60) { Ok "Dashboard von Windows erreichbar: http://127.0.0.1:$($Ports.Dashboard)" }
@@ -2190,7 +2199,7 @@ if (-not (IsDone 'voicepython')) {
     }
     $out = & $vpy "$Root\voice\voice_setup.py" @voiceArgs 2>&1 | ForEach-Object { "$_" }
     $out | Where-Object { $_ -match '==>|^\s{3}|DONE' } | ForEach-Object { Info $_ }
-    if (($out -join "`n") -notmatch 'VOICE_SETUP_DONE') { Stop-Install 'Einrichtung der Sprachmodelle fehlgeschlagen.' }
+    if (($out -join "`n") -notmatch 'VOICE_SETUP_DONE') { Stop-Install ('Einrichtung der Sprachmodelle fehlgeschlagen.' + (Get-WslFailureTail ($out -join "`n"))) }
     if ($GuiMode -and ($GuiConfig.answers.inputDevice -or $GuiConfig.answers.outputDevice)) {
         $deviceArgs = @("$Root\config\voice.json")
         if ($GuiConfig.answers.inputDevice) { $deviceArgs += @('--input-name', [string]$GuiConfig.answers.inputDevice) }
