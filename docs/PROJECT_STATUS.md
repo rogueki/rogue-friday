@@ -1786,5 +1786,5 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
   „Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache.“ Bis dahin fragt der Installer
   Sprachbetrieb, Stimme und Gespräch ab.
 - Test: Der GUI-Selbstlauf (`gui-wizard-pages.Tests.ps1`) lädt jetzt einen echten fortgesetzten Zustand und einen
-  eingerichteten Zustand und prüft die Bedienbarkeit jedes Felds (`voiceresume=open:True locked:True`); rot mit der
+  eingerichteten Zustand und prüft die Bedienbarkeit jedes Felds (`voiceresume=fresh:True open:True locked:True`, auch ein leerer Ordner); rot mit der
   alten Sperrlogik. Dazu Quelltextprüfungen in `gui-controls.Tests.ps1`.

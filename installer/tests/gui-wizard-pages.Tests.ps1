@@ -81,7 +81,7 @@ Assert-True ($testLine -match 'interaction=visible:True ok:True') "Der Selbsttes
 Assert-True ($testLine -match 'qwensame=shown:True hiddenlocal:True') "Die Frage nach demselben Qwen-Schluessel erscheint nicht nur mit Qwen und Alibaba: $testLine"
 # Fortgesetzte Installation (Sprachbetrieb gespeichert, Sprachdienst fehlt): Stimme, Stimmen laden, Gespraech,
 # Schluessel und Zustimmung bedienbar; nach dem Sprachdienst-Schritt gesperrt.
-Assert-True ($testLine -match 'voiceresume=open:True locked:True') "Die Sprachseite einer fortgesetzten Installation ist nicht bedienbar: $testLine"
+Assert-True ($testLine -match 'voiceresume=fresh:True open:True locked:True') "Die Sprachseite einer fortgesetzten Installation ist nicht bedienbar: $testLine"
 foreach ($name in @('friday-gui-qwen-voice.png', 'friday-gui-qwen-model.png')) {
     Assert-True (Test-Path -LiteralPath (Join-Path $env:TEMP $name) -PathType Leaf) "Die Qwen-Ansicht $name wurde nicht gezeichnet."
 }

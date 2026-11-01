@@ -1386,22 +1386,22 @@ if ($Simulation) {
         $resumeOriginalRoot = $script:fields.installRoot.Text
         $resumeRoots = @()
         try {
-            $resumeOpen = $false; $resumeLocked = $false
-            foreach ($case in @('open', 'locked')) {
+            $freshOpen = $false; $resumeOpen = $false; $resumeLocked = $false
+            foreach ($case in @('fresh', 'open', 'locked')) {
                 $caseRoot = Join-Path $env:TEMP ('friday-gui-resume-' + [guid]::NewGuid().ToString('N'))
                 $resumeRoots += $caseRoot
                 New-Item -ItemType Directory -Path (Join-Path $caseRoot 'config') -Force | Out-Null
                 $done = @('preflight', 'files', 'persona')
                 if ($case -eq 'locked') { $done += @('hermes', 'qwen', 'voicepython', 'voiceservice') }
-                @{ assistant_name = 'Kira'; wake_phrase = 'Hey Kira'; voice_mode = 'local'; voice_choice = 'friday-female'
+                if ($case -ne 'fresh') { @{ assistant_name = 'Kira'; wake_phrase = 'Hey Kira'; voice_mode = 'local'; voice_choice = 'friday-female'
                    conversation_backend = 'qwen'; qwen_consent = $true; done = $done } | ConvertTo-Json |
-                    Set-Content -LiteralPath (Join-Path $caseRoot 'config\install-state.json') -Encoding UTF8
+                    Set-Content -LiteralPath (Join-Path $caseRoot 'config\install-state.json') -Encoding UTF8 }
                 $script:fields.installRoot.Text = $caseRoot
                 $script:configuredRoot = ''
                 Load-RootState
                 Show-GuiPage 2
                 [System.Windows.Forms.Application]::DoEvents()
-                if ($case -eq 'open') {
+                if ($case -ne 'locked') {
                     $localOpen = $script:fields.voiceMode.Enabled -and $script:fields.voiceChoice.Enabled -and
                                  $script:fields.voiceReference.Enabled -and $browse.Enabled -and $script:fields.conversationBackend.Enabled
                     $script:fields.voiceMode.SelectedIndex = 1
@@ -1411,15 +1411,16 @@ if ($Simulation) {
                     $qwenOpen = $script:fields.qwenRegion.Enabled -and $script:fields.qwenAudioKey.Enabled -and
                                 $script:fields.qwenConsent.Enabled -and $testQwenKey.Enabled
                     $script:fields.conversationBackend.SelectedIndex = 0
-                    $resumeOpen = [bool]($localOpen -and $cloudOpen -and $qwenOpen)
-                    if (-not $resumeOpen) { throw "Sprachseite gesperrt (lokal:$localOpen cloud:$cloudOpen qwen:$qwenOpen)." }
+                    $open = [bool]($localOpen -and $cloudOpen -and $qwenOpen)
+                    if ($case -eq 'fresh') { $freshOpen = $open } else { $resumeOpen = $open }
+                    if (-not $open) { throw "Sprachseite ($case) gesperrt (lokal:$localOpen cloud:$cloudOpen qwen:$qwenOpen)." }
                 } else {
                     $resumeLocked = -not ($script:fields.voiceMode.Enabled -or $script:fields.voiceChoice.Enabled -or $loadVoices.Enabled -or
                                           $script:fields.conversationBackend.Enabled -or $script:fields.qwenAudioKey.Enabled -or $script:fields.qwenConsent.Enabled)
                     if (-not $resumeLocked) { throw 'Sprachseite bleibt nach eingerichtetem Sprachdienst bedienbar.' }
                 }
             }
-            $script:resumeProof = "voiceresume=open:$resumeOpen locked:$resumeLocked"
+            $script:resumeProof = "voiceresume=fresh:$freshOpen open:$resumeOpen locked:$resumeLocked"
         } catch {
             $script:guiTestMessage = "GUI_TEST mode=$Simulation error=fortsetzen:$($_.Exception.Message)"
             $script:guiExitCode = 1
