@@ -136,7 +136,14 @@ function Invoke-CapturedProcess {
     $startInfo.StandardErrorEncoding = New-Object System.Text.UTF8Encoding $false
     if ($PSBoundParameters.ContainsKey('StdIn')) { $startInfo.RedirectStandardInput = $true }
     $started = Get-Date
-    try { $process = [System.Diagnostics.Process]::Start($startInfo) } catch { return $result }
+    # .NET Framework builds the stdin writer from the console input encoding and, with a UTF-8 console, writes its BOM
+    # right at start. A BOM-free UTF-8 console encoding for the moment of the start keeps the BOM off the child's stdin.
+    $previousInputEncoding = $null
+    if ($startInfo.RedirectStandardInput) {
+        try { $previousInputEncoding = [Console]::InputEncoding; [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false } catch { $previousInputEncoding = $null }
+    }
+    try { $process = [System.Diagnostics.Process]::Start($startInfo) } catch { $process = $null }
+    if ($previousInputEncoding) { try { [Console]::InputEncoding = $previousInputEncoding } catch { } }
     if (-not $process) { return $result }
     $result.Started = $true
     $result.Pid = $process.Id
