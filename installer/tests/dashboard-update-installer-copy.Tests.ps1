@@ -4,7 +4,7 @@ $tokens = $null
 $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($scriptFile, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw "Dashboard-Updater Parserfehler: $($errors[0].Message)" }
-foreach ($name in @('Git', 'Assert-NoReparse', 'Test-InstallerCopyPath', 'Sync-InstallerCopy')) {
+foreach ($name in @('Git', 'Assert-NoReparse', 'Test-InstallerCopyPath', 'Test-KnownUpstreamBlob', 'Sync-InstallerCopy')) {
     $definition = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if (-not $definition) { throw "$name fehlt" }
     Invoke-Expression $definition.Extent.Text
@@ -19,6 +19,12 @@ try {
     & git.exe -C $cache init -q
     & git.exe -C $cache config core.autocrlf false
     New-Item -ItemType Directory -Force (Join-Path $cache 'installer\tests'), (Join-Path $cache 'installer\wsl') | Out-Null
+    # Commit 0: an upstream version older than the installed one (an install whose copy was never synced).
+    [IO.File]::WriteAllText((Join-Path $cache 'installer\stale.ps1'), 'uralt')
+    & git.exe -C $cache add -A -- installer
+    & git.exe -C $cache -c user.name=t -c user.email=t@example.invalid commit -qm '0'
+    if ($LASTEXITCODE -ne 0) { throw 'Lokaler Fixture-Commit 0 fehlgeschlagen.' }
+    [IO.File]::WriteAllText((Join-Path $cache 'installer\stale.ps1'), 'alt')
     [IO.File]::WriteAllText((Join-Path $cache 'installer\install-friday.ps1'), 'alt')
     [IO.File]::WriteAllText((Join-Path $cache 'installer\keep.ps1'), 'alt')
     [IO.File]::WriteAllText((Join-Path $cache 'installer\gone.ps1'), 'weg')
@@ -33,6 +39,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $cache 'installer\added.ps1'), 'dazu')
     Remove-Item -LiteralPath (Join-Path $cache 'installer\gone.ps1') -Force
     [IO.File]::WriteAllText((Join-Path $cache 'installer\local.ps1'), 'neu')
+    [IO.File]::WriteAllText((Join-Path $cache 'installer\stale.ps1'), 'neu')
     [IO.File]::WriteAllText((Join-Path $cache 'installer\tests\x.Tests.ps1'), 't2')
     [IO.File]::WriteAllText((Join-Path $cache 'installer\wsl\test_y.py'), 't2')
     & git.exe -C $cache add -A -- installer
@@ -53,10 +60,14 @@ try {
     [IO.File]::WriteAllText((Join-Path $copy 'keep.ps1'), 'alt')
     [IO.File]::WriteAllText((Join-Path $copy 'gone.ps1'), 'weg')
     [IO.File]::WriteAllText((Join-Path $copy 'local.ps1'), 'eigen')
+    [IO.File]::WriteAllText((Join-Path $copy 'stale.ps1'), 'uralt')
     [IO.File]::WriteAllText((Join-Path $copy 'tests\x.Tests.ps1'), 't')
     [IO.File]::WriteAllText((Join-Path $copy 'wsl\test_y.py'), 't')
 
     $skipped = Sync-InstallerCopy $changed
+    if ((Get-Content -LiteralPath (Join-Path $copy 'stale.ps1') -Raw) -cne 'neu') { throw 'Veralteter Upstream-Stand wurde als lokale Änderung behalten.' }
+    if (@($skipped) -contains 'installer/stale.ps1') { throw 'Veralteter Upstream-Stand wurde als lokale Änderung gemeldet.' }
+    if ((Get-Content -LiteralPath (Join-Path $updates "installer-copy-$RunId\stale.ps1") -Raw) -cne 'uralt') { throw 'Sicherung des veralteten Stands fehlt.' }
     if ((Get-Content -LiteralPath (Join-Path $copy 'install-friday.ps1') -Raw) -cne 'neu') { throw 'Geänderte Installer-Datei wurde nicht aktualisiert.' }
     if ((Get-Content -LiteralPath (Join-Path $copy 'added.ps1') -Raw) -cne 'dazu') { throw 'Neue Installer-Datei wurde nicht kopiert.' }
     if (Test-Path -LiteralPath (Join-Path $copy 'gone.ps1')) { throw 'Gelöschte Installer-Datei blieb in der Kopie.' }

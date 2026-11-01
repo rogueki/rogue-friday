@@ -340,6 +340,22 @@ function Test-InstallerCopyPath([string]$gitPath) {
         $name -ceq 'test-find-obsidian-install.ps1' -or $name -ceq 'source-revision.txt') { return $false }
     return $true
 }
+function Test-KnownUpstreamBlob([string]$gitPath, [string]$blob) {
+    # A copy equal to any earlier upstream version is stale, not a local edit. Without this, installs whose installer
+    # copy predates the last installed revision kept old files forever (2026-11-01: install-friday.ps1 from 2026-10-21).
+    # The blobless cache holds every commit and tree, so the lookup needs no network.
+    if (-not $blob) { return $false }
+    if (-not $script:upstreamBlobs) { $script:upstreamBlobs = @{} }
+    if (-not $script:upstreamBlobs.ContainsKey($gitPath)) {
+        $known = New-Object 'System.Collections.Generic.HashSet[string]'
+        foreach ($line in @(Git -arguments @('-C', $cache, 'log', '-m', '--format=', '--raw', '--no-abbrev', $target, '--', $gitPath))) {
+            $fields = @("$line".Trim() -split '\s+')
+            if ($fields.Count -ge 4 -and $fields[0].StartsWith(':')) { [void]$known.Add($fields[2]); [void]$known.Add($fields[3]) }
+        }
+        $script:upstreamBlobs[$gitPath] = $known
+    }
+    return $script:upstreamBlobs[$gitPath].Contains($blob)
+}
 function Sync-InstallerCopy([string[]]$paths) {
     $installerRoot = Join-Path $root 'installer'
     if (-not (Test-Path -LiteralPath $installerRoot -PathType Container)) { return ,@() }
@@ -369,7 +385,7 @@ function Sync-InstallerCopy([string[]]$paths) {
             if ($exists -and $newBlob -and $actual -ceq $newBlob) { continue }
             if (-not $newBlob) {
                 if (-not $exists) { continue }
-                if ($actual -cne $oldBlob) {
+                if ($actual -cne $oldBlob -and -not (Test-KnownUpstreamBlob $gitPath $actual)) {
                     $skipped += $gitPath
                     "$(Get-Date -Format o) Installer-Kopie: lokale Änderung behalten: $gitPath" | Add-Content $log
                     continue
@@ -388,7 +404,9 @@ function Sync-InstallerCopy([string[]]$paths) {
                 Copy-Item -LiteralPath $source -Destination $destination -Force
                 continue
             }
-            if ($actual -ceq $oldBlob) {
+            $staleUpstream = $actual -cne $oldBlob -and (Test-KnownUpstreamBlob $gitPath $actual)
+            if ($staleUpstream) { "$(Get-Date -Format o) Installer-Kopie: veralteter Upstream-Stand ersetzt: $gitPath" | Add-Content $log }
+            if ($actual -ceq $oldBlob -or $staleUpstream) {
                 $saved = Join-Path $copyBackup $relative
                 New-Item -ItemType Directory -Force (Split-Path $saved -Parent) | Out-Null
                 Copy-Item -LiteralPath $destination -Destination $saved -Force
