@@ -66,7 +66,12 @@ Assert-True ($installer -match "'\^Zustimmung Qwen Audio' \{ 'qwenConsent'; brea
 Assert-True ($installer -match "'--qwen-consent'") 'voice_setup.py erhält keine Qwen-Zustimmung.'
 # Ein gespeicherter Sprachbetrieb (z. B. abgebrochener Lauf) sperrt das Gespraech nicht; erst der eingerichtete Sprachdienst.
 Assert-True ($gui -notmatch "@\('voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend'\)\) \{\s+\`$script:fields\[\`$choice\]\.Enabled = -not \(\`$saved -and \`$saved\.voice_mode\)") 'Gespräch wird schon durch einen gespeicherten Sprachbetrieb gesperrt.'
-Assert-True ($gui -match "\`$conversationLocked = \[bool\]\(\`$saved -and @\(\`$saved\.done\) -contains 'voicepython'\)") 'Gespräch wird nicht erst nach dem Sprachdienst-Schritt gesperrt.'
+Assert-True ($gui -match "\`$voiceLocked = \[bool\]\(\`$saved -and @\(\`$saved\.done\) -contains 'voicepython'\)") 'Die Sprachseite wird nicht erst nach dem Sprachdienst-Schritt gesperrt.'
+Assert-True ($gui -notmatch "Enabled = -not \(\`$saved -and \`$saved\.voice_mode\)") 'Ein gespeicherter Sprachbetrieb sperrt noch Felder der Sprachseite.'
+Assert-True ($gui -match "\`$script:fields\.voiceMode\.Enabled = -not \`$voiceLocked") 'Sprachbetrieb hängt nicht am Sprachdienst-Schritt.'
+Assert-True ($gui -match "\} else \{ Update-VoiceModeFields \}") 'Stimme/Stimmen laden werden nach dem Laden eines Stands nicht passend freigegeben.'
+Assert-True ($installer -match "-not \(IsDone 'preflight'\) -or\s+-not \(IsDone 'voicepython'\)\)\) \{\s+Title 'Sprachbetrieb wählen'") 'Der Installer fragt den Sprachbetrieb bei fortgesetzter Installation nicht ab.'
+Assert-True ($installer -match "-notin @\('friday-female', 'classic', 'custom'\) -or -not \(IsDone 'voicepython'\)\)\) \{") 'Der Installer fragt die Stimme bei fortgesetzter Installation nicht ab.'
 Assert-True ($gui -match 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache\.') 'Gesperrtes Gespräch zeigt keinen Hinweis auf das Dashboard.'
 Assert-True ($installer -match "-not \(IsDone 'preflight'\) -or\s+-not \(IsDone 'voicepython'\)\)\) \{\s+Info 'Gespräch: 1") 'Der Installer fragt das Gespräch bei fortgesetzter Installation nicht ab.'
 Assert-True ($installer -match 'Ohne Zustimmung bleibt das Gespräch lokal') 'Die Ablehnung der Zustimmung wird nicht gemeldet.'

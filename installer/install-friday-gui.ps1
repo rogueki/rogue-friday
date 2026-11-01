@@ -485,7 +485,7 @@ Update-ConversationFields
 
 $script:fields.voiceId.Enabled = $false
 $script:fields.elevenlabsKey.Enabled = $false; $loadVoices.Enabled = $false
-$script:fields.voiceMode.Add_SelectedIndexChanged({
+function Update-VoiceModeFields {
     $local = $script:fields.voiceMode.SelectedIndex -eq 0
     $script:fields.voiceChoice.Enabled = $local; $script:fields.voiceReference.Enabled = $local
     $browse.Enabled = $local; $script:fields.voiceId.Enabled = -not $local
@@ -495,7 +495,8 @@ $script:fields.voiceMode.Add_SelectedIndexChanged({
     } else {
         'ElevenLabs liefert Erkennung und Ausgabe über das Internet. Die Voice ID stammt aus deinem ElevenLabs-Konto; die Standard-Bibliotheksstimme kann einen kostenpflichtigen Tarif erfordern.'
     }
-})
+}
+$script:fields.voiceMode.Add_SelectedIndexChanged({ Update-VoiceModeFields })
 
 $identityPage = New-WizardPage 'identityPage' 'Persönlichkeit' 'Name, Anrede und Charakter bestimmen, wie F.R.I.D.A.Y. mit dir spricht.'
 [void](Add-Row $identityPage.Panel 'assistantName' 'Name des Assistenten' 0 'Friday')
@@ -751,14 +752,17 @@ function Load-RootState {
         }
     }
     foreach ($choice in @('assistantName','wakePhrase')) { $script:fields[$choice].Enabled = -not ($saved -and $saved.assistant_name) }
-    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId')) {
-        $script:fields[$choice].Enabled = -not ($saved -and $saved.voice_mode)
-    }
-    # Gespraech, Region, Schluessel und Zustimmung gehoeren zum Sprachdienst-Schritt: waehlbar, bis er eingerichtet ist.
-    $conversationLocked = [bool]($saved -and @($saved.done) -contains 'voicepython')
-    $script:fields.conversationBackend.Enabled = -not $conversationLocked
+    # Die ganze Sprachseite gehoert zum Sprachdienst-Schritt: waehlbar, bis er eingerichtet ist - auch wenn ein
+    # abgebrochener Lauf schon einen Sprachbetrieb gespeichert hat. Danach aendert man sie im Dashboard.
+    $voiceLocked = [bool]($saved -and @($saved.done) -contains 'voicepython')
+    $script:fields.voiceMode.Enabled = -not $voiceLocked
+    if ($voiceLocked) {
+        foreach ($choice in @('voiceChoice','voiceReference','voiceId','elevenlabsKey')) { $script:fields[$choice].Enabled = $false }
+        $loadVoices.Enabled = $false
+    } else { Update-VoiceModeFields }
+    $script:fields.conversationBackend.Enabled = -not $voiceLocked
     Update-ConversationFields
-    $script:qwenKeyResult.Text = if ($conversationLocked) { 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache.' } else { '' }
+    $script:qwenKeyResult.Text = if ($voiceLocked) { 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache.' } else { '' }
     foreach ($choice in @('inputDevice','outputDevice')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'voicepython') }
     $browse.Enabled = $script:fields.voiceReference.Enabled
     foreach ($choice in @('ownerName','address','character','length')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'persona') }
@@ -1222,7 +1226,7 @@ $timer.Add_Tick({
             $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
             try { $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height))); $bitmap.Save($capture) }
             finally { $bitmap.Dispose() }
-            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) $($script:qwenProof) screenshot=$capture"
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) $($script:qwenProof) $($script:resumeProof) screenshot=$capture"
             $form.Close()
         }
     }
@@ -1377,6 +1381,61 @@ if ($Simulation) {
             }
         }
         $script:focusSummary = ($focusSummary -join ',')
+        # Fortgesetzte Installation: ein abgebrochener Lauf hat den Sprachbetrieb gespeichert, der Sprachdienst fehlt noch.
+        # Dann muss die ganze Sprachseite bedienbar sein; erst nach dem Sprachdienst-Schritt ist sie gesperrt.
+        $resumeOriginalRoot = $script:fields.installRoot.Text
+        $resumeRoots = @()
+        try {
+            $resumeOpen = $false; $resumeLocked = $false
+            foreach ($case in @('open', 'locked')) {
+                $caseRoot = Join-Path $env:TEMP ('friday-gui-resume-' + [guid]::NewGuid().ToString('N'))
+                $resumeRoots += $caseRoot
+                New-Item -ItemType Directory -Path (Join-Path $caseRoot 'config') -Force | Out-Null
+                $done = @('preflight', 'files', 'persona')
+                if ($case -eq 'locked') { $done += @('hermes', 'qwen', 'voicepython', 'voiceservice') }
+                @{ assistant_name = 'Kira'; wake_phrase = 'Hey Kira'; voice_mode = 'local'; voice_choice = 'friday-female'
+                   conversation_backend = 'qwen'; qwen_consent = $true; done = $done } | ConvertTo-Json |
+                    Set-Content -LiteralPath (Join-Path $caseRoot 'config\install-state.json') -Encoding UTF8
+                $script:fields.installRoot.Text = $caseRoot
+                $script:configuredRoot = ''
+                Load-RootState
+                Show-GuiPage 2
+                [System.Windows.Forms.Application]::DoEvents()
+                if ($case -eq 'open') {
+                    $localOpen = $script:fields.voiceMode.Enabled -and $script:fields.voiceChoice.Enabled -and
+                                 $script:fields.voiceReference.Enabled -and $browse.Enabled -and $script:fields.conversationBackend.Enabled
+                    $script:fields.voiceMode.SelectedIndex = 1
+                    $cloudOpen = $script:fields.voiceId.Enabled -and $script:fields.elevenlabsKey.Enabled -and $loadVoices.Enabled
+                    $script:fields.voiceMode.SelectedIndex = 0
+                    $script:fields.conversationBackend.SelectedIndex = 1
+                    $qwenOpen = $script:fields.qwenRegion.Enabled -and $script:fields.qwenAudioKey.Enabled -and
+                                $script:fields.qwenConsent.Enabled -and $testQwenKey.Enabled
+                    $script:fields.conversationBackend.SelectedIndex = 0
+                    $resumeOpen = [bool]($localOpen -and $cloudOpen -and $qwenOpen)
+                    if (-not $resumeOpen) { throw "Sprachseite gesperrt (lokal:$localOpen cloud:$cloudOpen qwen:$qwenOpen)." }
+                } else {
+                    $resumeLocked = -not ($script:fields.voiceMode.Enabled -or $script:fields.voiceChoice.Enabled -or $loadVoices.Enabled -or
+                                          $script:fields.conversationBackend.Enabled -or $script:fields.qwenAudioKey.Enabled -or $script:fields.qwenConsent.Enabled)
+                    if (-not $resumeLocked) { throw 'Sprachseite bleibt nach eingerichtetem Sprachdienst bedienbar.' }
+                }
+            }
+            $script:resumeProof = "voiceresume=open:$resumeOpen locked:$resumeLocked"
+        } catch {
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=fortsetzen:$($_.Exception.Message)"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+            return
+        } finally {
+            $script:fields.installRoot.Text = $resumeOriginalRoot
+            $script:configuredRoot = ''
+            Load-RootState
+            foreach ($caseRoot in $resumeRoots) {
+                $verified = [IO.Path]::GetFullPath($caseRoot)
+                if ($verified.StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('') + ''), [StringComparison]::OrdinalIgnoreCase)) {
+                    Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
         # Geheimnisse erst jetzt: Load-RootState im Tastaturdurchlauf leert Passwort- und Schluesselfelder.
         $script:fields.useExistingKimi.Checked = $false
         $script:fields.useExistingAlibaba.Checked = $false

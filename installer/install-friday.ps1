@@ -1419,7 +1419,9 @@ if ($CustomRoot -and $ChangeVoice) {
     }
     Ok "Bisherige Stimmkonfiguration gesichert: $voiceBackup"
 }
-if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('local', 'elevenlabs') -or -not (IsDone 'preflight'))) {
+# Voice page answers apply until the voice service step ran, also when an aborted run already saved a voice mode.
+if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('local', 'elevenlabs') -or -not (IsDone 'preflight') -or
+    -not (IsDone 'voicepython'))) {
     Title 'Sprachbetrieb wählen'
     Info '1  Lokal: Sprachmodelle auf NVIDIA-GPU mit mindestens 6 GB VRAM'
     Info '2  ElevenLabs Cloud: Spracherkennung und Sprachausgabe ohne lokale GPU (API-Schlüssel nötig)'
@@ -1492,7 +1494,7 @@ if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday
     Save-State
 }
 if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
-    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic', 'custom'))) {
+    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic', 'custom') -or -not (IsDone 'voicepython'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y. (weiblich)'
     Info '2  J.A.R.V.I.S. (männlich)'
