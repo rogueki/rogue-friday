@@ -26,7 +26,10 @@ foreach ($file in @(Get-ChildItem -LiteralPath $installerDir -Filter '*.ps1') + 
 # --- 3. The WSL step uses the result and never asks for a second restart.
 $installer = [IO.File]::ReadAllText((Join-Path $installerDir 'install-friday.ps1'))
 Assert-True ($installer -match "\`$statusRun = Invoke-CapturedProcess -FilePath 'wsl\.exe' -Arguments @\('--status'\)") 'Der WSL-Schritt behält das Ergebnis von wsl --status nicht.'
-Assert-True ($installer -match 'if \(\$statusRun\.ExitCode -ne 0\) \{') 'Der WSL-Schritt prüft nicht den Exitcode von wsl --status.'
+Assert-True ($installer -match '\$wslReady = \$statusRun\.ExitCode -eq 0') 'Der WSL-Schritt prüft nicht den Exitcode von wsl --status.'
+# No distribution yet (Ubuntu follows in step 7): 'wsl --version' must count as installed WSL.
+Assert-True ($installer -match "if \(-not \`$wslReady\) \{ \`$wslReady = \(Invoke-CapturedProcess -FilePath 'wsl\.exe' -Arguments @\('--version'\)[^\r\n]*\.ExitCode -eq 0 \}") 'Ohne Distribution gilt eine installierte WSL nicht als bereit.'
+Assert-True ($installer -match 'if \(-not \$wslReady\) \{\r?\n\s+\$rebootRequestedAt') 'Neuinstallation von WSL hängt nicht an der Bereitschaftsprüfung.'
 Assert-True ($installer -match "\`$State\['wsl_reboot_requested_at'\] = \(Get-Date\)[^\r\n]*\r?\n\s+Save-State\r?\n\s+Warn 'Windows muss jetzt neu starten") 'Die Neustart-Anforderung wird nicht vor dem Neustart gespeichert.'
 Assert-True ($installer -match '-lt \$lastBoot\) \{') 'Nach einem Neustart wird nicht erkannt, dass WSL schon eingerichtet wurde.'
 foreach ($text in @('im BIOS/UEFI ausgeschaltet', 'folgende Windows-Funktionen fehlen', 'WSL antwortet auch nach dem Neustart nicht')) {

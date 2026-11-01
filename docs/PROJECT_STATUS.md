@@ -1807,7 +1807,8 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Ursache: Schritt 3 las `$LASTEXITCODE` nach `Invoke-CapturedProcess`, das ihn nicht setzt. Beim Start aus dem
   Download-Ordner stammte der Wert von robocopy in Schritt 2 (1 = Dateien kopiert) und galt als „WSL fehlt“; jeder
   Lauf richtete WSL neu ein und verlangte einen Neustart.
-- Fix: Schritt 3 prüft den Exitcode aus dem Ergebnis von `wsl --status`. Vor dem Neustart wird
+- Fix: Schritt 3 prüft den Exitcode aus dem Ergebnis von `wsl --status`; endet das ohne Distribution (Ubuntu folgt
+  erst in Schritt 7) mit Fehler, zählt ein erfolgreiches `wsl --version` als eingerichtete WSL. Vor dem Neustart wird
   `wsl_reboot_requested_at` gespeichert; antwortet WSL nach einem Neustart weiterhin nicht, bricht der Installer mit
   Ursache ab (BIOS-Virtualisierung aus, fehlende Windows-Funktion, Meldung von `wsl --status`) statt erneut neu zu starten.
 - Test: `installer/tests/wsl-reboot-loop.Tests.ps1` (rot mit altem Installer); prüft auch alle anderen Skripte auf

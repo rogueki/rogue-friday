@@ -1662,7 +1662,11 @@ if (-not (IsDone 'wslfeature')) {
     # Invoke-CapturedProcess does not set $LASTEXITCODE: the exit code is in the result. Reading $LASTEXITCODE here took
     # robocopy's 1 ("files copied") from step 2 as "WSL missing" and asked for a restart on every run.
     $statusRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--status') -TimeoutSeconds 120
-    if ($statusRun.ExitCode -ne 0) {
+    # Without any distribution (normal here, Ubuntu follows in step 7) some WSL releases end 'wsl --status' with an
+    # error; 'wsl --version' answers as soon as the WSL package is installed.
+    $wslReady = $statusRun.ExitCode -eq 0
+    if (-not $wslReady) { $wslReady = (Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--version') -TimeoutSeconds 120).ExitCode -eq 0 }
+    if (-not $wslReady) {
         $rebootRequestedAt = [string]$State['wsl_reboot_requested_at']
         $lastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
         if ($rebootRequestedAt -and [datetime]::Parse($rebootRequestedAt, [Globalization.CultureInfo]::InvariantCulture) -lt $lastBoot) {
