@@ -33,7 +33,8 @@ def load_secret(secret_file: str, *, linux_file: str, label: str) -> str:
             os.close(descriptor)
     if os.name != "nt" or not os.path.isfile(secret_file):
         raise RuntimeError(f"{label}-Schluessel fuer diesen Windows-Benutzer fehlt")
-    script = ("$s=ConvertTo-SecureString (Get-Content -LiteralPath $env:FRIDAY_SECRET_FILE -Raw);"
+    # Set-Content ends the file with a line break; PowerShell 5.1 rejects the DPAPI string unless it is trimmed.
+    script = ("$s=ConvertTo-SecureString (Get-Content -LiteralPath $env:FRIDAY_SECRET_FILE -Raw).Trim();"
               "$p=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($s);"
               "try {[Console]::Out.Write([Runtime.InteropServices.Marshal]::PtrToStringBSTR($p))} "
               "finally {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($p)}")
