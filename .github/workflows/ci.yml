@@ -299,7 +299,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        # A stalled browser download or apt mirror used to hold a shard until the job timeout; retry with a per-attempt limit.
+        run: |
+          for attempt in 1 2 3; do
+            timeout 8m pnpm exec playwright install --with-deps chromium && exit 0
+            echo "::warning::Playwright browser install attempt $attempt failed or timed out"
+            sleep 15
+          done
+          exit 1
 
       - name: Build
         run: pnpm build
@@ -338,7 +345,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        # A stalled browser download or apt mirror used to hold a shard until the job timeout; retry with a per-attempt limit.
+        run: |
+          for attempt in 1 2 3; do
+            timeout 8m pnpm exec playwright install --with-deps chromium && exit 0
+            echo "::warning::Playwright browser install attempt $attempt failed or timed out"
+            sleep 15
+          done
+          exit 1
 
       - name: Build
         run: pnpm build
