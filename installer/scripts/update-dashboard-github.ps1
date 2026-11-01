@@ -108,7 +108,8 @@ function Invoke-GitNetwork([string[]]$arguments, [string]$what) {
 function Test-SparseSourcePath([string]$gitPath) {
     if (-not $gitPath.Contains('/')) { return $true }
     if ($gitPath -notmatch '^(apps|packages|adapters|scripts|config|installer)/') { return $false }
-    if ($gitPath.Replace('/', '\') -match $testOnlyPattern) { return $false }
+    # Literal list (same as $testOnlyDirs): this function is also loaded on its own.
+    if ($gitPath -match '^(apps/storybook|apps/mock-console|adapters/mock|packages/mock-data)/') { return $false }
     return $gitPath -notmatch '(^|/)(screenshots|__screenshots__|evidence|storybook-static|fixtures|test-results|playwright-report)/'
 }
 function Remove-DashboardTree([string]$Path) {
