@@ -1740,6 +1740,7 @@ Grenzen der Sandbox: kein zweites WSL/Hermes/Voice (feste Aufgabennamen und Port
 Headset-Abnahme LG-8.01 braucht den Besitzer. Installer-GUI: `gui-dpi`, `gui-shell-layout`, `gui-wizard-pages` lokal PASS,
 Simulation `success` mit 8 Seiten gezeichnet (nur Auswahllisten, Häkchen, Ordner-/Datei-Wahl; Textfelder nur für Namen,
 Schlüssel, Passwörter).
+
 ## Alibaba Token Plan live geprüft (2026-11-01)
 
 Mit einem Token-Plan-Schlüssel des Besitzers (nur lokal in der Sandbox, nicht im Repo): Region `ap-southeast-1` gültig,
