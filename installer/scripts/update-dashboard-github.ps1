@@ -20,7 +20,12 @@ $log = Join-Path $root 'logs\dashboard-update.log'
 $repository = 'https://github.com/rogueki/rogue-friday.git'
 # Only what an installation uses; tests, docs and reference images would multiply the download on slow links.
 $sparsePatterns = @('/*', '!/*/', '/apps/', '/packages/', '/adapters/', '/scripts/', '/config/', '/installer/',
-    '!screenshots/', '!__screenshots__/', '!evidence/', '!storybook-static/', '!fixtures/', '!test-results/', '!playwright-report/')
+    '!screenshots/', '!__screenshots__/', '!evidence/', '!storybook-static/', '!fixtures/', '!test-results/', '!playwright-report/',
+    '!/apps/storybook/', '!/apps/mock-console/', '!/adapters/mock/', '!/packages/mock-data/')
+# The repository's test world (simulation data, mock adapter, Storybook): CI tests run on it, an installation never loads it
+# (same list as lib\dashboard-sync.ps1). apps\mock-console only exists in older installations.
+$testOnlyDirs = @('apps\storybook', 'apps\mock-console', 'adapters\mock', 'packages\mock-data')
+$testOnlyPattern = '^(apps\\storybook|apps\\mock-console|adapters\\mock|packages\\mock-data)(\\|$)'
 # Folder names the installer never copies into the dashboard (install-friday.ps1 $DashExcludeDirs).
 $notInstalledDirs = '(^|\\)(node_modules|\.git|\.next|dist|out|coverage|storybook-static|playwright-report|test-results|screenshots|__screenshots__|evidence|\.turbo|__pycache__|\.claude|fixtures)(\\|$)'
 $blobBatchSize = 100
@@ -103,7 +108,30 @@ function Invoke-GitNetwork([string[]]$arguments, [string]$what) {
 function Test-SparseSourcePath([string]$gitPath) {
     if (-not $gitPath.Contains('/')) { return $true }
     if ($gitPath -notmatch '^(apps|packages|adapters|scripts|config|installer)/') { return $false }
+    # Literal list (same as $testOnlyDirs): this function is also loaded on its own.
+    if ($gitPath -match '^(apps/storybook|apps/mock-console|adapters/mock|packages/mock-data)/') { return $false }
     return $gitPath -notmatch '(^|/)(screenshots|__screenshots__|evidence|storybook-static|fixtures|test-results|playwright-report)/'
+}
+function Remove-DashboardTree([string]$Path) {
+    # pnpm links packages with junctions: a link is removed as a link and never followed into its target.
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return }
+    if (-not $item.PSIsContainer) { $item.Attributes = [IO.FileAttributes]::Normal; $item.Delete(); return }
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { [IO.Directory]::Delete($item.FullName); return }
+    foreach ($child in $item.GetFileSystemInfos()) { Remove-DashboardTree $child.FullName }
+    [IO.Directory]::Delete($item.FullName)
+}
+function Remove-TestOnlyDashboardDirs {
+    foreach ($relative in $testOnlyDirs) {
+        $path = Join-Path $dash $relative
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        # The runtime never loads these folders; a failed removal is logged and retried by the next update.
+        try {
+            Assert-NoReparse (Split-Path $path -Parent)
+            Remove-DashboardTree $path
+            "$(Get-Date -Format o) Testordner entfernt: $relative" | Add-Content $log
+        } catch { "$(Get-Date -Format o) Testordner $relative nicht entfernt: $($_.Exception.Message)" | Add-Content $log }
+    }
 }
 function Remove-UpdateCache {
     # rmdir removes pnpm's node_modules junctions without following them out of the cache.
@@ -549,7 +577,7 @@ try {
         $changedPaths += $path.Replace('\', '/')
         $allowed = $path -match '^(apps|packages|adapters|scripts|config)\\' -or $path -in @('package.json','pnpm-lock.yaml','pnpm-workspace.yaml','tsconfig.base.json','eslint.config.js','vitest.config.ts','.npmrc','.nvmrc')
         if (-not $allowed -or $path -in @('config\dashboard.yaml','config\adapters.yaml') -or
-            $path -match $notInstalledDirs -or $path -match '(^|\\)\.\.(\\|$)' -or
+            $path -match $notInstalledDirs -or $path -match $testOnlyPattern -or $path -match '(^|\\)\.\.(\\|$)' -or
             $path -match '(^|\\)(\.env[^\\]*|[^\\]+\.(key|pem|p12))$') { continue }
         $changes += [pscustomobject]@{ Kind = $kind; Path = $path }
     }
@@ -580,6 +608,7 @@ try {
         $voiceHelper = Stage-VerifiedVoiceHelper
     }
     if ($memoryNeeded) { $memoryHelper = Stage-VerifiedMemoryHelper }
+    Remove-TestOnlyDashboardDirs
     if ($changes.Count -eq 0) {
         $successMessage = 'Dashboard ist aktuell.'
         if ($voiceNeeded) {
