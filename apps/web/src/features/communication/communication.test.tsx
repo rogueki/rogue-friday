@@ -189,6 +189,29 @@ describe("communication page: inbox and channels", () => {
     await screen.findByText("Terminbestätigung 21.10. – Besprechung Anlagenwartung");
     expect(screen.getAllByText("Offline-Cache").length).toBeGreaterThan(0);
   });
+
+  it("opens the mailbox directly when no communication adapter is connected", async () => {
+    const fake = routedFetch({
+      "GET /api/v1/communication/channels": errorResponse("CAPABILITY_MISSING", "Kein Kommunikationsadapter konfiguriert", 403),
+      "GET /api/v1/communication/threads": errorResponse("CAPABILITY_MISSING", "Kein Kommunikationsadapter konfiguriert", 403),
+      "GET /api/v1/adapters": listOf([]),
+      "GET /api/v1/auth/session": single({ authenticated: true, setupRequired: false, csrfToken: "csrf-test", role: "owner",
+        user: { id: "user-1", displayName: "Erik Brandt", role: "owner", email: "erik@firma.test" }, expiresAt: null, reauthUntil: null }),
+      "GET /api/v1/integrations/mail/accounts": single({ accounts: [{
+        id: "work", displayName: "Geschäft", email: "erik@firma.test", senderName: "Geschäft", aliases: [], signature: "",
+        imapHost: "imap.work.test", imapPort: 993, imapSecurity: "tls", imapLogin: "erik@firma.test", smtpHost: "smtp.work.test",
+        smtpPort: 465, smtpSecurity: "tls", smtpLogin: "erik@firma.test", sentFolder: "Sent", draftsFolder: "Drafts",
+        trashFolder: "Trash", archiveFolder: "Archive", spamFolder: "Spam", authMode: "password", oauthClientId: "",
+        oauthTenant: "", revision: 1, secretState: { imapPassword: true, smtpPassword: true, oauthRefreshToken: false },
+      }], defaultAccountId: "work", revision: 1 }),
+    });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    // Owner session arrives asynchronously; the mailbox is open without a click once it is there.
+    expect(await screen.findByLabelText("Konto")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Geschäft · erik@firma.test/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "E-Mail Postfach öffnen" })).toBeNull();
+    expect(screen.queryByPlaceholderText("Betreff, Absender, Inhalt …")).toBeNull();
+  });
 });
 
 describe("communication page: thread detail and drafts", () => {

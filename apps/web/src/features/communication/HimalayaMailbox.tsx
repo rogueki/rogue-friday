@@ -1,7 +1,9 @@
 "use client";
 
 import type { MailAccountsResponse, MailEnvelopesResponse, MailFolderResponse, MailMessageResponse, MailReceiptsResponse } from "@friday/sdk";
+import { Button, EmptyState, HudPanel, Select, TextField } from "@friday/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Flag, Forward, Mail, MailPlus, Paperclip, Reply, ReplyAll, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
@@ -10,10 +12,10 @@ import { MailCompose } from "./MailCompose";
 
 const KEY = ["mail-accounts"] as const;
 
-export function HimalayaMailbox() {
+export function HimalayaMailbox({ autoOpen = false }: { autoOpen?: boolean } = {}) {
   const { role } = useSession();
   const client = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [mailbox, setMailbox] = useState<string | null>(null);
   const [uidValidity, setUidValidity] = useState<string | null>(null);
@@ -91,66 +93,80 @@ export function HimalayaMailbox() {
   // Nested IMAP folders may share a display name; the full folder id tells them apart.
   const folderLabel = (folder: (typeof folderItems)[number]) =>
     folderItems.filter((other) => other.name === folder.name).length > 1 ? folder.id : folder.name;
-  return <section className="com-live-mail" aria-label="E-Mail Postfach">
-    <h2>E-Mail Postfach</h2>
-    <p>Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen.</p>
-    {!open ? <button type="button" onClick={() => setOpen(true)}>E-Mail Postfach öffnen</button> : <>
-      <button type="button" onClick={() => { setOpen(false); chooseAccount(null); client.removeQueries({ queryKey: KEY }); }}>Schließen</button>
+  const accountOptions = [
+    { value: "", label: "Konto auswählen" },
+    ...(accounts.data?.data.accounts.map((item) => ({ value: item.id, label: `${item.displayName} · ${item.email}` })) ?? []),
+  ];
+  const folderOptions = [
+    { value: "", label: "Ordner auswählen" },
+    ...folderItems.map((folder) => ({ value: folder.id, label: folderLabel(folder) })),
+  ];
+  const moveOptions = [
+    { value: "", label: "Ordner wählen" },
+    ...folderItems.filter((item) => item.id !== mailbox).map((item) => ({ value: item.id, label: folderLabel(item) })),
+  ];
+  const actions = open ? <>
+    <Button size="sm" variant="ghost" onClick={() => { setOpen(false); chooseAccount(null); client.removeQueries({ queryKey: KEY }); }}>Schließen</Button>
+    {selectedAccount && <Button size="sm" icon={<MailPlus size={14} />} onClick={() => setCompose("new")}>Neue E-Mail</Button>}
+  </> : <Button size="sm" icon={<Mail size={14} />} onClick={() => setOpen(true)}>E-Mail Postfach öffnen</Button>;
+  return <HudPanel title="E-Mail Postfach" subtitle="Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen." icon={<Mail size={18} strokeWidth={1.5} />} className="com-live-mail" aria-label="E-Mail Postfach" actions={actions}>
+    {open && <>
       {accounts.isPending && <p role="status">Konten werden geladen …</p>}
-      {accounts.isError && <p role="alert">Konten nicht erreichbar. Einrichtung unter Einstellungen → Skill-Konten prüfen.</p>}
-      {accounts.data && <label>Konto<select value={accountId ?? ""} onChange={(event) => chooseAccount(event.target.value || null)}>
-        <option value="">Konto auswählen</option>{accounts.data.data.accounts.map((item) => <option key={item.id} value={item.id}>{item.displayName} · {item.email}</option>)}
-      </select></label>}
-      {accounts.data && accounts.data.data.accounts.length === 0 && <p>Kein Konto eingerichtet. Einstellungen → Skill-Konten öffnen.</p>}
-      {selectedAccount && <button type="button" onClick={() => setCompose("new")}>Neue E-Mail</button>}
+      {accounts.isError && <p role="alert" className="com-live-mail__alert">Konten nicht erreichbar. Einrichtung unter Einstellungen → Skill-Konten prüfen.</p>}
+      {accounts.data && <div className="com-live-mail__pickers">
+        <Select label="Konto" value={accountId ?? ""} onChange={(event) => chooseAccount(event.target.value || null)} options={accountOptions} />
+        {folders.data && <Select label="Ordner" value={mailbox ?? ""} onChange={(event) => chooseFolder(event.target.value || null)} options={folderOptions} unknownLabel={() => "Ordner nicht mehr vorhanden"} />}
+      </div>}
+      {accounts.data && accounts.data.data.accounts.length === 0 && <EmptyState compact icon={<Mail size={22} strokeWidth={1.5} />} title="Kein Mail-Konto eingerichtet" description="Konten richtest du unter Einstellungen → Skill-Konten ein." action={<a className="jv-btn jv-btn--primary jv-btn--sm" href="/settings?area=skillAccounts#himalaya-account-title">Mail-Konto einrichten</a>} />}
       {receipts.data && receipts.data.data.items.some((item) => item.state !== "sent" || item.archivePending) &&
         <section aria-label="Offene Versandbelege"><h3>Offene Versandbelege</h3><ul>
           {receipts.data.data.items.filter((item) => item.state !== "sent" || item.archivePending).map((item) => <li key={item.receiptId}>
             {item.createdAt}: {item.state === "sent" ? "SMTP bestätigt, Gesendet-Kopie offen" : "Versand unklar"}.
-            {item.state !== "sent" && <button type="button" onClick={() => void reviewReceipt(item.receiptId)}>Gesendet-Ordner prüfen</button>}
+            {item.state !== "sent" && <Button size="sm" variant="ghost" onClick={() => void reviewReceipt(item.receiptId)}>Gesendet-Ordner prüfen</Button>}
             {item.state === "sent" && item.archivePending && <span> Nur die ursprüngliche Nachricht kann als Sent-Kopie nachgetragen werden; im noch offenen Versanddialog prüfen oder beim Anbieter manuell archivieren.</span>}
           </li>)}
         </ul></section>}
-      {accountId && folders.isError && <p role="alert">IMAP oder Ordnerliste nicht erreichbar.</p>}
-      {folders.data && <label>Ordner<select value={mailbox ?? ""} onChange={(event) => chooseFolder(event.target.value || null)}>
-        <option value="">Ordner auswählen</option>
-        {mailbox && !folderItems.some((folder) => folder.id === mailbox) &&
-          <option value={mailbox} disabled>Ordner nicht mehr vorhanden</option>}
-        {folderItems.map((folder) => <option key={folder.id} value={folder.id}>{folderLabel(folder)}</option>)}
-      </select></label>}
-      {folders.data && folderItems.length === 0 && <p>Keine Ordner gefunden.</p>}
-      {mailbox && envelopes.isError && <p role="alert">Nachrichten konnten nicht gelesen werden.</p>}
-      {mailbox && <form onSubmit={(event) => { event.preventDefault(); setSearchTerm(searchInput.trim()); setPage(1); setUid(null); }}>
-        <label>Nachrichten in diesem Ordner suchen<input value={searchInput} maxLength={100}
-          onChange={(event) => setSearchInput(event.target.value)} /></label>
-        <button type="submit">Suchen</button>
-        {searchTerm && <button type="button" onClick={() => { setSearchInput(""); setSearchTerm(""); setPage(1); }}>Suche löschen</button>}
+      {accountId && folders.isError && <p role="alert" className="com-live-mail__alert">IMAP oder Ordnerliste nicht erreichbar.</p>}
+      {folders.data && folderItems.length === 0 && <EmptyState compact title="Keine Ordner gefunden." />}
+      {mailbox && envelopes.isError && <p role="alert" className="com-live-mail__alert">Nachrichten konnten nicht gelesen werden.</p>}
+      {mailbox && <form className="com-live-mail__search" onSubmit={(event) => { event.preventDefault(); setSearchTerm(searchInput.trim()); setPage(1); setUid(null); }}>
+        <TextField label="Nachrichten in diesem Ordner suchen" value={searchInput} maxLength={100}
+          onChange={(event) => setSearchInput(event.target.value)} />
+        <Button type="submit" size="sm" icon={<Search size={14} />}>Suchen</Button>
+        {searchTerm && <Button type="button" size="sm" variant="ghost" icon={<X size={14} />} onClick={() => { setSearchInput(""); setSearchTerm(""); setPage(1); }}>Suche löschen</Button>}
       </form>}
       {envelopes.data && <div>
-        <ul>{envelopes.data.data.items.map((item) => <li key={item.id}><button type="button" onClick={() => { setUidValidity(envelopes.data.data.uidValidity); setUid(item.id); setCompose(null); }}>{item.subject || "(ohne Betreff)"} · {item.from}</button></li>)}</ul>
-        {!envelopes.data.data.items.length && <p>Keine Nachrichten.</p>}
-        <button type="button" disabled={page <= 1} onClick={() => { setPage((old) => old - 1); setUid(null); }}>Vorherige Seite</button>
-        <button type="button" disabled={envelopes.data.data.items.length < 25 || page >= 20} onClick={() => { setPage((old) => old + 1); setUid(null); }}>Nächste Seite</button>
+        <ul className="com-live-mail__list">{envelopes.data.data.items.map((item) => <li key={item.id}>
+          <button type="button" className="com-live-mail__row" aria-current={uid === item.id ? "true" : undefined} onClick={() => { setUidValidity(envelopes.data.data.uidValidity); setUid(item.id); setCompose(null); }}>
+            <strong>{item.subject || "(ohne Betreff)"}</strong>
+            <span className="com-live-mail__from">{item.from}</span>
+          </button>
+        </li>)}</ul>
+        {!envelopes.data.data.items.length && <EmptyState compact title="Keine Nachrichten." />}
+        <div className="com-live-mail__paging">
+          <Button size="sm" variant="ghost" icon={<ChevronLeft size={14} />} disabled={page <= 1} onClick={() => { setPage((old) => old - 1); setUid(null); }}>Vorherige Seite</Button>
+          <Button size="sm" variant="ghost" icon={<ChevronRight size={14} />} disabled={envelopes.data.data.items.length < 25 || page >= 20} onClick={() => { setPage((old) => old + 1); setUid(null); }}>Nächste Seite</Button>
+        </div>
       </div>}
-      {uid && message.isError && <p role="alert">Nachricht nicht verfügbar oder Ordner-UIDVALIDITY geändert. Liste neu laden.</p>}
+      {uid && message.isError && <p role="alert" className="com-live-mail__alert">Nachricht nicht verfügbar oder Ordner-UIDVALIDITY geändert. Liste neu laden.</p>}
       {message.data && <article className="com-live-mail__message"><h3>{message.data.data.subject}</h3>
         <p>Von {message.data.data.from}</p><pre>{message.data.data.bodyText}</pre>
         {message.data.data.attachments.length > 0 && <ul aria-label="Anhänge">
           {message.data.data.attachments.map((item, index) => <li key={index}>
-            <button type="button" onClick={() => void downloadAttachment(index)} disabled={item.size > 5 * 1024 * 1024}>
-              {item.filename} ({item.size} Bytes) herunterladen</button>
+            <Button size="sm" variant="ghost" icon={<Paperclip size={14} />} onClick={() => void downloadAttachment(index)} disabled={item.size > 5 * 1024 * 1024}>
+              {item.filename} ({item.size} Bytes) herunterladen</Button>
           </li>)}
         </ul>}
-        <button type="button" onClick={() => setCompose("reply")}>Antworten</button>
-        <button type="button" onClick={() => setCompose("reply-all")}>Allen antworten</button>
-        <button type="button" onClick={() => setCompose("forward")}>Weiterleiten</button>
-        <button type="button" onClick={() => void change("flag")}>Markieren</button>
-        <label>Verschieben nach<select defaultValue="" onChange={(event) => { if (event.target.value) void change("move", event.target.value); }}><option value="">Ordner wählen</option>
-          {folderItems.filter((item) => item.id !== mailbox).map((item) => <option key={item.id} value={item.id}>{folderLabel(item)}</option>)}
-        </select></label>
+        <div className="com-live-mail__actions">
+          <Button size="sm" variant="ghost" icon={<Reply size={14} />} onClick={() => setCompose("reply")}>Antworten</Button>
+          <Button size="sm" variant="ghost" icon={<ReplyAll size={14} />} onClick={() => setCompose("reply-all")}>Allen antworten</Button>
+          <Button size="sm" variant="ghost" icon={<Forward size={14} />} onClick={() => setCompose("forward")}>Weiterleiten</Button>
+          <Button size="sm" variant="ghost" icon={<Flag size={14} />} onClick={() => void change("flag")}>Markieren</Button>
+        </div>
+        <Select label="Verschieben nach" defaultValue="" onChange={(event) => { if (event.target.value) void change("move", event.target.value); }} options={moveOptions} />
       </article>}
       {selectedAccount && compose && <MailCompose account={selectedAccount} original={compose === "new" ? undefined : message.data?.data} mode={compose} onClose={() => setCompose(null)} />}
       {actionStatus && <p role="status">{actionStatus}</p>}
     </>}
-  </section>;
+  </HudPanel>;
 }
