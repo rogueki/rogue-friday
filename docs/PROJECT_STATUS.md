@@ -1864,3 +1864,14 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Test: `dashboard-update-installer-copy.Tests.ps1` um einen Stand älter als die installierte Revision erweitert (rot mit
   altem Updater). Am echten Cache: Live-Datei erkannt, fremder Inhalt nicht.
 
+## Installer/Sprachdienst: doppelt benannte Audiogeräte brachen die Einrichtung ab (2026-11-01)
+
+- Kollegen-Neuinstallation nach #205: Schritt 8 lief durch (VOICE_SETUP_DONE), danach „Audiogeräte konnten nicht ausgewählt
+  werden: Mehrdeutiges input-Geraet 'Input ()' (Windows WDM-KS)“. Zwei namenlose WDM-KS-Eingänge (typisch Realtek) ließen
+  `audio_devices.inventory()` die ganze Liste verwerfen, obwohl ein anderes Mikrofon gewählt war. Dieselbe Liste nutzen
+  Sprachdienst-Start und Geräteauswahl im Dashboard.
+- Fix: Doppelt benannte Geräte werden aus der Liste genommen statt die Liste abzubrechen; wird genau so ein Gerät gewählt,
+  meldet `resolve` weiterhin „Mehrdeutiges …“ (nie ein vertauschtes Gerät).
+- Tests: `test_audio_devices.py` um den Fall „unbeteiligtes Duplikat“ erweitert (rot mit altem Stand); Audio-/Wake-Tests
+  89 grün; Probe gegen die echten Geräte dieses Rechners (25 Geräte, Standardgeräte erkannt).
+
