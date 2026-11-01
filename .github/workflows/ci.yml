@@ -85,6 +85,7 @@ jobs:
             installer/voice/tests/test_voice_latency_metrics.py \
             installer/voice/tests/test_update_dependency_closure.py \
             installer/voice/tests/test_qwen_realtime.py \
+            installer/voice/tests/test_cloud_secret.py \
             installer/voice/tests/test_elevenlabs_cloud.py \
             installer/voice/tests/test_audio_level.py \
             installer/voice/tests/test_cloudtalk_voice.py \

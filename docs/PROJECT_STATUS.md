@@ -1757,3 +1757,12 @@ unter Thread-Filtern, die ohne Kommunikationsadapter nichts tun. `HimalayaMailbo
 `Select`, `TextField`, `EmptyState` (Nachrichtenzeilen als ganze Klickfläche, Aktionen mit Symbolen, „Mail-Konto
 einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-Seite nur noch das geöffnete Postfach
 (`autoOpen`), ohne Thread-Kopf. Neuer Test in `communication.test.tsx`; die bestehenden Postfach-Tests laufen unverändert.
+
+## Qwen-Audio-Schlüssel unter Windows lesbar (2026-11-01)
+
+- Gefunden beim Live-Update: `cloud_secret.load_secret` las die DPAPI-Datei mit `Get-Content -Raw` ohne `Trim()`.
+  PowerShell 5.1 lehnt den Zeilenumbruch am Dateiende ab („falsches Format“), daher konnte der Sprachdienst einen
+  gespeicherten Qwen-Audio-Schlüssel nie lesen. Fix: `.Trim()` vor `ConvertTo-SecureString`.
+- Test `installer/voice/tests/test_cloud_secret.py`: echter Speichern-/Lesen-Durchlauf unter Windows (rot mit altem
+  Code, grün mit Fix) plus Quelltextprüfung auf jedem System; in der CI-Liste eingetragen.
+
