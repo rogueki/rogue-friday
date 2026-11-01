@@ -54,6 +54,7 @@ jobs:
           openssl version
           PYTHONPATH=installer/voice:installer/wsl python -m pytest -q \
             installer/voice/test_audio_devices.py \
+            installer/voice/test_select_audio_devices.py \
             installer/voice/test_memory_outbox.py \
             installer/voice/test_connected_calendar_voice.py \
             installer/voice/tests/test_browser_audio.py \
