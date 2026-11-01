@@ -514,7 +514,8 @@ $modelPage = New-WizardPage 'modelPage' 'KI-Zugang' 'Der Schlüssel wird verdeck
 $script:providerPresets = @(
     @{ Label = 'OpenAI'; Backend = '1'; BaseUrl = ''; Models = @('gpt-5', 'gpt-5-mini'); KeyLabel = 'OpenAI-API-Schlüssel'; Probe = 'https://api.openai.com/v1' }
     @{ Label = 'Anthropic (Claude)'; Backend = '2'; BaseUrl = ''; Models = @('claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'); KeyLabel = 'Anthropic-API-Schlüssel'; Probe = 'anthropic' }
-    @{ Label = 'Alibaba Cloud Qwen (Token Plan)'; Backend = '3'; BaseUrl = 'alibaba'; Models = @('qwen3.7-plus', 'qwen3.8-max', 'qwen3.8-flash', 'deepseek-v4-pro', 'glm-5.2', 'kimi-k2.5'); KeyLabel = 'Token-Plan-API-Schlüssel'; Probe = 'base' }
+    # Only models the Token Plan serves: kimi-k2.5 answered 403 AccessDenied.Unpurchased (live check 2026-11-01).
+    @{ Label = 'Alibaba Cloud Qwen (Token Plan)'; Backend = '3'; BaseUrl = 'alibaba'; Models = @('qwen3.7-plus', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-max', 'deepseek-v4-pro', 'glm-5.2'); KeyLabel = 'Token-Plan-API-Schlüssel'; Probe = 'base' }
     @{ Label = 'Kimi Coding (Moonshot)'; Backend = '4'; BaseUrl = ''; Models = @('k3'); KeyLabel = 'Kimi-API-Schlüssel'; Probe = '' }
     @{ Label = 'DeepSeek'; Backend = '3'; BaseUrl = 'https://api.deepseek.com/v1'; Models = @('deepseek-chat', 'deepseek-reasoner'); KeyLabel = 'DeepSeek-API-Schlüssel'; Probe = 'base' }
     @{ Label = 'OpenRouter'; Backend = '3'; BaseUrl = 'https://openrouter.ai/api/v1'; Models = @('openrouter/auto'); KeyLabel = 'OpenRouter-API-Schlüssel'; Probe = 'base' }
