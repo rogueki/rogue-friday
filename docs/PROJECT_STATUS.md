@@ -1634,6 +1634,21 @@ entfernt) rot; pyflakes ohne Befund.
   5 Verdrahtungstests; Sprach-pytest 522 grün. Grenze: Ohne lokales Modell (ElevenLabs) wählt kein Modell frei Werkzeuge;
   Status/Abbruch/Ruhemodus/Hilfe/Diagnose/Dashboard/Rückfragen laufen dort über Regeln, Aufträge über den Stichwort-Router.
   Live-Abnahme mit Headset steht aus (LG-8.01).
+- **GitHub-Update auf langsamen Leitungen (W4, 01.11.2026):** Nachgestellt in einer Sandbox mit dem Stand der
+  Live-Installation (6ab93cd6, 611 Commits hinter `main`): Der volle Klon (~250 MB Historie mit Testbildern) brach bei
+  ~30 KB/s nach ~10,5 min mit `curl 18 … early EOF` ab; dasselbe Bild wie das abgebrochene Live-Update vom 29.10.
+  (Phase „download“). `update-dashboard-github.ps1` klont jetzt ohne Dateiinhalte (`--filter=blob:none`, ~2 MB),
+  checkt per Sparse-Checkout nur aus, was eine Installation nutzt (apps, packages, adapters, scripts, config, installer,
+  Root-Dateien; ohne screenshots/evidence/fixtures; 19 statt 113 MB), lädt die Inhalte in Paketen zu 100 Dateien mit je
+  bis zu 4 Versuchen und Abbruch bei Stillstand (60 s unter 1 KB/s) und zeigt „Paket x von n“ im Fortschritt. Alte
+  Voll-Klone im Cache werden einmal ersetzt (per `rmdir`, damit pnpm-Junctions nicht verfolgt werden); ein defekter
+  Cache wird nach einem Abruffehler verworfen. Geänderte Dateien in Ordnern, die der Installer nie installiert
+  (`$DashExcludeDirs`), führen nicht mehr zu „Installierte Datei fehlt“. pnpm bekommt mehr Netzwerk-Wiederholungen.
+  Gemessen: 24 Pakete in 3 min, danach `pnpm install` und `build:app` im reduzierten Stand grün. Zweiter Fund im
+  Sandbox-Lauf: Next.js startete 23 Build-Worker und einer stürzte unter Speicherdruck ab (0xC0000142);
+  `next.config.ts` begrenzt jetzt auf höchstens 4. Der Fehlerweg hat gegriffen (alter Stand lief weiter).
+  Test: `installer/tests/dashboard-update-download.Tests.ps1` (lokaler Git-Server: Ersatz des Voll-Klons, Paketierung,
+  Checkout ohne Nachladen, Ausschlüsse, Wiederholung mit sauberer Meldung).
 - **Tests Sprachbetrieb und Gesprächsmodus (LG-5.06):** `tests/e2e/voice-mode.spec.ts` (4 Szenarien, mit axe): Wechsel
   lokal → ElevenLabs mit Rückfrage, Installer-Aufruf (`POST /voice/mode-switch`, im Test beantwortet), Abschluss über den
   Statusabruf; Abbrechen ohne Aufruf; Qwen Audio ohne Schlüssel bleibt lokal und zeigt das Schlüsselfeld; Qwen erst nach

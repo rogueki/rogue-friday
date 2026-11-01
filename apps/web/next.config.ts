@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type { NextConfig } from "next";
 
@@ -27,6 +28,8 @@ const config: NextConfig = {
   },
   // Next 16 would otherwise write an AGENTS.md into the app; local agent metadata is not part of the deployable app.
   agentRules: false,
+  // One worker per core crashed the update build on a busy 24-thread PC (0xC0000142); 23 static pages need few.
+  experimental: { cpus: Math.max(1, Math.min(4, availableParallelism() - 1)) },
   // Rewrites are ignored by `output: "export"` (the Control API serves the static build itself), so they are only
   // registered for `next dev`, where they proxy /api/* to the Control API (conventions §6).
   ...(process.env.NODE_ENV === "development"
