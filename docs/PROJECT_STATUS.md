@@ -1851,3 +1851,16 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   aus (rot mit altem Stand: Exit 1). Übrige Stdin-Skripte geprüft: `setup_hermes.sh` (`|| true`), Bridges (Python liest
   den ganzen Strom). Komplette Installer-Suite lokal grün.
 
+## Updater: veraltete Installer-Kopie wurde als „lokale Änderung“ dauerhaft behalten (2026-11-01)
+
+- Befund beim Live-Update auf `c8e6a9c2`: „Installer-Kopie: lokale Änderung behalten: installer/install-friday.ps1“.
+  Die Datei war keine eigene Änderung, sondern byte-gleich mit dem Upstream-Stand `e98cbf54` (21.10.). Sie passte nur nicht
+  zur zuletzt installierten Revision, weil diese Installation älter ist als der Abgleich der Installer-Kopie. Folge:
+  Reparatur/Fortsetzen aus der Installationskopie lief mit einem Installer vom 21.10. gegen neue Bibliotheken.
+- Fix: `Test-KnownUpstreamBlob` prüft im (bloblosen, aber vollständig historischen) Update-Cache per
+  `git log -m --raw <target> -- <pfad>`, ob der Inhalt irgendeiner früheren Upstream-Version entspricht. Dann wird die Datei
+  wie unverändert gesichert und ersetzt (Protokoll: „veralteter Upstream-Stand ersetzt“); echte lokale Änderungen bleiben
+  geschützt. Ohne Netz, am echten Cache 77 ms.
+- Test: `dashboard-update-installer-copy.Tests.ps1` um einen Stand älter als die installierte Revision erweitert (rot mit
+  altem Updater). Am echten Cache: Live-Datei erkannt, fremder Inhalt nicht.
+
