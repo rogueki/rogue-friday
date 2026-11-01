@@ -30,11 +30,28 @@ def resolve(label: str, direction: str) -> str:
             priority = {"MME": 0, "Windows WASAPI": 1, "Windows DirectSound": 2}.get(host, 3)
             choices.append((priority, name, host))
     if not choices:
-        raise ValueError(f"{direction.title()}gerät '{label}' wurde nicht als nutzbares Audiogerät gefunden. Windows-Standardgerät wählen und erneut starten.")
-    _, name, host = sorted(choices)[0]
-    selection = f"{name}, {host}"
-    sd.query_devices(selection, direction)
-    return selection
+        raise ValueError(f"{direction.title()}gerät '{label}' wurde nicht als nutzbares Audiogerät gefunden")
+    last_error = None
+    # MME truncates names to 31 characters, so two endpoints can collapse into one ambiguous MME name; the next
+    # backend (WASAPI, DirectSound) usually still tells them apart.
+    for _, name, host in sorted(choices):
+        selection = f"{name}, {host}"
+        try:
+            sd.query_devices(selection, direction)
+            return selection, legacy_id(sd, selection, direction)
+        except (ValueError, sd.PortAudioError) as exc:
+            last_error = exc
+    raise ValueError(f"{direction.title()}gerät '{label}' ist nicht eindeutig nutzbar: {last_error}")
+
+
+def choose(label: str, direction: str):
+    # A device that cannot be resolved must not stop the installation: the Windows default works everywhere and the
+    # device can be changed later in the dashboard (Einstellungen -> Sprache). Seen on a real fresh install 2026-11-01.
+    try:
+        return resolve(label, direction)
+    except (ValueError, sd.PortAudioError) as exc:
+        print(f"Hinweis: {exc}. Verwende das Windows-Standardgerät; änderbar im Dashboard unter Einstellungen > Sprache.")
+        return None, None
 
 
 def main() -> None:
@@ -47,12 +64,14 @@ def main() -> None:
         return
     with args.config.open(encoding="utf-8") as handle:
         config = json.load(handle)
-    selected_input = resolve(args.input_name, "input") if args.input_name else config.get("input_device")
-    selected_output = resolve(args.output_name, "output") if args.output_name else config.get("output_device")
-    config["input_device"] = selected_input
-    config["output_device"] = selected_output
-    config["input_device_id"] = legacy_id(sd, selected_input, "input")
-    config["output_device_id"] = legacy_id(sd, selected_output, "output")
+    for direction, label in (("input", args.input_name), ("output", args.output_name)):
+        if not label:
+            continue
+        selection, device_id = choose(label, direction)
+        config[f"{direction}_device"] = selection
+        config[f"{direction}_device_id"] = device_id
+    selected_input = config.get("input_device")
+    selected_output = config.get("output_device")
     with args.config.open("w", encoding="utf-8") as handle:
         json.dump(config, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
@@ -60,6 +79,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # The installer pipes this output through a cp1252 console; a character outside it must not crash the step.
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(errors="replace")
     try:
         main()
     except (OSError, ValueError, sd.PortAudioError) as exc:

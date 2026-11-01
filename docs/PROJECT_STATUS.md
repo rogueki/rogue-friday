@@ -1875,3 +1875,13 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Tests: `test_audio_devices.py` um den Fall „unbeteiligtes Duplikat“ erweitert (rot mit altem Stand); Audio-/Wake-Tests
   89 grün; Probe gegen die echten Geräte dieses Rechners (25 Geräte, Standardgeräte erkannt).
 
+## Installer: Geräteauswahl bricht die Installation nie mehr ab (2026-11-01)
+
+- Ein Gerät aus dem Assistenten, das nicht eindeutig nutzbar ist (nicht gefunden, MME-Name durch die 31-Zeichen-Kürzung
+  doppelt, PortAudio-Fehler), führte zu „Audiogerät nicht gefunden“ und Abbruch. `select_audio_devices.py` probiert jetzt
+  alle Backends der Reihe nach (MME, WASAPI, DirectSound) und fällt sonst mit Hinweis auf das Windows-Standardgerät zurück;
+  änderbar im Dashboard unter Einstellungen > Sprache. Ausgabe robust gegen die cp1252-Konsole (`errors=replace`) – die
+  echte Probe hatte einen Absturz an einem Pfeilzeichen gefunden.
+- Tests: `installer/voice/test_select_audio_devices.py` (neu, in CI; 3 von 4 Fällen rot mit altem Stand). Probe mit echten
+  Geräten: echtes Mikrofon übernommen, unbekanntes Gerät -> Standard, Exit 0.
+
