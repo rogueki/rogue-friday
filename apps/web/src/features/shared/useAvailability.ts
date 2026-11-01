@@ -144,7 +144,9 @@ export function useModulePanelGate(
       state = { kind: "loading" };
       break;
     case "not-configured":
-      state = { kind: "not-configured", moduleName: options.moduleName, adapterId: availability.adapterId, onRetry: retry };
+      // Built-in sources (local calendar, native notifications, audit, approvals) answer without a registered
+      // adapter: when the query already returned data, the module is served and the content is rendered.
+      if (!hasData) state = { kind: "not-configured", moduleName: options.moduleName, adapterId: availability.adapterId, onRetry: retry };
       break;
     case "outage": {
       const named = availability.outage.adapterName ? availability.outage : { ...availability.outage, adapterName: t("avail.adapterFor", { module: options.moduleName }) };

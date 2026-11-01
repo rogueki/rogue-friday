@@ -15,7 +15,7 @@ import { settingsHandlers } from "./settings";
 import { contentStudioHandlers } from "./content-studio";
 import { skillsHandlers } from "./skills";
 import { caldavHandlers } from "./caldav";
-import { localCalendarHandlers, localCalendarReads } from "./local-calendar";
+import { localCalendarFallbacks, localCalendarHandlers, localCalendarReads } from "./local-calendar";
 import { voiceCalendarHandlers } from "./voice-calendar";
 import { voiceMailHandlers } from "./voice-mail";
 import { browserVoiceHandlers } from "./browser-voice";
@@ -43,6 +43,7 @@ import { researchActionHandlers, researchReads } from "./research-actions";
 export function buildHandlers(): Map<OperationId, Handler> {
   const handlers = buildPortHandlers();
   const localReads = localCalendarReads(handlers.get("listCalendarEvents")!, handlers.get("getCalendarEvent")!);
+  const localFallbacks = localCalendarFallbacks(handlers.get("listCalendarConflicts")!, handlers.get("listCalendarBriefings")!);
   const localResearchReads = researchReads(handlers);
   const overrides: Array<Partial<Record<OperationId, Handler>>> = [
     auditHandlers,
@@ -72,6 +73,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     voiceReadHandlers,
     quietModeHandlers,
     localReads,
+    localFallbacks,
     localResearchReads,
     devHandlers,
     approvalHandlers,

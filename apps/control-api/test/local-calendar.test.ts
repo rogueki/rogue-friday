@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { openDatabase } from "../src/db/database";
-import { localCalendarReads } from "../src/handlers/local-calendar";
+import { localCalendarFallbacks, localCalendarReads } from "../src/handlers/local-calendar";
 import type { Handler, RequestContext } from "../src/http/context";
 import { LocalCalendarService } from "../src/services/local-calendar";
+import { ApiError } from "../src/util/errors";
 import { startTestApi } from "./helpers";
 
 const folders: string[] = [];
@@ -146,5 +147,33 @@ it("paginates mixed local and remote events without repeats or dangling cursors"
       cursor = body.pageInfo.nextCursor;
     }
     expect(seen).toEqual(["Termin 9", "Termin 10", "Termin 11", "Termin 12", "Termin 14"]);
+  } finally { db.close(); }
+});
+
+it("answers calendar conflicts and briefings locally when no calendar adapter is available", async () => {
+  const db = openDatabase(":memory:");
+  try {
+    const nowMs = Date.parse("2026-10-14T08:00:00.000Z");
+    const calendar = new LocalCalendarService(db);
+    const first = calendar.create({ title: "Planung", start: "2026-10-20T10:00:00.000Z", end: "2026-10-20T11:00:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    const second = calendar.create({ title: "Review", start: "2026-10-20T10:30:00.000Z", end: "2026-10-20T11:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    calendar.create({ title: "Separat", start: "2026-10-22T10:00:00.000Z", end: "2026-10-22T11:00:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    const unavailableRemote: Handler = async () => { throw new ApiError({ code: "CAPABILITY_MISSING", message: "x" }); };
+    const fallbacks = localCalendarFallbacks(unavailableRemote, unavailableRemote);
+    const ctx = { runtime: { db, config: { dataMode: "mock" }, nowMs: () => nowMs }, query: {}, pathParams: {}, headers: {} } as unknown as RequestContext;
+    const conflicts = await fallbacks.listCalendarConflicts!(ctx);
+    expect(conflicts.status).toBe(200);
+    const body = conflicts.body as { items: Array<{ id: string; kind: string; eventIds: string[] }> };
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]!.kind).toBe("overlap");
+    expect(body.items[0]!.eventIds).toEqual([first.id, second.id]);
+    expect(body.items[0]!.id).toMatch(/^conf_[0-9A-Za-z]{26}$/);
+    const repeated = await fallbacks.listCalendarConflicts!(ctx);
+    expect((repeated.body as { items: Array<{ id: string }> }).items[0]!.id).toBe(body.items[0]!.id);
+    const briefings = await fallbacks.listCalendarBriefings!(ctx);
+    expect(briefings.status).toBe(200);
+    expect((briefings.body as { items: unknown[] }).items).toEqual([]);
+    const failing = localCalendarFallbacks(async () => { throw new ApiError({ code: "INTERNAL", message: "x" }); }, unavailableRemote);
+    await expect(failing.listCalendarConflicts!(ctx)).rejects.toThrow("x");
   } finally { db.close(); }
 });

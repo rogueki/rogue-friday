@@ -261,7 +261,8 @@ describe("hardware (PLAN §40.1)", () => {
   });
 
   it("shows 'Nicht verbunden' instead of data when no adapter serves the module", async () => {
-    const fake = routedFetch(routes());
+    // The server answers a module without adapter with 403 CAPABILITY_MISSING, not with data.
+    const fake = routedFetch({ ...routes(), "GET /api/v1/system/metrics": () => errorBody("CAPABILITY_MISSING", "Für 'system' ist kein Adapter konfiguriert.", 403) });
     renderWithProviders(<HardwarePanel />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ files: { read: true } }) });
     expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
     expect(screen.getByText(/Für „System“ ist kein Adapter konfiguriert/)).toBeInTheDocument();

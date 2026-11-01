@@ -266,11 +266,11 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
       {selected?.category === "calendar" ? <CalendarAccountWizard onSaved={() => { void query.refetch(); }} /> : null}
       {unconfigured.length > 0 ? (
         <section aria-labelledby="unconfigured-title" className="st-adapter">
-          <h3 id="unconfigured-title">Nicht eingerichtete Bereiche</h3>
+          <h3 id="unconfigured-title">Ohne externen Anbieter</h3>
           <p className="st-muted">
-            Für diese Bereiche ist kein Anbieter hinterlegt. Friday erzeugt dafür keinen Ersatzadapter; die jeweilige Seite meldet
-            „nicht eingerichtet“, statt Beispieldaten zu zeigen. Trage den Anbieter in <code>adapters.yaml</code> ein und starte das
-            Dashboard neu.
+            Für diese Bereiche ist kein externer Anbieter verbunden. Friday zeigt dort keine Beispieldaten. Wo Friday eigene
+            Funktionen hat, arbeiten die Seiten trotzdem (Kalender, Meldungen, Freigaben, Audit). Mail-Konten richtest du unter
+            „Skill-Konten“ ein, einen externen Kalender auf der Kalenderseite.
           </p>
           <ul className="st-chiplist">
             {unconfigured.map((category) => (

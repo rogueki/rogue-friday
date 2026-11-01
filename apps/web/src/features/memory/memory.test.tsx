@@ -91,7 +91,8 @@ describe("memory page: states", () => {
   });
 
   it("treats a missing memory module as not connected", async () => {
-    const fake = routedFetch(baseRoutes());
+    // The server answers a module without adapter with 403 CAPABILITY_MISSING, not with data.
+    const fake = routedFetch({ "GET /api/v1/memory": errorResponse("CAPABILITY_MISSING", "Für 'memory' ist kein Adapter konfiguriert.", 403) });
     renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules({ tasks: { read: true } }) });
     expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();

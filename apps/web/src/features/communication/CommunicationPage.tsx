@@ -89,6 +89,7 @@ function CommunicationPageInner() {
   // One adapter serves channels and threads: when both are unavailable, a single panel (offline / not connected) says it once.
   const blocked = (state: PanelState): boolean => state.kind === "offline" || state.kind === "not-configured" || state.kind === "unsupported";
   const fullOutage = blocked(threadState) && blocked(channelState);
+  const notConfigured = threadState.kind === "not-configured" && channelState.kind === "not-configured";
   const detail = useThread(threadId);
   const threadItems = threads.data?.items ?? [];
 
@@ -146,31 +147,34 @@ function CommunicationPageInner() {
         </div>
       </HudPanel>
 
-      {channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
-      {channelGroup(selectedChannel?.kind) === "messenger" ? <MessengerCompose /> : null}
+      {notConfigured ? <HimalayaMailbox /> : null}
+      {!notConfigured && channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
+      {!notConfigured && channelGroup(selectedChannel?.kind) === "messenger" ? <MessengerCompose /> : null}
 
-      <div className={`com-layout${wide && !fullOutage ? " com-layout--wide" : ""}`}>
-        {fullOutage ? null : <ChannelRail channels={visibleChannels} hiddenCount={partition.hidden.length} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}
-        <PanelFrame title={t("communication.threads.title")} state={threadState} skeletonRows={6} className="com-threads-panel">
-          <ul className="mk-list com-threads" aria-label={t("communication.threads.title")}>
-            {threadItems.map((thread) => (
-              <ThreadRow key={thread.id} thread={thread} channel={channelById.get(thread.channelId)} selected={thread.id === threadId} onOpen={(id) => setThreadId(id, { push: true })} />
-            ))}
-          </ul>
-          {threads.data?.pageInfo.hasNextPage ? (
-            <div className="mk-more">
-              <Button variant="ghost" size="sm" loading={threads.isFetching} onClick={() => setLimit((current) => current + PAGE_SIZE)}>
-                {t("memory.kit.more")}
-              </Button>
-            </div>
+      {notConfigured ? null : (
+        <div className={`com-layout${wide && !fullOutage ? " com-layout--wide" : ""}`}>
+          {fullOutage ? null : <ChannelRail channels={visibleChannels} hiddenCount={partition.hidden.length} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}
+          <PanelFrame title={t("communication.threads.title")} state={threadState} skeletonRows={6} className="com-threads-panel">
+            <ul className="mk-list com-threads" aria-label={t("communication.threads.title")}>
+              {threadItems.map((thread) => (
+                <ThreadRow key={thread.id} thread={thread} channel={channelById.get(thread.channelId)} selected={thread.id === threadId} onOpen={(id) => setThreadId(id, { push: true })} />
+              ))}
+            </ul>
+            {threads.data?.pageInfo.hasNextPage ? (
+              <div className="mk-more">
+                <Button variant="ghost" size="sm" loading={threads.isFetching} onClick={() => setLimit((current) => current + PAGE_SIZE)}>
+                  {t("memory.kit.more")}
+                </Button>
+              </div>
+            ) : null}
+          </PanelFrame>
+          {wide && !fullOutage ? (
+            <HudPanel title={t("communication.detail.title")} level={threadId ? 2 : 1} className="com-detail-panel" bodyClassName="com-detail-panel__body">
+              {threadId ? detailBody : <EmptyState compact icon={<MailSearch size={22} strokeWidth={1.5} />} title={t("communication.detail.empty")} description={t("communication.detail.emptyHint")} />}
+            </HudPanel>
           ) : null}
-        </PanelFrame>
-        {wide && !fullOutage ? (
-          <HudPanel title={t("communication.detail.title")} level={threadId ? 2 : 1} className="com-detail-panel" bodyClassName="com-detail-panel__body">
-            {threadId ? detailBody : <EmptyState compact icon={<MailSearch size={22} strokeWidth={1.5} />} title={t("communication.detail.empty")} description={t("communication.detail.emptyHint")} />}
-          </HudPanel>
-        ) : null}
-      </div>
+        </div>
+      )}
 
       {!wide && !fullOutage ? (
         <Drawer open={threadId !== null} onOpenChange={(open) => { if (!open) setThreadId(null); }} title={detail.data?.data.subject ?? t("communication.detail.title")} closeLabel={t("common.close")} width={680}>

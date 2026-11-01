@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type CalendarEvent, type CalendarEventListResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type CalendarBriefingListResponse, type CalendarConflict, type CalendarConflictListResponse, type CalendarEvent, type CalendarEventListResponse } from "@friday/sdk";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { checkedLocalEvent, LocalCalendarService, type LocalEventInput } from "../services/local-calendar";
@@ -253,6 +253,83 @@ export function localCalendarReads(listRemote: Handler, getRemote: Handler): Par
         if (item) return { status: 200, body: single(item, ctx.runtime.nowMs()) };
       }
       return getRemote(ctx);
+    },
+  };
+}
+
+const conflictAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+const conflictId = (first: string, second: string) => {
+  const digest = createHash("sha256").update(`${first}|${second}`).digest();
+  let id = "conf_";
+  for (const byte of digest.subarray(0, 26)) id += conflictAlphabet[byte % 62]!;
+  return id;
+};
+
+const localCalendarSource = (lastSyncedAt: string) => ({ adapterId: "friday-local-calendar", system: "friday-local", lastSyncedAt });
+
+export function localCalendarFallbacks(listConflicts: Handler, listBriefings: Handler): Partial<Record<OperationId, Handler>> {
+  return {
+    async listCalendarConflicts(ctx) {
+      try {
+        return await listConflicts(ctx);
+      } catch (error) {
+        if (!unavailable(error)) throw error;
+      }
+      const nowMs = ctx.runtime.nowMs();
+      const nowIso = new Date(nowMs).toISOString();
+      const fromIso = nowIso;
+      const toIso = new Date(nowMs + 30 * 86_400_000).toISOString();
+      const local = new LocalCalendarService(ctx.runtime.db).list(fromIso, toIso, undefined, 201, 0);
+      const connected = (await connectedEvents(ctx, fromIso, toIso)).items;
+      const events = [...local, ...connected]
+        .filter((event) => event.allDay !== true && event.status !== "cancelled" && /^cal_[0-9A-Za-z]{26}$/.test(event.id))
+        .map((event) => ({ event, start: new Date(event.start).toISOString(), end: new Date(event.end).toISOString() }))
+        .sort((a, b) => a.start.localeCompare(b.start) || a.event.id.localeCompare(b.event.id));
+      const items: CalendarConflict[] = [];
+      for (let i = 0; i < events.length && items.length < 50; i++) {
+        const a = events[i]!;
+        for (let j = i + 1; j < events.length && items.length < 50; j++) {
+          const b = events[j]!;
+          if (b.start >= a.end) break;
+          items.push({
+            id: conflictId(a.event.id, b.event.id),
+            version: 1,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            detectedAt: nowIso,
+            source: localCalendarSource(nowIso),
+            eventIds: [a.event.id, b.event.id],
+            kind: "overlap",
+            severity: "warning",
+            description: `„${a.event.title}“ überschneidet sich mit „${b.event.title}“.`,
+          });
+        }
+      }
+      const body: CalendarConflictListResponse = {
+        contractVersion: CONTRACT_VERSION,
+        items,
+        pageInfo: { nextCursor: null, hasNextPage: false },
+        freshness: { state: "fresh", asOf: nowIso },
+        sources: [localCalendarSource(nowIso)],
+      };
+      return { status: 200, body };
+    },
+    async listCalendarBriefings(ctx) {
+      try {
+        return await listBriefings(ctx);
+      } catch (error) {
+        if (!unavailable(error)) throw error;
+      }
+      const nowIso = new Date(ctx.runtime.nowMs()).toISOString();
+      const body: CalendarBriefingListResponse = {
+        contractVersion: CONTRACT_VERSION,
+        items: [],
+        pageInfo: { nextCursor: null, hasNextPage: false },
+        freshness: { state: "fresh", asOf: nowIso },
+        sources: [localCalendarSource(nowIso)],
+      };
+      return { status: 200, body };
     },
   };
 }

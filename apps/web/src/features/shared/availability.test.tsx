@@ -107,6 +107,14 @@ describe("Tasks page: the three situations look different", () => {
     expect(screen.queryByText("Offline")).toBeNull();
   });
 
+  it("(a) no adapter but a built-in source answered: the data is rendered and 'Nicht verbunden' is absent", async () => {
+    const api = routerFetch({ "GET /tasks": listOf([makeTaskWith({ title: "Wettbewerbsanalyse" })]), "GET /agents": listOf([]) });
+    renderWithProviders(<TasksPage />, { capabilities: NO_TASKS_CAPS, adapters: [], fetchImpl: api.fetch });
+    expect(await screen.findByText("Wettbewerbsanalyse")).toBeInTheDocument();
+    expect(screen.queryByText("Nicht verbunden")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Adapter konfigurieren/ })).toBeNull();
+  });
+
   it("(b) adapter registered but offline: 'Offline', adapter name, since/last success and a retry (never 'Capability fehlt')", async () => {
     const user = userEvent.setup();
     const api = routerFetch({ "GET /tasks": () => error(503, "ADAPTER_UNAVAILABLE", "Hermes-API antwortet nicht"), "GET /agents": listOf([]), "GET /adapters": listOf([tasksOffline]) });
