@@ -1749,3 +1749,11 @@ Verbindung 0,8 s, erstes Antwortaudio 2,3 s nach dem Commit, 6,4 s deutsche Antw
 `qwen3.7-plus`, `qwen3.7-max`, `qwen3.8-max`, `qwen3.8-flash`, `deepseek-v4-pro`, `glm-5.2` antworten; `kimi-k2.5` liefert
 403 `AccessDenied.Unpurchased` und steht nicht in `/models` — aus der Installer-Liste entfernt, `qwen3.7-max` ergänzt.
 `/models` antwortete einmal vorübergehend 503; „Schlüssel prüfen“ meldet dann „Prüfung nicht möglich … prüft beim Start erneut“.
+
+## Mail-Postfach im Dashboard-Stil (2026-11-01)
+
+Sandbox-Screenshot nach dem GitHub-Update zeigte das Himalaya-Postfach als rohes HTML (Browser-Knöpfe, nackte Auswahl)
+unter Thread-Filtern, die ohne Kommunikationsadapter nichts tun. `HimalayaMailbox` nutzt jetzt `HudPanel`, `Button`,
+`Select`, `TextField`, `EmptyState` (Nachrichtenzeilen als ganze Klickfläche, Aktionen mit Symbolen, „Mail-Konto
+einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-Seite nur noch das geöffnete Postfach
+(`autoOpen`), ohne Thread-Kopf. Neuer Test in `communication.test.tsx`; die bestehenden Postfach-Tests laufen unverändert.

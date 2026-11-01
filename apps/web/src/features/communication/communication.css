@@ -1,8 +1,16 @@
 .com-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; }
-.com-live-mail { margin: 10px 0; padding: 14px; border: 1px solid var(--friday-border); border-radius: 10px; }
-.com-live-mail ul { max-height: 320px; overflow: auto; padding-left: 20px; }
-.com-live-mail li { margin: 4px 0; }
-.com-live-mail button { cursor: pointer; }
+.com-live-mail { min-width: 0; }
+.com-live-mail__pickers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; min-width: 0; }
+.com-live-mail__search { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; min-width: 0; }
+.com-live-mail__search .jv-field { flex: 1 1 240px; min-width: 0; }
+.com-live-mail__list { list-style: none; margin: 8px 0; padding: 0; max-height: 320px; overflow: auto; display: grid; gap: 2px; min-width: 0; }
+.com-live-mail__row { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; min-width: 0; }
+.com-live-mail__row:hover, .com-live-mail__row[aria-current="true"] { border-color: var(--friday-tint-cyan-border); background: var(--friday-tint-cyan-bg); }
+.com-live-mail__row strong { font-weight: 600; color: var(--friday-text-strong); overflow-wrap: anywhere; }
+.com-live-mail__from { font-size: var(--jv-fs-xs); color: var(--friday-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.com-live-mail__actions, .com-live-mail__paging { display: flex; flex-wrap: wrap; gap: 8px; }
+.com-live-mail__paging { margin-top: 8px; }
+.com-live-mail__alert { color: var(--friday-warning); }
 .com-live-mail__message pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; font: inherit; }
 .com-live-mail__compose { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--friday-border); }
 .com-live-mail__compose label { display: grid; gap: 5px; min-width: 0; }

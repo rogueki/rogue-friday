@@ -116,6 +116,9 @@ function CommunicationPageInner() {
 
   return (
     <div className="mk-page com-page">
+      {notConfigured ? (
+        <HimalayaMailbox autoOpen />
+      ) : (
       <HudPanel
         title={t("nav.communication")}
         subtitle={t("page.communication.description")}
@@ -146,8 +149,7 @@ function CommunicationPageInner() {
           />
         </div>
       </HudPanel>
-
-      {notConfigured ? <HimalayaMailbox /> : null}
+      )}
       {!notConfigured && channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
       {!notConfigured && channelGroup(selectedChannel?.kind) === "messenger" ? <MessengerCompose /> : null}
 
