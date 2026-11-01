@@ -751,10 +751,14 @@ function Load-RootState {
         }
     }
     foreach ($choice in @('assistantName','wakePhrase')) { $script:fields[$choice].Enabled = -not ($saved -and $saved.assistant_name) }
-    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend')) {
+    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId')) {
         $script:fields[$choice].Enabled = -not ($saved -and $saved.voice_mode)
     }
+    # Gespraech, Region, Schluessel und Zustimmung gehoeren zum Sprachdienst-Schritt: waehlbar, bis er eingerichtet ist.
+    $conversationLocked = [bool]($saved -and @($saved.done) -contains 'voicepython')
+    $script:fields.conversationBackend.Enabled = -not $conversationLocked
     Update-ConversationFields
+    $script:qwenKeyResult.Text = if ($conversationLocked) { 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache.' } else { '' }
     foreach ($choice in @('inputDevice','outputDevice')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'voicepython') }
     $browse.Enabled = $script:fields.voiceReference.Enabled
     foreach ($choice in @('ownerName','address','character','length')) { $script:fields[$choice].Enabled = -not ($saved -and @($saved.done) -contains 'persona') }
@@ -778,8 +782,10 @@ if ($ChangeVoice) {
             'F.R.I.D.A.Y.', 'OK', 'Error')
         exit 5
     }
-    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId')) { $script:fields[$choice].Enabled = $true }
+    foreach ($choice in @('voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend')) { $script:fields[$choice].Enabled = $true }
     $browse.Enabled = $true
+    Update-ConversationFields
+    $script:qwenKeyResult.Text = ''
     if ($VoiceTarget -eq 'elevenlabs') { $script:fields.voiceMode.SelectedIndex = 1 } elseif ($VoiceTarget -eq 'local') { $script:fields.voiceMode.SelectedIndex = 0 }
     $keep = @('voicePage', 'summaryPage', 'progressPage')
     foreach ($page in @($script:pages | Where-Object { $keep -notcontains $_.Key })) {

@@ -64,6 +64,11 @@ Assert-True ($installer -match "'conversationBackend','qwenRegion','qwenConsent'
 Assert-True ($installer -match "'keepIdentity','repeatEnrollment','qwenConsent','retryEnrollment'") 'qwenConsent fehlt in der Liste der Ja/Nein-Antworten.'
 Assert-True ($installer -match "'\^Zustimmung Qwen Audio' \{ 'qwenConsent'; break \}") 'Die Ja/Nein-Zuordnung für Qwen Audio fehlt.'
 Assert-True ($installer -match "'--qwen-consent'") 'voice_setup.py erhält keine Qwen-Zustimmung.'
+# Ein gespeicherter Sprachbetrieb (z. B. abgebrochener Lauf) sperrt das Gespraech nicht; erst der eingerichtete Sprachdienst.
+Assert-True ($gui -notmatch "@\('voiceMode','voiceChoice','voiceReference','voiceId','conversationBackend'\)\) \{\s+\`$script:fields\[\`$choice\]\.Enabled = -not \(\`$saved -and \`$saved\.voice_mode\)") 'Gespräch wird schon durch einen gespeicherten Sprachbetrieb gesperrt.'
+Assert-True ($gui -match "\`$conversationLocked = \[bool\]\(\`$saved -and @\(\`$saved\.done\) -contains 'voicepython'\)") 'Gespräch wird nicht erst nach dem Sprachdienst-Schritt gesperrt.'
+Assert-True ($gui -match 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache\.') 'Gesperrtes Gespräch zeigt keinen Hinweis auf das Dashboard.'
+Assert-True ($installer -match "-not \(IsDone 'preflight'\) -or\s+-not \(IsDone 'voicepython'\)\)\) \{\s+Info 'Gespräch: 1") 'Der Installer fragt das Gespräch bei fortgesetzter Installation nicht ab.'
 Assert-True ($installer -match 'Ohne Zustimmung bleibt das Gespräch lokal') 'Die Ablehnung der Zustimmung wird nicht gemeldet.'
 Assert-True ($installer -match '\$newConversation = ''local''') 'Die Ablehnung der Zustimmung schaltet das Gespräch nicht auf lokal.'
 

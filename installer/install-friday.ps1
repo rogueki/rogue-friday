@@ -1451,6 +1451,10 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
         if ($voiceId -notmatch '^[A-Za-z0-9]{10,64}$') { Stop-Install 'ElevenLabs Voice ID ist ungueltig.' }
         $State.elevenlabs_voice_id = $voiceId
     }
+}
+# Asked until the voice service step ran: a resumed install keeps its voice mode but still needs the conversation choice.
+if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('local', 'elevenlabs') -or -not (IsDone 'preflight') -or
+    -not (IsDone 'voicepython'))) {
     Info 'Gespräch: 1  Lokal   2  Qwen Audio Live-Gespräch (Alibaba Token Plan, Internet nötig; Wake Word, Sprecherprüfung und Stimme bleiben lokal)'
     $defaultConversation = if ($State.conversation_backend -eq 'qwen') { '2' } else { '1' }
     do {
