@@ -1775,3 +1775,16 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
   bei einer Neuinstallation. Test `without-simulation.test.ts` prüft, dass weder die Konfiguration noch
   `/api/v1/adapters` einen `mock-`-Anbieter enthält (rot ohne Fix).
 
+## Installer: Sprachseite bei fortgesetzter Installation bedienbar (2026-11-01)
+
+- Gemeldet von ByteNinja (Screenshot): Auf „Sprache & Stimme“ waren nur Mikrofon und Lautsprecher bedienbar –
+  Stimme, „Stimmen laden“, Gespräch, Alibaba-Region, Token-Plan-Schlüssel und Zustimmungshaken waren grau.
+  Ursache: Ein früherer, abgebrochener Lauf (`C:\Friday`: Sprachbetrieb gespeichert, Sprachdienst nie eingerichtet)
+  sperrte die Seite schon wegen des gespeicherten Sprachbetriebs, und der Installer fragte diese Punkte dann gar
+  nicht mehr ab.
+- Fix: Die Sprachseite sperrt erst, wenn der Sprachdienst eingerichtet ist (`voicepython`); dann steht dort
+  „Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache.“ Bis dahin fragt der Installer
+  Sprachbetrieb, Stimme und Gespräch ab.
+- Test: Der GUI-Selbstlauf (`gui-wizard-pages.Tests.ps1`) lädt jetzt einen echten fortgesetzten Zustand und einen
+  eingerichteten Zustand und prüft die Bedienbarkeit jedes Felds (`voiceresume=fresh:True open:True locked:True`, auch ein leerer Ordner); rot mit der
+  alten Sperrlogik. Dazu Quelltextprüfungen in `gui-controls.Tests.ps1`.
