@@ -3,22 +3,42 @@
 # Konfigurationsdateien des Benutzers). Damit entscheidet der Installer, ob ein neuer Build noetig ist, und ein
 # frischer Zielordner bekommt denselben Stand wie das Repository - ohne Sonderbranch.
 
+# The repository's test world (simulation data, mock adapter, Storybook): CI runs its tests on it, an installation never
+# loads it, so it is never copied into an installation. apps\mock-console only exists in older installations.
+$script:DashboardTestOnlyPaths = @('apps\storybook', 'apps\mock-console', 'adapters\mock', 'packages\mock-data')
+
+function Remove-DashboardTree([string]$Path) {
+    # pnpm links packages with junctions: a link is removed as a link and never followed into its target.
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return }
+    if (-not $item.PSIsContainer) { $item.Attributes = [IO.FileAttributes]::Normal; $item.Delete(); return }
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { [IO.Directory]::Delete($item.FullName); return }
+    foreach ($child in $item.GetFileSystemInfos()) { Remove-DashboardTree $child.FullName }
+    [IO.Directory]::Delete($item.FullName)
+}
+
+function Remove-DashboardTestOnlyPaths([string]$Target) {
+    foreach ($relative in $script:DashboardTestOnlyPaths) { Remove-DashboardTree (Join-Path $Target $relative) }
+}
+
 function Get-DashboardSourceFiles([string]$Source, [string[]]$RootFiles, [string[]]$Dirs, [string[]]$ExcludeDirs) {
     $files = New-Object System.Collections.Generic.List[string]
+    $base = (Get-Item -LiteralPath $Source).FullName.TrimEnd('\')
     foreach ($name in @($RootFiles)) {
-        $path = Join-Path $Source $name
+        $path = Join-Path $base $name
         if (Test-Path -LiteralPath $path -PathType Leaf) { $files.Add($path) }
     }
     $stack = New-Object System.Collections.Generic.Stack[string]
     foreach ($name in @($Dirs)) {
-        $path = Join-Path $Source $name
+        $path = Join-Path $base $name
         if (Test-Path -LiteralPath $path -PathType Container) { $stack.Push($path) }
     }
     while ($stack.Count -gt 0) {
         $current = $stack.Pop()
         $info = New-Object IO.DirectoryInfo $current
         foreach ($sub in $info.GetDirectories()) {
-            if ($ExcludeDirs -notcontains $sub.Name) { $stack.Push($sub.FullName) }
+            $relative = $sub.FullName.Substring($base.Length + 1)
+            if ($ExcludeDirs -notcontains $sub.Name -and $script:DashboardTestOnlyPaths -notcontains $relative) { $stack.Push($sub.FullName) }
         }
         foreach ($file in $info.GetFiles()) { $files.Add($file.FullName) }
     }
@@ -72,10 +92,13 @@ function Sync-DashboardSource([string]$Source, [string]$Target, [string[]]$RootF
     foreach ($name in @($Dirs)) {
         $dir = Join-Path $Source $name
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+        $testOnly = @($script:DashboardTestOnlyPaths | Where-Object { $_.StartsWith($name + '\') } | ForEach-Object { Join-Path $Source $_ })
         # Schluessel im Quellbaum sind Testmaterial; echte Schluessel liegen in data\ und werden nie gespiegelt.
-        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs /XF '*.log' '*.key' '*.pem' '*.pfx' '*.p12' /NFL /NDL /NJH /NJS /NP | Out-Null
+        & robocopy.exe $dir (Join-Path $Target $name) /MIR /XD @ExcludeDirs @testOnly /XF '*.log' '*.key' '*.pem' '*.pfx' '*.p12' /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { throw "Kopieren von '$name' nach $Target fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
+    # /MIR leaves excluded folders alone; an older installation still has the test world, so it is removed here.
+    Remove-DashboardTestOnlyPaths $Target
     foreach ($name in @($ConfigDirs)) {
         $dir = Join-Path $Source $name
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
