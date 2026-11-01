@@ -109,7 +109,7 @@ export function HimalayaMailbox({ autoOpen = false }: { autoOpen?: boolean } = {
     <Button size="sm" variant="ghost" onClick={() => { setOpen(false); chooseAccount(null); client.removeQueries({ queryKey: KEY }); }}>Schließen</Button>
     {selectedAccount && <Button size="sm" icon={<MailPlus size={14} />} onClick={() => setCompose("new")}>Neue E-Mail</Button>}
   </> : <Button size="sm" icon={<Mail size={14} />} onClick={() => setOpen(true)}>E-Mail Postfach öffnen</Button>;
-  return <HudPanel title="E-Mail-Postfach" subtitle="Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen." icon={<Mail size={18} strokeWidth={1.5} />} className="com-live-mail" aria-label="E-Mail Postfach" actions={actions}>
+  return <HudPanel title="E-Mail Postfach" subtitle="Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen." icon={<Mail size={18} strokeWidth={1.5} />} className="com-live-mail" aria-label="E-Mail Postfach" actions={actions}>
     {open && <>
       {accounts.isPending && <p role="status">Konten werden geladen …</p>}
       {accounts.isError && <p role="alert" className="com-live-mail__alert">Konten nicht erreichbar. Einrichtung unter Einstellungen → Skill-Konten prüfen.</p>}
