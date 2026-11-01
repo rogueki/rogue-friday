@@ -55,7 +55,8 @@ afterEach(() => {
 describe("honest adapter display in a live installation", () => {
   it("lists every category without an adapter as not configured instead of offering simulation", async () => {
     setup({ dataMode: "live", adapters: [tasksAdapter] });
-    expect(await screen.findByText("Nicht eingerichtete Bereiche")).toBeTruthy();
+    expect(await screen.findByText("Ohne externen Anbieter")).toBeTruthy();
+    expect(screen.queryByText(/adapters\.yaml/)).toBeNull();
     expect(screen.getByText("Gedächtnis · nicht eingerichtet")).toBeTruthy();
     expect(screen.getByText("Kommunikation · nicht eingerichtet")).toBeTruthy();
     expect(screen.queryByText("Aufgaben · nicht eingerichtet")).toBeNull();

@@ -199,7 +199,8 @@ describe("ActivityPage", () => {
     expect(screen.getByText(/Adapter für Live-Aktivität nicht erreichbar/)).toBeInTheDocument();
     expect(screen.queryByText("Nicht verbunden")).toBeNull();
     unmount();
-    renderWithProviders(<ActivityPage />, { capabilities: capabilitiesOf({ tasks: { read: true } }), fetchImpl: routes({ "GET /adapters": listOf([]) }).fetch });
+    renderWithProviders(<ActivityPage />, { capabilities: capabilitiesOf({ tasks: { read: true } }), fetchImpl: routes({ "GET /adapters": listOf([]),
+      "GET /activity": () => ({ status: 403, body: { error: { code: "CAPABILITY_MISSING", message: "Für 'activity' ist kein Adapter konfiguriert.", severity: "info", retryable: false, correlationId: "corr_00000000000000000000000010", details: {} } } }) }).fetch });
     expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
     expect(screen.getByText(/Für „Live-Aktivität“ ist kein Adapter konfiguriert/)).toBeInTheDocument();
   });

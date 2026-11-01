@@ -2645,7 +2645,7 @@ logging:
     $adaptersYaml = @"
 # F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
 # Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
-# Nicht eingerichtete Kategorien (memory, approvals, communication, calendar, automations, research, files,
+# Nicht eingerichtete Kategorien (memory, approvals, communication, calendar, research, files,
 # notifications, audit, commands) bleiben deaktiviert und werden in der Oberflaeche als nicht eingerichtet gezeigt -
 # es gibt keinen Mock-Fallback. Eine Kategorie wird erst aktiv, wenn hier ein Provider eingetragen ist.
 # Ports werden aus dem gespeicherten Installationszustand uebernommen.
@@ -2687,6 +2687,13 @@ adapters:
       apiKey: "file:$rootYaml/config/hermes_api.key"
       dashboardBaseUrl: http://127.0.0.1:$($Ports.Dashboard)
       boards: [default]
+  automations:
+    provider: hermes-automations
+    enabled: true
+    timeoutMs: 10000
+    config:
+      dashboardBaseUrl: http://127.0.0.1:$($Ports.Dashboard)
+      dashboardAuth: scrape
   voice:
     provider: friday-voice-http
     enabled: true

@@ -1,7 +1,7 @@
 # Project Status & Continuation Guide
 
 **Read this first in every new session** (then `docs/IMPLEMENTATION_CONVENTIONS.md`, then `docs/PLAN.md`).
-Last updated: 2026-10-31 (Mock entfernt; Installer-Assistent nur noch mit Klick-Steuerelementen, siehe letzte Abschnitte; physical clean-install drill open).
+Last updated: 2026-11-01 (Frischinstallations-Seiten zeigen eingebaute Daten; Mock entfernt; Installer-Assistent nur noch mit Klick-Steuerelementen, siehe letzte Abschnitte; physical clean-install drill open).
 
 ## Goal
 
@@ -1713,3 +1713,30 @@ entfernt) rot; pyflakes ohne Befund.
 Windows `test_qwen_dialog.py` 14/14; LG-3: WSL-Voice-Liste 226 bestanden, Gegenprobe Dialogtausch rot; `pnpm contracts:check`, `typecheck`, `lint`, `test` (ein Last-Timeout in `security.test.ts`, einzeln 28/28), `test:conformance`, `build` grün; `check_p8_matrix.py` 111 Zeilen; Gegenproben rot (Sitzung nach Abbruch nicht geschlossen; Gast-Audio an Qwen);
 PowerShell-Parser ohne Fehler; `dashboard-update-voice-integration`, `dashboard-update-wsl-bridges`, `voice-slots`,
 `voice-native-capture`, alle `gui-*.Tests.ps1` (9) PASS.
+
+## Frische Installation in der Sandbox geprüft (2026-11-01)
+
+Sandbox (eigener Ordner, Port 3197, eigener Vault, keine FRIDAY_*-Aufgaben) mit der adapters.yaml, die der Installer
+schreibt, und einem GitHub-Update 6ab93cd6 → 8085c385 (Erfolg, Einstellungen erhalten, `mockData: false`). Gefunden und behoben:
+- **Automationen fehlten in der Installer-Vorlage:** `install-friday.ps1` schrieb `hermes-automations` nur in die allowlist,
+  nicht unter `adapters:`; jede Neuinstallation zeigte „Automationen · nicht eingerichtet“. Eintrag ergänzt
+  (`dashboardBaseUrl` = Hermes-Dashboard der Installation), neuer Test `installer/tests/adapters-template.Tests.ps1`
+  (Pflichtkategorien, Anbieter in allowlist; gegen den alten Stand rot).
+- **Seiten versteckten eingebaute Daten:** Der Modul-Gate meldete „Nicht verbunden“, sobald kein Adapter registriert war,
+  obwohl Friday selbst antwortete (Freigaben, Meldungen, Audit, Kalender). `useModulePanelGate` zeigt bei
+  `not-configured` die Daten, wenn die Abfrage welche geliefert hat; ohne Adapter antwortet der Server weiter mit 403
+  `CAPABILITY_MISSING`, dann bleibt „Nicht verbunden“. Drei Tests nutzten Fake-Daten ohne Adapter und antworten jetzt wie
+  der Server mit 403.
+- **Kalender ohne externen Anbieter:** `GET /calendar/conflicts` und `/calendar/briefings` liefen direkt auf den Port
+  (403). `localCalendarFallbacks` beantwortet beide bei fehlendem/ausgefallenem Adapter lokal: Überschneidungen der
+  nächsten 30 Tage aus lokalem Kalender und verbundenen Konten (deterministische `conf_`-IDs, max. 50), Briefings leer.
+- **Mail ohne Kommunikationsadapter:** Das Postfach (Himalaya, Konten unter Skill-Konten) erschien nur bei gewähltem
+  E-Mail-Kanal, Kanäle gibt es aber nur mit Kommunikationsadapter. Ist der nicht eingerichtet, zeigt die Seite direkt das
+  Postfach statt Kanalleiste und Threadliste.
+- **Adapter-Einstellungen:** Der Hinweis „Trage den Anbieter in adapters.yaml ein und starte neu“ ist ersetzt durch
+  „Ohne externen Anbieter“ mit Verweis auf Skill-Konten und die Kalenderseite.
+
+Grenzen der Sandbox: kein zweites WSL/Hermes/Voice (feste Aufgabennamen und Ports, Windows Home ohne Sandbox/Hyper-V);
+Headset-Abnahme LG-8.01 braucht den Besitzer. Installer-GUI: `gui-dpi`, `gui-shell-layout`, `gui-wizard-pages` lokal PASS,
+Simulation `success` mit 8 Seiten gezeichnet (nur Auswahllisten, Häkchen, Ordner-/Datei-Wahl; Textfelder nur für Namen,
+Schlüssel, Passwörter).
