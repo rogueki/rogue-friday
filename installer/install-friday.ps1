@@ -1530,6 +1530,13 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
             $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
             if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
+            # A saved reference from an earlier run can point into a deleted or renamed download folder; then the
+            # bundled reference found above is used instead of stopping the installation.
+            if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf) -and
+                $reference -in @([string]$choiceReference, [string]$State.voice_reference)) {
+                Warn "Gespeicherte Stimmreferenz nicht mehr vorhanden: $reference"
+                $reference = ''
+            }
             if (-not $reference) { $reference = $defaultReference }
             if ($reference) {
                 $voiceFile = Test-VoiceReferenceFile $reference

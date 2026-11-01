@@ -1788,3 +1788,14 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
 - Test: Der GUI-Selbstlauf (`gui-wizard-pages.Tests.ps1`) lädt jetzt einen echten fortgesetzten Zustand und einen
   eingerichteten Zustand und prüft die Bedienbarkeit jedes Felds (`voiceresume=fresh:True open:True locked:True`, auch ein leerer Ordner); rot mit der
   alten Sperrlogik. Dazu Quelltextprüfungen in `gui-controls.Tests.ps1`.
+
+## Installer: alter Stimmpfad aus früherem Download bricht nicht mehr ab (2026-11-01)
+
+- Gemeldet bei der Installation eines Kollegen: „Stimmreferenz ist nicht verwendbar: …\Downloadsogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obwohl der Installer die Datei im neuen Ordner `rogue-friday-main`
+  gerade selbst gefunden hatte. Ursache: Ein früherer Lauf hatte den Pfad der mitgelieferten Stimme (im damaligen
+  Download-Ordner) gespeichert; die Oberfläche belegte das Feld damit vor, der Installer brach ab.
+- Fix: Die Oberfläche belegt nur eine eigene Datei vor, die noch existiert. Der Installer ersetzt eine gespeicherte,
+  nicht mehr vorhandene Referenz durch die mitgelieferte (Warnung statt Abbruch). Die Stimmprüfung der Oberfläche gilt
+  bis zum Sprachdienst-Schritt (wie die Sperre der Sprachseite).
+- Test: GUI-Selbstlauf mit veraltetem Pfad im Zustand (rot ohne Fix), Quelltextprüfungen in `gui-controls.Tests.ps1`.
+
