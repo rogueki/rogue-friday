@@ -1766,3 +1766,12 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
 - Test `installer/voice/tests/test_cloud_secret.py`: echter Speichern-/Lesen-Durchlauf unter Windows (rot mit altem
   Code, grün mit Fix) plus Quelltextprüfung auf jedem System; in der CI-Liste eingetragen.
 
+## Ältere Hybrid-Konfiguration ohne Mock-Anbieter (2026-11-01)
+
+- Gefunden beim Live-Update einer Installation vom 21.10.: `dashboard.yaml` stand noch auf `dataMode: hybrid`. Der
+  Server lief zwar als live, registrierte aber für neun nicht eingerichtete Bereiche `mock-*`-Anbieter, die dann als
+  „offline“ auftauchten.
+- Fix (`create-runtime.ts`, `runAsLive`): Beim Umstellen auf live gelten Mock-Einträge als „nicht eingerichtet“ – wie
+  bei einer Neuinstallation. Test `without-simulation.test.ts` prüft, dass weder die Konfiguration noch
+  `/api/v1/adapters` einen `mock-`-Anbieter enthält (rot ohne Fix).
+
