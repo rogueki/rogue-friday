@@ -18,6 +18,16 @@ $progressFile = Join-Path $data 'dashboard-update-progress.json'
 $lock = Join-Path $updates 'dashboard-update.lock'
 $log = Join-Path $root 'logs\dashboard-update.log'
 $repository = 'https://github.com/rogueki/rogue-friday.git'
+# Only what an installation uses; tests, docs and reference images would multiply the download on slow links.
+$sparsePatterns = @('/*', '!/*/', '/apps/', '/packages/', '/adapters/', '/scripts/', '/config/', '/installer/',
+    '!screenshots/', '!__screenshots__/', '!evidence/', '!storybook-static/', '!fixtures/', '!test-results/', '!playwright-report/')
+# Folder names the installer never copies into the dashboard (install-friday.ps1 $DashExcludeDirs).
+$notInstalledDirs = '(^|\\)(node_modules|\.git|\.next|dist|out|coverage|storybook-static|playwright-report|test-results|screenshots|__screenshots__|evidence|\.turbo|__pycache__|\.claude|fixtures)(\\|$)'
+$blobBatchSize = 100
+$env:GIT_TERMINAL_PROMPT = '0'
+$env:npm_config_fetch_retries = '5'
+$env:npm_config_fetch_retry_maxtimeout = '120000'
+$env:npm_config_fetch_timeout = '300000'
 New-Item -ItemType Directory -Force $updates, (Split-Path $log -Parent) | Out-Null
 $lockHandle = $null
 $backup = $null
@@ -77,6 +87,68 @@ function Git([string[]]$arguments) {
     }
     if ($gitExit -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
     return $result
+}
+function Invoke-GitNetwork([string[]]$arguments, [string]$what) {
+    # GitHub drops long transfers, so every request stays small; a stalled one ends after a minute and is retried.
+    $tuned = @('-c', 'http.lowSpeedLimit=1024', '-c', 'http.lowSpeedTime=60') + $arguments
+    for ($attempt = 1; ; $attempt++) {
+        try { return Git -arguments $tuned }
+        catch {
+            if ($attempt -ge 4) { throw "GitHub-Download fehlgeschlagen ($what). Internetverbindung prüfen und Update erneut starten." }
+            "$(Get-Date -Format o) $($what): Versuch $attempt fehlgeschlagen, neuer Versuch." | Add-Content $log
+            Start-Sleep -Seconds (10 * $attempt)
+        }
+    }
+}
+function Test-SparseSourcePath([string]$gitPath) {
+    if (-not $gitPath.Contains('/')) { return $true }
+    if ($gitPath -notmatch '^(apps|packages|adapters|scripts|config|installer)/') { return $false }
+    return $gitPath -notmatch '(^|/)(screenshots|__screenshots__|evidence|storybook-static|fixtures|test-results|playwright-report)/'
+}
+function Remove-UpdateCache {
+    # rmdir removes pnpm's node_modules junctions without following them out of the cache.
+    if (-not (Test-Path -LiteralPath $cache)) { return }
+    Assert-NoReparse $cache $updates
+    & cmd.exe /d /c rmdir /s /q "$cache" 2>$null
+    if (Test-Path -LiteralPath $cache) { throw 'Update-Cache konnte nicht entfernt werden.' }
+}
+function Initialize-UpdateCache {
+    $partial = $false
+    if (Test-Path -LiteralPath (Join-Path $cache '.git')) {
+        try { $partial = ((Git -arguments @('-C', $cache, 'config', '--get', 'remote.origin.promisor')) -join '').Trim() -eq 'true' } catch { }
+    }
+    if (-not $partial -and (Test-Path -LiteralPath $cache)) {
+        # Older caches are full clones with every test image; a blobless clone is a few megabytes.
+        Remove-UpdateCache
+    }
+    if (-not (Test-Path -LiteralPath $cache)) {
+        try { Invoke-GitNetwork @('clone', '--filter=blob:none', '--no-checkout', $repository, $cache) 'Quellstand klonen' | Out-Null }
+        catch { try { Remove-UpdateCache } catch { }; throw }
+    }
+    Git -arguments (@('-C', $cache, 'sparse-checkout', 'set', '--no-cone') + $sparsePatterns) | Out-Null
+}
+function Get-MissingSourceBlobs([string]$commit) {
+    $missing = @{}
+    foreach ($line in (Git -arguments @('-C', $cache, 'rev-list', '--objects', '--no-walk', '--missing=print', $commit))) {
+        if ($line -match '^\?([0-9a-f]{40})$') { $missing[$Matches[1]] = $true }
+    }
+    $wanted = [Collections.Generic.List[string]]::new()
+    foreach ($line in (Git -arguments @('-C', $cache, '-c', 'core.quotePath=false', 'ls-tree', '-r', '--full-tree', $commit))) {
+        if ($line -notmatch '^\d{6} blob ([0-9a-f]{40})\t(.+)$') { continue }
+        $oid = $Matches[1]
+        if ($missing.ContainsKey($oid) -and (Test-SparseSourcePath $Matches[2])) { $wanted.Add($oid); $missing.Remove($oid) }
+    }
+    return ,$wanted.ToArray()
+}
+function Receive-SourceBlobs([string]$commit) {
+    $wanted = Get-MissingSourceBlobs $commit
+    $batches = [Math]::Ceiling($wanted.Count / $blobBatchSize)
+    for ($index = 0; $index -lt $batches; $index++) {
+        Write-UpdateState $script:phase "GitHub-Quellstand wird geladen (Paket $($index + 1) von $batches)."
+        $slice = @($wanted[($index * $blobBatchSize)..([Math]::Min($wanted.Count, ($index + 1) * $blobBatchSize) - 1)])
+        Invoke-GitNetwork (@('-C', $cache, '-c', 'fetch.negotiationAlgorithm=noop', 'fetch', '--no-tags', '--no-write-fetch-head',
+            '--recurse-submodules=no', '--filter=blob:none', 'origin') + $slice) "Paket $($index + 1) von $batches" | Out-Null
+    }
 }
 function Invoke-Pnpm([string[]]$arguments) {
     # Windows PowerShell 5.1 turns redirected native stderr into a terminating error under 'Stop'; pnpm warnings are not failures.
@@ -233,7 +305,7 @@ function Test-MemoryUpdateNeeded([string[]]$changedPaths) {
 function Test-InstallerCopyPath([string]$gitPath) {
     if (-not $gitPath.StartsWith('installer/', [StringComparison]::Ordinal)) { return $false }
     $relative = $gitPath.Substring('installer/'.Length)
-    if ($relative -match '(^|/)(tests|test|fixtures|__pycache__|[.]pytest_cache)(/|$)') { return $false }
+    if ($relative -match '(^|/)(tests|test|fixtures|__pycache__|[.]pytest_cache|screenshots|__screenshots__|evidence|storybook-static|test-results|playwright-report)(/|$)') { return $false }
     $segments = $relative -split '/'
     $name = $segments[$segments.Count - 1]
     if ($name -like 'test_*.py' -or $name -like '*.Tests.ps1' -or $name -like '*.test.ps1' -or $name -like 'test_*.sh' -or
@@ -452,12 +524,15 @@ try {
     $installedMarkerText = Get-Content $marker -Raw
     $installed = ($installedMarkerText | ConvertFrom-Json).commit
     if ($installed -cnotmatch '^[0-9a-f]{40}$') { throw 'Installierter Git-Stand ist ungültig.' }
-    if (-not (Test-Path (Join-Path $cache '.git'))) {
-        Git -arguments @('clone', '--no-checkout', $repository, $cache) | Out-Null
-    }
+    Initialize-UpdateCache
     $remote = (Git -arguments @('-C', $cache, 'config', '--get', 'remote.origin.url') | Select-Object -First 1).Trim()
     if ($remote -ne $repository) { throw 'Update-Cache hat eine unerwartete Git-Quelle.' }
-    Git -arguments @('-C', $cache, 'fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main') | Out-Null
+    try { Invoke-GitNetwork @('-C', $cache, 'fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main') 'Stand abrufen' | Out-Null }
+    catch {
+        # A broken cache would fail every later update the same way; the next run clones afresh.
+        try { Remove-UpdateCache } catch { }
+        throw
+    }
     Set-UpdatePhase 2 'verify' 'Quellstand und Änderungen werden geprüft.'
     $target = (Git -arguments @('-C', $cache, 'rev-parse', 'refs/remotes/origin/main') | Select-Object -First 1).Trim()
     if ($target -cne $ExpectedCommit) { throw 'GitHub main hat sich geändert. Bitte Update erneut prüfen.' }
@@ -474,10 +549,11 @@ try {
         $changedPaths += $path.Replace('\', '/')
         $allowed = $path -match '^(apps|packages|adapters|scripts|config)\\' -or $path -in @('package.json','pnpm-lock.yaml','pnpm-workspace.yaml','tsconfig.base.json','eslint.config.js','vitest.config.ts','.npmrc','.nvmrc')
         if (-not $allowed -or $path -in @('config\dashboard.yaml','config\adapters.yaml') -or
-            $path -match '(^|\\)(node_modules|dist|out|\.git)(\\|$)' -or $path -match '(^|\\)\.\.(\\|$)' -or
+            $path -match $notInstalledDirs -or $path -match '(^|\\)\.\.(\\|$)' -or
             $path -match '(^|\\)(\.env[^\\]*|[^\\]+\.(key|pem|p12))$') { continue }
         $changes += [pscustomobject]@{ Kind = $kind; Path = $path }
     }
+    Receive-SourceBlobs $target
     Git -arguments @('-C', $cache, 'checkout', '--detach', '--force', $target) | Out-Null
     $voiceNeeded = Test-VoicePersonaUpdateNeeded $changedPaths
     $memoryNeeded = Test-MemoryUpdateNeeded $changedPaths
