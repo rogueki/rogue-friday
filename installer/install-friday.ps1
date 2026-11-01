@@ -1530,6 +1530,13 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
             $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
             if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
+            # A saved reference from an earlier run can point into a deleted or renamed download folder; then the
+            # bundled reference found above is used instead of stopping the installation.
+            if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf) -and
+                $reference -in @([string]$choiceReference, [string]$State.voice_reference)) {
+                Warn "Gespeicherte Stimmreferenz nicht mehr vorhanden: $reference"
+                $reference = ''
+            }
             if (-not $reference) { $reference = $defaultReference }
             if ($reference) {
                 $voiceFile = Test-VoiceReferenceFile $reference
@@ -1652,8 +1659,31 @@ Sync-VoiceFiles
 if (-not (IsDone 'wslfeature')) {
     Enter-Step 'wslfeature'
     Title 'Schritt 3/15 – WSL2 (Linux-Subsystem) vorbereiten'
-    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--status') -TimeoutSeconds 120 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    # Invoke-CapturedProcess does not set $LASTEXITCODE: the exit code is in the result. Reading $LASTEXITCODE here took
+    # robocopy's 1 ("files copied") from step 2 as "WSL missing" and asked for a restart on every run.
+    $statusRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--status') -TimeoutSeconds 120
+    # Without any distribution (normal here, Ubuntu follows in step 7) some WSL releases end 'wsl --status' with an
+    # error; 'wsl --version' answers as soon as the WSL package is installed.
+    $wslReady = $statusRun.ExitCode -eq 0
+    if (-not $wslReady) { $wslReady = (Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--version') -TimeoutSeconds 120).ExitCode -eq 0 }
+    if (-not $wslReady) {
+        $rebootRequestedAt = [string]$State['wsl_reboot_requested_at']
+        $lastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+        if ($rebootRequestedAt -and [datetime]::Parse($rebootRequestedAt, [Globalization.CultureInfo]::InvariantCulture) -lt $lastBoot) {
+            # Windows was restarted after the WSL setup and WSL still does not answer: another restart would not help.
+            $statusText = (@("$($statusRun.StdOut)", "$($statusRun.StdErr)") -join ' ' -replace '\x00', '' -replace '\s+', ' ').Trim()
+            $hypervisor = [bool](Get-CimInstance Win32_ComputerSystem).HypervisorPresent
+            $firmware = (Get-CimInstance Win32_Processor | Select-Object -First 1).VirtualizationFirmwareEnabled
+            if (-not $hypervisor -and $firmware -eq $false) {
+                Stop-Install 'WSL2 braucht die Virtualisierung der CPU, sie ist im BIOS/UEFI ausgeschaltet. Im BIOS/UEFI "Intel VT-x" bzw. "AMD SVM / SVM Mode" einschalten, Windows starten und die Installation erneut starten.'
+            }
+            $missing = @(Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform, Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue |
+                Where-Object { "$($_.State)" -ne 'Enabled' } | ForEach-Object { $_.FeatureName })
+            if ($missing.Count -gt 0) {
+                Stop-Install "WSL ist nach dem Neustart nicht aktiv; folgende Windows-Funktionen fehlen: $($missing -join ', '). In 'Windows-Features aktivieren oder deaktivieren' VM-Plattform und Windows-Subsystem für Linux anhaken, neu starten und die Installation erneut starten."
+            }
+            Stop-Install "WSL antwortet auch nach dem Neustart nicht (wsl --status: Exitcode $($statusRun.ExitCode); $statusText). Bitte 'wsl --install --no-distribution' in einer Administrator-PowerShell ausführen, neu starten und die Installation erneut starten."
+        }
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
         if ($GuiMode) {
@@ -1666,6 +1696,8 @@ if (-not (IsDone 'wslfeature')) {
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
         $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
         Register-ScheduledTask -TaskName $ResumeTask -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+        $State['wsl_reboot_requested_at'] = (Get-Date).ToString('o', [Globalization.CultureInfo]::InvariantCulture)
+        Save-State
         Warn 'Windows muss jetzt neu starten. Danach geht die Installation automatisch weiter.'
         Stop-Transcript | Out-Null
         if (-not $GuiMode -and (YesNo 'Jetzt neu starten?')) { Restart-Computer -Force }

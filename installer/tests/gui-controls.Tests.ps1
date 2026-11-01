@@ -72,6 +72,10 @@ Assert-True ($gui -match "\`$script:fields\.voiceMode\.Enabled = -not \`$voiceLo
 Assert-True ($gui -match "\} else \{ Update-VoiceModeFields \}") 'Stimme/Stimmen laden werden nach dem Laden eines Stands nicht passend freigegeben.'
 Assert-True ($installer -match "-not \(IsDone 'preflight'\) -or\s+-not \(IsDone 'voicepython'\)\)\) \{\s+Title 'Sprachbetrieb wählen'") 'Der Installer fragt den Sprachbetrieb bei fortgesetzter Installation nicht ab.'
 Assert-True ($installer -match "-notin @\('friday-female', 'classic', 'custom'\) -or -not \(IsDone 'voicepython'\)\)\) \{") 'Der Installer fragt die Stimme bei fortgesetzter Installation nicht ab.'
+# Eine gespeicherte Stimmreferenz aus einem alten Download-Ordner bricht die Installation nicht ab.
+Assert-True ($gui -match "voice_choice -eq 'custom' -and \`$saved\.voice_reference -and\s+\(Test-Path -LiteralPath \(\[string\]\`$saved\.voice_reference\) -PathType Leaf\)") 'Die Oberfläche belegt eine veraltete Stimmreferenz vor.'
+Assert-True ($installer -match "Gespeicherte Stimmreferenz nicht mehr vorhanden") 'Der Installer bricht an einer veralteten Stimmreferenz ab.'
+Assert-True ($gui -match "\`$voicePageOpen = -not \(\`$state -and @\(\`$state\.done\) -contains 'voicepython'\) -or \`$ChangeVoice") 'Die Stimmprüfung der Oberfläche gilt nicht bis zum Sprachdienst-Schritt.'
 Assert-True ($gui -match 'Schon eingerichtet – ändern unter Dashboard → Einstellungen → Sprache\.') 'Gesperrtes Gespräch zeigt keinen Hinweis auf das Dashboard.'
 Assert-True ($installer -match "-not \(IsDone 'preflight'\) -or\s+-not \(IsDone 'voicepython'\)\)\) \{\s+Info 'Gespräch: 1") 'Der Installer fragt das Gespräch bei fortgesetzter Installation nicht ab.'
 Assert-True ($installer -match 'Ohne Zustimmung bleibt das Gespräch lokal') 'Die Ablehnung der Zustimmung wird nicht gemeldet.'

@@ -265,10 +265,12 @@ function Test-Wizard {
         -not (Use-ProviderKeyForQwen)) {
         throw 'Für Qwen Audio fehlt der Alibaba-Token-Plan-Schlüssel: auf der Seite „Sprache & Stimme“ eintragen oder beim KI-Zugang „Diesen Schlüssel auch für Qwen Audio verwenden“ anhaken.'
     }
-    if (-not ($state -and $state.voice_mode) -or $ChangeVoice) {
+    # The voice page counts until the voice service is set up (same rule as Load-RootState).
+    $voicePageOpen = -not ($state -and @($state.done) -contains 'voicepython') -or $ChangeVoice
+    if ($voicePageOpen) {
         Test-VoiceReferenceAnswer $script:fields.voiceMode.SelectedIndex $script:fields.voiceChoice.SelectedIndex (Value 'voiceReference')
     }
-    if ((Value 'voiceReference') -and (-not ($state -and $state.voice_mode) -or $ChangeVoice) -and
+    if ((Value 'voiceReference') -and $voicePageOpen -and
         -not (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) { throw 'Die gewählte Stimmreferenz wurde nicht gefunden.' }
     if ((Value 'voiceReference') -and (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) {
         $referenceFile = Get-Item -LiteralPath (Value 'voiceReference')
@@ -685,7 +687,10 @@ function Load-RootState {
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
     $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } elseif ($saved -and $saved.voice_choice -eq 'custom') { 2 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
-    $script:fields.voiceReference.Text = if ($saved -and $saved.voice_reference) { $saved.voice_reference } else { '' }
+    # Only an own file that still exists is shown. A bundled reference was saved with the path of the download
+    # folder of that run; after a new download it no longer exists and the installer picks the bundled file itself.
+    $script:fields.voiceReference.Text = if ($saved -and $saved.voice_choice -eq 'custom' -and $saved.voice_reference -and
+                                             (Test-Path -LiteralPath ([string]$saved.voice_reference) -PathType Leaf)) { [string]$saved.voice_reference } else { '' }
     $script:fields.conversationBackend.SelectedIndex = if ($saved -and $saved.conversation_backend -eq 'qwen') { 1 } else { 0 }
     $script:fields.qwenRegion.SelectedIndex = if ($saved -and $saved.qwen_region -eq 'cn-beijing') { 1 } else { 0 }
     $script:fields.inputDevice.SelectedIndex = 0; $script:fields.outputDevice.SelectedIndex = 0
@@ -1394,6 +1399,7 @@ if ($Simulation) {
                 $done = @('preflight', 'files', 'persona')
                 if ($case -eq 'locked') { $done += @('hermes', 'qwen', 'voicepython', 'voiceservice') }
                 if ($case -ne 'fresh') { @{ assistant_name = 'Kira'; wake_phrase = 'Hey Kira'; voice_mode = 'local'; voice_choice = 'friday-female'
+                   voice_reference = (Join-Path $caseRoot 'alter-download\installeroice_modelsriday_ref.wav')
                    conversation_backend = 'qwen'; qwen_consent = $true; done = $done } | ConvertTo-Json |
                     Set-Content -LiteralPath (Join-Path $caseRoot 'config\install-state.json') -Encoding UTF8 }
                 $script:fields.installRoot.Text = $caseRoot
@@ -1401,6 +1407,8 @@ if ($Simulation) {
                 Load-RootState
                 Show-GuiPage 2
                 [System.Windows.Forms.Application]::DoEvents()
+                # A bundled reference saved from an earlier download folder is not carried over (it no longer exists).
+                if ($script:fields.voiceReference.Text) { throw "Veraltete Stimmreferenz vorbelegt: $($script:fields.voiceReference.Text)" }
                 if ($case -ne 'locked') {
                     $localOpen = $script:fields.voiceMode.Enabled -and $script:fields.voiceChoice.Enabled -and
                                  $script:fields.voiceReference.Enabled -and $browse.Enabled -and $script:fields.conversationBackend.Enabled

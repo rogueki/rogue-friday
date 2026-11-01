@@ -1806,3 +1806,28 @@ einrichten“ führt zu Skill-Konten). Ohne Kommunikationsadapter ist die Mail-S
 - Hinweis: Ein Update läuft mit dem bereits installierten Updater. Bei bestehenden Installationen räumt deshalb erst das
   übernächste Update auf, oder man räumt einmal manuell auf.
 
+## Installer: alter Stimmpfad aus früherem Download bricht nicht mehr ab (2026-11-01)
+
+- Gemeldet bei der Installation eines Kollegen: „Stimmreferenz ist nicht verwendbar: …\Downloads
+ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obwohl der Installer die Datei im neuen Ordner `rogue-friday-main`
+  gerade selbst gefunden hatte. Ursache: Ein früherer Lauf hatte den Pfad der mitgelieferten Stimme (im damaligen
+  Download-Ordner) gespeichert; die Oberfläche belegte das Feld damit vor, der Installer brach ab.
+- Fix: Die Oberfläche belegt nur eine eigene Datei vor, die noch existiert. Der Installer ersetzt eine gespeicherte,
+  nicht mehr vorhandene Referenz durch die mitgelieferte (Warnung statt Abbruch). Die Stimmprüfung der Oberfläche gilt
+  bis zum Sprachdienst-Schritt (wie die Sperre der Sprachseite).
+- Test: GUI-Selbstlauf mit veraltetem Pfad im Zustand (rot ohne Fix), Quelltextprüfungen in `gui-controls.Tests.ps1`.
+
+## Installer: Neustart-Schleife im WSL-Schritt behoben (2026-11-01)
+
+- Gemeldet bei einer Neuinstallation: Nach dem verlangten Neustart forderte der Installer immer wieder einen Neustart,
+  der Fortschrittsbalken blieb stehen.
+- Ursache: Schritt 3 las `$LASTEXITCODE` nach `Invoke-CapturedProcess`, das ihn nicht setzt. Beim Start aus dem
+  Download-Ordner stammte der Wert von robocopy in Schritt 2 (1 = Dateien kopiert) und galt als „WSL fehlt“; jeder
+  Lauf richtete WSL neu ein und verlangte einen Neustart.
+- Fix: Schritt 3 prüft den Exitcode aus dem Ergebnis von `wsl --status`; endet das ohne Distribution (Ubuntu folgt
+  erst in Schritt 7) mit Fehler, zählt ein erfolgreiches `wsl --version` als eingerichtete WSL. Vor dem Neustart wird
+  `wsl_reboot_requested_at` gespeichert; antwortet WSL nach einem Neustart weiterhin nicht, bricht der Installer mit
+  Ursache ab (BIOS-Virtualisierung aus, fehlende Windows-Funktion, Meldung von `wsl --status`) statt erneut neu zu starten.
+- Test: `installer/tests/wsl-reboot-loop.Tests.ps1` (rot mit altem Installer); prüft auch alle anderen Skripte auf
+  `$LASTEXITCODE` nach `Invoke-CapturedProcess`. Komplette Installer-Suite lokal grün.
+
