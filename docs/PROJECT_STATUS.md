@@ -1740,3 +1740,11 @@ Grenzen der Sandbox: kein zweites WSL/Hermes/Voice (feste Aufgabennamen und Port
 Headset-Abnahme LG-8.01 braucht den Besitzer. Installer-GUI: `gui-dpi`, `gui-shell-layout`, `gui-wizard-pages` lokal PASS,
 Simulation `success` mit 8 Seiten gezeichnet (nur Auswahllisten, Häkchen, Ordner-/Datei-Wahl; Textfelder nur für Namen,
 Schlüssel, Passwörter).
+## Alibaba Token Plan live geprüft (2026-11-01)
+
+Mit einem Token-Plan-Schlüssel des Besitzers (nur lokal in der Sandbox, nicht im Repo): Region `ap-southeast-1` gültig,
+`cn-beijing` 401 (Schlüssel gehört zu Singapur). Qwen Audio (`qwen-audio-3.0-realtime-plus`) mit der Klasse des Sprachdienstes:
+Verbindung 0,8 s, erstes Antwortaudio 2,3 s nach dem Commit, 6,4 s deutsche Antwort. Denkmodelle per Chat geprüft:
+`qwen3.7-plus`, `qwen3.7-max`, `qwen3.8-max`, `qwen3.8-flash`, `deepseek-v4-pro`, `glm-5.2` antworten; `kimi-k2.5` liefert
+403 `AccessDenied.Unpurchased` und steht nicht in `/models` — aus der Installer-Liste entfernt, `qwen3.7-max` ergänzt.
+`/models` antwortete einmal vorübergehend 503; „Schlüssel prüfen“ meldet dann „Prüfung nicht möglich … prüft beim Start erneut“.
