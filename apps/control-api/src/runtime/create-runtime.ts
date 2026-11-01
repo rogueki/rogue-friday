@@ -10,7 +10,7 @@ import {
   deriveKey,
   loadOrCreateServerKey,
 } from "@friday/auth";
-import type { FridayConfig } from "@friday/config";
+import { isMockProvider, type FridayConfig } from "@friday/config";
 import type { MockWorld } from "@friday/mock-data";
 import {
   canonicalJson,
@@ -124,10 +124,26 @@ const HEALTH_GAUGE: Record<string, "healthy" | "degraded" | "down" | "unknown"> 
   unknown: "unknown",
 };
 
+/**
+ * Older hybrid configs filled every unconfigured category with a mock provider. Live has no mock world behind
+ * them, so those categories are "not configured" (as on a fresh install) instead of an offline mock adapter.
+ */
+function runAsLive(config: FridayConfig): FridayConfig {
+  const adapters = Object.fromEntries(
+    Object.entries(config.adapters).map(([category, resolved]) => [
+      category,
+      resolved.provider !== null && isMockProvider(resolved.provider)
+        ? { ...resolved, provider: null, packageName: null, enabled: false, origin: "disabled-by-mode" as const, config: {} }
+        : resolved,
+    ]),
+  ) as FridayConfig["adapters"];
+  return { ...config, dataMode: "live", adapters };
+}
+
 export async function createRuntime(options: CreateRuntimeOptions): Promise<Runtime> {
   const simulation = options.simulation;
   // Without a simulation (every shipped server) mock and hybrid configs from older installs run as live.
-  const config: FridayConfig = simulation || options.config.dataMode === "live" ? options.config : { ...options.config, dataMode: "live" };
+  const config: FridayConfig = simulation || options.config.dataMode === "live" ? options.config : runAsLive(options.config);
   if (!simulation && config.auth.mode === "dev") throw new Error("Dev-Login ist nur in Testumgebungen verfügbar; auth.mode auf local stellen.");
   const env = options.env ?? process.env;
   const startedAt = new Date();

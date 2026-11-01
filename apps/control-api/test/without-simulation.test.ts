@@ -21,6 +21,11 @@ describe("a server without injected simulation (every shipped build)", () => {
     expect((await client.loginOwner(PASSWORD)).statusCode).toBe(200);
     expect((await client.get("/api/v1/meta")).json().dataMode).toBe("live");
     expect((await client.get("/api/v1/dev/scenarios")).statusCode).toBe(404);
+    // No mock adapter survives: categories the old config filled with mocks are simply not configured.
+    const providers = Object.values(api.runtime.config.adapters).map((entry) => entry.provider);
+    expect(providers.filter((provider) => provider?.startsWith("mock-"))).toEqual([]);
+    const adapters = (await client.get("/api/v1/adapters")).json() as { items: Array<{ provider?: string; id?: string }> };
+    expect(JSON.stringify(adapters)).not.toMatch(/mock-/);
   });
 
   it("refuses the fixed dev accounts", async () => {
