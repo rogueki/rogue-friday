@@ -1548,7 +1548,7 @@ class VoiceService:
         try:
             text = self.qwen_dialog.turn(pcm, lambda sentence: self._say_if_current(sentence, generation), cancelled)
         except qwen_realtime.RealtimeError as exc:
-            log_event(event="qwen_turn_failed", kind=exc.kind)
+            log_event(event="qwen_turn_failed", kind=exc.kind, message=str(exc)[:200])
             # Nur beim Wechsel der Ausfallart ansagen: sonst haengt vor jeder Antwort derselbe Hinweis.
             if self.status.get("qwen_error") != exc.kind:
                 self._say_if_current(QWEN_FALLBACK_NOTICE.get(exc.kind, QWEN_UNREACHABLE_NOTICE), generation)
