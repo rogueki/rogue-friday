@@ -1913,3 +1913,13 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Web: ein nicht eingerichtetes Nebenmodul blendet ein Panel nicht mehr aus, nur das Hauptmodul des Panels.
 - Tests: `test/overview-native-live.test.ts` (frische Live-Installation ohne Adapter, rot ohne Fix),
   `useOverviewPanel.test.ts` (rot ohne Fix).
+
+## Audit, Freigabe-Entscheidung, Befehlsverlauf und Stopp ohne Adapter (2026-11-02)
+
+- Befund (Bestandsaufnahme einer frischen Live-Installation): Audit-Export und Hash-Kette, Genehmigen/Ablehnen von
+  Fridays eigenen Freigaben, Befehlsverlauf sowie Stopp/Pause/Fortsetzen meldeten „nicht verfügbar“, obwohl die
+  Control API alles selbst bedient (Audit-Trail, `NativeApprovalRequests`, `CommandHistoryStore`, Sprachdienst).
+- Fix: Live/Hybrid setzt `audit.read/export/hashChain`, `approvals.decide`, `commands.history` und mit dem Live-Sprachdienst
+  `commands.stop/pause/resume`. `listCommandHistory` liest ohne Commands-Adapter aus dem lokalen Verlauf; Stopp/Pause mit
+  `scope: all` liefert ohne Commands-Adapter das Ergebnis des Sprachdienstes statt `CAPABILITY_MISSING`.
+- Tests: `test/overview-native-live.test.ts` (2. Fall), verwandte Control-API-Suiten (23 Dateien, 210 Tests) grün.
