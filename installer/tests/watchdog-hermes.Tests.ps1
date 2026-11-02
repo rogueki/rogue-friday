@@ -24,6 +24,24 @@ Assert-True ($d.Action -eq 'restart') "Inaktiver Dienst mit geschlossenem Port w
 $d = Get-WatchdogDecision -PortUp $false -ProcessRunning $true -StopFlag $false -InstallerActive $false -InGrace $false -Now 100000
 Assert-True ($d.Action -eq 'loading') "Startender Dienst wird faelschlich neu gestartet: $($d.Action)"
 
+# 2026-11-02: Command Center hing 15 min mit offenem Port; der Watchdog hielt das fuer Modellladen und griff nie ein.
+$hang = @{ PortUp = $false; ProcessRunning = $true; StopFlag = $false; InstallerActive = $false; InGrace = $false; Now = 100000; HttpHung = $true }
+$d = Get-WatchdogDecision @hang -HungMinutes 2
+Assert-True ($d.Action -eq 'hung-wait') "Kurzer Haenger wird sofort neu gestartet: $($d.Action)"
+$d = Get-WatchdogDecision @hang -HungMinutes 6
+Assert-True ($d.Action -eq 'restart-hung') "Haengender Dienst wird nicht neu gestartet: $($d.Action)"
+$d = Get-WatchdogDecision @hang -HungMinutes 6 -RestartTimes @(99880)
+Assert-True ($d.Action -eq 'backoff') "Haenger-Neustart ignoriert den Backoff: $($d.Action)"
+$hang.StopFlag = $true
+$d = Get-WatchdogDecision @hang -HungMinutes 30
+Assert-True ($d.Action -eq 'stopped') "Haenger-Neustart ignoriert das Stop-Flag: $($d.Action)"
+$hang.StopFlag = $false; $hang.InstallerActive = $true
+$d = Get-WatchdogDecision @hang -HungMinutes 30
+Assert-True ($d.Action -eq 'installer-active') "Haenger-Neustart waehrend des Installers: $($d.Action)"
+$d = Get-WatchdogDecision -PortUp $false -ProcessRunning $true -StopFlag $false -InstallerActive $false -InGrace $false -Now 100000 -HungMinutes 30
+Assert-True ($d.Action -eq 'loading') "Geschlossener Port (Modellladen) gilt als Haenger: $($d.Action)"
+Assert-True ($watchdog -match "'restart-hung'[\s\S]*?Stop-Process -Id \`$proc\.ProcessId") 'Haenger-Neustart beendet die Dienstprozesse nicht.'
+
 # Ein Stop-Flag, das ein abgebrochenes Update liegen liess, darf den Dienst nicht dauerhaft abschalten (2026-11-01).
 $now = [datetime]'2026-11-02T02:00:00'
 Assert-True (Test-StopFlagOrphaned -FlagWrittenAt $now.AddMinutes(-270) -Now $now -InstallerActive $false) 'Verwaistes Stop-Flag wird nicht erkannt.'

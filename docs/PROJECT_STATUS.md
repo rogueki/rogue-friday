@@ -1914,6 +1914,17 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Zwei-Werkzeug-Frage reproduzierbar fehl, neu beantwortet sie. Tests: `test_qwen_dialog.py` (+4, rot ohne Fix),
   `test_qwen_voice_wiring.py` (+1); gesamte Voice-Suite grün bis auf die 4 bekannten Umgebungsfehler in
   `test_fast_tts_voice_slots.py`.
+## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
+
+- Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
+  21 CloseWait-Sockets). Jede Logzeile ging zusätzlich zur rotierenden Datei auf stdout; `start-dashboard.ps1` schreibt
+  stdout zeilenweise per `Add-Content`. Bei einem Warnungsschwall (Sprachdienst-Neustart) lief die Pipe voll, der
+  blockierende stdout-Write fror den Event-Loop ein. Folgen: Stopp-Knopf tot, Gedächtnis-Erfassung mit Timeouts,
+  Sprachdienst hing beim Start. Der Watchdog hielt den offenen Port ohne HTTP-Antwort für „Modellladen“ und griff nie ein.
+- Fix: `create-runtime.ts` schreibt bei aktivem Datei-Log nicht mehr auf stdout (`FRIDAY_LOG_STDOUT=1` für Entwicklung).
+  `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
+  beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
+- Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
 ## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
 
 - Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
@@ -1961,3 +1972,13 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Explizit gewählte Geräte bleiben unberührt.
 - Tests: `test_audio_hotplug.py` (+3, zwei rot ohne Fix), echter COM-Aufruf liefert die Endpunkt-IDs. Voice-Suite
   lokal 524 grün; die 4 `test_fast_tts_voice_slots`-Fehler bestehen identisch auf `main` (lokale Umgebung).
+
+## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
+
+- Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und
+  Befehle als „nicht eingerichtet“, obwohl Friday sie selbst bedient; „Kalender verbinden“ und der Kalenderkonto-Assistent
+  erschienen nur mit einem Kalender-Adaptereintrag, der Link aus „Skill-Konten“ (`#calendar-setup-title`) lief ins Leere.
+- Fix: Kategorien ohne Adaptereintrag, deren `read`-Capability die Control API meldet, erscheinen als
+  „<Bereich> · Friday (eingebaut)“; nur wirklich unbediente Kategorien bleiben „nicht eingerichtet“. Ohne Kalenderadapter
+  zeigt die Seite den Kalenderkonto-Assistenten in `#calendar-setup-title`.
+- Tests: `HonestAdapters.test.tsx` (neuer Fall, rot ohne Fix), Settings-Suite 33 Dateien/199 Tests grün.
