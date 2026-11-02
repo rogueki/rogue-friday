@@ -13,7 +13,7 @@ import { useDebounced, useUrlParam } from "../memory/kit/hooks";
 import { QueryBoundary } from "../memory/kit/QueryBoundary";
 import { effectiveFreshness, usePanelState } from "../memory/kit/panelState";
 import { ChannelRail } from "./ChannelRail";
-import { channelGroup, partitionChannels } from "./channelList";
+import { channelGroup, isNativeChannel, partitionChannels } from "./channelList";
 import { ComposeDialog } from "./ComposeDialog";
 import { THREAD_STATUSES, threadStatusKey, type ThreadStatus } from "./labels";
 import { ThreadDetail } from "./ThreadDetail";
@@ -90,6 +90,7 @@ function CommunicationPageInner() {
   const blocked = (state: PanelState): boolean => state.kind === "offline" || state.kind === "not-configured" || state.kind === "unsupported";
   const fullOutage = blocked(threadState) && blocked(channelState);
   const notConfigured = threadState.kind === "not-configured" && channelState.kind === "not-configured";
+  const native = channelItems.length > 0 && channelItems.every(isNativeChannel);
   const detail = useThread(threadId);
   const threadItems = threads.data?.items ?? [];
 
@@ -116,7 +117,7 @@ function CommunicationPageInner() {
 
   return (
     <div className="mk-page com-page">
-      {notConfigured ? (
+      {notConfigured || native ? (
         <HimalayaMailbox autoOpen />
       ) : (
       <HudPanel
@@ -150,10 +151,14 @@ function CommunicationPageInner() {
         </div>
       </HudPanel>
       )}
-      {!notConfigured && channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
+      {!notConfigured && !native && channelGroup(selectedChannel?.kind) === "email" ? <HimalayaMailbox /> : null}
       {!notConfigured && channelGroup(selectedChannel?.kind) === "messenger" ? <MessengerCompose /> : null}
 
-      {notConfigured ? null : (
+      {notConfigured ? null : native ? (
+        <div className="com-layout">
+          <ChannelRail channels={visibleChannels} hiddenCount={partition.hidden.length} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />
+        </div>
+      ) : (
         <div className={`com-layout${wide && !fullOutage ? " com-layout--wide" : ""}`}>
           {fullOutage ? null : <ChannelRail channels={visibleChannels} hiddenCount={partition.hidden.length} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}
           <PanelFrame title={t("communication.threads.title")} state={threadState} skeletonRows={6} className="com-threads-panel">
@@ -178,7 +183,7 @@ function CommunicationPageInner() {
         </div>
       )}
 
-      {!wide && !fullOutage ? (
+      {!wide && !fullOutage && !native ? (
         <Drawer open={threadId !== null} onOpenChange={(open) => { if (!open) setThreadId(null); }} title={detail.data?.data.subject ?? t("communication.detail.title")} closeLabel={t("common.close")} width={680}>
           {detailBody}
         </Drawer>

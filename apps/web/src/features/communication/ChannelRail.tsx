@@ -5,7 +5,7 @@ import { Badge, Button, IconTile, StatusChip } from "@friday/ui";
 import { Check, Inbox, Minus, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
-import { partitionChannels } from "./channelList";
+import { channelSetupHref, isNativeChannel, partitionChannels } from "./channelList";
 import { useT } from "@/i18n";
 import { CHANNEL_ICON, CHANNEL_STATUS_TONE, channelStatusKey } from "../memory/kit/channelStatus";
 import { useFormat } from "../memory/kit/hooks";
@@ -79,8 +79,8 @@ export function ChannelRail({ channels, state, selectedId, totalUnread, onSelect
               </button>
               {channel.status === "not_configured" || channel.status === "offline" ? (
                 <div className="com-channel__action">
-                  <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push(`/settings?adapter=${encodeURIComponent(channel.source.adapterId)}`)}>
-                    {t("panel.configureAdapter")}
+                  <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push(channelSetupHref(channel))}>
+                    {isNativeChannel(channel) ? t("communication.channels.setup") : t("panel.configureAdapter")}
                   </Button>
                 </div>
               ) : null}

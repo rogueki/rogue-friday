@@ -54,9 +54,10 @@ describe("live runtime with empty real sources", () => {
     expect(login.statusCode, login.body).toBe(200);
 
     const entries = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string; category: string } }>;
-    // Memory (Obsidian archive) and files (generated output) are built in, so they are listed without any adapter configuration.
+    // Memory (Obsidian archive), files (generated output) and communication (skill accounts) are built in, so they are
+    // listed without any adapter configuration.
     expect(entries.map((entry) => `${entry.manifest.category}:${entry.manifest.id}`).sort())
-      .toEqual(["files:friday-files", "memory:friday-memory", "tasks:hermes-tasks"]);
+      .toEqual(["communication:friday-communication", "files:friday-files", "memory:friday-memory", "tasks:hermes-tasks"]);
     expect(entries.some((entry) => entry.manifest.id.startsWith("mock-"))).toBe(false);
 
     const health = (await owner.get("/api/v1/health")).json();
@@ -67,7 +68,12 @@ describe("live runtime with empty real sources", () => {
     if (tasks.statusCode === 200) expect((tasks.json() as any).items).toEqual([]);
     else expect(tasks.statusCode).toBeGreaterThanOrEqual(500);
 
-    for (const path of ["/api/v1/memory", "/api/v1/automations", "/api/v1/communication/channels", "/api/v1/agents"]) {
+    // The built-in communication adapter lists real channel states only: nothing is set up and no WSL bridge is reachable.
+    const channels = await owner.get("/api/v1/communication/channels");
+    expect(channels.statusCode, channels.body).toBe(200);
+    for (const channel of (channels.json() as any).items) expect(["offline", "not_configured"]).toContain(channel.status);
+
+    for (const path of ["/api/v1/memory", "/api/v1/automations", "/api/v1/agents"]) {
       const response = await owner.get(path);
       const described = `${path} -> ${response.statusCode} ${JSON.stringify(response.body).slice(0, 200)}`;
       expect(response.statusCode, described).toBeGreaterThanOrEqual(400);
@@ -89,6 +95,6 @@ describe("live runtime with empty real sources", () => {
     const automations = await owner.get("/api/v1/automations");
     expect(automations.statusCode).toBeGreaterThanOrEqual(400);
     const entries = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string } }>;
-    expect(entries.map((entry) => entry.manifest.id).sort()).toEqual(["friday-files", "friday-memory", "hermes-tasks"]);
+    expect(entries.map((entry) => entry.manifest.id).sort()).toEqual(["friday-communication", "friday-files", "friday-memory", "hermes-tasks"]);
   }, 30000);
 });

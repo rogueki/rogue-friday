@@ -48,6 +48,7 @@ import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
 import { createNativeMemoryFactory } from "../services/native-memory-adapter";
 import { createNativeFilesFactory } from "../services/native-files-adapter";
+import { createNativeCommunicationFactory } from "../services/native-communication-adapter";
 import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
@@ -297,8 +298,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     env,
     // The memory archive is built in: every installation lists its Obsidian conversations without adapter setup.
     // `durableMemory` is created further down; the factory only reads it when the registry starts the adapter.
-    // Generated files (PowerPoint decks, Content Studio media) are listed read-only from the data dir the same way.
-    builtins: [createNativeMemoryFactory(() => durableMemory), createNativeFilesFactory(() => config.paths.dataDir)],
+    // Generated files (PowerPoint decks, Content Studio media) are listed read-only from the data dir the same way;
+    // communication channels come from the mail accounts, Hermes messengers and telephony.
+    builtins: [createNativeMemoryFactory(() => durableMemory), createNativeFilesFactory(() => config.paths.dataDir),
+      createNativeCommunicationFactory(() => ({ mailAccounts, messengerCatalog, telephony }))],
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Channel, ChannelStatus, EscalationStep } from "@friday/sdk";
+import { isFridayApiError, type Channel, type ChannelStatus, type EscalationStep } from "@friday/sdk";
 import { Button, IconTile, StatusChip } from "@friday/ui";
 import { Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { useT } from "@/i18n";
 import { useChannels } from "@/lib/api/domains/communication";
 import { useSettings } from "@/lib/api/domains/settings";
 import { useRealtimeStatus } from "@/lib/realtime/store";
+import { channelSetupHref, isNativeChannel } from "../communication/channelList";
 import { CHANNEL_ICON, CHANNEL_STATUS_TONE, channelKindKey, channelStatusKey } from "../memory/kit/channelStatus";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
@@ -25,6 +26,7 @@ interface Row {
   minPriority: string | null;
   recipientConfigured: boolean | null;
   lastSyncAt: string | null;
+  channel?: Channel;
 }
 
 /** Status of every escalation channel (PLAN §39.2 "Kanalstatus"): dashboard from the event stream, the rest from the communication adapter. */
@@ -48,13 +50,19 @@ export function ChannelStatusPanel() {
         return { ...base, status, lastSyncAt: realtime.lastEventAt ? new Date(realtime.lastEventAt).toISOString() : null };
       }
       const channel = byKind.get(kind);
-      return { ...base, status: channel?.status ?? null, lastSyncAt: channel?.lastSyncAt ?? null, detail: channel?.address };
+      return { ...base, status: channel?.status ?? null, lastSyncAt: channel?.lastSyncAt ?? null, detail: channel?.address, channel };
     });
   }, [channels.data, settings.data, realtime.state, realtime.lastEventAt]);
 
   const loading = channels.isPending && settings.isPending;
   const degraded = channels.isError
-    ? { reason: t("alerts.channels.unavailable"), affected: ORDER.filter((kind) => kind !== "dashboard").map((kind) => t(channelKindKey(kind))) }
+    ? {
+        reason:
+          isFridayApiError(channels.error) && channels.error.code === "CAPABILITY_MISSING"
+            ? t("alerts.channels.notConnected")
+            : t("alerts.channels.unavailable"),
+        affected: ORDER.filter((kind) => kind !== "dashboard").map((kind) => t(channelKindKey(kind))),
+      }
     : undefined;
 
   return (
@@ -85,8 +93,8 @@ export function ChannelStatusPanel() {
               <span className="mk-row__side">
                 <StatusChip tone={tone}>{row.status ? t(channelStatusKey(row.status)) : t("alerts.channels.unknown")}</StatusChip>
                 {row.status === "not_configured" ? (
-                  <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push("/settings")}>
-                    {t("panel.configureAdapter")}
+                  <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push(row.channel ? channelSetupHref(row.channel) : "/settings")}>
+                    {row.channel && isNativeChannel(row.channel) ? t("communication.channels.setup") : t("panel.configureAdapter")}
                   </Button>
                 ) : null}
                 {row.status !== "not_configured" && row.enabled && row.recipientConfigured === false ? (
