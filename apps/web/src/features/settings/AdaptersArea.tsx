@@ -6,7 +6,7 @@ import { Plug, Save, TestTube2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useAdapterSettings, useTestAdapterSettings, useUpdateAdapterSettings } from "@/lib/api/domains/settings";
-import { useCapability } from "@/lib/capabilities";
+import { capabilityState, useCapabilities, useCapability } from "@/lib/capabilities";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
 import { Section } from "./controls";
 import { SchemaForm } from "./SchemaForm";
@@ -178,11 +178,15 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const ownerOnly = role === "owner";
   const query = useAdapterSettings(ownerOnly);
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
-  // A live runtime builds no adapter for an unconfigured category: the pages then report "not configured".
-  const unconfigured = useMemo(
+  const { capabilities } = useCapabilities();
+  // Categories without an adapter entry: Friday serves many of them itself (calendar, alerts, approvals, audit, research,
+  // command history). Those are labelled as built in; only a category nothing serves is "not configured".
+  const withoutAdapter = useMemo(
     () => ALL_CATEGORIES.filter((category) => !items.some((item) => item.category === category)),
     [items],
   );
+  const builtIn = withoutAdapter.filter((category) => capabilityState(capabilities, category, "read") !== "missing");
+  const unconfigured = withoutAdapter.filter((category) => !builtIn.includes(category));
   const calendar = items.find((item) => item.category === "calendar");
   const calendarUpdate = useUpdateAdapterSettings();
   const [calendarSource, setCalendarSource] = useState<"google" | "outlook" | "windows" | "ics" | "caldav">("ics");
@@ -263,14 +267,36 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
         <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : "Noch kein Kalenderzugang hinterlegt. Die Kalenderansicht bleibt leer, bis ein Zugang hinterlegt und erfolgreich getestet ist."}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
-      {selected?.category === "calendar" ? <CalendarAccountWizard onSaved={() => { void query.refetch(); }} /> : null}
+      {!calendar ? (
+        // A fresh install has no calendar adapter entry; connecting Google/Outlook/CalDAV accounts is Friday's own feature.
+        <section id="calendar-setup-title" aria-label="Kalender verbinden" className="st-adapter">
+          <p className="st-muted">Friday führt einen eigenen Kalender. Externe Kalenderkonten verbindest du hier zusätzlich.</p>
+          <CalendarAccountWizard onSaved={() => { void query.refetch(); }} />
+        </section>
+      ) : selected?.category === "calendar" ? <CalendarAccountWizard onSaved={() => { void query.refetch(); }} /> : null}
+      {builtIn.length > 0 ? (
+        <section aria-labelledby="builtin-title" className="st-adapter">
+          <h3 id="builtin-title">In Friday eingebaut</h3>
+          <p className="st-muted">
+            Diese Bereiche bedient Friday selbst, ohne zusätzlichen Anbieter. Mail-Konten richtest du unter „Skill-Konten“ ein,
+            externe Kalender unter „Kalender verbinden“.
+          </p>
+          <ul className="st-chiplist">
+            {builtIn.map((category) => (
+              <li key={category}>
+                <StatusChip tone="green" dot={false}>
+                  {CATEGORY_LABEL[category]} · Friday (eingebaut)
+                </StatusChip>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {unconfigured.length > 0 ? (
         <section aria-labelledby="unconfigured-title" className="st-adapter">
           <h3 id="unconfigured-title">Ohne externen Anbieter</h3>
           <p className="st-muted">
-            Für diese Bereiche ist kein externer Anbieter verbunden. Friday zeigt dort keine Beispieldaten. Wo Friday eigene
-            Funktionen hat, arbeiten die Seiten trotzdem (Kalender, Meldungen, Freigaben, Audit). Mail-Konten richtest du unter
-            „Skill-Konten“ ein, einen externen Kalender auf der Kalenderseite.
+            Für diese Bereiche ist kein Anbieter verbunden. Friday zeigt dort keine Beispieldaten.
           </p>
           <ul className="st-chiplist">
             {unconfigured.map((category) => (
