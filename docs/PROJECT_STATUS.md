@@ -2104,3 +2104,12 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   audio_lock vor manual_start_lock); neue Streams bekommen `AUDIO_OPEN_GRACE_S = 6 s` Schonfrist vor der Stall-Erkennung.
   Control API meldet 503 vom Sprachdienst jetzt verständlich („bitte erneut speichern“).
 - Tests: `installer/voice/tests/test_audio_hotplug.py` (2 neue, rot ohne Fix), `voice-audio.test.ts` (503-Meldung).
+- Zweiter Absturzweg (07:39, live, ohne Umschalten): Nach der Äußerung startet die Rückmelde-Wiedergabe, das
+  Bluetooth-Headset wechselt das Profil, das Mikrofon pausiert > 3 s → „stalled“ → `cancel_active_interaction()` löscht
+  `processing`/`speaking`, obwohl der TTS-OutputStream noch offen ist → 2 s später `refresh(sd)` → 0xC0000374 in ntdll
+  (Windows-Ereignis 1000, jeweils ~2 s nach „stalled“). Fix: modulweites `AUDIO_LOCK`; jeder Ausgabestream läuft über
+  `output_stream()` (unter Lock geöffnet, gezählt); der Watcher initialisiert nie, solange ein Ausgabestream offen ist,
+  und wertet Mikrofonpausen während Wiedergabe sowie 6 s nach Start/Ende einer Wiedergabe nicht als Geräteverlust.
+  `faulthandler` schreibt künftige native Abstürze mit allen Thread-Stacks nach `logs/voice-crash.log`.
+- Hinweis: Die Hands-Free-Einträge („… (Bluetooth Hands-Free)“) laufen über WDM-KS (`bthhfenum.sys`), in PortAudio mit
+  Bluetooth fragil; empfohlen ist „Kopfhörer (soundcore R50i)“ bzw. Windows-Standard.

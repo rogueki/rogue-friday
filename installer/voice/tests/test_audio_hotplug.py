@@ -120,6 +120,9 @@ class AudioHotplugTests(unittest.TestCase):
         self.saved_config = {"input_device_id": "vdev_old_in", "output_device_id": "vdev_old_out"}
         self.config_path.write_text(json.dumps(self.saved_config), encoding="utf-8")
         self.present = ["vdev_old_in", "vdev_old_out"]
+        # Output stream bookkeeping is module-wide; every test starts without a recent reply.
+        self.voice_module._open_outputs = 0
+        self.voice_module._output_changed_at = 0.0
         self.service = self.make_service()
         self.sd, self.created = make_fake_sounddevice(self.service)
 
@@ -315,3 +318,41 @@ class AudioHotplugTests(unittest.TestCase):
         self.assertFalse(worker.is_alive())
         self.assertNotIn("error", outcome)
         self.assertGreaterEqual(self.sd._terminate.call_count, 1)
+
+
+    def test_cancelled_reply_still_playing_blocks_the_portaudio_reinit(self):
+        # Live crash 2026-11-02 07:39: the microphone of a Bluetooth headset paused while the reply started, the
+        # interaction was cancelled (processing/speaking cleared) and the watcher re-initialised PortAudio under the
+        # still open output stream.
+        self.service.last_audio_callback = time.monotonic() - 10
+        voice = self.voice_module
+        voice._count_output(1)
+        self.addCleanup(voice._count_output, -1)
+        events = self.watch(3)
+        self.assertNotIn("audio_device_lost", events)
+        self.assertEqual(self.sd._terminate.call_count, 0)
+        self.assertEqual(self.service.cancel_active_interaction.call_count, 0)
+
+    def test_recently_closed_reply_gets_a_grace_period_for_the_profile_switch(self):
+        self.service.last_audio_callback = time.monotonic() - 10
+        voice = self.voice_module
+        voice._count_output(1)
+        voice._count_output(-1)
+        events = self.watch(2)
+        self.assertNotIn("audio_device_lost", events)
+        self.assertEqual(self.sd._terminate.call_count, 0)
+
+    def test_output_stream_is_counted_and_opened_under_the_audio_lock(self):
+        voice = self.voice_module
+        seen = {}
+
+        class Probe(FakeOutputStream):
+            def __enter__(self):
+                seen["locked"] = voice.AUDIO_LOCK._is_owned()
+                return self
+
+        with patch.object(voice, "sd", types.SimpleNamespace(OutputStream=Probe)):
+            with voice.output_stream(samplerate=48000):
+                self.assertEqual(voice.output_streams_open(), 1)
+        self.assertTrue(seen["locked"])
+        self.assertEqual(voice.output_streams_open(), 0)

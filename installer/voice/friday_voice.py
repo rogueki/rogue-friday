@@ -17,6 +17,7 @@ import atexit
 import collections
 import contextlib
 import datetime
+import faulthandler
 import http.server
 import hashlib
 import hmac
@@ -88,6 +89,44 @@ CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 AUDIO_STALL_S = 3.0
 # A freshly opened stream may stay silent while Windows switches a Bluetooth headset to its hands-free profile.
 AUDIO_OPEN_GRACE_S = 6.0
+# Serialises every PortAudio stream open/close and re-initialisation. Re-initialising PortAudio while any stream is
+# open (a dashboard switch, or the reply still playing after an interaction was cancelled) corrupts the native heap
+# and kills the process (0xC0000374 in ntdll, 2026-11-02). Lock order: AUDIO_LOCK before manual_start_lock.
+AUDIO_LOCK = threading.RLock()
+_output_guard = threading.Lock()
+_open_outputs = 0
+_output_changed_at = 0.0
+
+
+def output_streams_open() -> int:
+    return _open_outputs
+
+
+def output_changed_at() -> float:
+    return _output_changed_at
+
+
+def _count_output(delta: int) -> None:
+    global _open_outputs, _output_changed_at
+    with _output_guard:
+        _open_outputs += delta
+        _output_changed_at = time.monotonic()
+
+
+@contextlib.contextmanager
+def output_stream(**kwargs):
+    """``sd.OutputStream`` that the device watcher can see: it never re-initialises PortAudio under an open one."""
+    with AUDIO_LOCK:
+        stream = sd.OutputStream(**kwargs)
+        entered = stream.__enter__()
+        _count_output(1)
+    try:
+        yield entered
+    finally:
+        try:
+            stream.__exit__(None, None, None)
+        finally:
+            _count_output(-1)
 VAD_FRAME = 512
 LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
 
@@ -391,7 +430,7 @@ class Speaker:
             resampler = (av.AudioResampler(format="flt", layout="mono", rate=target_rate)
                          if source_rate != target_rate else None)
             underflows = 0
-            with sd.OutputStream(samplerate=target_rate, channels=1, dtype="float32",
+            with output_stream(samplerate=target_rate, channels=1, dtype="float32",
                                  device=self.output_device) as out:
                 for block in chunks:
                     if self.stop_flag.is_set():
@@ -474,7 +513,7 @@ class Speaker:
     def _play_piper(self, text: str) -> None:
         from film_filter import FilmFilter
         fx = FilmFilter(self.sr, self.film_filter)
-        with sd.OutputStream(samplerate=self.sr, channels=1, dtype="float32", device=self.output_device) as out:
+        with output_stream(samplerate=self.sr, channels=1, dtype="float32", device=self.output_device) as out:
             from piper import SynthesisConfig
             for chunk in self.voice.synthesize(text, syn_config=SynthesisConfig(speaker_id=self.speaker_id)):
                 if self.stop_flag.is_set():
@@ -525,7 +564,7 @@ class Speaker:
         resampler = (av.AudioResampler(format="flt", layout="mono", rate=target_rate)
                      if target_rate != elevenlabs_cloud.TTS_RATE else None)
         pending = b""
-        with sd.OutputStream(samplerate=target_rate, channels=1, dtype="float32",
+        with output_stream(samplerate=target_rate, channels=1, dtype="float32",
                              device=self.output_device) as out:
             for block in elevenlabs_cloud.stream_speech(text, self.cloud_key,
                     self.tts_config["elevenlabs_voice_id"],
@@ -581,7 +620,7 @@ class Speaker:
             audio = np.concatenate((effect.process(audio), effect.flush()))
         audio, rate = for_output_device(audio, rate, self.output_device)
         audio = runtime_settings.pace(audio, self.tts_config.get("tts_rate", 1.0))
-        with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
+        with output_stream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
             for offset in range(0, len(audio), 4096):
                 if self.stop_flag.is_set():
                     return
@@ -725,10 +764,6 @@ class VoiceService:
         self.user_speaking = threading.Event()
         self.ptt_active = False
         self.manual_start_lock = threading.Lock()
-        # Serialises every stream open/close and PortAudio re-initialisation: a re-init from the device watcher while
-        # a dashboard switch opens a stream corrupts the native heap and kills the process (0xC0000374, 2026-11-02).
-        # Lock order: audio_lock before manual_start_lock.
-        self.audio_lock = threading.RLock()
         self.wake_model_lock = threading.Lock()
         self.wake_enrollment = WakeEnrollment(INSTALL_ROOT, STATE_ROOT)
         self.stt_models = SttModels(os.path.join(STATE_ROOT, "models", "whisper"),
@@ -1162,10 +1197,7 @@ class VoiceService:
             return self._apply_audio_locked(input_id, output_id)
 
     def _audio_mutex(self):
-        lock = self.__dict__.get("audio_lock")
-        if lock is None:
-            lock = self.__dict__.setdefault("audio_lock", threading.RLock())
-        return lock
+        return AUDIO_LOCK
 
     def _apply_audio_locked(self, input_id, output_id) -> dict:
         if self.audio_transport != "device":
@@ -1176,7 +1208,7 @@ class VoiceService:
         if output_info is None and sd.query_devices(selected_output, "output")["max_output_channels"] < 1:
             raise ValueError("Kein nutzbares Standard-Ausgabegeraet")
         output_rate = round(sd.query_devices(selected_output, "output")["default_samplerate"])
-        with sd.OutputStream(samplerate=output_rate, channels=1, dtype="float32", device=selected_output):
+        with output_stream(samplerate=output_rate, channels=1, dtype="float32", device=selected_output):
             pass
         with self.manual_start_lock:
             if self.processing or self.tts.speaking.is_set() or self.status["state"] in ("command", "followup", "speaking"):
@@ -1268,8 +1300,12 @@ class VoiceService:
                     if not missing:
                         stream = self.input_stream
                         now = time.monotonic()
-                        last = max(getattr(self, "last_audio_callback", now),
-                                   getattr(self, "audio_stream_opened_at", 0.0) + AUDIO_OPEN_GRACE_S)
+                        # A Bluetooth headset switches profiles whenever playback starts or stops and its microphone
+                        # pauses meanwhile; that is no lost device.
+                        last = now if output_streams_open() else max(
+                            getattr(self, "last_audio_callback", now),
+                            getattr(self, "audio_stream_opened_at", 0.0) + AUDIO_OPEN_GRACE_S,
+                            output_changed_at() + AUDIO_OPEN_GRACE_S)
                         quiet = now - last
                         if stream is not None and getattr(stream, "active", True) and quiet <= AUDIO_STALL_S:
                             # "Windows-Standard" must follow a headset that becomes the default after the start; otherwise
@@ -1279,7 +1315,7 @@ class VoiceService:
                             defaults = windows_default_endpoints()
                             if defaults is None or defaults == known_defaults:
                                 continue
-                            if (self.processing or self.tts.speaking.is_set()
+                            if (self.processing or self.tts.speaking.is_set() or output_streams_open()
                                     or self.status.get("state") not in ("listening", "wake_only")):
                                 continue  # switch once the current interaction is over
                             log_event(event="audio_default_changed")
@@ -1290,7 +1326,7 @@ class VoiceService:
                             continue
                         self._mark_audio_lost("stalled")
                         missing = True
-                    if self.processing or self.tts.speaking.is_set():
+                    if self.processing or self.tts.speaking.is_set() or output_streams_open():
                         continue
                     # The device list is frozen at PortAudio start: re-enumerate with every stream closed.
                     self._close_input_stream()
@@ -2264,7 +2300,7 @@ class VoiceService:
             selected, input_info = resolve(sd, cfg.get("input_device_id"), "input")
             output, output_info = resolve(sd, cfg.get("output_device_id"), "output")
             output_rate = round(sd.query_devices(output, "output")["default_samplerate"])
-            with sd.OutputStream(samplerate=output_rate, channels=1, dtype="float32", device=output):
+            with output_stream(samplerate=output_rate, channels=1, dtype="float32", device=output):
                 pass
             self.tts.output_device = output
             self.audio_input_device_name = input_info.get("name") if input_info else None
@@ -3232,6 +3268,10 @@ def main() -> None:
     ap.add_argument("--test-wake-model", help="Ersatzmodell zum Testen der Kette (z. B. hey_jarvis), ohne Verifier; "
                     "erzwingt die Engine openwakeword")
     args = ap.parse_args()
+    # Native crashes (PortAudio, CUDA) end the process without a Python traceback; keep every thread's stack.
+    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+    faulthandler.enable(open(os.path.join(os.path.dirname(LOG_PATH), "voice-crash.log"), "a", encoding="utf-8"),
+                        all_threads=True)
     cfg = json.load(open(args.config, encoding="utf-8-sig"))  # BOM-tolerant (Windows-Editoren)
     selected = cfg.get("tts_voice_choice", "")
     canonical = os.path.join(INSTALL_ROOT, "config", "voice-references", f"{selected}-reference.wav")
