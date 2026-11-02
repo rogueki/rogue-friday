@@ -1900,6 +1900,17 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
 
+## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
+
+- Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
+  21 CloseWait-Sockets). Jede Logzeile ging zusätzlich zur rotierenden Datei auf stdout; `start-dashboard.ps1` schreibt
+  stdout zeilenweise per `Add-Content`. Bei einem Warnungsschwall (Sprachdienst-Neustart) lief die Pipe voll, der
+  blockierende stdout-Write fror den Event-Loop ein. Folgen: Stopp-Knopf tot, Gedächtnis-Erfassung mit Timeouts,
+  Sprachdienst hing beim Start. Der Watchdog hielt den offenen Port ohne HTTP-Antwort für „Modellladen“ und griff nie ein.
+- Fix: `create-runtime.ts` schreibt bei aktivem Datei-Log nicht mehr auf stdout (`FRIDAY_LOG_STDOUT=1` für Entwicklung).
+  `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
+  beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
+- Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
 ## Übersicht ohne „Nicht verbunden“ für Kalender, Meldungen, Schnellbefehle (2026-11-02)
 
 - Echter Befund (Live): Mission-Timeline, „Meldungen & Alarme“ und „Termine heute“ zeigten „Nicht verbunden“, obwohl
@@ -1913,17 +1924,30 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Web: ein nicht eingerichtetes Nebenmodul blendet ein Panel nicht mehr aus, nur das Hauptmodul des Panels.
 - Tests: `test/overview-native-live.test.ts` (frische Live-Installation ohne Adapter, rot ohne Fix),
   `useOverviewPanel.test.ts` (rot ohne Fix).
-## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
 
-- Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
-  21 CloseWait-Sockets). Jede Logzeile ging zusätzlich zur rotierenden Datei auf stdout; `start-dashboard.ps1` schreibt
-  stdout zeilenweise per `Add-Content`. Bei einem Warnungsschwall (Sprachdienst-Neustart) lief die Pipe voll, der
-  blockierende stdout-Write fror den Event-Loop ein. Folgen: Stopp-Knopf tot, Gedächtnis-Erfassung mit Timeouts,
-  Sprachdienst hing beim Start. Der Watchdog hielt den offenen Port ohne HTTP-Antwort für „Modellladen“ und griff nie ein.
-- Fix: `create-runtime.ts` schreibt bei aktivem Datei-Log nicht mehr auf stdout (`FRIDAY_LOG_STDOUT=1` für Entwicklung).
-  `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
-  beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
-- Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
+## Audit, Freigabe-Entscheidung, Befehlsverlauf und Stopp ohne Adapter (2026-11-02)
+
+- Befund (Bestandsaufnahme einer frischen Live-Installation): Audit-Export und Hash-Kette, Genehmigen/Ablehnen von
+  Fridays eigenen Freigaben, Befehlsverlauf sowie Stopp/Pause/Fortsetzen meldeten „nicht verfügbar“, obwohl die
+  Control API alles selbst bedient (Audit-Trail, `NativeApprovalRequests`, `CommandHistoryStore`, Sprachdienst).
+- Fix: Live/Hybrid setzt `audit.read/export/hashChain`, `approvals.decide`, `commands.history` und mit dem Live-Sprachdienst
+  `commands.stop/pause/resume`. `listCommandHistory` liest ohne Commands-Adapter aus dem lokalen Verlauf; Stopp/Pause mit
+  `scope: all` liefert ohne Commands-Adapter das Ergebnis des Sprachdienstes statt `CAPABILITY_MISSING`.
+- Tests: `test/overview-native-live.test.ts` (2. Fall), verwandte Control-API-Suiten (23 Dateien, 210 Tests) grün.
+## Qwen Realtime: mehrere Werkzeuge pro Antwort, Wiederholung, kein Rückfall ohne lokales Modell (2026-11-02)
+
+- Echter Befund (live reproduziert): Braucht Qwen für eine Frage zwei Werkzeuge („Wie spät ist es und was steht morgen
+  im Kalender?“), schickte der Dialog nach jedem Werkzeugergebnis ein `response.create`. Alibaba lehnte das zweite ab
+  („Cannot create response while another response is in progress.“) → `qwen_turn_failed kind=protocol` → Rückfall auf den
+  lokalen Weg. Eine Qwen-only-Installation (ElevenLabs, kein lokales Modell) hat diesen Weg gar nicht.
+- Fix: Werkzeugergebnisse werden gesammelt, nach `response.done` folgt genau ein `response.create` (Alibaba-Doku
+  `conversation.item.create`). Netzwerk-/Protokoll-/Idle-Fehler werden einmal auf frischer Verbindung wiederholt, solange
+  noch nichts gesagt und kein Werkzeug ausgeführt wurde. Ohne lokales Modell gibt es keinen Rückfall mehr, sondern eine
+  ehrliche Ansage pro gescheiterter Frage. `qwen_turn_failed`/`qwen_turn_retried` loggen die Fehlermeldung.
+- Verifiziert: Live gegen Alibaba mit echten Friday-Werkzeugdefinitionen und Sprachaufnahme: alt schlägt die
+  Zwei-Werkzeug-Frage reproduzierbar fehl, neu beantwortet sie. Tests: `test_qwen_dialog.py` (+4, rot ohne Fix),
+  `test_qwen_voice_wiring.py` (+1); gesamte Voice-Suite grün bis auf die 4 bekannten Umgebungsfehler in
+  `test_fast_tts_voice_slots.py`.
 ## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
 
 - Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
@@ -1983,6 +2007,70 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   zusätzlich entfernt `test/helpers.ts` die Host-Installationsvariablen vor jedem Test-Runtime-Start.
 - Tests: `test/host-env-isolation.test.ts` aus dem Paketordner mit gesetzter Vault-Variable rot ohne Fix, grün mit Fix;
   komplette Control-API-Suite als eigenes Projekt aus dem Root: 195 Dateien, 1421 Tests grün.
+## Dashboard: Dateien ab Werk verbunden – eingebauter Dateien-Adapter (2026-11-02)
+
+- Befund: Live gibt es keinen Adapter für die Kategorie `files`, frische Installationen konfigurieren nie einen. Die
+  Seite „Dateien & Dokumente“ meldete deshalb `CAPABILITY_MISSING` („Für 'files' ist kein Adapter konfiguriert“), obwohl
+  F.R.I.D.A.Y. selbst Dateien erzeugt.
+- Fix: Eingebauter In-Process-Adapter `friday-files` („Friday-Dateien (lokal)“,
+  `apps/control-api/src/services/native-files-adapter.ts`), wie `friday-memory` über `wireAdapters({ builtins })`
+  registriert (nur live/hybrid, ein konfigurierter Adapter hat Vorrang). Fähigkeiten nur `files.read`, `files.preview`,
+  `files.download` – kein delete/rename/upload.
+- Wurzeln (unter `paths.dataDir`, nur wenn vorhanden): `private/powerpoint` (nur `.pptx`, Kategorie `presentations`,
+  Anzeigename aus dem Titel der Metadaten-JSON; Sprachjournale/JSON werden nicht gelistet) und `content-studio/jobs`
+  (`.mp4/.mp3/.png/.jpg/.jpeg/.webp/.gif`, Kategorie `generated`; `visual.bin` und `.partial` nicht). Recherche schreibt
+  keine Dateien (Ergebnisse liegen in SQLite), Hermes-Dokumente (docx/pdf) entstehen in Friday-Ubuntu – dafür gibt es
+  bewusst keine Wurzel. Vault, Schlüssel, Konfiguration, Datenbanken, Logs und `.env` liegen außerhalb der Wurzeln.
+- Sicherheit: Es gibt keine Pfadeingabe – die ID ist `createId("file", "friday-files:<wurzel>/<relativer Pfad>")` und
+  wird nur über einen frischen Scan aufgelöst. Symlinks/Junctions werden nie verfolgt, jede Datei und jede Wurzel muss
+  per `realpath` innerhalb liegen, Hardlinks (`nlink > 1`) werden ausgelassen; vor Vorschau/Download wird erneut
+  geprüft. Scan begrenzt auf Tiefe 4 und 5000 Einträge.
+- Abbildung: Version 1, `createdBy` system/friday, `taskId`/`checksum` null, `location` logisch („Präsentationen“,
+  „Content Studio/<Job>“). MIME nach Endung; Vorschau nur text/markdown (max. 64 KiB gelesen, 4000 Zeichen wie die
+  Mock-Welt) und Bilder bis 10 MB (URL auf den Download), sonst `none`. Download gestreamt.
+- Nebenbefund behoben: `http/server.ts` gibt im Route-Handler jetzt `reply` zurück. Vorher überschrieb Fastify einen
+  gestreamten Antwortkörper (async `onSend`-Hook noch offen) mit einem leeren `send()` – Stream-Downloads kamen mit
+  0 Bytes an. Bisher lieferten alle Raw-Antworten Puffer, deshalb fiel es nicht auf.
+- Web unverändert: Die Dateien-Seite blendet Löschen aus und deaktiviert Umbenennen mit Begründung über die Fähigkeiten.
+- Tests: `native-files-adapter.test.ts` (6: nur erlaubte Wurzeln/keine Geheimnisse, Filter/Cursor, Traversal-IDs,
+  Junction in und als Wurzel, Vorschau-Grenzen + Download, read-only/Health, Mock verweigert) und
+  `test/native-files-live.test.ts` (live ohne Konfiguration: `GET /api/v1/files` 200, Detail, Download-Bytes, Vorschau,
+  `capabilities.files.read` true, Schreibversuche abgewiesen; hybrid: konfigurierter Adapter gewinnt). Live-Test rot
+  ohne Registrierung (403 `CAPABILITY_MISSING`), Download-Assertion rot ohne den `server.ts`-Fix (0 Bytes).
+  `real-adapters`/`live-empty-sources` um `files:friday-files` ergänzt.
+## Kommunikation ab Werk verbunden – eingebauter Kommunikations-Adapter (2026-11-02)
+
+- Echter Befund auf der Live-Installation: Ohne konfigurierten `communication`-Adapter (Neuinstallationen konfigurieren nie
+  einen) meldete der Kanalstatus „Der Kommunikations-Adapter antwortet nicht“, die Übersicht `unconfigured-communication`,
+  und der Schnellbefehl „Mails zusammenfassen“ blieb gesperrt – obwohl Mailkonten (WSL-Mailbrücke), Hermes-Messenger und
+  Telefonie nativ in der Control API vorhanden sind.
+- Fix: Eingebauter In-Process-Adapter `friday-communication` („Friday-Kommunikation (Postfach & Messenger)“,
+  `apps/control-api/src/services/native-communication-adapter.ts`), registriert über `builtins` in `create-runtime.ts`
+  (gleiches Muster wie `friday-memory`; ein konfigurierter Adapter hat Vorrang, nie im Mock-Modus).
+  Fähigkeit nur `communication.read`; kein draft/send über den Port – Senden bleibt auf den nativen Mail-/Messenger-Routen
+  mit Vorschau und Freigabe. Health immer online (In-Process); die Wahrheit steht pro Kanal:
+  - E-Mail aus `MailAccountsService.list()`: Konto mit Zugangsdaten → online (Kanal-Flag `send` nur bei SMTP/OAuth bereit,
+    weil die native Senderoute mit Freigabe existiert), kein Konto/Zugangsdaten fehlen → `not_configured`, Brücke weg → offline.
+  - Telegram/WhatsApp/Discord/SMS aus dem Hermes-Messenger-Katalog (`configured` + `connectionState`), Telefon aus
+    `TelephonyService.status()`. Nicht eingerichtet → `not_configured`.
+  - Jede Quelle ist ein WSL-Aufruf (Port-Timeout 5 s): Ergebnisse werden 15 s zwischengespeichert (stale-while-revalidate),
+    beim Start vorgewärmt; Fehler werden nicht gecacht, sondern beim nächsten Aufruf erneut geprüft (max. 3,5 s Wartezeit).
+  - Threads = INBOX des Standardkontos (25er-IMAP-Seiten, Cursor), Status replied/open aus IMAP-Flags, P2 bei „flagged“.
+    `needsReply`/`hasDraft` liefern leer (keine Klassifizierung) → die Übersicht ruft dafür keine Brücke auf.
+- Web: Stammen alle Kanäle vom eingebauten Adapter, zeigt die Kommunikationsseite wie bisher direkt das native Postfach
+  (`HimalayaMailbox autoOpen`) plus die Kanalliste mit ehrlichem Status; „Einrichten“ führt zur passenden Stelle unter
+  Einstellungen → Skill-Konten (`channelSetupHref`). Der Kanalstatus (Meldungen-Seite) nutzt dieselben Links und sagt bei
+  fehlender Fähigkeit „Noch kein Kommunikationskanal angebunden …“ statt „antwortet nicht“. Das Statuswort
+  `not_configured` heißt jetzt „Nicht eingerichtet“.
+- Tests: `native-communication-adapter.test.ts` (7), `test/native-communication-live.test.ts` (3: live ohne
+  Adapter-Konfiguration → `communication.read`, Adapter online, Kanäle `not_configured`, Übersicht ohne
+  `unconfigured-communication`, Schnellbefehl aktiv; eingerichtetes Postfach → online + Inbox über Port und Lesebefehl,
+  native Mail-Route unverändert; Brücke weg → Kanäle offline, Threads 503). Live-Test rot ohne Builtin (3/3
+  CAPABILITY_MISSING). Web: `ChannelStatusPanel.test.tsx` (3), neuer Fall in `communication.test.tsx`.
+  `live-empty-sources`/`real-adapters` um den neuen Builtin ergänzt.
+- Offen: „Fasse meine wichtigen E-Mails zusammen“ läuft (unverändert) nicht über die Leseabsicht, sondern als Freitext an
+  den Hermes-Agenten; der Lesebefehl über den Port ist z. B. „Zeige meine Mails“. Messenger-Verläufe werden nicht als
+  Threads gelistet (kein Lesezugriff auf Messenger-Historie). Verhalten der echten WSL-Brücken nur über Test-Fakes geprüft.
 ## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
 
 - Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und
@@ -1992,3 +2080,14 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   „<Bereich> · Friday (eingebaut)“; nur wirklich unbediente Kategorien bleiben „nicht eingerichtet“. Ohne Kalenderadapter
   zeigt die Seite den Kalenderkonto-Assistenten in `#calendar-setup-title`.
 - Tests: `HonestAdapters.test.tsx` (neuer Fall, rot ohne Fix), Settings-Suite 33 Dateien/199 Tests grün.
+
+## Gedächtnisseite blockierte die Control API (2026-11-02)
+
+- Befund live: Öffnen der Gedächtnisseite ließ das ganze Dashboard hängen. `status()` ruft `reindex()` synchron auf dem
+  Request-Thread auf; jede Notiz wurde per Upsert und jede verschwundene Notiz per Tombstone/Delete in einer eigenen
+  Autocommit-Transaktion (ein fsync je Zeile, ~11 Zeilen/s) geschrieben. Mit einigen tausend Einträgen stand die API
+  minutenlang (Stack per Inspector: `reindex ← status ← getDurableMemoryStatus`).
+- Fix: `reindex()` läuft in einer `BEGIN IMMEDIATE`-Transaktion und schreibt nur geänderte Notizen (Hash/Pfad/Zustand gleich
+  ⇒ kein Schreibzugriff).
+- Test: `durable-memory.test.ts` „reindex“ (300 Notizen: zweiter Lauf 0 Änderungen, 200 entfernte Notizen < 2 s), rot ohne Fix
+  (300 Änderungen). Live per Hotpatch des Bundles eingespielt (Backup `main.js.bak-20261102-reindex`).

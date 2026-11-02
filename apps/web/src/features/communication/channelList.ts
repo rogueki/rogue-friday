@@ -35,3 +35,25 @@ export function channelGroup(kind: ChannelKind | undefined): "email" | "messenge
   if (kind === "phone") return "phone";
   return "none";
 }
+
+/** Adapter id of the Control API's built-in communication adapter (mail accounts, Hermes messengers, telephony). */
+export const NATIVE_COMMUNICATION_ADAPTER_ID = "friday-communication";
+
+export function isNativeChannel(channel: Pick<Channel, "source">): boolean {
+  return channel.source.adapterId === NATIVE_COMMUNICATION_ADAPTER_ID;
+}
+
+const SETUP_ANCHOR: Partial<Record<ChannelKind, string>> = {
+  email: "himalaya-account-title",
+  telegram: "telegram-gateway-setup-title",
+  whatsapp: "whatsapp-gateway-setup-title",
+  discord: "discord-gateway-setup-title",
+  phone: "telephony-setup-title",
+};
+
+/** Where the owner sets a channel up: built-in channels live in the skill accounts, adapter channels in the adapter settings. */
+export function channelSetupHref(channel: Pick<Channel, "kind" | "source">): string {
+  if (!isNativeChannel(channel)) return `/settings?adapter=${encodeURIComponent(channel.source.adapterId)}`;
+  const anchor = SETUP_ANCHOR[channel.kind];
+  return `/settings?area=skillAccounts${anchor ? `#${anchor}` : ""}`;
+}

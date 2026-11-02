@@ -51,3 +51,19 @@ it("serves the mission timeline from Friday's own calendar and never asks to att
   expect(capabilities.notifications.read).toBe(true);
   expect(capabilities.approvals.read).toBe(true);
 });
+
+// Live report 2026-11-02 (audit of a fresh install): audit export, approving/rejecting Friday's own approvals, the
+// command history and stop/pause showed "nicht verfügbar" although the Control API serves all of them itself.
+it("reports and serves the audit trail, approval decisions and the command history natively", async () => {
+  const capabilities = (await owner.get("/api/v1/capabilities")).json().modules;
+  expect(capabilities.audit).toMatchObject({ read: true, export: true, hashChain: true });
+  expect(capabilities.approvals.decide).toBe(true);
+  expect(capabilities.commands.history).toBe(true);
+
+  const correlationId = "corr_01M6D25DG7D00EY0KH6CPHVH2T";
+  api.runtime.stores.commands.record({ id: "cmdh_01M6D25DG7D00EY0KH6CPHVH2T", correlationId, actor: "owner", text: "Wie spät ist es?",
+    origin: "voice", status: "executed", createdAt: new Date().toISOString() });
+  const history = await owner.get("/api/v1/commands/history");
+  expect(history.statusCode, history.body).toBe(200);
+  expect(history.json().items).toEqual([expect.objectContaining({ id: "cmd_01M6D25DG7D00EY0KH6CPHVH2T", correlationId, text: "Wie spät ist es?", origin: "voice" })]);
+});

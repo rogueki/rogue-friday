@@ -47,6 +47,8 @@ import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
 import { createNativeMemoryFactory } from "../services/native-memory-adapter";
+import { createNativeFilesFactory } from "../services/native-files-adapter";
+import { createNativeCommunicationFactory } from "../services/native-communication-adapter";
 import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
@@ -296,7 +298,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     env,
     // The memory archive is built in: every installation lists its Obsidian conversations without adapter setup.
     // `durableMemory` is created further down; the factory only reads it when the registry starts the adapter.
-    builtins: [createNativeMemoryFactory(() => durableMemory)],
+    // Generated files (PowerPoint decks, Content Studio media) are listed read-only from the data dir the same way;
+    // communication channels come from the mail accounts, Hermes messengers and telephony.
+    builtins: [createNativeMemoryFactory(() => durableMemory), createNativeFilesFactory(() => config.paths.dataDir),
+      createNativeCommunicationFactory(() => ({ mailAccounts, messengerCatalog, telephony }))],
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;
@@ -456,15 +461,20 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     // voice, free text as a task for the matching Hermes agent). Reporting "no execute" here disabled the talk
     // button, the text bar and the palette on every live install.
     if (config.dataMode !== "mock") result.modules.commands.execute = true;
-    // Friday keeps its own calendar, alerts and approvals; they work without any adapter, so a live install must not
-    // report them as unavailable (the overview showed "Nicht verbunden" for the mission timeline and the alerts).
+    // Friday keeps its own calendar, alerts, approvals, audit trail and command history; they work without any adapter, so
+    // a live install must not report them as unavailable (the overview showed "Nicht verbunden" for them).
     if (config.dataMode !== "mock") {
       const grant = (module: Record<string, unknown>, flags: readonly string[]): void => {
         for (const flag of flags) if (flag in module) module[flag] = true;
       };
       grant(result.modules.calendar as unknown as Record<string, unknown>, ["read"]);
       grant(result.modules.notifications as unknown as Record<string, unknown>, ["read", "acknowledge", "snooze", "resolve"]);
-      grant(result.modules.approvals as unknown as Record<string, unknown>, ["read"]);
+      grant(result.modules.approvals as unknown as Record<string, unknown>, ["read", "decide"]);
+      // The audit trail is always the Control API's own hash chain (handlers/audit.ts), never an adapter.
+      grant(result.modules.audit as unknown as Record<string, unknown>, ["read", "export", "hashChain"]);
+      // Command history comes from the local store; stop/pause/resume drive the live voice service.
+      grant(result.modules.commands as unknown as Record<string, unknown>,
+        config.adapters.voice.provider === "friday-voice-http" ? ["history", "stop", "pause", "resume"] : ["history"]);
     }
     return result;
   };

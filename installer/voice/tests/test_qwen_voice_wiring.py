@@ -118,6 +118,8 @@ def test_qwen_turn_reports_realtime_error(monkeypatch):
     monkeypatch.setattr(jv, "log_event", lambda **fields: None)
     svc = make_service(jv)
 
+    svc.cfg["qwen_url"] = "http://127.0.0.1:43792/v1/chat/completions"  # a local model can take over
+
     class Dialog:
         def turn(self, pcm, say, cancelled):
             raise jv.qwen_realtime.RealtimeError("quota", "leer")
@@ -127,6 +129,28 @@ def test_qwen_turn_reports_realtime_error(monkeypatch):
     assert svc.status["qwen_error"] == "quota"
     assert svc.tts.said == [jv.QWEN_FALLBACK_NOTICE["quota"]]
     assert svc.history == []
+
+
+# A Qwen-only install (ElevenLabs voice) has no local model: a failed turn must not drop into the local path, where it
+# would fail again silently. Every failed question gets an honest spoken answer.
+def test_qwen_only_install_never_falls_back_to_the_local_path(monkeypatch):
+    jv = voice_module()
+    logged = []
+    monkeypatch.setattr(jv, "log_event", lambda **fields: logged.append(fields))
+    svc = make_service(jv)
+    svc.cfg.update(voice_mode="elevenlabs", qwen_url="http://127.0.0.1:43792/v1/chat/completions")
+
+    class Dialog:
+        def turn(self, pcm, say, cancelled):
+            raise jv.qwen_realtime.RealtimeError("network", "Verbindung getrennt (1006)")
+
+    svc.qwen_dialog = Dialog()
+    audio = np.zeros(800, dtype=np.float32)
+    assert svc._qwen_turn(audio, svc.control_generation) is True
+    assert svc._qwen_turn(audio, svc.control_generation) is True
+    assert svc.tts.said == [jv.QWEN_ONLY_UNREACHABLE_NOTICE, jv.QWEN_ONLY_UNREACHABLE_NOTICE]
+    assert svc.status["qwen_error"] == "network"
+    assert logged[0] == {"event": "qwen_turn_failed", "kind": "network", "message": "Verbindung getrennt (1006)"}
 
 
 def test_fallback_notice_is_spoken_once_per_kind(monkeypatch):
@@ -145,6 +169,7 @@ def test_fallback_notice_is_spoken_once_per_kind(monkeypatch):
             say("Wieder da.")
             return "Wieder da."
 
+    svc.cfg["qwen_url"] = "http://127.0.0.1:43792/v1/chat/completions"  # a local model can take over
     svc.qwen_dialog = Dialog()
     audio = np.zeros(800, dtype=np.float32)
     assert svc._qwen_turn(audio, svc.control_generation) is False

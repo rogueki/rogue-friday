@@ -219,11 +219,12 @@ class QwenRealtimeSession:
     async def respond(self) -> None:
         await self._send({"type": "response.create"})
 
-    async def send_tool_result(self, call_id: str, output) -> None:
+    async def send_tool_result(self, call_id: str, output, *, respond: bool = True) -> None:
         await self._send({"type": "conversation.item.create",
                           "item": {"type": "function_call_output", "call_id": call_id,
                                    "output": json.dumps(output, ensure_ascii=False)}})
-        await self._send({"type": "response.create"})
+        if respond:
+            await self._send({"type": "response.create"})
 
     async def cancel(self) -> None:
         await self._send({"type": "response.cancel"})
