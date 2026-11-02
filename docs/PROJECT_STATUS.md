@@ -1899,3 +1899,15 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Watchdog hielt den Sprachdienst deshalb gestoppt. Marker gesichert und entfernt, Dienst läuft (Qwen-Backend).
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
+
+## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
+
+- Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
+  21 CloseWait-Sockets). Jede Logzeile ging zusätzlich zur rotierenden Datei auf stdout; `start-dashboard.ps1` schreibt
+  stdout zeilenweise per `Add-Content`. Bei einem Warnungsschwall (Sprachdienst-Neustart) lief die Pipe voll, der
+  blockierende stdout-Write fror den Event-Loop ein. Folgen: Stopp-Knopf tot, Gedächtnis-Erfassung mit Timeouts,
+  Sprachdienst hing beim Start. Der Watchdog hielt den offenen Port ohne HTTP-Antwort für „Modellladen“ und griff nie ein.
+- Fix: `create-runtime.ts` schreibt bei aktivem Datei-Log nicht mehr auf stdout (`FRIDAY_LOG_STDOUT=1` für Entwicklung).
+  `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
+  beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
+- Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
