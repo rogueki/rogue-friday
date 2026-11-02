@@ -437,6 +437,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const nativeSources = {
     pendingApprovals: () => nativeApprovals.listPending(),
     openNotifications: (priority: Priority[]) => nativeNotifications.list({ priority, status: ["open"] }),
+    upcomingEvents: (fromIso: string, limit: number) => new LocalCalendarService(db).list(fromIso, undefined, undefined, limit),
   };
   const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName, native: nativeSources });
   const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode, assistantName });
@@ -455,6 +456,16 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     // voice, free text as a task for the matching Hermes agent). Reporting "no execute" here disabled the talk
     // button, the text bar and the palette on every live install.
     if (config.dataMode !== "mock") result.modules.commands.execute = true;
+    // Friday keeps its own calendar, alerts and approvals; they work without any adapter, so a live install must not
+    // report them as unavailable (the overview showed "Nicht verbunden" for the mission timeline and the alerts).
+    if (config.dataMode !== "mock") {
+      const grant = (module: Record<string, unknown>, flags: readonly string[]): void => {
+        for (const flag of flags) if (flag in module) module[flag] = true;
+      };
+      grant(result.modules.calendar as unknown as Record<string, unknown>, ["read"]);
+      grant(result.modules.notifications as unknown as Record<string, unknown>, ["read", "acknowledge", "snooze", "resolve"]);
+      grant(result.modules.approvals as unknown as Record<string, unknown>, ["read"]);
+    }
     return result;
   };
   const capabilityEnabled = (capability: string): boolean => {

@@ -1900,6 +1900,19 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
 
+## Übersicht ohne „Nicht verbunden“ für Kalender, Meldungen, Schnellbefehle (2026-11-02)
+
+- Echter Befund (Live): Mission-Timeline, „Meldungen & Alarme“ und „Termine heute“ zeigten „Nicht verbunden“, obwohl
+  Friday einen eigenen Kalender, eigene Meldungen und Freigaben hat. Ursachen: Die Übersicht las den Kalender nur über
+  den Adapter-Port; ein fehlender Mail-Adapter machte das ganze Live-Intelligenz-Panel „nicht verbunden“; nicht
+  eingerichtete Module tauchten als „eingeschränkt“ in „Aufmerksamkeit“ auf; `capabilities()` meldete Kalender,
+  Meldungen und Freigaben ohne Adapter als nicht verfügbar.
+- Fix: `NativeSources.upcomingEvents` (lokaler Kalender) per `withNative`; nicht eingerichtete Module erscheinen nicht
+  mehr in „Aufmerksamkeit“; Schnellbefehle ohne Adapter folgen dem Capability-Flag; im Live-/Hybridbetrieb sind
+  `calendar.read`, `notifications.read/acknowledge/snooze/resolve` und `approvals.read` gesetzt (native Dienste).
+  Web: ein nicht eingerichtetes Nebenmodul blendet ein Panel nicht mehr aus, nur das Hauptmodul des Panels.
+- Tests: `test/overview-native-live.test.ts` (frische Live-Installation ohne Adapter, rot ohne Fix),
+  `useOverviewPanel.test.ts` (rot ohne Fix).
 ## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
 
 - Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
