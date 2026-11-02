@@ -24,4 +24,12 @@ Assert-True ($d.Action -eq 'restart') "Inaktiver Dienst mit geschlossenem Port w
 $d = Get-WatchdogDecision -PortUp $false -ProcessRunning $true -StopFlag $false -InstallerActive $false -InGrace $false -Now 100000
 Assert-True ($d.Action -eq 'loading') "Startender Dienst wird faelschlich neu gestartet: $($d.Action)"
 
+# Ein Stop-Flag, das ein abgebrochenes Update liegen liess, darf den Dienst nicht dauerhaft abschalten (2026-11-01).
+$now = [datetime]'2026-11-02T02:00:00'
+Assert-True (Test-StopFlagOrphaned -FlagWrittenAt $now.AddMinutes(-270) -Now $now -InstallerActive $false) 'Verwaistes Stop-Flag wird nicht erkannt.'
+Assert-True (-not (Test-StopFlagOrphaned -FlagWrittenAt $now.AddSeconds(-20) -Now $now -InstallerActive $false)) 'Frisches Stop-Flag eines laufenden Updates wird entfernt.'
+Assert-True (-not (Test-StopFlagOrphaned -FlagWrittenAt $now.AddMinutes(-270) -Now $now -InstallerActive $true)) 'Stop-Flag wird trotz laufendem Installer entfernt.'
+Assert-True (-not (Test-StopFlagOrphaned -FlagWrittenAt $null -Now $now -InstallerActive $false)) 'Fehlendes Stop-Flag gilt als verwaist.'
+Assert-True ($watchdog -match 'Test-StopFlagOrphaned -FlagWrittenAt \$flagWrittenAt') 'Watchdog-Schleife prueft verwaiste Stop-Flags nicht.'
+
 Write-Host "watchdog-hermes: $script:checks Pruefungen bestanden."

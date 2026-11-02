@@ -16,6 +16,15 @@ $MaxRestartsPerHour = 3
 $GraceMinutes       = 3     # nach der Anmeldung starten die Aufgaben selbst (Verzoegerung 45-60 s plus Modellladen)
 $HangWarnMinutes    = 20    # Prozess laeuft, Port aber so lange zu: nur warnen
 $HeartbeatMinutes   = 60
+$OrphanFlagMinutes  = 10    # Installer und Stimmen-Update entfernen ihr Stop-Flag nach Sekunden; aelter heisst: Lauf abgebrochen
+
+function Test-StopFlagOrphaned {
+    # Ein abgebrochenes Update (2026-11-01: Konsole weg, Rollback gescheitert) liess das Flag liegen; der Sprachdienst blieb danach
+    # dauerhaft aus, weil der Watchdog es als gewollten Stopp las. Laufende Installer-/Update-Laeufe sind ueber InstallerActive geschuetzt.
+    param([Nullable[datetime]]$FlagWrittenAt, [datetime]$Now, [bool]$InstallerActive, [int]$OrphanMinutes = 10)
+    if ($null -eq $FlagWrittenAt -or $InstallerActive) { return $false }
+    return (($Now - $FlagWrittenAt).TotalMinutes -ge $OrphanMinutes)
+}
 
 function Get-WatchdogDecision {
     # Reine Entscheidungslogik ohne Seiteneffekte. Zeiten als Unix-Sekunden. Rueckgabe: Action = ok | installer-active | stopped |
@@ -189,7 +198,18 @@ try {
         $running = if ($svc.Unit) { (-not $portUp) -and (Test-WslUnitActive $svc.Unit) }
             else { @($procs | Where-Object { "$($_.CommandLine)" -like "*$($svc.Launcher)*" -or "$($_.CommandLine)" -like $svc.Child }).Count -gt 0 }
         $target = if ($svc.Unit) { "WSL-Dienst $($svc.Unit)" } else { "Aufgabe $($svc.Task)" }
-        $stopFlag = Test-Path "$root\run\$($svc.Launcher).stop"
+        $flagPath = "$root\run\$($svc.Launcher).stop"
+        $stopFlag = Test-Path $flagPath
+        if ($stopFlag) {
+            $flagWrittenAt = try { (Get-Item -LiteralPath $flagPath -ErrorAction Stop).LastWriteTime } catch { $null }
+            if (Test-StopFlagOrphaned -FlagWrittenAt $flagWrittenAt -Now (Get-Date) -InstallerActive $installerActive -OrphanMinutes $OrphanFlagMinutes) {
+                try {
+                    Remove-Item -LiteralPath $flagPath -Force -ErrorAction Stop
+                    $stopFlag = $false
+                    Write-WatchdogLog 'WARN' "$($svc.Name): verwaistes Stop-Flag (seit $($flagWrittenAt.ToString('s'))) entfernt."
+                } catch { Write-WatchdogLog 'ERROR' "$($svc.Name): verwaistes Stop-Flag nicht entfernbar: $($_.Exception.Message)" }
+            }
+        }
 
         $d = Get-WatchdogDecision -PortUp $portUp -ProcessRunning $running -StopFlag $stopFlag -InstallerActive $installerActive -InGrace $inGrace `
             -RestartTimes ([long[]]$st.restarts) -Now $now -MinIntervalMinutes $MinIntervalMinutes -MaxPerHour $MaxRestartsPerHour

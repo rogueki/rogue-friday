@@ -139,6 +139,24 @@ it("includes selected custom voice references and refuses a missing configured r
   f.db.close();
 });
 
+it("skips a missing derived wake model instead of failing every nightly backup", async () => {
+  // voice_setup.py writes wake_verifier on every install; the file exists only after the legacy "Hey Jarvis" training.
+  const f = fixture();
+  const config = join(f.root, "config");
+  mkdirSync(config);
+  const reference = join(f.root, "custom-voice.wav");
+  writeFileSync(reference, "synthetic-audio");
+  writeFileSync(join(config, "voice.json"), JSON.stringify({ tts_reference: reference,
+    wake_verifier: join(f.root, "models", "hey_jarvis_owner_verifier.joblib"),
+    personal_wake_model: join(f.root, "models", "personal_wake.npz") }));
+  const created = await f.service.create(f.destination, 2);
+  const manifest = JSON.parse(readFileSync(join(created.path, "manifest.json"), "utf8")) as
+    { voiceSources: Record<string, string> };
+  expect(Object.keys(manifest.voiceSources)).toEqual([reference]);
+  f.memory.close();
+  f.db.close();
+});
+
 it("captures recovery credentials and private owner enrollment data", async () => {
   const f = fixture();
   mkdirSync(join(f.root, "config"));
