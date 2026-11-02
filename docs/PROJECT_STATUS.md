@@ -2080,3 +2080,14 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   „<Bereich> · Friday (eingebaut)“; nur wirklich unbediente Kategorien bleiben „nicht eingerichtet“. Ohne Kalenderadapter
   zeigt die Seite den Kalenderkonto-Assistenten in `#calendar-setup-title`.
 - Tests: `HonestAdapters.test.tsx` (neuer Fall, rot ohne Fix), Settings-Suite 33 Dateien/199 Tests grün.
+
+## Gedächtnisseite blockierte die Control API (2026-11-02)
+
+- Befund live: Öffnen der Gedächtnisseite ließ das ganze Dashboard hängen. `status()` ruft `reindex()` synchron auf dem
+  Request-Thread auf; jede Notiz wurde per Upsert und jede verschwundene Notiz per Tombstone/Delete in einer eigenen
+  Autocommit-Transaktion (ein fsync je Zeile, ~11 Zeilen/s) geschrieben. Mit einigen tausend Einträgen stand die API
+  minutenlang (Stack per Inspector: `reindex ← status ← getDurableMemoryStatus`).
+- Fix: `reindex()` läuft in einer `BEGIN IMMEDIATE`-Transaktion und schreibt nur geänderte Notizen (Hash/Pfad/Zustand gleich
+  ⇒ kein Schreibzugriff).
+- Test: `durable-memory.test.ts` „reindex“ (300 Notizen: zweiter Lauf 0 Änderungen, 200 entfernte Notizen < 2 s), rot ohne Fix
+  (300 Änderungen). Live per Hotpatch des Bundles eingespielt (Backup `main.js.bak-20261102-reindex`).

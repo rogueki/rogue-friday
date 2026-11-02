@@ -279,3 +279,31 @@ describe("DurableMemoryService", () => {
     service.close();
   });
 });
+
+// Live 2026-11-02: opening the memory page ran status() -> reindex() with one autocommit (fsync) per note and per removed
+// note; with a few thousand notes the Control API stopped answering for minutes.
+describe("DurableMemoryService reindex", () => {
+  it("writes nothing for unchanged notes and removes vanished notes in one transaction", () => {
+    const { data, vault } = fixture();
+    mkdirSync(join(vault, ".obsidian"), { recursive: true });
+    const memory = new DurableMemoryService(data, vault);
+    for (let i = 0; i < 300; i += 1) memory.capture(event(`e${i}`, `Notiz ${i}`));
+    memory.flush();
+    memory.status();
+    const db = (memory as unknown as { db: DatabaseSync }).db;
+    const changes = (): number => (db.prepare("SELECT total_changes() AS n").get() as { n: number }).n;
+
+    const before = changes();
+    memory.status();
+    expect(changes() - before).toBe(0);
+
+    const dir = join(vault, "Conversations", "2026", "10");
+    for (let i = 0; i < 200; i += 1) unlinkSync(join(dir, `e${i}.md`));
+    const started = performance.now();
+    expect(memory.status().indexState).not.toBe("failed");
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(memory.search("Notiz", "owner").length).toBeLessThanOrEqual(100);
+    expect((db.prepare("SELECT COUNT(*) AS n FROM events WHERE state='written'").get() as { n: number }).n).toBe(100);
+    memory.close();
+  });
+});
