@@ -47,6 +47,7 @@ import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
 import { createNativeMemoryFactory } from "../services/native-memory-adapter";
+import { createNativeCommunicationFactory } from "../services/native-communication-adapter";
 import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
@@ -292,7 +293,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     env,
     // The memory archive is built in: every installation lists its Obsidian conversations without adapter setup.
     // `durableMemory` is created further down; the factory only reads it when the registry starts the adapter.
-    builtins: [createNativeMemoryFactory(() => durableMemory)],
+    builtins: [createNativeMemoryFactory(() => durableMemory),
+      createNativeCommunicationFactory(() => ({ mailAccounts, messengerCatalog, telephony }))],
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;

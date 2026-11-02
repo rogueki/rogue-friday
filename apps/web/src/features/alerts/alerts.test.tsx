@@ -194,7 +194,7 @@ describe("alerts page", () => {
     renderWithProviders(<AlertsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const list = await screen.findByRole("list", { name: "Kanalstatus" });
     await waitFor(() => expect(within(list).getByText("Nur lesen")).toBeInTheDocument());
-    expect(within(list).getByText("Nicht konfiguriert")).toBeInTheDocument();
+    expect(within(list).getByText("Nicht eingerichtet")).toBeInTheDocument();
     expect(within(list).getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();
     expect(within(list).getByText("ab P2")).toBeInTheDocument();
   });

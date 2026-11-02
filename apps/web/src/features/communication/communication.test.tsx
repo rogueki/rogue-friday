@@ -129,7 +129,7 @@ describe("communication page: inbox and channels", () => {
     const rail = await screen.findByRole("list", { name: "Kanäle" });
     await waitFor(() => expect(within(rail).getAllByText("Online").length).toBeGreaterThan(0));
     expect(within(rail).getAllByText("Nur lesen").length).toBeGreaterThan(0);
-    expect(within(rail).getAllByText("Nicht konfiguriert").length).toBeGreaterThan(0);
+    expect(within(rail).getAllByText("Nicht eingerichtet").length).toBeGreaterThan(0);
     expect(within(rail).getAllByText("Eingeschränkt: Antworten sind verzögert.").length).toBeGreaterThan(0);
     expect(within(rail).getByText("Lesen verfügbar, Senden nicht verfügbar.")).toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();
@@ -211,6 +211,35 @@ describe("communication page: inbox and channels", () => {
     expect(screen.getByRole("option", { name: /Geschäft · erik@firma.test/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "E-Mail Postfach öffnen" })).toBeNull();
     expect(screen.queryByPlaceholderText("Betreff, Absender, Inhalt …")).toBeNull();
+  });
+
+  it("built-in adapter: opens the native mailbox and lists honest channel states instead of the adapter inbox", async () => {
+    const NATIVE = { adapterId: "friday-communication", system: "friday", lastSyncedAt: NOW };
+    const nativeChannels = [
+      channel(MAIL, { source: NATIVE, status: "not_configured", capabilities: { read: false, draft: false, send: false }, unreadCount: 0, lastSyncAt: null }),
+      channel(TELEGRAM, { source: NATIVE, kind: "telegram", name: "Telegram", status: "online", capabilities: { read: true, draft: true, send: true }, unreadCount: 0, lastSyncAt: NOW }),
+    ];
+    const fake = routedFetch({
+      "GET /api/v1/communication/channels": { ...listOf(nativeChannels), sources: [NATIVE] },
+      "GET /api/v1/communication/threads": { ...listOf([]), sources: [NATIVE] },
+      "GET /api/v1/adapters": listOf([]),
+      "GET /api/v1/auth/session": single({ authenticated: true, setupRequired: false, csrfToken: "csrf-test", role: "owner",
+        user: { id: "user-1", displayName: "Erik Brandt", role: "owner", email: "erik@firma.test" }, expiresAt: null, reauthUntil: null }),
+      "GET /api/v1/integrations/mail/accounts": single({ accounts: [{
+        id: "work", displayName: "Geschäft", email: "erik@firma.test", senderName: "Geschäft", aliases: [], signature: "",
+        imapHost: "imap.work.test", imapPort: 993, imapSecurity: "tls", imapLogin: "erik@firma.test", smtpHost: "smtp.work.test",
+        smtpPort: 465, smtpSecurity: "tls", smtpLogin: "erik@firma.test", sentFolder: "Sent", draftsFolder: "Drafts",
+        trashFolder: "Trash", archiveFolder: "Archive", spamFolder: "Spam", authMode: "password", oauthClientId: "",
+        oauthTenant: "", revision: 1, secretState: { imapPassword: true, smtpPassword: true, oauthRefreshToken: false },
+      }], defaultAccountId: "work", revision: 1 }),
+    });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    expect(await screen.findByLabelText("Konto")).toBeInTheDocument();
+    const rail = await screen.findByRole("list", { name: "Kanäle" });
+    expect(within(rail).getByText("Nicht eingerichtet")).toBeInTheDocument();
+    expect(within(rail).getByRole("button", { name: /Einrichten/ })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Betreff, Absender, Inhalt …")).toBeNull();
+    expect(screen.queryByText("Adapter konfigurieren")).toBeNull();
   });
 });
 

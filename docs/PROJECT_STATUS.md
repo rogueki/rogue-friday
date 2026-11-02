@@ -1946,3 +1946,37 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Explizit gewählte Geräte bleiben unberührt.
 - Tests: `test_audio_hotplug.py` (+3, zwei rot ohne Fix), echter COM-Aufruf liefert die Endpunkt-IDs. Voice-Suite
   lokal 524 grün; die 4 `test_fast_tts_voice_slots`-Fehler bestehen identisch auf `main` (lokale Umgebung).
+
+## Kommunikation ab Werk verbunden – eingebauter Kommunikations-Adapter (2026-11-02)
+
+- Echter Befund auf der Live-Installation: Ohne konfigurierten `communication`-Adapter (Neuinstallationen konfigurieren nie
+  einen) meldete der Kanalstatus „Der Kommunikations-Adapter antwortet nicht“, die Übersicht `unconfigured-communication`,
+  und der Schnellbefehl „Mails zusammenfassen“ blieb gesperrt – obwohl Mailkonten (WSL-Mailbrücke), Hermes-Messenger und
+  Telefonie nativ in der Control API vorhanden sind.
+- Fix: Eingebauter In-Process-Adapter `friday-communication` („Friday-Kommunikation (Postfach & Messenger)“,
+  `apps/control-api/src/services/native-communication-adapter.ts`), registriert über `builtins` in `create-runtime.ts`
+  (gleiches Muster wie `friday-memory`; ein konfigurierter Adapter hat Vorrang, nie im Mock-Modus).
+  Fähigkeit nur `communication.read`; kein draft/send über den Port – Senden bleibt auf den nativen Mail-/Messenger-Routen
+  mit Vorschau und Freigabe. Health immer online (In-Process); die Wahrheit steht pro Kanal:
+  - E-Mail aus `MailAccountsService.list()`: Konto mit Zugangsdaten → online (Kanal-Flag `send` nur bei SMTP/OAuth bereit,
+    weil die native Senderoute mit Freigabe existiert), kein Konto/Zugangsdaten fehlen → `not_configured`, Brücke weg → offline.
+  - Telegram/WhatsApp/Discord/SMS aus dem Hermes-Messenger-Katalog (`configured` + `connectionState`), Telefon aus
+    `TelephonyService.status()`. Nicht eingerichtet → `not_configured`.
+  - Jede Quelle ist ein WSL-Aufruf (Port-Timeout 5 s): Ergebnisse werden 15 s zwischengespeichert (stale-while-revalidate),
+    beim Start vorgewärmt; Fehler werden nicht gecacht, sondern beim nächsten Aufruf erneut geprüft (max. 3,5 s Wartezeit).
+  - Threads = INBOX des Standardkontos (25er-IMAP-Seiten, Cursor), Status replied/open aus IMAP-Flags, P2 bei „flagged“.
+    `needsReply`/`hasDraft` liefern leer (keine Klassifizierung) → die Übersicht ruft dafür keine Brücke auf.
+- Web: Stammen alle Kanäle vom eingebauten Adapter, zeigt die Kommunikationsseite wie bisher direkt das native Postfach
+  (`HimalayaMailbox autoOpen`) plus die Kanalliste mit ehrlichem Status; „Einrichten“ führt zur passenden Stelle unter
+  Einstellungen → Skill-Konten (`channelSetupHref`). Der Kanalstatus (Meldungen-Seite) nutzt dieselben Links und sagt bei
+  fehlender Fähigkeit „Noch kein Kommunikationskanal angebunden …“ statt „antwortet nicht“. Das Statuswort
+  `not_configured` heißt jetzt „Nicht eingerichtet“.
+- Tests: `native-communication-adapter.test.ts` (7), `test/native-communication-live.test.ts` (3: live ohne
+  Adapter-Konfiguration → `communication.read`, Adapter online, Kanäle `not_configured`, Übersicht ohne
+  `unconfigured-communication`, Schnellbefehl aktiv; eingerichtetes Postfach → online + Inbox über Port und Lesebefehl,
+  native Mail-Route unverändert; Brücke weg → Kanäle offline, Threads 503). Live-Test rot ohne Builtin (3/3
+  CAPABILITY_MISSING). Web: `ChannelStatusPanel.test.tsx` (3), neuer Fall in `communication.test.tsx`.
+  `live-empty-sources`/`real-adapters` um den neuen Builtin ergänzt.
+- Offen: „Fasse meine wichtigen E-Mails zusammen“ läuft (unverändert) nicht über die Leseabsicht, sondern als Freitext an
+  den Hermes-Agenten; der Lesebefehl über den Port ist z. B. „Zeige meine Mails“. Messenger-Verläufe werden nicht als
+  Threads gelistet (kein Lesezugriff auf Messenger-Historie). Verhalten der echten WSL-Brücken nur über Test-Fakes geprüft.

@@ -3,7 +3,7 @@ import type { Tone } from "@friday/ui";
 import { LayoutDashboard, Mail, MessagesSquare, MessageCircle, MessageSquare, Phone, Plug, Send, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/i18n";
 
-/** Channel status vocabulary of PLAN §33.4: Online, Degraded, Offline, Read-only, Nicht konfiguriert. */
+/** Channel status vocabulary of PLAN §33.4: Online, Degraded, Offline, Read-only, Nicht eingerichtet. */
 export const CHANNEL_STATUS_TONE: Record<ChannelStatus, Tone> = {
   online: "green",
   degraded: "amber",
