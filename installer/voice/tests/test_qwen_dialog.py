@@ -63,15 +63,17 @@ class FakeSession:
     async def add_system_text(self, text):
         self._record("add_system_text", text)
 
-    async def send_tool_result(self, call_id, output):
+    async def send_tool_result(self, call_id, output, *, respond=True):
         self._record("send_tool_result", call_id, output)
-        self._release_round()
+        if respond:
+            self._release_round()
 
     async def cancel(self):
         self._record("cancel")
 
     async def respond(self):
         self._record("respond")
+        self._release_round()
 
     async def close(self):
         self.connected = False
@@ -257,14 +259,59 @@ class QwenDialogTest(unittest.TestCase):
         self.assertEqual(context.exception.kind, "quota")
 
     def test_aborted_turn_drops_the_connection(self):
-        session = FakeSession([[ServerError("protocol", "kaputt")],
+        session = FakeSession([[ServerError("protocol", "kaputt")], [ServerError("protocol", "kaputt")],
                                [TextDelta("Wieder da."), ResponseDone("r2", "completed")]])
         dialog = self._dialog(session)
         with self.assertRaises(RealtimeError):
             dialog.turn(b"\x00\x00", [].append, lambda: False)
         self.assertFalse(session.connected)
         self.assertEqual(dialog.turn(b"\x00\x00", [].append, lambda: False), "Wieder da.")
+        self.assertEqual(session.connect_count, 3)
+
+    # Live 2026-11-02: turns failed with "protocol" and Kira switched to the local path. A Qwen-only install has no local
+    # model, so a broken connection is retried once on a fresh session before the turn counts as failed.
+    def test_failed_turn_is_retried_once_on_a_fresh_connection(self):
+        session = FakeSession([[ServerError("protocol", "kaputt")],
+                               [TextDelta("Alles gut."), ResponseDone("r2", "completed")]])
+        orchestrator = FakeOrchestrator()
+        dialog = self._dialog(session, orchestrator)
+        said = []
+        self.assertEqual(dialog.turn(b"\x00\x00", said.append, lambda: False), "Alles gut.")
+        self.assertEqual(said, ["Alles gut."])
         self.assertEqual(session.connect_count, 2)
+        self.assertEqual([call[0] for call in session.calls].count("append_audio"), 2)
+        self.assertEqual(orchestrator.user_turns, 1)
+        self.assertEqual(dialog.last_retry.kind, "protocol")
+
+    def test_turn_that_already_ran_a_tool_is_not_repeated(self):
+        session = FakeSession([[ToolCall("c1", "task_create", {"domain": "mail"}, "{}"), ResponseDone("r1", "completed")],
+                               [ServerError("protocol", "kaputt")],
+                               [TextDelta("Doppelt."), ResponseDone("r3", "completed")]])
+        orchestrator = FakeOrchestrator()
+        dialog = self._dialog(session, orchestrator)
+        with self.assertRaises(RealtimeError):
+            dialog.turn(b"\x00\x00", [].append, lambda: False)
+        self.assertEqual(len(orchestrator.tool_calls), 1)
+        self.assertEqual(session.connect_count, 1)
+
+    def test_quota_error_is_not_retried(self):
+        session = FakeSession([[ServerError("quota", "leer")], [TextDelta("Nie."), ResponseDone("r2", "completed")]])
+        dialog = self._dialog(session)
+        with self.assertRaises(RealtimeError):
+            dialog.turn(b"\x00\x00", [].append, lambda: False)
+        self.assertEqual(session.connect_count, 1)
+
+    def test_several_tool_calls_request_one_follow_up_response(self):
+        session = FakeSession([
+            [ToolCall("c1", "task_status", {}, "{}"), ToolCall("c2", "zeit_datum", {}, "{}"), ResponseDone("r1", "completed")],
+            [TextDelta("Beides erledigt."), ResponseDone("r2", "completed")],
+        ])
+        dialog = self._dialog(session)
+        self.assertEqual(dialog.turn(b"\x00\x00", [].append, lambda: False), "Beides erledigt.")
+        names = [call[0] for call in session.calls]
+        self.assertEqual(names.count("send_tool_result"), 2)
+        self.assertEqual(names.count("respond"), 1)
+        self.assertGreater(names.index("respond"), max(i for i, name in enumerate(names) if name == "send_tool_result"))
 
     def test_connect_retries_once_on_retryable_error(self):
         session = FakeSession([[TextDelta("Hallo."), ResponseDone("r1", "completed")]],

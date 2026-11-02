@@ -1934,6 +1934,20 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   `commands.stop/pause/resume`. `listCommandHistory` liest ohne Commands-Adapter aus dem lokalen Verlauf; Stopp/Pause mit
   `scope: all` liefert ohne Commands-Adapter das Ergebnis des Sprachdienstes statt `CAPABILITY_MISSING`.
 - Tests: `test/overview-native-live.test.ts` (2. Fall), verwandte Control-API-Suiten (23 Dateien, 210 Tests) grün.
+## Qwen Realtime: mehrere Werkzeuge pro Antwort, Wiederholung, kein Rückfall ohne lokales Modell (2026-11-02)
+
+- Echter Befund (live reproduziert): Braucht Qwen für eine Frage zwei Werkzeuge („Wie spät ist es und was steht morgen
+  im Kalender?“), schickte der Dialog nach jedem Werkzeugergebnis ein `response.create`. Alibaba lehnte das zweite ab
+  („Cannot create response while another response is in progress.“) → `qwen_turn_failed kind=protocol` → Rückfall auf den
+  lokalen Weg. Eine Qwen-only-Installation (ElevenLabs, kein lokales Modell) hat diesen Weg gar nicht.
+- Fix: Werkzeugergebnisse werden gesammelt, nach `response.done` folgt genau ein `response.create` (Alibaba-Doku
+  `conversation.item.create`). Netzwerk-/Protokoll-/Idle-Fehler werden einmal auf frischer Verbindung wiederholt, solange
+  noch nichts gesagt und kein Werkzeug ausgeführt wurde. Ohne lokales Modell gibt es keinen Rückfall mehr, sondern eine
+  ehrliche Ansage pro gescheiterter Frage. `qwen_turn_failed`/`qwen_turn_retried` loggen die Fehlermeldung.
+- Verifiziert: Live gegen Alibaba mit echten Friday-Werkzeugdefinitionen und Sprachaufnahme: alt schlägt die
+  Zwei-Werkzeug-Frage reproduzierbar fehl, neu beantwortet sie. Tests: `test_qwen_dialog.py` (+4, rot ohne Fix),
+  `test_qwen_voice_wiring.py` (+1); gesamte Voice-Suite grün bis auf die 4 bekannten Umgebungsfehler in
+  `test_fast_tts_voice_slots.py`.
 ## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
 
 - Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
