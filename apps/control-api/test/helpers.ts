@@ -10,6 +10,9 @@ import type { ResponseValidationMode } from "../src/runtime/types";
 import type { ResearchSetupProbe, ResearchSetupRun } from "../src/services/research-setup";
 import { simulation } from "../test-support/simulation";
 
+// Belt and braces next to the vitest setup files: a runtime started from here must never reach the owner's real vault.
+for (const name of ["FRIDAY_OBSIDIAN_VAULT", "FRIDAY_INSTALL_ROOT", "FRIDAY_CONFIG_DIR", "FRIDAY_STATE_ROOT"]) delete process.env[name];
+
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
   researchPageFetch?: (url: string) => Promise<string>;
@@ -40,6 +43,9 @@ export interface TestApiOptions {
   withoutSimulation?: boolean;
   /** Receives every log line (JSON) the API writes, to scan for leaks. */
   logs?: string[];
+  /** Writes the rotating log file under `<dir>/logs` like a live install (default off). */
+  fileLogging?: boolean;
+  logLevel?: "debug" | "info" | "warn" | "error";
 }
 
 export interface TestApi extends ControlApi {
@@ -80,9 +86,9 @@ dev:
   scenarioConsole: ${options.scenarioConsole ?? true}
   responseValidation: true
 logging:
-  level: error
+  level: ${options.logLevel ?? "error"}
   file:
-    enabled: false
+    enabled: ${options.fileLogging ?? false}
 ${options.yamlExtra ?? ""}
 `,
   );

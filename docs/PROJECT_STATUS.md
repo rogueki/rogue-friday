@@ -1899,6 +1899,18 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Watchdog hielt den Sprachdienst deshalb gestoppt. Marker gesichert und entfernt, Dienst läuft (Qwen-Backend).
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
+
+## Command Center eingefroren: Log-Pipe und Watchdog (2026-11-02)
+
+- Echter Befund: Das Live-Dashboard antwortete ab 03:18 nicht mehr (Port offen, `/api/v1/health` Timeout, 0 % CPU,
+  21 CloseWait-Sockets). Jede Logzeile ging zusätzlich zur rotierenden Datei auf stdout; `start-dashboard.ps1` schreibt
+  stdout zeilenweise per `Add-Content`. Bei einem Warnungsschwall (Sprachdienst-Neustart) lief die Pipe voll, der
+  blockierende stdout-Write fror den Event-Loop ein. Folgen: Stopp-Knopf tot, Gedächtnis-Erfassung mit Timeouts,
+  Sprachdienst hing beim Start. Der Watchdog hielt den offenen Port ohne HTTP-Antwort für „Modellladen“ und griff nie ein.
+- Fix: `create-runtime.ts` schreibt bei aktivem Datei-Log nicht mehr auf stdout (`FRIDAY_LOG_STDOUT=1` für Entwicklung).
+  `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
+  beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
+- Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
 ## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
 
 - Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
@@ -1980,6 +1992,17 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Offen: „Fasse meine wichtigen E-Mails zusammen“ läuft (unverändert) nicht über die Leseabsicht, sondern als Freitext an
   den Hermes-Agenten; der Lesebefehl über den Port ist z. B. „Zeige meine Mails“. Messenger-Verläufe werden nicht als
   Threads gelistet (kein Lesezugriff auf Messenger-Historie). Verhalten der echten WSL-Brücken nur über Test-Fakes geprüft.
+## Control-API-Tests schreiben nie mehr in den echten Vault (2026-11-02)
+
+- Befund: Aus `apps/control-api` gestartete vitest-Läufe (Paket-Skript, Editor, `npx vitest`) liefen ohne die Root-Konfiguration
+  und damit ohne `tests/setup/node.ts`; die Test-Runtimes erbten `FRIDAY_OBSIDIAN_VAULT` des Hosts und schrieben seit
+  2026-10-28 Tausende Testnotizen (`corr_*`, `messenger-*`, `mail`) in den echten Obsidian-Vault der Installation.
+- Bereinigung live: 3383 nicht vom Live-System erfasste Dateien in
+  `memory/_quarantaene-testnotizen-20261102/` verschoben (Manifest zum Zurückverschieben), nicht gelöscht.
+- Fix: eigene `apps/control-api/vitest.config.ts` (Projekt `control-api`) mit dem Isolations-Setup, egal wo vitest startet;
+  zusätzlich entfernt `test/helpers.ts` die Host-Installationsvariablen vor jedem Test-Runtime-Start.
+- Tests: `test/host-env-isolation.test.ts` aus dem Paketordner mit gesetzter Vault-Variable rot ohne Fix, grün mit Fix;
+  komplette Control-API-Suite als eigenes Projekt aus dem Root: 195 Dateien, 1421 Tests grün.
 ## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
 
 - Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und
