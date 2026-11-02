@@ -1,6 +1,7 @@
 ﻿# F.R.I.D.A.Y. Service-Watchdog: prueft einmal pro Aufruf (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar ueber hidden.vbs),
 # ob die installierten Dienste (Sprachdienst 43694, Qwen 43692, Command Center aus dashboard.yaml/3100, Hermes-Dashboard in WSL) antworten, und startet
-# einen abgestuerzten Dienst ueber seine Aufgabe (Start-ScheduledTask) neu. Es wird nie ein Prozess beendet.
+# einen abgestuerzten Dienst ueber seine Aufgabe (Start-ScheduledTask) neu. Prozesse werden nur beendet, wenn ein Dienst haengt
+# (Port offen, HTTP seit $HungRestartMinutes min ohne Antwort) - dann genau die Prozesse dieses Dienstes.
 # Neustart nur, wenn ALLES zutrifft: Port/Health antwortet nicht, kein Launcher-/Dienstprozess laeuft (Modellladen haelt den Port
 # geschlossen, der Prozess existiert aber), kein Stop-Flag C:\Friday\run\<launcher>.stop (gewollter Stopp), der Installer laeuft nicht
 # (C:\Friday\run\installer.active), nicht innerhalb der Anmelde-Schonfrist und Backoff (10 min Abstand, max. 3 Neustarts/Stunde).
@@ -15,6 +16,7 @@ $MinIntervalMinutes = 10
 $MaxRestartsPerHour = 3
 $GraceMinutes       = 3     # nach der Anmeldung starten die Aufgaben selbst (Verzoegerung 45-60 s plus Modellladen)
 $HangWarnMinutes    = 20    # Prozess laeuft, Port aber so lange zu: nur warnen
+$HungRestartMinutes = 5     # Port offen, HTTP antwortet so lange nicht: Dienstprozesse beenden und neu starten
 $HeartbeatMinutes   = 60
 $OrphanFlagMinutes  = 10    # Installer und Stimmen-Update entfernen ihr Stop-Flag nach Sekunden; aelter heisst: Lauf abgebrochen
 
@@ -32,12 +34,19 @@ function Get-WatchdogDecision {
     param(
         [bool]$PortUp, [bool]$ProcessRunning, [bool]$StopFlag, [bool]$InstallerActive, [bool]$InGrace,
         [long[]]$RestartTimes = @(), [long]$Now = 0,
-        [int]$MinIntervalMinutes = 10, [int]$MaxPerHour = 3
+        [int]$MinIntervalMinutes = 10, [int]$MaxPerHour = 3,
+        [bool]$HttpHung = $false, [int]$HungMinutes = 0, [int]$HungRestartMinutes = 5
     )
     if ($PortUp) { return [pscustomobject]@{ Action = 'ok'; Reason = 'Port antwortet' } }
     if ($InstallerActive) { return [pscustomobject]@{ Action = 'installer-active'; Reason = 'Installer laeuft' } }
     if ($StopFlag) { return [pscustomobject]@{ Action = 'stopped'; Reason = 'Stop-Flag gesetzt (gewollter Stopp)' } }
-    if ($ProcessRunning) { return [pscustomobject]@{ Action = 'loading'; Reason = 'Prozess laeuft, Port noch zu (Modellladen?)' } }
+    # Port offen, aber keine HTTP-Antwort: der Server haengt (2026-11-02: Command Center 15 min eingefroren). Modellladen haelt
+    # den Port dagegen geschlossen und faellt unter 'loading'.
+    $hung = $HttpHung -and $ProcessRunning
+    if ($hung -and $HungMinutes -lt $HungRestartMinutes) {
+        return [pscustomobject]@{ Action = 'hung-wait'; Reason = "Port offen, keine HTTP-Antwort seit $HungMinutes min" }
+    }
+    if ($ProcessRunning -and -not $hung) { return [pscustomobject]@{ Action = 'loading'; Reason = 'Prozess laeuft, Port noch zu (Modellladen?)' } }
     if ($InGrace) { return [pscustomobject]@{ Action = 'grace'; Reason = 'Schonfrist nach der Anmeldung' } }
     $times = @($RestartTimes | Where-Object { $_ -gt 0 })
     $last = if ($times.Count -gt 0) { ($times | Measure-Object -Maximum).Maximum } else { 0 }
@@ -48,6 +57,7 @@ function Get-WatchdogDecision {
     if ($recent -ge $MaxPerHour) {
         return [pscustomobject]@{ Action = 'limit'; Reason = "$recent Neustarts in der letzten Stunde (Maximum $MaxPerHour) - nur Warnung" }
     }
+    if ($hung) { return [pscustomobject]@{ Action = 'restart-hung'; Reason = "Port offen, seit $HungMinutes min keine HTTP-Antwort" } }
     return [pscustomobject]@{ Action = 'restart'; Reason = 'Port zu, kein Prozess, kein Stop-Flag' }
 }
 
@@ -131,6 +141,7 @@ function Read-WatchdogState {
                 $s.services[$prop.Name] = @{
                     restarts = @(@($v.restarts) | Where-Object { $_ } | ForEach-Object { [long]$_ })
                     downSince = [long]$v.downSince; lastWarn = [long]$v.lastWarn; lastAction = "$($v.lastAction)"
+                    hungSince = [long]$v.hungSince
                 }
             }
         }
@@ -189,14 +200,18 @@ try {
 
     $summary = @()
     foreach ($svc in $services) {
-        if (-not $state.services.ContainsKey($svc.Key)) { $state.services[$svc.Key] = @{ restarts = @(); downSince = [long]0; lastWarn = [long]0; lastAction = '' } }
+        if (-not $state.services.ContainsKey($svc.Key)) { $state.services[$svc.Key] = @{ restarts = @(); downSince = [long]0; lastWarn = [long]0; lastAction = ''; hungSince = [long]0 } }
         $st = $state.services[$svc.Key]
         $st.restarts = @($st.restarts | Where-Object { ($now - $_) -lt 3600 })
 
-        $portUp = Test-TcpPort $svc.Port
+        $tcpUp = Test-TcpPort $svc.Port
+        $portUp = $tcpUp
         if ($portUp -and $svc.Http) { $portUp = Test-HttpAnswer $svc.Http }
-        $running = if ($svc.Unit) { (-not $portUp) -and (Test-WslUnitActive $svc.Unit) }
-            else { @($procs | Where-Object { "$($_.CommandLine)" -like "*$($svc.Launcher)*" -or "$($_.CommandLine)" -like $svc.Child }).Count -gt 0 }
+        $serviceProcs = @(if (-not $svc.Unit) { $procs | Where-Object { "$($_.CommandLine)" -like "*$($svc.Launcher)*" -or ($svc.Child -and "$($_.CommandLine)" -like $svc.Child) } })
+        $running = if ($svc.Unit) { (-not $portUp) -and (Test-WslUnitActive $svc.Unit) } else { $serviceProcs.Count -gt 0 }
+        $httpHung = $tcpUp -and -not $portUp -and -not $svc.Unit
+        if ($httpHung) { if (-not $st.hungSince) { $st.hungSince = $now } } else { $st.hungSince = [long]0 }
+        $hungMin = if ($st.hungSince) { [int](($now - $st.hungSince) / 60) } else { 0 }
         $target = if ($svc.Unit) { "WSL-Dienst $($svc.Unit)" } else { "Aufgabe $($svc.Task)" }
         $flagPath = "$root\run\$($svc.Launcher).stop"
         $stopFlag = Test-Path $flagPath
@@ -212,7 +227,8 @@ try {
         }
 
         $d = Get-WatchdogDecision -PortUp $portUp -ProcessRunning $running -StopFlag $stopFlag -InstallerActive $installerActive -InGrace $inGrace `
-            -RestartTimes ([long[]]$st.restarts) -Now $now -MinIntervalMinutes $MinIntervalMinutes -MaxPerHour $MaxRestartsPerHour
+            -RestartTimes ([long[]]$st.restarts) -Now $now -MinIntervalMinutes $MinIntervalMinutes -MaxPerHour $MaxRestartsPerHour `
+            -HttpHung $httpHung -HungMinutes $hungMin -HungRestartMinutes $HungRestartMinutes
         $summary += "$($svc.Key)=$($d.Action)"
 
         if ($portUp) { $st.downSince = [long]0 } elseif ($st.downSince -eq 0) { $st.downSince = $now }
@@ -232,6 +248,22 @@ try {
                     Write-WatchdogLog 'ERROR' "$($svc.Name): Neustart ($target) fehlgeschlagen: $($_.Exception.Message)"
                 }
                 $st.restarts = @($st.restarts + $now)   # auch bei Fehlschlag zaehlen: Backoff verhindert Dauerfeuer
+            }
+            'restart-hung' {
+                # Nur die Prozesse dieses Dienstes (Launcher und Kind) beenden; ein haengender Server raeumt sich nicht selbst auf.
+                try {
+                    Stop-ScheduledTask -TaskName $svc.Task -ErrorAction SilentlyContinue
+                    foreach ($proc in $serviceProcs) { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue }
+                    Start-ScheduledTask -TaskName $svc.Task -ErrorAction Stop
+                    Write-WatchdogLog 'WARN' "$($svc.Name): Port $($svc.Port) offen, aber seit $hungMin min keine HTTP-Antwort - $($serviceProcs.Count) Prozess(e) beendet, $target neu gestartet."
+                } catch {
+                    Write-WatchdogLog 'ERROR' "$($svc.Name): Neustart nach Haenger ($target) fehlgeschlagen: $($_.Exception.Message)"
+                }
+                $st.restarts = @($st.restarts + $now)
+                $st.hungSince = [long]0
+            }
+            'hung-wait' {
+                if ($changed) { Write-WatchdogLog 'WARN' "$($svc.Name): $($d.Reason) - Neustart nach $HungRestartMinutes min." }
             }
             'loading' {
                 if ($downMin -ge $HangWarnMinutes -and ($changed -or (($now - $st.lastWarn) -ge 3600))) {
