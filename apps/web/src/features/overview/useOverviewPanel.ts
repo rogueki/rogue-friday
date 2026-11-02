@@ -30,10 +30,15 @@ export interface SectionStatus {
  * adapter category, so `"agents"`, `"Agenten"` and `"unconfigured-agents"` all belong to the agents panel.
  */
 export function sectionStatus(overview: Overview | undefined, sections: readonly string[], adapters?: readonly AdapterInfo[]): SectionStatus {
-  const categories = new Set(sections.map((section) => categoryOfSection(section)).filter((category) => category !== undefined));
+  const ordered = sections.map((section) => categoryOfSection(section)).filter((category) => category !== undefined);
+  const categories = new Set(ordered);
+  const primary = ordered[0];
   const entries = (overview?.degradedSections ?? []).filter((entry) => {
-    if (sections.includes(entry.section)) return true;
     const category = categoryOfDegradedEntry(entry, adapters);
+    // A module nobody set up only blanks the panel it is the main source of: the live-intelligence panel showed
+    // "Nicht verbunden" for its alerts because no mail adapter was configured (live report 2026-11-02).
+    if (isUnconfiguredEntry(entry) && category !== undefined && category !== primary) return false;
+    if (sections.includes(entry.section)) return true;
     return category !== undefined && categories.has(category);
   });
   return {
