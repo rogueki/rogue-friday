@@ -13,6 +13,8 @@ import threading
 from qwen_realtime import ERROR_KINDS, AudioDelta, RealtimeError, ResponseDone, ServerError, TextDelta, ToolCall
 
 SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+# A dropped connection or a rejected event is retried once on a fresh session; auth, quota, rate and model errors are not.
+RETRYABLE_TURN_ERRORS = ("network", "protocol", "idle")
 
 
 class QwenDialog:
@@ -31,6 +33,7 @@ class QwenDialog:
         self._idle_handle = None
         self._turn_lock = None
         self._pending_notes = collections.deque(maxlen=5)
+        self.last_retry = None  # error of the last turn that succeeded on its second attempt (diagnostics)
 
     @property
     def connected(self) -> bool:
@@ -93,22 +96,33 @@ class QwenDialog:
             self._cancel_idle()
             self._orchestrator.touch()
             self._orchestrator.begin_user_turn()
-            await self._connect()
             try:
-                await self._session.append_audio(pcm16)
-                await self._session.commit()
-                return await self._consume(say, cancelled)
-            except (RealtimeError, asyncio.CancelledError):
-                # The aborted response may still stream; a fresh connection keeps its events out of the next turn.
+                for attempt in (1, 2):
+                    progress = {"acted": False}
+                    await self._connect()
+                    try:
+                        await self._session.append_audio(pcm16)
+                        await self._session.commit()
+                        return await self._consume(say, cancelled, progress)
+                    except RealtimeError as error:
+                        # The aborted response may still stream; a fresh connection keeps its events out of the next turn.
+                        await self._session.close()
+                        # Repeating a turn that already spoke or ran a tool would say or do things twice. Without a local
+                        # model (Qwen-only installs) a failed turn has no fallback, so one clean retry matters.
+                        if attempt == 2 or progress["acted"] or cancelled() or error.kind not in RETRYABLE_TURN_ERRORS:
+                            raise
+                        self.last_retry = error
+            except asyncio.CancelledError:
                 await self._session.close()
                 raise
             finally:
                 self._schedule_idle()
 
-    async def _consume(self, say, cancelled) -> str:
+    async def _consume(self, say, cancelled, progress=None) -> str:
+        progress = {} if progress is None else progress
         buffer = ""
         spoken = []
-        tool_round = False
+        tool_outputs = 0
         cancel_sent = False
         async for event in self._session.events():
             if cancelled() and not cancel_sent:
@@ -127,6 +141,7 @@ class QwenDialog:
                     sentence = sentence.strip()
                     if not sentence:
                         continue
+                    progress["acted"] = True
                     say(sentence)
                     spoken.append(sentence)
             elif isinstance(event, AudioDelta):
@@ -135,18 +150,23 @@ class QwenDialog:
             elif isinstance(event, ToolCall):
                 if cancel_sent:
                     continue
+                progress["acted"] = True
                 result = await asyncio.to_thread(self._orchestrator.call_tool, event.name, event.arguments)
-                await self._session.send_tool_result(event.call_id, result)
-                tool_round = True
+                # The follow-up response is requested once after response.done: one response.create per tool call made
+                # the server reject the second while the first was active when Qwen called several tools at once.
+                await self._session.send_tool_result(event.call_id, result, respond=False)
+                tool_outputs += 1
             elif isinstance(event, ServerError):
                 raise RealtimeError(event.kind if event.kind in ERROR_KINDS else "protocol", event.message)
             elif isinstance(event, ResponseDone):
-                if tool_round and not cancel_sent:
-                    tool_round = False  # the answer to the tool result is still on its way
+                if tool_outputs and not cancel_sent:
+                    tool_outputs = 0
+                    await self._session.respond()  # the answer to the tool results is still on its way
                     continue
                 break
         tail = buffer.strip()
         if tail and not cancel_sent:
+            progress["acted"] = True
             say(tail)
             spoken.append(tail)
         return " ".join(spoken)

@@ -240,6 +240,14 @@ QWEN_FALLBACK_NOTICE = {
     "model": "Das Qwen-Audio-Modell ist im Alibaba-Tarif nicht verfügbar. Ich antworte lokal.",
 }
 QWEN_UNREACHABLE_NOTICE = "Qwen Audio ist gerade nicht erreichbar, ich nutze die lokale Stimme."
+# Qwen-only installs (ElevenLabs voice, no local model) have no local path to fall back to: say what is wrong instead.
+QWEN_ONLY_NOTICE = {
+    "auth": "Der Alibaba-Schlüssel wird nicht akzeptiert. Bitte prüfe ihn im Dashboard.",
+    "quota": "Das Alibaba-Kontingent ist aufgebraucht. Ich kann gerade nicht antworten.",
+    "rate": "Alibaba bremst gerade die Anfragen. Versuch es bitte gleich noch einmal.",
+    "model": "Das Qwen-Audio-Modell ist im Alibaba-Tarif nicht verfügbar. Bitte prüfe den Tarif im Dashboard.",
+}
+QWEN_ONLY_UNREACHABLE_NOTICE = "Qwen Audio antwortet gerade nicht. Versuch es bitte gleich noch einmal."
 
 
 def conversation_backend(cfg: dict) -> str:
@@ -1521,6 +1529,13 @@ class VoiceService:
         log_event(event="conversation_end", reason="phrase", generation=generation)
         self._say_if_current(GOODBYE_REPLY, generation)
 
+    def _local_model_available(self) -> bool:
+        """True, wenn ein lokales Sprachmodell den Rueckfall uebernehmen kann (nicht bei Qwen-only/ElevenLabs)."""
+        cfg = getattr(self, "cfg", {}) or {}
+        endpoint = urllib.parse.urlparse(str(cfg.get("qwen_url") or ""))
+        return (cfg.get("voice_mode") != "elevenlabs" and endpoint.scheme == "http"
+                and endpoint.hostname in ("127.0.0.1", "localhost", "::1"))
+
     def _qwen_turn(self, audio: np.ndarray, generation: int) -> bool:
         """Qwen Audio beantwortet eine gepruefte Aeusserung; False uebergibt sie dem lokalen Weg (Rueckfall)."""
         self.processing = "thinking"
@@ -1532,12 +1547,21 @@ class VoiceService:
         try:
             text = self.qwen_dialog.turn(pcm, lambda sentence: self._say_if_current(sentence, generation), cancelled)
         except qwen_realtime.RealtimeError as exc:
-            log_event(event="qwen_turn_failed", kind=exc.kind)
+            log_event(event="qwen_turn_failed", kind=exc.kind, message=str(exc)[:200])
+            if not self._local_model_available():
+                # Kein lokaler Weg: jede gescheiterte Frage bekommt eine ehrliche Antwort statt Schweigen.
+                self._say_if_current(QWEN_ONLY_NOTICE.get(exc.kind, QWEN_ONLY_UNREACHABLE_NOTICE), generation)
+                self.status["qwen_error"] = exc.kind
+                return True
             # Nur beim Wechsel der Ausfallart ansagen: sonst haengt vor jeder Antwort derselbe Hinweis.
             if self.status.get("qwen_error") != exc.kind:
                 self._say_if_current(QWEN_FALLBACK_NOTICE.get(exc.kind, QWEN_UNREACHABLE_NOTICE), generation)
             self.status["qwen_error"] = exc.kind
             return False
+        retried = getattr(self.qwen_dialog, "last_retry", None)
+        if retried is not None:
+            log_event(event="qwen_turn_retried", kind=retried.kind, message=str(retried)[:200])
+            self.qwen_dialog.last_retry = None
         self.status["qwen_error"] = None
         self.status["commands"] += 1
         if text:
