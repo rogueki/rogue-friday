@@ -156,6 +156,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       service: "control-api",
       level: config.logging.level,
       redaction: { redactEmails: config.logging.redactEmails },
+      // With the rotating file sink every line went to stdout as well. On Windows a full stdout pipe blocks the whole
+      // event loop: the launcher pipes stdout line by line into a file, fell behind during a warning burst and froze
+      // the live dashboard for 15 minutes (2026-11-02). stdout stays for development or FRIDAY_LOG_STDOUT=1.
+      stdout: !config.logging.file.enabled || process.env.FRIDAY_LOG_STDOUT === "1",
       ...(config.logging.file.enabled
         ? { file: { dir: config.paths.logDir, maxBytes: config.logging.file.maxBytes, maxFiles: config.logging.file.maxFiles } }
         : {}),

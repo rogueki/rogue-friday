@@ -40,6 +40,9 @@ export interface TestApiOptions {
   withoutSimulation?: boolean;
   /** Receives every log line (JSON) the API writes, to scan for leaks. */
   logs?: string[];
+  /** Writes the rotating log file under `<dir>/logs` like a live install (default off). */
+  fileLogging?: boolean;
+  logLevel?: "debug" | "info" | "warn" | "error";
 }
 
 export interface TestApi extends ControlApi {
@@ -80,9 +83,9 @@ dev:
   scenarioConsole: ${options.scenarioConsole ?? true}
   responseValidation: true
 logging:
-  level: error
+  level: ${options.logLevel ?? "error"}
   file:
-    enabled: false
+    enabled: ${options.fileLogging ?? false}
 ${options.yamlExtra ?? ""}
 `,
   );
