@@ -46,6 +46,7 @@ import { EncryptedClarifiedMailDrafts } from "../services/encrypted-clarified-ma
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
+import { createNativeMemoryFactory } from "../services/native-memory-adapter";
 import { SystemBackupService } from "../services/system-backup";
 import { BackupJobsService } from "../services/backup-jobs";
 import { InstallationInfoService } from "../services/installation-info";
@@ -289,6 +290,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     overrides: adapterOverrides,
     secrets,
     env,
+    // The memory archive is built in: every installation lists its Obsidian conversations without adapter setup.
+    // `durableMemory` is created further down; the factory only reads it when the registry starts the adapter.
+    builtins: [createNativeMemoryFactory(() => durableMemory)],
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;

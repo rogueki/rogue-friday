@@ -1899,3 +1899,28 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Watchdog hielt den Sprachdienst deshalb gestoppt. Marker gesichert und entfernt, Dienst läuft (Qwen-Backend).
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
+## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
+
+- Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
+  „Nicht verbunden“, die Übersicht meldete `unconfigured-memory`. Ursache: live gibt es keinen Adapter für die Kategorie
+  `memory` (CAPABILITY_MISSING), obwohl F.R.I.D.A.Y. ein funktionierendes Gedächtnis hat (`DurableMemoryService`,
+  Obsidian-Notizen unter `Conversations/` plus SQLite-Index).
+- Fix: Eingebauter In-Process-Adapter `friday-memory` („Friday-Gedächtnis (Obsidian)“,
+  `apps/control-api/src/services/native-memory-adapter.ts`). `wireAdapters` kennt jetzt `builtins`: Sie dienen einer
+  Kategorie nur, solange die Konfiguration sie leer lässt (live/hybrid, nie mock); ein konfigurierter Adapter hat immer
+  Vorrang. Kein Eintrag in `adapters.yaml` nötig (die Provider-ID wird im Code zur Registry-Allowlist ergänzt).
+  Fähigkeiten nur `memory.read` und `memory.delete` (= `forget`, über den bestehenden Vorschau-/Freigabefluss); kein
+  write/search/lock/export. Abbildung: jedes geschriebene Ereignis wird `episode`, deterministische `mem_`-ID aus der
+  Ereignis-ID (Rückauflösung über den Index), Sensitivität `normal`, Herkunft `conversation`, Tags = Kanal. Liste per SQL
+  mit LIMIT/OFFSET und `totalCount`, ohne Vault-Scan; nur `state='written'`, Tombstones ausgeschlossen; Identität wie
+  `search()` (beide Besitzer-Sitzungen gelten als Besitzer). Health: online bei lesbarem Vault (`.obsidian`), sonst
+  `VAULT_UNAVAILABLE` (erst degraded, nach Wiederholungen offline); Indexfehler → degraded.
+- Web unverändert: Seite und Übersicht blenden Schreib-Knöpfe über die Fähigkeiten bereits ehrlich aus.
+- Tests: `native-memory-adapter.test.ts` (7: Abbildung/Vertrag, Seiten/Cursor, Filter inkl. Umlaute, pending/Tombstone/
+  Identität, Löschen mit Versionsprüfung, Health/Read-only, Mock verweigert) und `test/native-memory-live.test.ts`
+  (live ohne Adapter-Konfiguration: `GET /api/v1/memory` 200, Adapterliste online, Übersicht mit `memoryInsights`, kein
+  `unconfigured-memory`; hybrid: konfigurierter Adapter gewinnt). Live-Test rot ohne Fix (403 CAPABILITY_MISSING).
+- Achtung Testisolation: Vitest nur aus dem Repo-Root starten (`npx vitest run --project node <pfad>`). Direkt in
+  `apps/control-api` gestartet fehlt `tests/setup/node.ts`; dann zeigt `FRIDAY_OBSIDIAN_VAULT` des Hosts auf den echten
+  Vault und Testläufe schreiben Notizen hinein.
+
