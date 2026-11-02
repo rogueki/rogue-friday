@@ -67,3 +67,53 @@ def refresh(sd):
     # re-initialization, which also invalidates every open stream, so callers must close their streams first.
     sd._terminate()
     sd._initialize()
+
+
+def windows_default_endpoints():
+    """(capture id, render id) of the current Windows default endpoints, or None where they cannot be read.
+
+    PortAudio's own default is frozen at initialization, so a headset that becomes the Windows default later is never
+    noticed while the old stream keeps delivering (silent) audio. The endpoint ids come straight from the Core Audio
+    device enumerator, which is cheap enough to poll.
+    """
+    try:
+        import ctypes
+        import uuid
+        from ctypes import POINTER, byref, c_void_p, c_wchar_p
+        ole32 = ctypes.OleDLL("ole32")
+    except (ImportError, OSError, AttributeError):
+        return None
+
+    def guid(text):
+        return (ctypes.c_ubyte * 16).from_buffer_copy(uuid.UUID(text).bytes_le)
+
+    def method(pointer, index, *argtypes):
+        table = ctypes.cast(pointer, POINTER(POINTER(c_void_p))).contents
+        return ctypes.WINFUNCTYPE(ctypes.HRESULT, c_void_p, *argtypes)(table[index])
+
+    try:
+        ole32.CoInitializeEx(None, 0)
+    except OSError:
+        return None
+    enumerator = c_void_p()
+    try:
+        clsid, iid = guid("BCDE0395-E52F-467C-8E3D-C4579291692E"), guid("A95664D2-9614-4F35-A746-DE8DB63617E6")
+        ole32.CoCreateInstance(byref(clsid), None, 1, byref(iid), byref(enumerator))
+        ids = []
+        for flow in (1, 0):  # eCapture, eRender; role eConsole
+            device = c_void_p()
+            method(enumerator, 4, ctypes.c_int, ctypes.c_int, POINTER(c_void_p))(enumerator, flow, 0, byref(device))
+            try:
+                endpoint = c_wchar_p()
+                method(device, 5, POINTER(c_wchar_p))(device, byref(endpoint))
+                ids.append(endpoint.value)
+                ole32.CoTaskMemFree(endpoint)
+            finally:
+                method(device, 2)(device)
+        return tuple(ids)
+    except OSError:
+        return None  # e.g. no default endpoint at all while every device is unplugged
+    finally:
+        if enumerator:
+            method(enumerator, 2)(enumerator)
+        ole32.CoUninitialize()
