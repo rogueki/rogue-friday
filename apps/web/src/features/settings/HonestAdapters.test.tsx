@@ -62,6 +62,22 @@ describe("honest adapter display in a live installation", () => {
     expect(screen.queryByText("Aufgaben · nicht eingerichtet")).toBeNull();
   });
 
+  // Live report 2026-11-02: a fresh install listed calendar, alerts, approvals and audit as "nicht eingerichtet" although
+  // Friday serves them itself, and offered no way to connect a calendar because no calendar adapter entry existed.
+  it("labels categories Friday serves itself as built in and offers the calendar connection without an adapter", async () => {
+    const api = createFakeApi({ dataMode: "live", adapters: [tasksAdapter] });
+    renderWithProviders(<SettingsPage />, { fetchImpl: api.fetchImpl, capabilities: capabilitiesOf({
+      system: { read: true }, calendar: { read: true }, audit: { read: true }, notifications: { read: true } }) });
+    expect(await screen.findByText("In Friday eingebaut")).toBeTruthy();
+    expect(screen.getByText("Kalender · Friday (eingebaut)")).toBeTruthy();
+    expect(screen.getByText("Audit · Friday (eingebaut)")).toBeTruthy();
+    expect(screen.queryByText("Kalender · nicht eingerichtet")).toBeNull();
+    expect(screen.getByText("Gedächtnis · nicht eingerichtet")).toBeTruthy();
+    // The Skill-Konten link points at #calendar-setup-title; it must exist without a calendar adapter.
+    expect(screen.getByRole("region", { name: "Kalender verbinden" }).id).toBe("calendar-setup-title");
+    expect(screen.getByRole("heading", { name: "Kalender verbinden" })).toBeTruthy();
+  });
+
   it("does not promise a simulated calendar when the live calendar has no credentials", async () => {
     setup({ dataMode: "live", adapters: [calendarAdapter] });
     expect(await screen.findByText(/Kalenderansicht bleibt leer/)).toBeTruthy();

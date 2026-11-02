@@ -1978,3 +1978,12 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   `capabilities.files.read` true, Schreibversuche abgewiesen; hybrid: konfigurierter Adapter gewinnt). Live-Test rot
   ohne Registrierung (403 `CAPABILITY_MISSING`), Download-Assertion rot ohne den `server.ts`-Fix (0 Bytes).
   `real-adapters`/`live-empty-sources` um `files:friday-files` ergänzt.
+## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
+
+- Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und
+  Befehle als „nicht eingerichtet“, obwohl Friday sie selbst bedient; „Kalender verbinden“ und der Kalenderkonto-Assistent
+  erschienen nur mit einem Kalender-Adaptereintrag, der Link aus „Skill-Konten“ (`#calendar-setup-title`) lief ins Leere.
+- Fix: Kategorien ohne Adaptereintrag, deren `read`-Capability die Control API meldet, erscheinen als
+  „<Bereich> · Friday (eingebaut)“; nur wirklich unbediente Kategorien bleiben „nicht eingerichtet“. Ohne Kalenderadapter
+  zeigt die Seite den Kalenderkonto-Assistenten in `#calendar-setup-title`.
+- Tests: `HonestAdapters.test.tsx` (neuer Fall, rot ohne Fix), Settings-Suite 33 Dateien/199 Tests grün.
