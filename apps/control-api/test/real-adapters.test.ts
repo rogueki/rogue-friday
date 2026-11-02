@@ -61,8 +61,13 @@ describe("real adapters behind the Control API (live)", () => {
       expect(byCategory[category], category).toBeUndefined();
     }
     for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
-    const capabilities = (await owner.get("/api/v1/capabilities")).json() as { modules: { voice: Record<string, unknown> } };
-    expect(capabilities.modules.voice.stop).toBe(true);
+    const capabilities = (await owner.get("/api/v1/capabilities")).json() as { modules: Record<string, Record<string, unknown>> };
+    expect(capabilities.modules.voice!.stop).toBe(true);
+    // No commands adapter, yet the Control API runs commands itself: the talk button and text bar must stay usable.
+    expect(capabilities.modules.commands!.execute).toBe(true);
+    const start = await owner.post("/api/v1/commands", { text: "Sprachaufnahme starten", source: "voice" });
+    expect(start.statusCode, start.body).toBe(200);
+    expect(start.json().status).not.toBe("failed");
   });
 
   it("serves Hermes tasks and agents, voice status and system data through the contract", async () => {
