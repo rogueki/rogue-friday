@@ -2007,6 +2007,37 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   zusätzlich entfernt `test/helpers.ts` die Host-Installationsvariablen vor jedem Test-Runtime-Start.
 - Tests: `test/host-env-isolation.test.ts` aus dem Paketordner mit gesetzter Vault-Variable rot ohne Fix, grün mit Fix;
   komplette Control-API-Suite als eigenes Projekt aus dem Root: 195 Dateien, 1421 Tests grün.
+## Dashboard: Dateien ab Werk verbunden – eingebauter Dateien-Adapter (2026-11-02)
+
+- Befund: Live gibt es keinen Adapter für die Kategorie `files`, frische Installationen konfigurieren nie einen. Die
+  Seite „Dateien & Dokumente“ meldete deshalb `CAPABILITY_MISSING` („Für 'files' ist kein Adapter konfiguriert“), obwohl
+  F.R.I.D.A.Y. selbst Dateien erzeugt.
+- Fix: Eingebauter In-Process-Adapter `friday-files` („Friday-Dateien (lokal)“,
+  `apps/control-api/src/services/native-files-adapter.ts`), wie `friday-memory` über `wireAdapters({ builtins })`
+  registriert (nur live/hybrid, ein konfigurierter Adapter hat Vorrang). Fähigkeiten nur `files.read`, `files.preview`,
+  `files.download` – kein delete/rename/upload.
+- Wurzeln (unter `paths.dataDir`, nur wenn vorhanden): `private/powerpoint` (nur `.pptx`, Kategorie `presentations`,
+  Anzeigename aus dem Titel der Metadaten-JSON; Sprachjournale/JSON werden nicht gelistet) und `content-studio/jobs`
+  (`.mp4/.mp3/.png/.jpg/.jpeg/.webp/.gif`, Kategorie `generated`; `visual.bin` und `.partial` nicht). Recherche schreibt
+  keine Dateien (Ergebnisse liegen in SQLite), Hermes-Dokumente (docx/pdf) entstehen in Friday-Ubuntu – dafür gibt es
+  bewusst keine Wurzel. Vault, Schlüssel, Konfiguration, Datenbanken, Logs und `.env` liegen außerhalb der Wurzeln.
+- Sicherheit: Es gibt keine Pfadeingabe – die ID ist `createId("file", "friday-files:<wurzel>/<relativer Pfad>")` und
+  wird nur über einen frischen Scan aufgelöst. Symlinks/Junctions werden nie verfolgt, jede Datei und jede Wurzel muss
+  per `realpath` innerhalb liegen, Hardlinks (`nlink > 1`) werden ausgelassen; vor Vorschau/Download wird erneut
+  geprüft. Scan begrenzt auf Tiefe 4 und 5000 Einträge.
+- Abbildung: Version 1, `createdBy` system/friday, `taskId`/`checksum` null, `location` logisch („Präsentationen“,
+  „Content Studio/<Job>“). MIME nach Endung; Vorschau nur text/markdown (max. 64 KiB gelesen, 4000 Zeichen wie die
+  Mock-Welt) und Bilder bis 10 MB (URL auf den Download), sonst `none`. Download gestreamt.
+- Nebenbefund behoben: `http/server.ts` gibt im Route-Handler jetzt `reply` zurück. Vorher überschrieb Fastify einen
+  gestreamten Antwortkörper (async `onSend`-Hook noch offen) mit einem leeren `send()` – Stream-Downloads kamen mit
+  0 Bytes an. Bisher lieferten alle Raw-Antworten Puffer, deshalb fiel es nicht auf.
+- Web unverändert: Die Dateien-Seite blendet Löschen aus und deaktiviert Umbenennen mit Begründung über die Fähigkeiten.
+- Tests: `native-files-adapter.test.ts` (6: nur erlaubte Wurzeln/keine Geheimnisse, Filter/Cursor, Traversal-IDs,
+  Junction in und als Wurzel, Vorschau-Grenzen + Download, read-only/Health, Mock verweigert) und
+  `test/native-files-live.test.ts` (live ohne Konfiguration: `GET /api/v1/files` 200, Detail, Download-Bytes, Vorschau,
+  `capabilities.files.read` true, Schreibversuche abgewiesen; hybrid: konfigurierter Adapter gewinnt). Live-Test rot
+  ohne Registrierung (403 `CAPABILITY_MISSING`), Download-Assertion rot ohne den `server.ts`-Fix (0 Bytes).
+  `real-adapters`/`live-empty-sources` um `files:friday-files` ergänzt.
 ## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
 
 - Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und

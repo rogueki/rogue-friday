@@ -114,7 +114,12 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
           method: spec.method,
           url: toFastifyPath(spec.path),
           ...(spec.maxBodyBytes !== null ? { bodyLimit: spec.maxBodyBytes } : {}),
-          handler: (request, reply) => pipeline.handle(spec, request, reply),
+          // Returning the reply makes Fastify wait for the response: otherwise a streamed body (file download) whose
+          // async onSend hook is still pending is overwritten by an empty send once the handler's promise resolves.
+          handler: async (request, reply) => {
+            await pipeline.handle(spec, request, reply);
+            return reply;
+          },
         });
       }
       // Everything else below /api: a contract-shaped 404 (405 when the path exists for another method).

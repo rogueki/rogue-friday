@@ -59,7 +59,10 @@ describe("real adapters behind the Control API (live)", () => {
     expect(byCategory.system?.manifest.id).toBe("local-system");
     // Memory is built in: the Obsidian archive needs no adapter configuration.
     expect(byCategory.memory?.manifest.id).toBe("friday-memory");
-    for (const category of ["approvals", "communication", "calendar", "research", "files", "notifications", "audit", "commands"]) {
+    // Files are built in as well: generated decks and media are listed read-only from the data dir.
+    expect(byCategory.files?.manifest.id).toBe("friday-files");
+    expect(byCategory.files?.health.status).toBe("online");
+    for (const category of ["approvals", "communication", "calendar", "research", "notifications", "audit", "commands"]) {
       expect(byCategory[category], category).toBeUndefined();
     }
     for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
@@ -204,6 +207,7 @@ describe("allowlist wiring", () => {
         "activity:hermes-activity",
         "agents:hermes-agents",
         "automations:hermes-automations",
+        "files:friday-files",
         "memory:friday-memory",
         "system:local-system",
         "tasks:hermes-tasks",
