@@ -2,7 +2,7 @@
 
 import type { Freshness } from "@friday/sdk";
 import { Button, HudPanel, type HudPanelProps } from "@friday/ui";
-import { Settings2 } from "lucide-react";
+import { RefreshCw, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { PanelStateBody } from "@/components/PanelStateBody";
@@ -47,16 +47,26 @@ export function PanelFrame({ state, skeletonRows = 3, children, footer, bodyClas
   const { t } = useT();
   const router = useRouter();
   const adapterId = state.kind === "not-configured" ? state.adapterId : undefined;
+  // Not configured: both actions share the footer row. The retry used to sit in the body; in short dashboard tiles the
+  // body overflowed into the footer and the two buttons were drawn on top of each other (live report 2026-11-02).
   const configure =
     state.kind === "not-configured" ? (
-      <Button size="sm" variant="ghost" icon={<Settings2 size={14} />} onClick={() => router.push(adapterId && !adapterId.startsWith("unconfigured-") ? `/settings?adapter=${encodeURIComponent(adapterId)}` : "/settings")}>
-        {t("panel.configureAdapter")}
-      </Button>
+      <div className="web-panel-actions">
+        {state.onRetry ? (
+          <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} onClick={state.onRetry}>
+            {t("common.retry")}
+          </Button>
+        ) : null}
+        <Button size="sm" variant="ghost" icon={<Settings2 size={14} />} onClick={() => router.push(adapterId && !adapterId.startsWith("unconfigured-") ? `/settings?adapter=${encodeURIComponent(adapterId)}` : "/settings")}>
+          {t("panel.configureAdapter")}
+        </Button>
+      </div>
     ) : null;
+  const bodyState: PanelState = state.kind === "not-configured" ? { ...state, onRetry: undefined } : state;
 
   return (
     <HudPanel {...panelProps} footer={state.kind === "ready" ? footer : configure} bodyClassName={bodyClassName}>
-      <PanelStateBody state={state} skeletonRows={skeletonRows}>
+      <PanelStateBody state={bodyState} skeletonRows={skeletonRows}>
         {children}
       </PanelStateBody>
     </HudPanel>
