@@ -114,6 +114,9 @@ export class DurableMemoryService {
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS memory_events_state ON events(state);`);
     this.db.exec("CREATE INDEX IF NOT EXISTS memory_events_identity ON events(json_extract(json,'$.identityId'));");
+    // SQLite's LOWER() folds ASCII only; keyword search must also match umlauts case-insensitively.
+    this.db.function("friday_fold", { deterministic: true },
+      (value) => typeof value === "string" ? value.toLocaleLowerCase("de") : null);
     this.db.prepare("INSERT OR IGNORE INTO metadata(key,value) VALUES('capture_settings',?)").run(JSON.stringify({
       enabled: true, privateMode: false, channels: { dashboard: true, voice: true, hermes: true, messenger: false },
       retention: "unlimited", exclusions: ["private", "do_not_store", "credentials", "raw_audio"] }));
@@ -360,6 +363,70 @@ export class DurableMemoryService {
         }
     }
     return hits;
+  }
+
+  /** Cheap readiness for the memory adapter's health check: no vault scan and no write probe. */
+  health(): { vaultReadable: boolean; indexError: string | null; pending: number; lastError: string | null } {
+    let vaultReadable = false;
+    try {
+      if (existsSync(join(this.vaultPath, ".obsidian"))) {
+        readdirSync(this.vaultPath);
+        vaultReadable = true;
+      }
+    } catch { vaultReadable = false; }
+    const pending = (this.db.prepare("SELECT COUNT(*) AS n FROM events WHERE state!='written'").get() as { n: number }).n +
+      (this.db.prepare("SELECT COUNT(*) AS n FROM pending_deletes").get() as { n: number }).n;
+    const error = this.db.prepare("SELECT error FROM events WHERE error IS NOT NULL ORDER BY created_at DESC LIMIT 1").get() as
+      { error: string } | undefined;
+    const deleteError = this.db.prepare("SELECT error FROM pending_deletes WHERE error IS NOT NULL LIMIT 1").get() as
+      { error: string } | undefined;
+    return { vaultReadable, indexError: this.indexError, pending,
+      lastError: deleteError?.error ?? error?.error ?? this.indexError ?? null };
+  }
+
+  /** Written (vault-backed) events of the given identities, newest first. Reads the index only; no vault scan. */
+  listWritten(filter: { identityIds: readonly string[]; q?: string; channel?: string; limit: number; offset: number }):
+    { total: number; events: IntegrationEvent[] } {
+    if (filter.identityIds.length === 0) return { total: 0, events: [] };
+    const conditions = [
+      "state='written'",
+      "id NOT IN (SELECT id FROM tombstones)",
+      `json_extract(json,'$.identityId') IN (${filter.identityIds.map(() => "?").join(",")})`,
+    ];
+    const params: Array<string | number> = [...filter.identityIds];
+    if (filter.channel) {
+      conditions.push("json_extract(json,'$.channel') = ?");
+      params.push(filter.channel);
+    }
+    const tokens = (filter.q?.trim().toLocaleLowerCase("de") ?? "").split(/\s+/).filter(Boolean).slice(0, 8);
+    for (const token of tokens) {
+      conditions.push("instr(friday_fold(coalesce(json_extract(json,'$.payload.text'), json_extract(json,'$.payload.actionId'), '')), ?) > 0");
+      params.push(token);
+    }
+    const clause = conditions.join(" AND ");
+    const total = (this.db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${clause}`).get(...params) as { n: number }).n;
+    const limit = Math.max(0, Math.floor(filter.limit));
+    const offset = Math.max(0, Math.floor(filter.offset));
+    const rows = this.db.prepare(`SELECT json FROM events WHERE ${clause}
+      ORDER BY json_extract(json,'$.occurredAt') DESC, id DESC LIMIT ? OFFSET ?`)
+      .all(...params, limit, offset) as Array<{ json: string }>;
+    return { total, events: rows.map(({ json }) => JSON.parse(json) as IntegrationEvent) };
+  }
+
+  /** One written, not forgotten event, or null. */
+  getWritten(eventId: string): IntegrationEvent | null {
+    const row = this.db.prepare("SELECT json FROM events WHERE id=? AND state='written' AND id NOT IN (SELECT id FROM tombstones)")
+      .get(eventId) as { json: string } | undefined;
+    return row ? JSON.parse(row.json) as IntegrationEvent : null;
+  }
+
+  /** Ids of the written events of the given identities (reverse lookup of derived memory ids). */
+  writtenEventIds(identityIds: readonly string[]): string[] {
+    if (identityIds.length === 0) return [];
+    const params: Array<string | number> = [...identityIds];
+    const rows = this.db.prepare(`SELECT id FROM events WHERE state='written' AND id NOT IN (SELECT id FROM tombstones)
+      AND json_extract(json,'$.identityId') IN (${identityIds.map(() => "?").join(",")})`).all(...params) as Array<{ id: string }>;
+    return rows.map(({ id }) => id);
   }
 
   forget(id: string, identityId?: string): { eventId: string; deleted: boolean } {
