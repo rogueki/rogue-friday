@@ -1921,3 +1921,13 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Explizit gewählte Geräte bleiben unberührt.
 - Tests: `test_audio_hotplug.py` (+3, zwei rot ohne Fix), echter COM-Aufruf liefert die Endpunkt-IDs. Voice-Suite
   lokal 524 grün; die 4 `test_fast_tts_voice_slots`-Fehler bestehen identisch auf `main` (lokale Umgebung).
+
+## Einstellungen: eingebaute Bereiche und Kalender verbinden ohne Adapter (2026-11-02)
+
+- Befund (frische Live-Installation): Adapter-Einstellungen listeten Kalender, Meldungen, Freigaben, Audit, Recherche und
+  Befehle als „nicht eingerichtet“, obwohl Friday sie selbst bedient; „Kalender verbinden“ und der Kalenderkonto-Assistent
+  erschienen nur mit einem Kalender-Adaptereintrag, der Link aus „Skill-Konten“ (`#calendar-setup-title`) lief ins Leere.
+- Fix: Kategorien ohne Adaptereintrag, deren `read`-Capability die Control API meldet, erscheinen als
+  „<Bereich> · Friday (eingebaut)“; nur wirklich unbediente Kategorien bleiben „nicht eingerichtet“. Ohne Kalenderadapter
+  zeigt die Seite den Kalenderkonto-Assistenten in `#calendar-setup-title`.
+- Tests: `HonestAdapters.test.tsx` (neuer Fall, rot ohne Fix), Settings-Suite 33 Dateien/199 Tests grün.
