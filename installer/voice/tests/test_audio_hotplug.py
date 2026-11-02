@@ -63,6 +63,8 @@ DEVICE_INDEX = {
     ("vdev_new_in", "input"): 5,
     ("vdev_old_out", "output"): 3,
     ("vdev_new_out", "output"): 7,
+    (None, "input"): 9,
+    (None, "output"): 11,
 }
 
 
@@ -150,7 +152,7 @@ class AudioHotplugTests(unittest.TestCase):
         service.cancel_active_interaction = Mock()
         return service
 
-    def watch(self, stop_after, hook=None):
+    def watch(self, stop_after, hook=None, defaults=None):
         events = []
         calls = {"count": 0}
 
@@ -167,7 +169,9 @@ class AudioHotplugTests(unittest.TestCase):
         with patch.object(self.voice_module, "sd", self.sd), patch(
             "audio_devices.inventory",
             side_effect=lambda sd: [{"id": item} for item in self.present],
-        ), patch("audio_devices.resolve", fake_resolve), patch.object(
+        ), patch("audio_devices.resolve", fake_resolve), patch(
+            "audio_devices.windows_default_endpoints", side_effect=defaults or (lambda: None)
+        ), patch.object(
             self.voice_module, "log_event", recorder
         ), patch("time.sleep", fake_sleep):
             with self.assertRaises(StopWatcher):
@@ -219,3 +223,62 @@ class AudioHotplugTests(unittest.TestCase):
             self.service.apply_audio("vdev_new_in", "vdev_new_out")
         self.assertEqual(self.service.audio_input_device_name, "Headset Mikrofon")
         self.assertEqual(self.service.audio_output_device_name, "Headset Hoerer")
+
+    def follow_windows_default(self):
+        self.saved_config = {"input_device_id": None, "output_device_id": None}
+        self.config_path.write_text(json.dumps(self.saved_config), encoding="utf-8")
+        self.service.config_disk_hash = self.voice_module.runtime_settings.file_hash(self.config_path)
+        self.service.cfg = dict(self.saved_config)
+        self.current = ("laptop-mic", "laptop-speaker")
+
+        def keep_alive(_call):
+            self.service.last_audio_callback = time.monotonic()
+
+        return keep_alive
+
+    def test_headset_becoming_windows_default_is_followed(self):
+        keep_alive = self.follow_windows_default()
+        original = self.service.input_stream
+
+        def hook(call):
+            keep_alive(call)
+            if call == 1:
+                self.current = ("headset-mic", "headset-speaker")
+
+        events = self.watch(4, hook, defaults=lambda: self.current)
+        self.assertEqual(events.count("audio_default_changed"), 1)
+        self.assertGreaterEqual(self.sd._terminate.call_count, 1)
+        self.assertFalse(original.active)
+        self.assertIsNot(self.service.input_stream, original)
+        self.assertEqual(self.service.input_stream.device, 9)
+        self.assertTrue(self.service.input_stream.active)
+        self.assertEqual(self.service.status["state"], "wake_only")
+
+    def test_switch_waits_until_the_interaction_is_over(self):
+        keep_alive = self.follow_windows_default()
+        self.current = ("headset-mic", "headset-speaker")
+        self.service.processing = True
+        original = self.service.input_stream
+
+        def hook(call):
+            keep_alive(call)
+            if call == 3:
+                self.service.processing = False
+
+        defaults = iter([("laptop-mic", "laptop-speaker")])
+        events = self.watch(5, hook, defaults=lambda: next(defaults, self.current))
+        self.assertEqual(events.count("audio_default_changed"), 1)
+        self.assertIsNot(self.service.input_stream, original)
+
+    def test_explicit_selection_ignores_windows_default(self):
+        original = self.service.input_stream
+        query = Mock(return_value=("headset-mic", "headset-speaker"))
+
+        def hook(_call):
+            self.service.last_audio_callback = time.monotonic()
+
+        events = self.watch(3, hook, defaults=query)
+        self.assertEqual(events, [])
+        self.assertIs(self.service.input_stream, original)
+        self.assertEqual(self.sd._terminate.call_count, 0)
+        self.assertLessEqual(query.call_count, 1)
