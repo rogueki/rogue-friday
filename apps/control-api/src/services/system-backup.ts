@@ -242,6 +242,10 @@ export class SystemBackupService {
 
   private selectedVoiceFiles(): Array<{ from: string; to: string }> {
     const selected = new Set<string>();
+    // Wake models and the speaker profile are rebuilt from the enrollment recordings, which the backup holds anyway.
+    // voice_setup.py always writes a wake_verifier path that exists only after the legacy "Hey Jarvis" training, so a
+    // missing derived model must not fail every nightly backup (seen on a real install 2026-10-30 to 2026-11-01).
+    const derived = new Set(["speaker_profile", "personal_wake_model", "wake_verifier"]);
     for (const [name, keys] of [["voice.json", ["tts_reference", "tts_reference_text_file", "speaker_profile", "personal_wake_model", "wake_verifier"]],
       ["install-state.json", ["voice_reference", "voice_reference_classic", "voice_reference_male", "voice_reference_female"]]] as const) {
       const file = join(this.installRoot, "config", name);
@@ -250,7 +254,10 @@ export class SystemBackupService {
       const config = JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/, "")) as Record<string, unknown>;
       for (const key of keys) {
         const value = config[key];
-        if (typeof value === "string" && value.trim()) selected.add(isAbsolute(value) ? resolve(value) : resolve(this.installRoot, value));
+        if (typeof value !== "string" || !value.trim()) continue;
+        const path = isAbsolute(value) ? resolve(value) : resolve(this.installRoot, value);
+        if (derived.has(key) && !existsSync(path)) continue;
+        selected.add(path);
       }
     }
     return [...selected].map((from) => {
