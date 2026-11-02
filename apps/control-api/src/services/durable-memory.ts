@@ -225,7 +225,19 @@ export class DurableMemoryService {
     return (this.db.prepare("SELECT state FROM events WHERE id=?").get(id) as { state: string } | undefined)?.state !== "written";
   }
 
+  /**
+   * Status, search and the memory page call this on the request thread. One transaction for the whole scan and only
+   * changed rows written: per-row autocommits (one fsync each) blocked the Control API for minutes on a large vault.
+   */
   reindex(): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.reindexInTransaction();
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
+  private reindexInTransaction(): void {
     const root = join(this.vaultPath, "Conversations");
     if (!existsSync(join(this.vaultPath, ".obsidian"))) { this.indexError = "Vault unavailable"; return; }
     if (!existsSync(root)) {
@@ -255,9 +267,14 @@ export class DurableMemoryService {
           }
           seen.add(event.eventId);
           const json = JSON.stringify(safe);
+          const hash = sha(json);
+          const notePath = relative(this.vaultPath, path);
+          const known = this.db.prepare("SELECT hash, state, path, error FROM events WHERE id=?").get(event.eventId) as
+            { hash: string; state: string; path: string | null; error: string | null } | undefined;
+          if (known && known.hash === hash && known.state === "written" && known.path === notePath && known.error === null) continue;
           this.db.prepare(`INSERT INTO events VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
             json=excluded.json,hash=excluded.hash,state='written',path=excluded.path,error=NULL`).run(
-            event.eventId, json, sha(json), "written", relative(this.vaultPath, path), null, new Date().toISOString());
+            event.eventId, json, hash, "written", notePath, null, new Date().toISOString());
         } catch { scanError = "Friday note could not be read or parsed"; }
       }
     };
