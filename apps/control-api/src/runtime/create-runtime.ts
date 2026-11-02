@@ -443,6 +443,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     }
     // The live voice stop goes through the Control API (commandHandlers.stopVoice -> /control/stop), not the adapter.
     if (config.adapters.voice.provider === "friday-voice-http") result.modules.voice.stop = true;
+    // Without a commands adapter the Control API executes commands itself (built-in intents such as starting the
+    // voice, free text as a task for the matching Hermes agent). Reporting "no execute" here disabled the talk
+    // button, the text bar and the palette on every live install.
+    if (config.dataMode !== "mock") result.modules.commands.execute = true;
     return result;
   };
   const capabilityEnabled = (capability: string): boolean => {

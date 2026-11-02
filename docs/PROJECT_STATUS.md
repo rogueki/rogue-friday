@@ -1885,3 +1885,17 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
 - Tests: `installer/voice/test_select_audio_devices.py` (neu, in CI; 3 von 4 Fällen rot mit altem Stand). Probe mit echten
   Geräten: echtes Mikrofon übernommen, unbekanntes Gerät -> Standard, Exit 0.
 
+## Dashboard: Sprach-Knopf und Befehlsleiste im Live-Modus wieder bedienbar (2026-11-02)
+
+- Echter Befund auf der Live-Installation: „Mit F.R.I.D.A.Y. sprechen“ meldete „Sprachsteuerung ist nicht verfügbar.“
+  Ursache: `commands.execute` kam nur aus Adaptern; seit der Mock-Testwelt-Entfernung (#201/#203) gibt es live keinen
+  Befehlsadapter, obwohl die Control API Befehle selbst ausführt (eingebaute Absichten wie „Sprachaufnahme starten“,
+  Freitext als Aufgabe an den Hermes-Domain-Agenten). Folge: Sprach-Knopf, Textleiste und Palette waren gesperrt.
+- Fix: `create-runtime.ts` meldet `commands.execute` außerhalb des Mock-Modus als verfügbar. Stopp/Pause/Fortsetzen
+  bleiben adaptergebunden (Backend braucht dafür weiterhin den Befehlsport).
+- Test: `real-adapters.test.ts` prüft Fähigkeit und echten Sprachstart-Befehl (rot ohne Fix). Befehlsbezogene Dateien
+  sequenziell 49/49 grün, Typecheck grün.
+- Live-Vorfall nebenbei: Abgebrochenes Update am 2026-11-01 21:35 ließ `run\start-friday-voice.ps1.stop` liegen;
+  Watchdog hielt den Sprachdienst deshalb gestoppt. Marker gesichert und entfernt, Dienst läuft (Qwen-Backend).
+  Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
+
