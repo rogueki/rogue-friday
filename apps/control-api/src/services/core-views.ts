@@ -333,6 +333,8 @@ export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
 export interface NativeSources {
   pendingApprovals(): Approval[];
   openNotifications(priorities: Priority[]): Notification[];
+  /** Friday's own calendar (`/api/v1/calendar` merges it the same way); live installations often have no calendar adapter. */
+  upcomingEvents?(fromIso: string, limit: number): CalendarEvent[];
 }
 
 export interface OrbServiceDeps {
@@ -555,7 +557,8 @@ export class OverviewService {
       section("notifications", [], () => withNative(this.deps.native?.openNotifications(["P0", "P1", "P2"]) ?? [],
         async () => (await port("notifications").listNotifications({ priority: ["P0", "P1", "P2"], status: ["open"], limit: 50 }, call)).items)),
       section("communication", [], async () => (await port("communication").listThreads({ needsReply: true, limit: 200 }, call)).items),
-      section("calendar", [], async () => (await port("calendar").listCalendarEvents({ from: nowIso, limit: 20 }, call)).items),
+      section("calendar", [], () => withNative(this.deps.native?.upcomingEvents?.(nowIso, 20) ?? [],
+        async () => (await port("calendar").listCalendarEvents({ from: nowIso, limit: 20 }, call)).items)),
       section("system", null, async () => (await port("system").getSystemMetrics({}, call)).data),
       section("system", [], async () => (await port("system").listServices({ limit: 50 }, call)).items),
       section("system", [], async () => (await port("system").listModelProviders({ limit: 50 }, call)).items),
@@ -618,6 +621,8 @@ export class OverviewService {
       attention.push({ id: thread.id, kind: "mail", title: thread.subject, summary: thread.summary ?? "Antwort erforderlich.", severity: "warning", occurredAt: thread.lastMessageAt, targetRoute: `/communication?thread=${thread.id}`, ref: { type: "thread", id: thread.id, label: thread.subject } });
     }
     for (const entry of degraded) {
+      // A module nobody set up is not something to attend to; its own panel says "not connected".
+      if (entry.adapterId.startsWith("unconfigured-")) continue;
       attention.push({ id: entry.adapterId, kind: "system", title: `${entry.section} eingeschränkt`, summary: entry.reason, severity: entry.status === "degraded" ? "warning" : "error", occurredAt: nowIso, targetRoute: "/system", ref: { type: "adapter", id: entry.adapterId, label: entry.section } });
     }
     attention.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] || b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
@@ -676,7 +681,8 @@ export class OverviewService {
     const category = CAPABILITY_CATEGORY[moduleName];
     const info = category ? infoByCategory.get(category) : undefined;
     const capabilityOk = this.deps.capabilityEnabled(command.requiredCapability);
-    const adapterOk = !category || (info !== undefined && info.enabled && info.health.status !== "offline");
+    // Without an adapter the capability flag decides: Friday serves some modules itself (notifications, approvals, calendar).
+    const adapterOk = !category || (info ? info.enabled && info.health.status !== "offline" : capabilityOk);
     const enabled = capabilityOk && adapterOk;
     const { disabledReason: _old, ...rest } = command;
     return {

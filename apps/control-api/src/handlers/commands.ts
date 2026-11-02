@@ -1,9 +1,9 @@
-import { PORT_SPEC } from "@friday/adapter-core";
+import { PORT_SPEC, isAdapterError } from "@friday/adapter-core";
 import { createHash } from "node:crypto";
-import { CONTRACT_VERSION, type ActionResult, type CommandControlRequest, type CommandRequest, type CommandResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActionResult, type CommandControlRequest, type CommandHistoryEntry, type CommandRequest, type CommandResponse } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
-import { CommandHistoryStore } from "../db/stores";
+import { CommandHistoryStore, type CommandHistoryRecord } from "../db/stores";
 import type { IntegrationEvent } from "../services/durable-memory";
 import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { parseTaskCreateIntent } from "../services/task-create-intent";
@@ -1196,7 +1196,15 @@ async function controlCommand(ctx: Parameters<Handler>[0], action: "stop" | "pau
     }
   }
   const method = action === "stop" ? "stopCommand" : action === "pause" ? "pauseCommand" : "resumeCommand";
-  const result = await portHandler("commands", method, PORT_SPEC.commands[method])(ctx);
+  let result: Awaited<ReturnType<Handler>>;
+  try {
+    result = await portHandler("commands", method, PORT_SPEC.commands[method])(ctx);
+  } catch (error) {
+    // Without a commands adapter the voice service is everything there is to control: its result is the answer.
+    if (!isAdapterError(error) || error.code !== "CAPABILITY_MISSING" || (!controlledVoice && voiceError === null)) throw error;
+    const body: ActionResult = { contractVersion: CONTRACT_VERSION, accepted: controlledVoice, status: controlledVoice ? "completed" : "rejected", correlationId: ctx.correlationId, message: voiceError ?? `Voice: ${action}` };
+    return { status: 200, body };
+  }
   if (!controlledVoice && voiceError === null) return result;
   const taskResult = result.body as ActionResult;
   const accepted = controlledVoice && taskResult.accepted;
@@ -1207,6 +1215,23 @@ async function controlCommand(ctx: Parameters<Handler>[0], action: "stop" | "pau
     message: [controlledVoice ? "Voice gesteuert" : voiceError, taskResult.message].filter(Boolean).join("; "),
   };
   return { ...result, body };
+}
+
+const historyBase = portHandler("commands", "listCommandHistory", PORT_SPEC.commands.listCommandHistory);
+const HISTORY_ORIGINS = new Set<CommandHistoryEntry["origin"]>(["text", "voice", "palette", "quick_command"]);
+const HISTORY_STATUSES = new Set<CommandHistoryEntry["status"]>(["executed", "accepted", "requires_confirmation", "requires_approval", "rejected", "failed"]);
+
+function historyEntry(record: CommandHistoryRecord): CommandHistoryEntry | null {
+  const suffix = record.correlationId.replace(/^corr_/, "");
+  const origin = record.origin as CommandHistoryEntry["origin"];
+  const status = record.status as CommandHistoryEntry["status"];
+  if (!/^[0-9A-Za-z]{26}$/.test(suffix) || !HISTORY_ORIGINS.has(origin) || !HISTORY_STATUSES.has(status)) return null;
+  return {
+    id: `cmd_${suffix}`, version: 1, createdAt: record.createdAt, updatedAt: record.createdAt,
+    source: { adapterId: "friday", system: "friday", lastSyncedAt: record.createdAt },
+    text: record.text, redacted: record.redacted, origin, status, riskTier: null, executedAt: record.createdAt,
+    correlationId: record.correlationId, repeatable: !record.redacted && status === "executed",
+  };
 }
 
 function sameTypedIntent(left: unknown, right: unknown): boolean {
@@ -1427,6 +1452,24 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         createdAt: new Date().toISOString(),
         redact: sensitive,
       });
+    }
+  },
+
+  async listCommandHistory(ctx) {
+    try {
+      return await historyBase(ctx);
+    } catch (error) {
+      // Without a commands adapter the Control API executes commands itself and keeps their history locally.
+      if (!isAdapterError(error) || error.code !== "CAPABILITY_MISSING") throw error;
+      const limit = Math.min(Math.max(Number(ctx.query.limit) || 50, 1), 200);
+      const items = ctx.runtime.stores.commands.recent(limit).flatMap((record) => {
+        const entry = historyEntry(record);
+        return entry ? [entry] : [];
+      });
+      const asOf = new Date(ctx.runtime.nowMs()).toISOString();
+      return { status: 200, body: { contractVersion: CONTRACT_VERSION, items,
+        pageInfo: { nextCursor: null, hasNextPage: false, totalCount: items.length },
+        freshness: { state: "fresh", asOf }, sources: items.length ? [items[0]!.source] : [] } };
     }
   },
 

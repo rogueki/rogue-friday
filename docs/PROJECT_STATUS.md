@@ -1911,6 +1911,29 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   `friday-watchdog.ps1`: Port offen + HTTP ohne Antwort = Hänger; nach 5 min werden genau die Prozesse dieses Dienstes
   beendet und die Aufgabe neu gestartet (Stop-Flag, Installer und Backoff gelten weiter).
 - Tests: `test/log-sinks.test.ts` (rot ohne Fix), `watchdog-hermes.Tests.ps1` 21 Prüfungen (rot ohne Fix).
+## Übersicht ohne „Nicht verbunden“ für Kalender, Meldungen, Schnellbefehle (2026-11-02)
+
+- Echter Befund (Live): Mission-Timeline, „Meldungen & Alarme“ und „Termine heute“ zeigten „Nicht verbunden“, obwohl
+  Friday einen eigenen Kalender, eigene Meldungen und Freigaben hat. Ursachen: Die Übersicht las den Kalender nur über
+  den Adapter-Port; ein fehlender Mail-Adapter machte das ganze Live-Intelligenz-Panel „nicht verbunden“; nicht
+  eingerichtete Module tauchten als „eingeschränkt“ in „Aufmerksamkeit“ auf; `capabilities()` meldete Kalender,
+  Meldungen und Freigaben ohne Adapter als nicht verfügbar.
+- Fix: `NativeSources.upcomingEvents` (lokaler Kalender) per `withNative`; nicht eingerichtete Module erscheinen nicht
+  mehr in „Aufmerksamkeit“; Schnellbefehle ohne Adapter folgen dem Capability-Flag; im Live-/Hybridbetrieb sind
+  `calendar.read`, `notifications.read/acknowledge/snooze/resolve` und `approvals.read` gesetzt (native Dienste).
+  Web: ein nicht eingerichtetes Nebenmodul blendet ein Panel nicht mehr aus, nur das Hauptmodul des Panels.
+- Tests: `test/overview-native-live.test.ts` (frische Live-Installation ohne Adapter, rot ohne Fix),
+  `useOverviewPanel.test.ts` (rot ohne Fix).
+
+## Audit, Freigabe-Entscheidung, Befehlsverlauf und Stopp ohne Adapter (2026-11-02)
+
+- Befund (Bestandsaufnahme einer frischen Live-Installation): Audit-Export und Hash-Kette, Genehmigen/Ablehnen von
+  Fridays eigenen Freigaben, Befehlsverlauf sowie Stopp/Pause/Fortsetzen meldeten „nicht verfügbar“, obwohl die
+  Control API alles selbst bedient (Audit-Trail, `NativeApprovalRequests`, `CommandHistoryStore`, Sprachdienst).
+- Fix: Live/Hybrid setzt `audit.read/export/hashChain`, `approvals.decide`, `commands.history` und mit dem Live-Sprachdienst
+  `commands.stop/pause/resume`. `listCommandHistory` liest ohne Commands-Adapter aus dem lokalen Verlauf; Stopp/Pause mit
+  `scope: all` liefert ohne Commands-Adapter das Ergebnis des Sprachdienstes statt `CAPABILITY_MISSING`.
+- Tests: `test/overview-native-live.test.ts` (2. Fall), verwandte Control-API-Suiten (23 Dateien, 210 Tests) grün.
 ## Dashboard: Gedächtnis ab Werk verbunden – eingebauter Obsidian-Adapter (2026-11-02)
 
 - Echter Befund auf der Live-Installation: Gedächtnis-Seite, Übersicht „Gedächtnis-Einblicke“ und AI-Core-Kachel zeigten
