@@ -57,7 +57,9 @@ describe("real adapters behind the Control API (live)", () => {
     expect(byCategory.automations?.manifest.id).toBe("hermes-automations");
     expect(byCategory.voice?.manifest.id).toBe("friday-voice-http");
     expect(byCategory.system?.manifest.id).toBe("local-system");
-    for (const category of ["memory", "approvals", "communication", "calendar", "research", "files", "notifications", "audit", "commands"]) {
+    // Memory is built in: the Obsidian archive needs no adapter configuration.
+    expect(byCategory.memory?.manifest.id).toBe("friday-memory");
+    for (const category of ["approvals", "communication", "calendar", "research", "files", "notifications", "audit", "commands"]) {
       expect(byCategory[category], category).toBeUndefined();
     }
     for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
@@ -111,7 +113,9 @@ describe("real adapters behind the Control API (live)", () => {
     await expect
       .poll(async () => {
         const items = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string }; health: { status: string } }>;
-        return items.filter((entry) => entry.health.status !== "online").map((entry) => entry.manifest.id);
+        // The built-in memory adapter has no Obsidian vault in this fixture and is honestly offline throughout.
+        return items.filter((entry) => entry.health.status !== "online" && entry.manifest.id !== "friday-memory")
+          .map((entry) => entry.manifest.id);
       }, { timeout: 8000 })
       .toEqual(["friday-voice-http"]);
     const services = (await owner.get("/api/v1/system/services")).json().items as Array<{ name: string; status: string }>;
@@ -200,6 +204,7 @@ describe("allowlist wiring", () => {
         "activity:hermes-activity",
         "agents:hermes-agents",
         "automations:hermes-automations",
+        "memory:friday-memory",
         "system:local-system",
         "tasks:hermes-tasks",
         "voice:friday-voice-http",
