@@ -1899,3 +1899,25 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   Watchdog hielt den Sprachdienst deshalb gestoppt. Marker gesichert und entfernt, Dienst läuft (Qwen-Backend).
   Offen: Updater/Watchdog sollen einen verwaisten Stopp-Marker selbst aufräumen.
 
+  -> Erledigt in #210 (Watchdog entfernt Stopp-Marker älter als 10 min, wenn kein Installer läuft).
+
+## Nächtliches Backup, Panel-Knöpfe (2026-11-02, #210/#211)
+
+- #210: `system-backup.ts` überspringt fehlende abgeleitete Wake-Dateien (`speaker_profile`, `personal_wake_model`,
+  `wake_verifier`); das Backup scheiterte live jede Nacht an `hey_jarvis_owner_verifier.joblib`, das nur das alte
+  Training erzeugt. Fehlende gewählte Stimmreferenz bricht weiterhin ab. Test rot ohne Fix.
+- #211: „Erneut versuchen“ und „Adapter konfigurieren“ bei „Nicht verbunden“ stehen gemeinsam in der Fußzeile
+  (`.web-panel-actions`) statt überlappend in Body und Fußzeile.
+- Live-Update auf 1896fb77 verifiziert: Dashboard/Health 0,002 s, keine Warnungen seit Neustart, kein Stopp-Marker.
+
+## Sprachdienst folgt dem Windows-Standardgerät (2026-11-02)
+
+- Echter Befund: Nach dem Live-Update hörte der Sprachdienst auf dem Laptop-Mikrofonarray, Windows-Standard war aber
+  das Bluetooth-Headset (soundcore). Pegel 0,0 – „Hey Kira“ und der Sprach-Knopf endeten stumm mit `too_short`.
+  Ursache: PortAudio friert den Standard beim Start ein; der Watchdog-Thread reagierte nur auf ausgefallene Streams.
+- Fix: `audio_devices.windows_default_endpoints()` liest die Standard-Endpunkte direkt über den Core-Audio-
+  Enumerator (ctypes/COM, kein Zusatzpaket). Bei „Windows-Standard“ wechselt `_audio_device_watcher` nach einer
+  Standardänderung im Leerlauf auf das neue Gerät (`audio_default_changed`); während eines Gesprächs erst danach.
+  Explizit gewählte Geräte bleiben unberührt.
+- Tests: `test_audio_hotplug.py` (+3, zwei rot ohne Fix), echter COM-Aufruf liefert die Endpunkt-IDs. Voice-Suite
+  lokal 524 grün; die 4 `test_fast_tts_voice_slots`-Fehler bestehen identisch auf `main` (lokale Umgebung).

@@ -1229,8 +1229,9 @@ class VoiceService:
                 pass  # A disconnected endpoint may already be stopped or closed by PortAudio.
 
     def _audio_device_watcher(self) -> None:
-        from audio_devices import inventory, refresh
+        from audio_devices import inventory, refresh, windows_default_endpoints
         missing = False
+        known_defaults = windows_default_endpoints()
         while True:
             time.sleep(2)
             if self.audio_transport != "device":
@@ -1241,6 +1242,21 @@ class VoiceService:
                     stream = self.input_stream
                     quiet = time.monotonic() - getattr(self, "last_audio_callback", time.monotonic())
                     if stream is not None and getattr(stream, "active", True) and quiet <= AUDIO_STALL_S:
+                        # "Windows-Standard" must follow a headset that becomes the default after the start; otherwise
+                        # the service keeps listening to the laptop microphone and never hears the owner (2026-11-02).
+                        if all(selected):
+                            continue
+                        defaults = windows_default_endpoints()
+                        if defaults is None or defaults == known_defaults:
+                            continue
+                        if (self.processing or self.tts.speaking.is_set()
+                                or self.status.get("state") not in ("listening", "wake_only")):
+                            continue  # switch once the current interaction is over
+                        log_event(event="audio_default_changed")
+                        known_defaults = defaults  # a failed switch falls through to the lost-device recovery below
+                        self._close_input_stream()
+                        refresh(sd)
+                        self.apply_audio(*selected)
                         continue
                     self._mark_audio_lost("stalled")
                     missing = True
