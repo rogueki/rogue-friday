@@ -46,6 +46,8 @@ export async function applyVoiceAudio(runtime: Runtime, input: string | null, ou
   }
   if (response.status === 409) throw validationFailed("Ausgewähltes Audiogerät ist nicht verfügbar. Bitte Gerät neu suchen.");
   if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "Friday ist gerade beschäftigt. Nach der Antwort erneut speichern." });
+  if (response.status === 503) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", retryable: true,
+    message: "Audiogerät ließ sich nicht öffnen. Ein Bluetooth-Headset braucht nach dem Verbinden einige Sekunden – bitte erneut speichern." });
   if (!response.ok) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Audiogerät wurde nicht bestätigt." });
   const acknowledgement: unknown = await response.json().catch(() => null);
   const ack = acknowledgement as Record<string, unknown> | null;

@@ -86,6 +86,8 @@ STT_PREFLIGHT_TIMEOUT = 45
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 # An input stream that delivers no block for this long has lost its device (unplugged endpoints stop the callback).
 AUDIO_STALL_S = 3.0
+# A freshly opened stream may stay silent while Windows switches a Bluetooth headset to its hands-free profile.
+AUDIO_OPEN_GRACE_S = 6.0
 VAD_FRAME = 512
 LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
 
@@ -723,6 +725,10 @@ class VoiceService:
         self.user_speaking = threading.Event()
         self.ptt_active = False
         self.manual_start_lock = threading.Lock()
+        # Serialises every stream open/close and PortAudio re-initialisation: a re-init from the device watcher while
+        # a dashboard switch opens a stream corrupts the native heap and kills the process (0xC0000374, 2026-11-02).
+        # Lock order: audio_lock before manual_start_lock.
+        self.audio_lock = threading.RLock()
         self.wake_model_lock = threading.Lock()
         self.wake_enrollment = WakeEnrollment(INSTALL_ROOT, STATE_ROOT)
         self.stt_models = SttModels(os.path.join(STATE_ROOT, "models", "whisper"),
@@ -1152,6 +1158,16 @@ class VoiceService:
                 return False
 
     def apply_audio(self, input_id, output_id) -> dict:
+        with self._audio_mutex():
+            return self._apply_audio_locked(input_id, output_id)
+
+    def _audio_mutex(self):
+        lock = self.__dict__.get("audio_lock")
+        if lock is None:
+            lock = self.__dict__.setdefault("audio_lock", threading.RLock())
+        return lock
+
+    def _apply_audio_locked(self, input_id, output_id) -> dict:
         if self.audio_transport != "device":
             raise ValueError("Browser-Audio wird im Browser ausgewaehlt")
         from audio_devices import resolve
@@ -1186,6 +1202,7 @@ class VoiceService:
                 stream = sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
                                         device=selected_input, callback=self._on_audio)
                 stream.start()
+                self.audio_stream_opened_at = time.monotonic()
                 self.input_stream = stream
                 self.tts.output_device = selected_output
                 updated = {**previous_cfg, "input_device_id": input_id, "output_device_id": output_id,
@@ -1218,6 +1235,7 @@ class VoiceService:
                     rollback = sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
                                               device=rollback_device, callback=self._on_audio)
                     rollback.start()
+                    self.audio_stream_opened_at = time.monotonic()
                     self.input_stream = rollback
                 except Exception as recovery:
                     self.audio_error = f"Audiogeraet und Rueckkehr fehlgeschlagen: {type(recovery).__name__}"
@@ -1244,53 +1262,57 @@ class VoiceService:
             time.sleep(2)
             if self.audio_transport != "device":
                 return
-            try:
-                selected = (self.cfg.get("input_device_id"), self.cfg.get("output_device_id"))
-                if not missing:
-                    stream = self.input_stream
-                    quiet = time.monotonic() - getattr(self, "last_audio_callback", time.monotonic())
-                    if stream is not None and getattr(stream, "active", True) and quiet <= AUDIO_STALL_S:
-                        # "Windows-Standard" must follow a headset that becomes the default after the start; otherwise
-                        # the service keeps listening to the laptop microphone and never hears the owner (2026-11-02).
-                        if all(selected):
+            with self._audio_mutex():
+                try:
+                    selected = (self.cfg.get("input_device_id"), self.cfg.get("output_device_id"))
+                    if not missing:
+                        stream = self.input_stream
+                        now = time.monotonic()
+                        last = max(getattr(self, "last_audio_callback", now),
+                                   getattr(self, "audio_stream_opened_at", 0.0) + AUDIO_OPEN_GRACE_S)
+                        quiet = now - last
+                        if stream is not None and getattr(stream, "active", True) and quiet <= AUDIO_STALL_S:
+                            # "Windows-Standard" must follow a headset that becomes the default after the start; otherwise
+                            # the service keeps listening to the laptop microphone and never hears the owner (2026-11-02).
+                            if all(selected):
+                                continue
+                            defaults = windows_default_endpoints()
+                            if defaults is None or defaults == known_defaults:
+                                continue
+                            if (self.processing or self.tts.speaking.is_set()
+                                    or self.status.get("state") not in ("listening", "wake_only")):
+                                continue  # switch once the current interaction is over
+                            log_event(event="audio_default_changed")
+                            known_defaults = defaults  # a failed switch falls through to the lost-device recovery below
+                            self._close_input_stream()
+                            refresh(sd)
+                            self.apply_audio(*selected)
                             continue
-                        defaults = windows_default_endpoints()
-                        if defaults is None or defaults == known_defaults:
-                            continue
-                        if (self.processing or self.tts.speaking.is_set()
-                                or self.status.get("state") not in ("listening", "wake_only")):
-                            continue  # switch once the current interaction is over
-                        log_event(event="audio_default_changed")
-                        known_defaults = defaults  # a failed switch falls through to the lost-device recovery below
-                        self._close_input_stream()
-                        refresh(sd)
-                        self.apply_audio(*selected)
+                        self._mark_audio_lost("stalled")
+                        missing = True
+                    if self.processing or self.tts.speaking.is_set():
                         continue
-                    self._mark_audio_lost("stalled")
+                    # The device list is frozen at PortAudio start: re-enumerate with every stream closed.
+                    self._close_input_stream()
+                    refresh(sd)
+                    available = {item["id"] for item in inventory(sd)}
+                    absent = [item for item in selected if item and item not in available]
+                    if absent:
+                        self.audio_input_device_id = None if selected[0] in absent else self.audio_input_device_id
+                        self.audio_output_device_id = None if selected[1] in absent else self.audio_output_device_id
+                        continue
+                    self.apply_audio(*selected)
+                    missing = False
+                    log_event(event="audio_device_restored")
+                except Exception as exc:
+                    error = f"Audiogeraetepruefung fehlgeschlagen: {type(exc).__name__}"
+                    if error != self.audio_error:
+                        log_event(event="audio_device_check_failed", error=type(exc).__name__)
+                    if not missing:
+                        self.cancel_active_interaction()
                     missing = True
-                if self.processing or self.tts.speaking.is_set():
-                    continue
-                # The device list is frozen at PortAudio start: re-enumerate with every stream closed.
-                self._close_input_stream()
-                refresh(sd)
-                available = {item["id"] for item in inventory(sd)}
-                absent = [item for item in selected if item and item not in available]
-                if absent:
-                    self.audio_input_device_id = None if selected[0] in absent else self.audio_input_device_id
-                    self.audio_output_device_id = None if selected[1] in absent else self.audio_output_device_id
-                    continue
-                self.apply_audio(*selected)
-                missing = False
-                log_event(event="audio_device_restored")
-            except Exception as exc:
-                error = f"Audiogeraetepruefung fehlgeschlagen: {type(exc).__name__}"
-                if error != self.audio_error:
-                    log_event(event="audio_device_check_failed", error=type(exc).__name__)
-                if not missing:
-                    self.cancel_active_interaction()
-                missing = True
-                self.audio_error = error
-                self.status["state"] = "waiting_audio"
+                    self.audio_error = error
+                    self.status["state"] = "waiting_audio"
 
     def _mark_audio_lost(self, reason: str) -> None:
         self.cancel_active_interaction()

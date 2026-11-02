@@ -32,3 +32,8 @@ it("rejects mismatched live read-back and remote key destinations", async () => 
   await expect(applyVoiceAudio(runtime("https://example.com:43794"), null, null)).rejects.toThrow("Ungültige");
   expect(send).toHaveBeenCalledTimes(2);
 });
+
+it("explains a device that cannot be opened yet instead of an unconfirmed switch", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Audio device unavailable: PortAudioError", { status: 503 }));
+  await expect(applyVoiceAudio(runtime(), null, null)).rejects.toThrow("erneut speichern");
+});

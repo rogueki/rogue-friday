@@ -282,3 +282,36 @@ class AudioHotplugTests(unittest.TestCase):
         self.assertIs(self.service.input_stream, original)
         self.assertEqual(self.sd._terminate.call_count, 0)
         self.assertLessEqual(query.call_count, 1)
+
+
+    def test_fresh_stream_gets_a_grace_period_before_it_counts_as_stalled(self):
+        # A Bluetooth headset switching to its hands-free profile delivers no block for a few seconds after opening.
+        self.service.last_audio_callback = time.monotonic() - 10
+        self.service.audio_stream_opened_at = time.monotonic()
+        original = self.service.input_stream
+        events = self.watch(2)
+        self.assertNotIn("audio_device_lost", events)
+        self.assertIs(self.service.input_stream, original)
+        self.assertEqual(self.sd._terminate.call_count, 0)
+
+    def test_watcher_never_reinitialises_portaudio_during_a_running_switch(self):
+        # A PortAudio re-init while the dashboard switch opens a stream crashed the service (0xC0000374, 2026-11-02).
+        self.service.last_audio_callback = time.monotonic() - 10
+        outcome = {}
+
+        def run():
+            try:
+                outcome["events"] = self.watch(3)
+            except BaseException as exc:  # surfaced by the assertion below
+                outcome["error"] = exc
+
+        with self.service._audio_mutex():
+            worker = threading.Thread(target=run, daemon=True)
+            worker.start()
+            threading.Event().wait(0.3)  # time.sleep is patched by watch()
+            self.assertEqual(self.sd._terminate.call_count, 0)
+            self.assertEqual(self.created, [])
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertNotIn("error", outcome)
+        self.assertGreaterEqual(self.sd._terminate.call_count, 1)
