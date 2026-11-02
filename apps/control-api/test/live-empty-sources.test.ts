@@ -54,8 +54,9 @@ describe("live runtime with empty real sources", () => {
     expect(login.statusCode, login.body).toBe(200);
 
     const entries = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string; category: string } }>;
-    // Memory is built in (Obsidian archive), so it is listed without any adapter configuration.
-    expect(entries.map((entry) => `${entry.manifest.category}:${entry.manifest.id}`).sort()).toEqual(["memory:friday-memory", "tasks:hermes-tasks"]);
+    // Memory (Obsidian archive) and files (generated output) are built in, so they are listed without any adapter configuration.
+    expect(entries.map((entry) => `${entry.manifest.category}:${entry.manifest.id}`).sort())
+      .toEqual(["files:friday-files", "memory:friday-memory", "tasks:hermes-tasks"]);
     expect(entries.some((entry) => entry.manifest.id.startsWith("mock-"))).toBe(false);
 
     const health = (await owner.get("/api/v1/health")).json();
@@ -88,6 +89,6 @@ describe("live runtime with empty real sources", () => {
     const automations = await owner.get("/api/v1/automations");
     expect(automations.statusCode).toBeGreaterThanOrEqual(400);
     const entries = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string } }>;
-    expect(entries.map((entry) => entry.manifest.id).sort()).toEqual(["friday-memory", "hermes-tasks"]);
+    expect(entries.map((entry) => entry.manifest.id).sort()).toEqual(["friday-files", "friday-memory", "hermes-tasks"]);
   }, 30000);
 });
