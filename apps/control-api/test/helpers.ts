@@ -10,6 +10,9 @@ import type { ResponseValidationMode } from "../src/runtime/types";
 import type { ResearchSetupProbe, ResearchSetupRun } from "../src/services/research-setup";
 import { simulation } from "../test-support/simulation";
 
+// Belt and braces next to the vitest setup files: a runtime started from here must never reach the owner's real vault.
+for (const name of ["FRIDAY_OBSIDIAN_VAULT", "FRIDAY_INSTALL_ROOT", "FRIDAY_CONFIG_DIR", "FRIDAY_STATE_ROOT"]) delete process.env[name];
+
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
   researchPageFetch?: (url: string) => Promise<string>;
