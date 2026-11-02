@@ -2091,3 +2091,25 @@ ogue-friday\installer  voice_modelsriday_ref.wav (Datei nicht gefunden)“, obw
   ⇒ kein Schreibzugriff).
 - Test: `durable-memory.test.ts` „reindex“ (300 Notizen: zweiter Lauf 0 Änderungen, 200 entfernte Notizen < 2 s), rot ohne Fix
   (300 Änderungen). Live per Hotpatch des Bundles eingespielt (Backup `main.js.bak-20261102-reindex`).
+
+## Sprachdienst: Absturz beim Umschalten auf ein Bluetooth-Headset (2026-11-02)
+
+- Symptom (live): Speichern von „soundcore R50i (Bluetooth Hands-Free)“ in den Einstellungen meldete „Audiogerät wurde
+  nicht bestätigt.“; `voice-service.log` zeigt `beendet (Code -1073740940)` = 0xC0000374 (Heap-Beschädigung in PortAudio).
+- Ursache: Der Geräte-Watcher (`_audio_device_watcher`) schloss Streams und initialisierte PortAudio neu (`refresh(sd)`),
+  ohne Sperre, während `apply_audio` aus dem Dashboard gleichzeitig Streams öffnete. Ausgelöst wurde das, weil der frisch
+  geöffnete Bluetooth-Stream beim Profilwechsel auf Hands-Free einige Sekunden keine Blöcke liefert und sofort als
+  „stalled“ galt.
+- Fix: `VoiceService.audio_lock` (RLock) serialisiert `apply_audio` und jeden Watcher-Durchlauf (Lock-Reihenfolge:
+  audio_lock vor manual_start_lock); neue Streams bekommen `AUDIO_OPEN_GRACE_S = 6 s` Schonfrist vor der Stall-Erkennung.
+  Control API meldet 503 vom Sprachdienst jetzt verständlich („bitte erneut speichern“).
+- Tests: `installer/voice/tests/test_audio_hotplug.py` (2 neue, rot ohne Fix), `voice-audio.test.ts` (503-Meldung).
+- Zweiter Absturzweg (07:39, live, ohne Umschalten): Nach der Äußerung startet die Rückmelde-Wiedergabe, das
+  Bluetooth-Headset wechselt das Profil, das Mikrofon pausiert > 3 s → „stalled“ → `cancel_active_interaction()` löscht
+  `processing`/`speaking`, obwohl der TTS-OutputStream noch offen ist → 2 s später `refresh(sd)` → 0xC0000374 in ntdll
+  (Windows-Ereignis 1000, jeweils ~2 s nach „stalled“). Fix: modulweites `AUDIO_LOCK`; jeder Ausgabestream läuft über
+  `output_stream()` (unter Lock geöffnet, gezählt); der Watcher initialisiert nie, solange ein Ausgabestream offen ist,
+  und wertet Mikrofonpausen während Wiedergabe sowie 6 s nach Start/Ende einer Wiedergabe nicht als Geräteverlust.
+  `faulthandler` schreibt künftige native Abstürze mit allen Thread-Stacks nach `logs/voice-crash.log`.
+- Hinweis: Die Hands-Free-Einträge („… (Bluetooth Hands-Free)“) laufen über WDM-KS (`bthhfenum.sys`), in PortAudio mit
+  Bluetooth fragil; empfohlen ist „Kopfhörer (soundcore R50i)“ bzw. Windows-Standard.
