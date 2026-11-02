@@ -119,6 +119,11 @@ export interface AdapterWiringOptions {
   secrets: RuntimeSecrets;
   env: NodeJS.ProcessEnv;
   healthIntervalMs?: number;
+  /**
+   * In-process adapters of the Control API itself (no package, no allowlist entry). Each one serves its category only
+   * while the configuration leaves that category empty and the data mode is not mock; a configured adapter always wins.
+   */
+  builtins?: readonly AdapterFactory[];
 }
 
 export interface AdapterWiring {
@@ -169,6 +174,14 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
     else logger.warn("Provider ist in der Allowlist, aber nicht im Build enthalten", { providerId, packageName });
   }
 
+  const builtinByCategory = new Map<AdapterCategory, AdapterFactory>();
+  if (config.dataMode !== "mock") {
+    for (const factory of options.builtins ?? []) {
+      builtinByCategory.set(factory.category, factory);
+      factories.set(factory.providerId, factory);
+    }
+  }
+
   const entries = new Map<AdapterCategory, AdapterEntryConfig>();
   const secretRefs = new Map<AdapterCategory, Readonly<Record<string, SecretRefState>>>();
   const resolvedByCategory = new Map<AdapterCategory, ResolvedAdapterConfig>();
@@ -176,7 +189,23 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
 
   for (const [category, resolved] of Object.entries(config.adapters) as Array<[AdapterCategory, ResolvedAdapterConfig]>) {
     resolvedByCategory.set(category, resolved);
-    if (resolved.provider === null) continue; // live mode, category not configured: no adapter at all
+    if (resolved.provider === null) {
+      const builtin = builtinByCategory.get(category);
+      if (!builtin) continue; // category not configured and nothing built in: no adapter at all
+      const saved = savedOverrides.get(category);
+      entries.set(category, {
+        provider: builtin.providerId,
+        // Only a choice saved for this very adapter applies, not an override left by an earlier configured adapter.
+        enabled: saved?.provider === builtin.providerId ? saved.enabled ?? true : true,
+        config: {},
+        timeoutMs: resolved.timeoutMs,
+        // In-process reads have no transport to retry and no upstream a breaker would protect.
+        retry: false,
+        circuitBreaker: false,
+      });
+      secretRefs.set(category, {});
+      continue;
+    }
     const saved = savedOverrides.get(category);
     const { values, refs } = splitConfig(resolved.config);
     const mock = isMockProvider(resolved.provider);
@@ -216,7 +245,7 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
   };
 
   const registry = new AdapterRegistry({
-    allowlist: Object.keys(config.allowlist),
+    allowlist: [...Object.keys(config.allowlist), ...[...builtinByCategory.values()].map((factory) => factory.providerId)],
     logger: logger as unknown as AdapterLogger,
     secretProvider,
     onEvent: ({ adapterId, event }) => {
